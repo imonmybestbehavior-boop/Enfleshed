@@ -1,0 +1,55 @@
+--!strict
+
+return {
+	Movement = {
+		WalkSpeed = 16,
+		SprintSpeed = 25,
+		DashDistance = 14,
+		DashDuration = 0.18,
+		DashCooldown = 1.1,
+		DashCollisionSize = Vector3.new(2, 3, 2),
+		WallPadding = 0.25,
+		DirectionEpsilon = 0.01,
+		ValidationInterval = 0.25,
+		PositionTolerance = 5,
+		DashReplicationGrace = 0.25,
+		CorrectionOwnershipTime = 0.2,
+	},
+	Combat = {
+		ComboReset = 0.85,
+		InputBuffer = 0.18,
+		MinimumFacingDot = 0,
+		Attacks = {
+			{
+				Startup = 0.08,
+				Active = 0.12,
+				Recovery = 0.18,
+				Damage = 10,
+				Size = Vector3.new(5, 5, 5),
+				Offset = 3,
+				Reach = 6,
+			},
+			{
+				Startup = 0.09,
+				Active = 0.12,
+				Recovery = 0.18,
+				Damage = 12,
+				Size = Vector3.new(5, 5, 5),
+				Offset = 3,
+				Reach = 6,
+			},
+			{
+				Startup = 0.12,
+				Active = 0.14,
+				Recovery = 0.28,
+				Damage = 18,
+				Size = Vector3.new(6, 5, 5),
+				Offset = 3,
+				Reach = 6.5,
+			},
+		},
+	},
+	Networking = { RequestsPerSecond = 20, Burst = 30, MaxSequence = 2147483647 },
+	Dummy = { Health = 100, Position = Vector3.new(0, 3, -18), ResetDelay = 2 },
+	Debug = { HitDuration = 0.65, SwingTransparency = 0.8 },
+}

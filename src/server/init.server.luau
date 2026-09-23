@@ -1,4 +1,7 @@
 --!strict
 
--- Server entry point for Enfleshed.
--- Explicitly require and start authoritative services here when systems are introduced.
+local Sandbox = require(script.Services.SandboxService)
+local ActionRouter = require(script.Networking.ActionRouter)
+
+Sandbox.start()
+ActionRouter.start()

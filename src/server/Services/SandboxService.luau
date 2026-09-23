@@ -1,0 +1,76 @@
+--!strict
+
+local Config = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared").Configuration.Sandbox)
+local Sandbox = {}
+
+function Sandbox.start()
+	local spawn = Instance.new("SpawnLocation")
+	spawn.Name = "SandboxSpawn"
+	spawn.Size = Vector3.new(6, 1, 6)
+	spawn.Position = Vector3.new(0, 0.5, 8)
+	spawn.Anchored = true
+	spawn.Neutral = true
+	spawn.Duration = 0
+	spawn.Parent = workspace
+
+	local function createDummy()
+		local model = Instance.new("Model")
+		model.Name = "TargetDummy"
+		local root = Instance.new("Part")
+		root.Name = "HumanoidRootPart"
+		root.Size = Vector3.new(2, 2, 1)
+		root.Transparency = 1
+		root.CanCollide = false
+		root.Anchored = true
+		root.Position = Config.Dummy.Position
+		root.Parent = model
+		local body = Instance.new("Part")
+		body.Name = "Torso"
+		body.Size = Vector3.new(3, 4, 2)
+		body.Position = Config.Dummy.Position
+		body.Anchored = true
+		body.Color = Color3.fromRGB(175, 95, 85)
+		body.Parent = model
+		local head = Instance.new("Part")
+		head.Name = "Head"
+		head.Size = Vector3.new(2, 2, 2)
+		head.Position = Config.Dummy.Position + Vector3.new(0, 3, 0)
+		head.Anchored = true
+		head.Parent = model
+		local humanoid = Instance.new("Humanoid")
+		humanoid.RequiresNeck = false
+		humanoid.BreakJointsOnDeath = false
+		humanoid.MaxHealth = Config.Dummy.Health
+		humanoid.Health = Config.Dummy.Health
+		humanoid.DisplayDistanceType = Enum.HumanoidDisplayDistanceType.None
+		humanoid.Parent = model
+		model.PrimaryPart = root
+		local gui = Instance.new("BillboardGui")
+		gui.Size = UDim2.fromOffset(180, 40)
+		gui.StudsOffset = Vector3.new(0, 2, 0)
+		gui.AlwaysOnTop = true
+		gui.Parent = head
+		local label = Instance.new("TextLabel")
+		label.Size = UDim2.fromScale(1, 1)
+		label.BackgroundTransparency = 1
+		label.TextColor3 = Color3.new(1, 1, 1)
+		label.TextStrokeTransparency = 0
+		label.TextSize = 18
+		label.Parent = gui
+		local function update()
+			label.Text = string.format("Dummy  %d / %d", humanoid.Health, humanoid.MaxHealth)
+		end
+		update()
+		humanoid.HealthChanged:Connect(update)
+		humanoid.Died:Once(function()
+			task.delay(Config.Dummy.ResetDelay, function()
+				model:Destroy()
+				createDummy()
+			end)
+		end)
+		model.Parent = workspace
+	end
+	createDummy()
+end
+
+return Sandbox
