@@ -50,7 +50,9 @@ function Combat.update(player: Player, state: Types.PlayerState, now: number, fe
 		state.HitTargets[target] = true
 		local amount = Damage.apply(state.Character, target, attack.Damage)
 		if amount > 0 then
-			Enemy.onLightHit(target)
+			-- Only the recruit finisher is significant. Ordinary lights damage a
+			-- Nascent without stopping its committed pressure.
+			Enemy.onHit(target, if state.Combo == #Config.Combat.Attacks then "Significant" else "Minor")
 			local hit: Types.HitResult = { Target = target.Parent :: Model, Damage = amount, Health = target.Health }
 			feedback:FireClient(player, {
 				Kind = "Hit",

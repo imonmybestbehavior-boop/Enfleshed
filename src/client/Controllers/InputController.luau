@@ -7,10 +7,13 @@ local Input = {}
 function Input.start(
 	sprint: (boolean) -> (),
 	dash: () -> (),
-	magicStart: (string) -> (),
+	magicStart: (string, boolean?) -> (),
 	magicRelease: () -> (),
 	useEquipment: (string) -> (),
-	switchEquipment: () -> ()
+	switchEquipment: () -> (),
+	cycleGenerated: () -> (),
+	startGenerated: () -> (),
+	releaseGenerated: () -> ()
 )
 	ContextActionService:BindAction("SandboxSprint", function(_, state)
 		if state == Enum.UserInputState.End or state == Enum.UserInputState.Cancel then
@@ -44,13 +47,23 @@ function Input.start(
 		end
 		return Enum.ContextActionResult.Sink
 	end, false, Enum.KeyCode.E)
-	for spellId, key in { Fireball = Enum.KeyCode.One, BodyBurst = Enum.KeyCode.Two, StoneShot = Enum.KeyCode.Three } do
+	for spellId, key in
+		{
+			Fireball = Enum.KeyCode.One,
+			BodyBurst = Enum.KeyCode.Two,
+			StoneShot = Enum.KeyCode.Three,
+			LightningLance = Enum.KeyCode.Four,
+			BurningGround = Enum.KeyCode.Five,
+			BodyReinforcement = Enum.KeyCode.Six,
+			StoneRaise = Enum.KeyCode.Seven,
+		}
+	do
 		ContextActionService:BindAction("Sandbox" .. spellId, function(_, state)
 			if UserInputService:GetFocusedTextBox() then
 				return Enum.ContextActionResult.Sink
 			end
 			if state == Enum.UserInputState.Begin then
-				magicStart(spellId)
+				magicStart(spellId, spellId == "StoneShot")
 			elseif
 				spellId == "StoneShot" and (state == Enum.UserInputState.End or state == Enum.UserInputState.Cancel)
 			then
@@ -59,6 +72,23 @@ function Input.start(
 			return Enum.ContextActionResult.Sink
 		end, false, key)
 	end
+	ContextActionService:BindAction("SandboxGeneratedCycle", function(_, state)
+		if state == Enum.UserInputState.Begin and not UserInputService:GetFocusedTextBox() then
+			cycleGenerated()
+		end
+		return Enum.ContextActionResult.Sink
+	end, false, Enum.KeyCode.F)
+	ContextActionService:BindAction("SandboxGeneratedCast", function(_, state)
+		if UserInputService:GetFocusedTextBox() then
+			return Enum.ContextActionResult.Sink
+		end
+		if state == Enum.UserInputState.Begin then
+			startGenerated()
+		elseif state == Enum.UserInputState.End or state == Enum.UserInputState.Cancel then
+			releaseGenerated()
+		end
+		return Enum.ContextActionResult.Sink
+	end, false, Enum.KeyCode.R)
 	UserInputService.WindowFocusReleased:Connect(function()
 		sprint(false)
 	end)

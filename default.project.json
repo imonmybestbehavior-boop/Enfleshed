@@ -25,7 +25,10 @@
 
     "Workspace": {
       "$properties": {
-        "FilteringEnabled": true
+        "FilteringEnabled": true,
+        "StreamingEnabled": true,
+        "StreamingMinRadius": 256,
+        "StreamingTargetRadius": 768
       },
       "Baseplate": {
         "$className": "Part",
@@ -39,13 +42,13 @@
           "Locked": true,
           "Position": [
             0,
-            -10,
+            -90,
             0
           ],
           "Size": [
-            512,
+            6000,
             20,
-            512
+            8000
           ]
         }
       }

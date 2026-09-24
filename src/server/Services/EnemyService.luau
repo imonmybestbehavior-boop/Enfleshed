@@ -7,33 +7,42 @@ local Sandbox = require(Shared:WaitForChild("Configuration"):WaitForChild("Sandb
 local Config = Sandbox.Enemy
 local Damage = require(script.Parent.DamageService)
 local HitDetection = require(script.Parent.HitDetectionService)
+local AttackSelector = require(script.Parent.NascentAttackSelector)
 local Enemy = {}
-local lightHitReactions: { [Humanoid]: () -> () } = {}
+local hitReactions: { [Humanoid]: (string) -> () } = {}
 
 -- One synchronous reaction for this basic enemy; no status-effect bus or registry of effects.
 function Enemy.onLightHit(humanoid: Humanoid)
-	local react = lightHitReactions[humanoid]
+	local react = hitReactions[humanoid]
 	if react then
-		react()
+		react("Minor")
 	end
 end
 
-type State = "Idle" | "Chase" | "Telegraph" | "Attack" | "Recover" | "Flinch" | "Dead"
+function Enemy.onHit(humanoid: Humanoid, strength: string)
+	local react = hitReactions[humanoid]
+	if react then
+		react(strength)
+	end
+end
+
+type State = "Idle" | "Chase" | "Telegraph" | "Attack" | "Recover" | "Vulnerable" | "Flinch" | "Dead"
 
 -- One local placeholder rig, with no asset request, animation package, or spawn manager.
 local function createRig(
 	position: Vector3,
 	container: Folder,
 	collisionGroup: string
-): (Model, Humanoid, BasePart, TextLabel)
+): (Model, Humanoid, BasePart, TextLabel, (string, number) -> ())
 	local model = Instance.new("Model")
 	model.Name = "Stage1Enfleshed"
-	local function part(name: string, size: Vector3, offset: Vector3): Part
+	local function part(name: string, size: Vector3, offset: Vector3, color: Color3?): Part
 		local result = Instance.new("Part")
 		result.Name = name
 		result.Size = size
 		result.Position = position + offset
-		result.Color = Color3.fromRGB(130, 65, 70)
+		result.Color = color or Color3.fromRGB(130, 65, 70)
+		result.Material = Enum.Material.SmoothPlastic
 		result.CanCollide = false
 		result.CanTouch = false
 		result.Massless = name ~= "HumanoidRootPart"
@@ -43,22 +52,78 @@ local function createRig(
 	end
 	local root = part("HumanoidRootPart", Vector3.new(2, 2, 1), Vector3.zero)
 	root.Transparency = 1
-	local torso = part("Torso", Vector3.new(2, 2, 1), Vector3.zero)
-	local head = part("Head", Vector3.new(2, 1, 1), Vector3.new(0, 1.5, 0))
-	local function joint(name: string, parent: BasePart, limb: BasePart)
+	local torso = part("Torso", Vector3.new(3.2, 3.7, 1.75), Vector3.new(0, 0.3, 0), Color3.fromRGB(94, 42, 52))
+	local head = part("Head", Vector3.new(1.9, 2.15, 1.8), Vector3.new(-0.18, 2.75, -0.35), Color3.fromRGB(145, 72, 76))
+	head.Shape = Enum.PartType.Ball
+	local function joint(name: string, parent: BasePart, limb: BasePart): Motor6D
 		local motor = Instance.new("Motor6D")
 		motor.Name = name
 		motor.Part0 = parent
 		motor.Part1 = limb
 		motor.C0 = parent.CFrame:ToObjectSpace(limb.CFrame)
 		motor.Parent = parent
+		return motor
 	end
-	joint("RootJoint", root, torso)
-	joint("Neck", torso, head)
-	joint("Left Shoulder", torso, part("Left Arm", Vector3.new(1, 2, 1), Vector3.new(-1.5, 0, 0)))
-	joint("Right Shoulder", torso, part("Right Arm", Vector3.new(1, 2, 1), Vector3.new(1.5, 0, 0)))
-	joint("Left Hip", torso, part("Left Leg", Vector3.new(1, 2, 1), Vector3.new(-0.5, -2, 0)))
-	joint("Right Hip", torso, part("Right Leg", Vector3.new(1, 2, 1), Vector3.new(0.5, -2, 0)))
+	local rootJoint = joint("RootJoint", root, torso)
+	local neck = joint("Neck", torso, head)
+	local leftShoulder = joint(
+		"Left Shoulder",
+		torso,
+		part("Left Arm", Vector3.new(1.45, 3.7, 1.3), Vector3.new(-2.25, 0.05, -0.15), Color3.fromRGB(121, 55, 71))
+	)
+	local rightShoulder = joint(
+		"Right Shoulder",
+		torso,
+		part("Right Arm", Vector3.new(1.8, 4.5, 1.55), Vector3.new(2.4, -0.25, -0.5), Color3.fromRGB(151, 61, 67))
+	)
+	local leftHip = joint(
+		"Left Hip",
+		torso,
+		part("Left Leg", Vector3.new(1.2, 3, 1.2), Vector3.new(-0.65, -2.9, 0), Color3.fromRGB(90, 42, 55))
+	)
+	local rightHip = joint(
+		"Right Hip",
+		torso,
+		part("Right Leg", Vector3.new(1.2, 3, 1.2), Vector3.new(0.65, -2.9, 0), Color3.fromRGB(90, 42, 55))
+	)
+	-- The humanoid joints remain the animatable foundation. These welded growths
+	-- only distort the silhouette into an asymmetrical, once-human Nascent.
+	local function growth(name: string, size: Vector3, offset: CFrame, color: Color3, shape: Enum.PartType?)
+		local piece = part(name, size, Vector3.zero, color)
+		piece.Shape = shape or Enum.PartType.Block
+		piece.CFrame = torso.CFrame * offset
+		local weld = Instance.new("WeldConstraint")
+		weld.Part0 = torso
+		weld.Part1 = piece
+		weld.Parent = piece
+	end
+	growth(
+		"ShoulderGrowth",
+		Vector3.new(2.25, 1.45, 2.1),
+		CFrame.new(-1.35, 1.05, 0.15),
+		Color3.fromRGB(112, 49, 62),
+		Enum.PartType.Ball
+	)
+	growth(
+		"RibGrowth",
+		Vector3.new(1.15, 2.4, 0.75),
+		CFrame.new(1.5, -0.2, -0.6) * CFrame.Angles(0, 0, -0.35),
+		Color3.fromRGB(128, 57, 62)
+	)
+	growth(
+		"BackMass",
+		Vector3.new(2.4, 2.7, 1.25),
+		CFrame.new(0.5, 0.1, 1.1) * CFrame.Angles(0.2, 0.25, 0),
+		Color3.fromRGB(69, 31, 42),
+		Enum.PartType.Ball
+	)
+	growth(
+		"JawGrowth",
+		Vector3.new(1.4, 0.65, 1.1),
+		CFrame.new(-0.1, 1.45, -0.85),
+		Color3.fromRGB(173, 83, 83),
+		Enum.PartType.Ball
+	)
 	local hull = Instance.new("Part")
 	hull.Name = "CollisionHull"
 	hull.Shape = Enum.PartType.Cylinder
@@ -100,7 +165,85 @@ local function createRig(
 	label.Parent = gui
 	model.Parent = container
 	root:SetNetworkOwner(nil)
-	return model, humanoid, root, label
+	local function pose(
+		state: string,
+		now: number,
+		attack: string,
+		step: number,
+		desperate: boolean,
+		majorFlinch: boolean
+	)
+		local breath = math.sin(now * (if desperate then 6 else 3))
+		rootJoint.Transform = CFrame.new(0, breath * 0.055, 0.12) * CFrame.Angles(-0.16, 0, 0)
+		neck.Transform = CFrame.Angles(0.18, breath * 0.1, -0.08)
+		leftShoulder.Transform = CFrame.Angles(0.15, 0, 0.28)
+		rightShoulder.Transform = CFrame.Angles(0.32, 0, -0.34)
+		leftHip.Transform = CFrame.new()
+		rightHip.Transform = CFrame.new()
+		if state == "Chase" then
+			local stride = math.sin(now * (if desperate then 13 else 10)) * 0.72
+			rootJoint.Transform *= CFrame.Angles(-0.22, 0, 0)
+			leftShoulder.Transform = CFrame.Angles(stride + 0.35, 0, 0.35)
+			rightShoulder.Transform = CFrame.Angles(-stride - 0.6, 0, -0.52)
+			leftHip.Transform = CFrame.Angles(-stride, 0, 0)
+			rightHip.Transform = CFrame.Angles(stride, 0, 0)
+		elseif state == "Telegraph" then
+			if attack == "PredatoryLunge" then
+				rootJoint.Transform = CFrame.new(0, -0.25, 0.45) * CFrame.Angles(0.52, 0, 0)
+				leftShoulder.Transform = CFrame.Angles(-1.4, 0, 0.6)
+				rightShoulder.Transform = CFrame.Angles(-1.6, 0, -0.7)
+			elseif attack == "FrenziedChain" then
+				rootJoint.Transform = CFrame.Angles(-0.38, 0, if step % 2 == 0 then -0.2 else 0.2)
+				leftShoulder.Transform = CFrame.Angles(-1.05, 0, 0.7)
+				rightShoulder.Transform = CFrame.Angles(-0.55, 0, -0.75)
+			elseif attack == "MaulingCombination" then
+				rootJoint.Transform = CFrame.Angles(-0.34, 0, if step == 3 then 0.25 else -0.16)
+				leftShoulder.Transform = CFrame.Angles(-0.75, 0, 0.55)
+				rightShoulder.Transform = CFrame.Angles(-1.1, 0, -0.55)
+			else
+				rootJoint.Transform = CFrame.Angles(-0.28, 0, 0)
+				leftShoulder.Transform = CFrame.Angles(-0.65, 0, 0.45)
+				rightShoulder.Transform = CFrame.Angles(-1.3, 0, -0.5)
+			end
+		elseif state == "Attack" then
+			rootJoint.Transform = CFrame.new(0, 0, -0.25) * CFrame.Angles(-0.28, 0, 0)
+			if attack == "FrenziedChain" then
+				if step == 1 then
+					rightShoulder.Transform = CFrame.Angles(1.5, 0, -0.6)
+				elseif step == 2 then
+					leftShoulder.Transform = CFrame.Angles(1.35, 0, 0.75)
+				elseif step == 3 then
+					rightShoulder.Transform = CFrame.Angles(1.1, 0, 0.8)
+				else
+					rootJoint.Transform *= CFrame.Angles(-0.28, 0, 0.35)
+					leftShoulder.Transform = CFrame.Angles(1.5, 0, 1)
+					rightShoulder.Transform = CFrame.Angles(1.55, 0, -0.8)
+				end
+			elseif attack == "PredatoryLunge" then
+				rootJoint.Transform = CFrame.new(0, 0.15, -0.5) * CFrame.Angles(-0.55, 0, 0)
+				leftShoulder.Transform = CFrame.Angles(1.2, 0, 0.6)
+				rightShoulder.Transform = CFrame.Angles(1.35, 0, -0.7)
+			elseif attack == "MaulingCombination" then
+				leftShoulder.Transform = CFrame.Angles(if step == 2 then 0.55 else 1.15, 0, 0.8)
+				rightShoulder.Transform = CFrame.Angles(if step == 3 then 1.65 else 0.85, 0, -0.8)
+			else
+				rightShoulder.Transform = CFrame.Angles(1.35, 0, -0.35)
+				leftShoulder.Transform = CFrame.Angles(0.75, 0, 0.42)
+			end
+		elseif state == "Vulnerable" then
+			rootJoint.Transform = CFrame.new(0, -0.3, 0.38) * CFrame.Angles(0.48, 0, 0.35)
+			leftShoulder.Transform = CFrame.Angles(0.9, 0, 1.1)
+			rightShoulder.Transform = CFrame.Angles(0.75, 0, -1.15)
+		elseif state == "Flinch" then
+			rootJoint.Transform =
+				CFrame.Angles(if majorFlinch then 0.45 else 0.16, 0, if majorFlinch then -0.45 else -0.16)
+			leftShoulder.Transform = CFrame.Angles(0.65, 0, 0.8)
+			rightShoulder.Transform = CFrame.Angles(0.65, 0, -0.8)
+		elseif state == "Dead" then
+			rootJoint.Transform = CFrame.new(0, -1.1, 0.55) * CFrame.Angles(1.25, 0, -0.5)
+		end
+	end
+	return model, humanoid, root, label, pose
 end
 
 export type Handle = {
@@ -119,13 +262,20 @@ function Enemy.create(
 	thinkOffset: number,
 	hitInterval: number
 ): Handle
-	local model, humanoid, root, label = createRig(position, container, collisionGroup)
+	local model, humanoid, root, label, pose = createRig(position, container, collisionGroup)
 	local state: State = "Idle"
 	local target: Player? = nil
 	local nextThink = os.clock() + thinkOffset
 	local nextHit = 0
 	local activeAt, activeUntil, recoverUntil = 0, 0, 0
+	local activeAttack: any? = nil
+	local attackName = ""
+	local attackStep, attackCount = 0, 0
+	local attackHit = false
+	local attackSerial = 0
+	local lastAttack = ""
 	local flinchUntil = 0
+	local flinchMajor = false
 	local flinchAfterAttack = false
 	local resumeRecovery = false
 	local committedOrigin = root.CFrame
@@ -147,6 +297,40 @@ function Enemy.create(
 	local progressPosition = root.Position
 	local progressAt = 0
 	local stuck = false
+	local lastUpdateAt = os.clock()
+
+	local function turnToward(other: BasePart, maxRadians: number, pivotRadians: number?): boolean
+		local flatTarget = Vector3.new(other.Position.X, root.Position.Y, other.Position.Z) - root.Position
+		if flatTarget.Magnitude < 0.01 then
+			return false
+		end
+		local current = Vector3.new(root.CFrame.LookVector.X, 0, root.CFrame.LookVector.Z)
+		if current.Magnitude < 0.01 then
+			return false
+		end
+		current = current.Unit
+		local desired = flatTarget.Unit
+		local signed = math.atan2(current:Cross(desired).Y, math.clamp(current:Dot(desired), -1, 1))
+		if pivotRadians and math.abs(signed) >= Config.Turning.PivotAngle then
+			maxRadians = math.max(maxRadians, pivotRadians)
+		end
+		local turn = math.clamp(signed, -maxRadians, maxRadians)
+		root.CFrame = CFrame.lookAt(root.Position, root.Position + current) * CFrame.Angles(0, turn, 0)
+		return true
+	end
+
+	local function combatTurnRate(other: BasePart): number
+		local distance = (other.Position - root.Position).Magnitude
+		local turning = Config.Turning
+		if distance <= turning.VeryCloseDistance then
+			return turning.VeryCloseTurnRate
+		elseif distance <= turning.CloseCombatDistance then
+			return turning.CloseCombatTurnRate
+		elseif distance <= turning.MidRangeDistance then
+			return turning.MidRangeTurnRate
+		end
+		return turning.ChaseTurnRate
+	end
 
 	local function clearPath()
 		pendingPath = nil
@@ -185,6 +369,9 @@ function Enemy.create(
 			state
 		)
 		model:SetAttribute("SandboxState", state)
+		model:SetAttribute("NascentAttack", attackName)
+		model:SetAttribute("NascentVulnerable", state == "Vulnerable")
+		model:SetAttribute("NascentDesperate", humanoid.Health / humanoid.MaxHealth <= Config.DesperateHealthFraction)
 	end
 
 	local function setState(value: State)
@@ -227,7 +414,8 @@ function Enemy.create(
 			return
 		end
 		setState("Dead")
-		lightHitReactions[humanoid] = nil
+		pose("Dead", os.clock(), attackName, attackStep, false, false)
+		hitReactions[humanoid] = nil
 		clearPath()
 		clearDebug()
 		target = nil
@@ -248,7 +436,7 @@ function Enemy.create(
 		end
 	end
 
-	local function beginFlinch(now: number, keepRecovery: boolean)
+	local function beginFlinch(now: number, keepRecovery: boolean, duration: number?, major: boolean?)
 		clearPath()
 		clearDebug()
 		stopMoving()
@@ -257,31 +445,50 @@ function Enemy.create(
 		root.AssemblyAngularVelocity = Vector3.zero
 		root.Anchored = true
 		activeAt, activeUntil = 0, 0
+		activeAttack = nil
 		hitTargets = {}
 		flinchAfterAttack = false
+		flinchMajor = major == true
 		resumeRecovery = keepRecovery
 		if not keepRecovery then
 			recoverUntil = 0
 		end
-		flinchUntil = now + Config.LightHitFlinch
+		flinchUntil = now + (duration or Config.Reactions.Significant.Flinch)
 		setState("Flinch")
 	end
 
-	lightHitReactions[humanoid] = function()
-		if state == "Dead" or humanoid.Health <= 0 or Config.LightHitFlinch <= 0 then
+	hitReactions[humanoid] = function(strength: string)
+		if state == "Dead" or humanoid.Health <= 0 then
 			return
 		end
+		local reaction = Config.Reactions[strength] or Config.Reactions.Minor
 		local now = os.clock()
+		if state == "Vulnerable" then
+			reaction = Config.Reactions.Major
+		end
+		if reaction.Flinch <= 0 then
+			return
+		end
 		local committed = (state == "Telegraph" or state == "Attack") and now >= activeAt
-		if committed and now < activeUntil then
+		if committed and now < activeUntil and strength ~= "Major" then
 			-- An already active strike finishes; it cannot be retroactively dodged by hitting.
 			flinchAfterAttack = true
 			return
 		end
-		beginFlinch(now, state == "Recover" or committed or (state == "Flinch" and resumeRecovery))
+		beginFlinch(
+			now,
+			state == "Recover" or committed or (state == "Flinch" and resumeRecovery),
+			reaction.Flinch,
+			strength == "Major" or state == "Vulnerable"
+		)
 	end
 
-	local function beginAttack(other: BasePart, now: number)
+	local function beginAttack(other: BasePart, name: string, now: number)
+		local attacks = Config.Nascent
+		activeAttack = attacks[name]
+		if not activeAttack then
+			return
+		end
 		clearPath()
 		stopMoving()
 		humanoid.AutoRotate = false
@@ -292,18 +499,25 @@ function Enemy.create(
 		root.AssemblyLinearVelocity = Vector3.zero
 		root.AssemblyAngularVelocity = Vector3.zero
 		root.Anchored = true -- Prevent contact physics from moving the committed strike.
+		attackName = name
+		attackStep = 1
+		attackCount = activeAttack.Count or 1
+		attackHit = false
+		attackSerial += 1
 		committedOrigin = root.CFrame
-		committedBox = committedOrigin * CFrame.new(0, 0, -Config.HitboxOffset)
-		activeAt = now + Config.Telegraph
-		activeUntil = activeAt + Config.Active
-		recoverUntil = activeUntil + Config.Recovery
+		committedBox = committedOrigin * CFrame.new(0, 0, -activeAttack.Offset)
+		activeAt = now + activeAttack.Telegraph
+		activeUntil = activeAt + activeAttack.Active
+		local desperate = humanoid.Health / humanoid.MaxHealth <= Config.DesperateHealthFraction
+		recoverUntil = activeUntil
+			+ activeAttack.Recovery * (if desperate then Config.Nascent.DesperateRecoveryMultiplier else 1)
 		hitTargets = {}
 		nextHit = activeAt
 		setState("Telegraph")
-		if Config.DebugTelegraph then
+		if Config.DebugTelegraph and Config.DebugNascent then
 			local box = Instance.new("Part")
 			box.Name = "TemporaryEnemyAttackDebug"
-			box.Size = Config.HitboxSize
+			box.Size = activeAttack.Size
 			box.CFrame = committedBox
 			box.Anchored = true
 			box.CanCollide = false
@@ -322,6 +536,11 @@ function Enemy.create(
 			highlight.Parent = model
 			debugHighlight = highlight
 		end
+	end
+
+	local function chooseAttack(distance: number): string?
+		local desperate = humanoid.Health / humanoid.MaxHealth <= Config.DesperateHealthFraction
+		return AttackSelector.choose(Config.Nascent, distance, lastAttack, attackSerial, desperate)
 	end
 
 	local function requestPath(_other: BasePart, now: number)
@@ -377,8 +596,19 @@ function Enemy.create(
 		model:SetAttribute("PathQueued", true)
 	end
 
-	local function chase(other: BasePart, now: number)
-		if (root.Position - progressPosition).Magnitude >= nav.ProgressDistance then
+	local function chase(other: BasePart, now: number, frameDelta: number)
+		local targetDistance = (other.Position - root.Position).Magnitude
+		local closeCombat = targetDistance <= Config.Turning.CloseCombatDistance
+		humanoid.AutoRotate = not closeCombat
+		if closeCombat then
+			turnToward(other, combatTurnRate(other) * frameDelta, Config.Turning.PivotTurnRate * frameDelta)
+		end
+		if targetDistance <= Config.Turning.CloseStandoffDistance + nav.WaypointTolerance then
+			-- Holding the intended melee standoff is progress, not a navigation stall.
+			progressPosition = root.Position
+			progressAt = now
+			stuck = false
+		elseif (root.Position - progressPosition).Magnitude >= nav.ProgressDistance then
 			progressPosition = root.Position
 			progressAt = now
 			stuck = false
@@ -398,7 +628,14 @@ function Enemy.create(
 			if path or computing or pendingPath then
 				clearPath()
 			end
-			humanoid:MoveTo(other.Position)
+			local horizontal = Vector3.new(other.Position.X - root.Position.X, 0, other.Position.Z - root.Position.Z)
+			if horizontal.Magnitude <= Config.Turning.CloseStandoffDistance then
+				-- At melee range, face and pressure instead of running through prey.
+				stopMoving()
+			else
+				local destination = other.Position - horizontal.Unit * Config.Turning.CloseStandoffDistance
+				humanoid:MoveTo(destination)
+			end
 			return
 		end
 		if not pathGoal or (other.Position - pathGoal).Magnitude >= nav.TargetMoveThreshold then
@@ -436,18 +673,79 @@ function Enemy.create(
 			die()
 			return
 		end
+		local frameDelta = math.min(0.1, math.max(0, now - lastUpdateAt))
+		lastUpdateAt = now
+		pose(
+			state,
+			now,
+			attackName,
+			attackStep,
+			humanoid.Health / humanoid.MaxHealth <= Config.DesperateHealthFraction,
+			flinchMajor
+		)
 		-- Timers are cheap; hit queries are capped separately from staggered navigation.
 		if state == "Telegraph" or state == "Attack" then
+			local other = targetRoot(target)
+			if state == "Telegraph" and other and activeAttack then
+				if activeAttack.TrackingByStrike then
+					local tracking = activeAttack.TrackingByStrike[attackStep] or 0
+					if
+						(other.Position - root.Position).Magnitude <= activeAttack.TrackingEscapeRange
+						and tracking > 0
+					then
+						turnToward(other, activeAttack.TrackingTurnRate * tracking * frameDelta)
+					end
+				elseif activeAttack.TelegraphTurnRate then
+					local windupProgress =
+						math.clamp((now - (activeAt - activeAttack.Telegraph)) / activeAttack.Telegraph, 0, 1)
+					local rate = if windupProgress < (activeAttack.CommitFraction or 1)
+						then activeAttack.TelegraphTurnRate
+						else activeAttack.CommitTurnRate or 0
+					turnToward(other, rate * frameDelta)
+				end
+			end
 			if now >= activeUntil then
-				clearDebug()
 				if flinchAfterAttack then
+					clearDebug()
 					beginFlinch(now, true)
+				elseif attackStep < attackCount then
+					attackStep += 1
+					hitTargets = {}
+					activeAt = now + (activeAttack.StepGap or 0)
+					activeUntil = activeAt + activeAttack.Active
+					setState("Telegraph")
+				elseif attackName == "FrenziedChain" then
+					clearDebug()
+					recoverUntil = now + activeAttack.Recovery
+					setState("Vulnerable")
+				elseif attackName == "PredatoryLunge" and not attackHit then
+					clearDebug()
+					recoverUntil = now + activeAttack.MissRecovery
+					setState("Vulnerable")
+				elseif attackName == "RushingStrike" and not attackHit and attackSerial % 2 == 0 then
+					clearDebug()
+					beginAttack(other or root, "ReversalSwipe", now)
 				else
+					clearDebug()
+					lastAttack = attackName
+					activeAttack = nil
 					setState("Recover")
 				end
 			elseif now >= activeAt then
 				if state ~= "Attack" then
 					setState("Attack")
+					-- Contact begins with the visible strike pose, before the first
+					-- server hit query runs on this active window.
+					pose(
+						"Attack",
+						now,
+						attackName,
+						attackStep,
+						humanoid.Health / humanoid.MaxHealth <= Config.DesperateHealthFraction,
+						flinchMajor
+					)
+					committedOrigin = root.CFrame
+					committedBox = committedOrigin * CFrame.new(0, 0, -(activeAttack and activeAttack.Offset or 0))
 					if debugBox then
 						debugBox.Color = Color3.fromRGB(255, 55, 55)
 					end
@@ -455,12 +753,44 @@ function Enemy.create(
 						debugHighlight.FillColor = Color3.fromRGB(255, 55, 55)
 					end
 				end
-				if now < nextHit then
+				if other and activeAttack then
+					if activeAttack.TrackingByStrike then
+						local tracking = activeAttack.TrackingByStrike[attackStep] or 0
+						if
+							(other.Position - root.Position).Magnitude <= activeAttack.TrackingEscapeRange
+							and tracking > 0
+						then
+							turnToward(other, activeAttack.TrackingTurnRate * tracking * frameDelta)
+						end
+					elseif activeAttack.CommitTurnRate then
+						turnToward(other, activeAttack.CommitTurnRate * frameDelta)
+					end
+				end
+				if activeAttack and activeAttack.Travel > 0 then
+					local travel = root.CFrame.LookVector
+						* (activeAttack.Travel * math.min(1, hitInterval / activeAttack.Active))
+					local obstacle = workspace:Blockcast(
+						root.CFrame,
+						Config.CollisionHull.Diameter * Vector3.new(1, 1, 1),
+						travel,
+						rayParams(model)
+					)
+					if obstacle then
+						travel = travel.Unit * math.max(0, obstacle.Distance - 0.2)
+					end
+					root.CFrame += travel
+					committedOrigin = root.CFrame
+					committedBox = committedOrigin * CFrame.new(0, 0, -activeAttack.Offset)
+					if debugBox then
+						debugBox.CFrame = committedBox
+					end
+				end
+				if now < nextHit or not activeAttack then
 					return
 				end
 				nextHit = now + hitInterval
 				for _, victim in
-					HitDetection.find(model, committedOrigin, committedBox, Config.HitboxSize, {
+					HitDetection.find(model, committedOrigin, committedBox, activeAttack.Size, {
 						OverlapCollisionGroup = Sandbox.Combat.OverlapCollisionGroup,
 						RequireLineOfSight = true,
 						CanTarget = function(character)
@@ -470,7 +800,9 @@ function Enemy.create(
 				do
 					if not hitTargets[victim] then
 						hitTargets[victim] = true
-						Damage.apply(model, victim, Config.Damage)
+						local damage = activeAttack.Damage
+						Damage.apply(model, victim, if typeof(damage) == "table" then damage[attackStep] else damage)
+						attackHit = true
 					end
 				end
 			end
@@ -486,6 +818,17 @@ function Enemy.create(
 			end
 			setState("Recover")
 		end
+		if state == "Vulnerable" then
+			if now < recoverUntil then
+				return
+			end
+			activeAttack = nil
+			lastAttack = attackName
+			root.Anchored = false
+			root:SetNetworkOwner(nil)
+			humanoid.AutoRotate = true
+			setState("Chase")
+		end
 		if state == "Recover" then
 			if now < recoverUntil then
 				return
@@ -496,6 +839,22 @@ function Enemy.create(
 			progressPosition = root.Position
 			progressAt = now
 			setState("Chase")
+		end
+		if state == "Chase" then
+			local chaseTarget = targetRoot(target)
+			if
+				chaseTarget
+				and (chaseTarget.Position - root.Position).Magnitude <= Config.Turning.CloseCombatDistance
+			then
+				humanoid.AutoRotate = false
+				turnToward(
+					chaseTarget,
+					combatTurnRate(chaseTarget) * frameDelta,
+					Config.Turning.PivotTurnRate * frameDelta
+				)
+			elseif chaseTarget then
+				humanoid.AutoRotate = true
+			end
 		end
 		if now < nextThink then
 			return
@@ -528,10 +887,11 @@ function Enemy.create(
 			end
 		end
 		if other then
-			if (other.Position - root.Position).Magnitude <= Config.AttackRange and visible(other) then
-				beginAttack(other, now)
+			local choice = if visible(other) then chooseAttack((other.Position - root.Position).Magnitude) else nil
+			if choice then
+				beginAttack(other, choice, now)
 			else
-				chase(other, now)
+				chase(other, now, frameDelta)
 			end
 		end
 	end

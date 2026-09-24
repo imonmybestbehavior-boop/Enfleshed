@@ -36,6 +36,7 @@ local items = assert(loadfile("src/shared/Configuration/Items.luau", "t", {
 
 assert(items.Items.RecruitMagicWeapon.ItemType == "Weapon")
 assert(items.Items.RecruitMagicWeapon.MagicProfile == "RecruitGeneric")
+assert(items.Items.RecruitMagicWeapon.Visual.MuzzleOffset)
 assert(items.Items.RecruitMeleeWeapon.WeaponType == "Melee")
 assert(items.MagicProfiles.RecruitGeneric.PrimarySpellId == "RecruitMagicBolt")
 assert(items.MagicProfiles.RecruitGeneric.AreaSpellId == "RecruitMagicDischarge")

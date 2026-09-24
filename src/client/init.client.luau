@@ -33,15 +33,19 @@ local function send(action: string, extra: Types.ActionOptions?): number
 end
 
 local debug = require(script.Controllers.DebugController).start()
+require(script.Controllers.AssignmentController).start()
+require(script.Controllers.LanternController).start()
 local movement = require(script.Controllers.MovementController).start(send)
 local combat = require(script.Controllers.CombatController).start(send, movement, debug)
-local magic = require(script.Controllers.MagicController).start(send)
+local camera = require(script.Controllers.CameraController).start()
+local magic = require(script.Controllers.MagicController).start(send, camera.GetAim)
 local equipment = require(script.Controllers.EquipmentController).start(send, combat.Attack, magic.WeaponAction)
+local generated = require(script.Controllers.GeneratedSpellController).start(magic, debug)
 require(script.Controllers.InputController).start(movement.Sprint, function()
 	if combat.CanDash() then
 		movement.Dash()
 	end
-end, magic.Cast, magic.Release, equipment.Use, equipment.Switch)
+end, magic.Cast, magic.Release, equipment.Use, equipment.Switch, generated.Cycle, generated.Begin, generated.Release)
 
 local function reset()
 	movement.Reset()

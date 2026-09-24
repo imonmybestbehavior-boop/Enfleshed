@@ -17,6 +17,12 @@ stylua --check src tests/test_sandbox_tuning.lua
 lua tests/test_sandbox_tuning.lua
 lua tests/test_spell_definitions.lua
 lua tests/test_equipment_definitions.lua
+lua tests/test_generated_spell_stress.lua
+lua tests/test_magic_v2.lua
+lua tests/test_lower_layer_graybox.lua
+lua tests/test_housing_infill.lua
+lua tests/test_phase_a_topology.lua
+lua tests/test_phase_a_geometry.lua
 rojo build default.project.json -o Enfleshed.rbxlx
 python3 tests/test_place_references.py
 git diff --check
@@ -39,18 +45,38 @@ it substitutes only Vector3 data and adds no game dependency.
 Neither these checks nor the build runs Roblox physics or type-checks the scripts. Check Script Analysis
 and server/client Output in Studio in addition to the playtests below.
 
+Phase A is now built from the authored 42-node / 61-connection graph in
+`PhaseATopology`. `RouteGeometry` produces real stairs, room walls, floor openings,
+doorways, bridges and tunnels before any visual infill is placed. Upper housing
+reaches 220–500 studs. `LowerLayerGraybox.PartCount` records the runtime count.
+See [PHASE_A_REPORT.md](PHASE_A_REPORT.md) for the topology totals, limitations,
+file explanations and exact Studio tests. The old `Builders` and `HousingInfill`
+helpers remain in the source tree but are not used by the rebuilt Phase A.
+
+Body Reinforcement (development key **6**) now toggles a server-owned 3x speed
+multiplier until switched off or cleared on death/respawn: walk 16 → 48 and
+sprint 28 → 84. Dash retains its existing 14-stud distance and restores the
+current movement speed afterward. The local field lantern is automatic.
+
 ## Controls and initial tuning
 
 | Input | Action |
 | --- | --- |
 | WASD | Standard Roblox movement |
 | Space | Standard Roblox jump |
+| Move mouse | Always-on third-person camera look |
 | Hold left Shift | Sprint; release to walk |
 | Q | Dash in movement direction, or character-facing direction when stationary |
 | Left mouse click | Light attack; click again near recovery to chain |
 | 1 | Cast Fireball toward camera aim |
 | 2 | Cast Body Burst in facing direction |
 | Hold/release 3 | Charge/release Stone Shot; aim at the Earth source |
+| 4 | Cast Lightning Lance along full 3D center-screen aim |
+| 5 | Place Burning Ground at the center-screen world point |
+| 6 | Cast Body Reinforcement on yourself |
+| 7 | Raise the tagged Earth stone under the center reticle |
+| F | Cycle the selected development-generated spell |
+| Hold/release R | Cast/release the selected development-generated spell |
 | E | Switch between the equipped melee trainer and primary magic focus |
 | Left mouse click with magic focus | Recruit Magic Bolt |
 | Right mouse click with magic focus | Recruit Magic Discharge |
@@ -75,6 +101,42 @@ Edit **`src/shared/Configuration/Sandbox.luau`** for all gameplay tuning:
   live in this configuration. Visual layout and dummy geometry are local placeholders.
 - `Magic` holds temporary player mana/Locus metrics and aim limits. Registered
   spell data lives in `shared/Configuration/Spells.luau`.
+- `Camera` centralizes third-person sensitivity, distance, offsets, pitch clamps,
+  obstruction padding, and center-screen aim distance.
+
+## Third-person mouse-look camera V1
+
+`CameraController` owns a small Scriptable third-person camera, so Roblox's
+default right-button orbit is disabled. During gameplay the cursor is hidden and
+locked to screen center; mouse movement changes yaw and pitch. The camera follows
+behind the local character, clamps pitch, and raycasts from the follow target to
+the desired position so walls move it closer instead of letting it pass through.
+
+Combat aim comes from the camera center: the controller exposes `GetAim`, which
+returns the center-facing direction and a world raycast point, or a configured
+maximum-distance point on a miss. `MagicController` sends that same data through
+the existing Magic Runtime and equipment request paths. This keeps Bolt, Discharge,
+Fireball, and Stone Shot on their existing authoritative server flow.
+
+Projectile aim is full 3D: looking up or down changes the projectile trajectory.
+The server validates the normalized 3D vector and compares material-target points
+against it from a trusted spell origin. V1 Wave geometry intentionally projects
+its direction to the ground plane, so Body Burst remains ground-relative without
+imposing a horizontal-only restriction on projectile spells.
+
+`SetGameplayMouseLookEnabled(false)` releases the cursor for a future interface;
+passing `true` restores center lock. Text input and window focus events use this
+same path. No interface, first-person, lock-on, ADS, or combat-facing mode is
+implemented here.
+
+A small four-line crosshair marks the center aim point. Its size, thickness, gap,
+and transparency are in `Camera.Crosshair`. It hides whenever gameplay mouse look
+is disabled. The recruit focus has a server-created `Muzzle` attachment. Equipment
+passes its server-known world position as a generic cast context; MagicService then
+starts a contextual projectile at that origin and derives its trajectory from
+`Muzzle → WorldPoint`. Nearby geometry still blocks the projectile through the
+existing swept raycast. Direct Fireball and Stone Shot retain the generic caster
+origin, while Waves remain character-centered.
 
 ## Magic Runtime V1
 
@@ -119,6 +181,80 @@ V1 intentionally excludes awakening, spell editing, persistence, progression,
 unlocks, further principles/expressions, beams/fields/auras/constructs, complex
 conditions, sustained commands, status effects, terrain destruction, and polished
 visuals/audio/animations.
+
+### Development procedural spell stress test
+
+`DevelopmentSpellStress` in `Sandbox.luau` is a sandbox-only controlled registry,
+enabled here with seed `12345` and count `10`. `GeneratedSpellStress.luau` builds
+the same ten data definitions for that seed on trusted shared code; clients only
+request the selected registered ID. Set `Enabled = false` outside development.
+
+Press **F** to cycle the generated definitions shown in the debug panel. Hold and
+release **R** for a charged generated spell; tap R for an instant one. The generator
+uses only currently executed Projectile/Wave, Damage/Force, Explode, instant/charged,
+fixed/instant lifetime, and Earth-material combinations. Generated Matter spells
+need the existing Earth source. `SpellDefinitionValidator` rejects unsupported
+or malformed data before MagicService can execute it; invalid test data is never
+registered or exposed to the client.
+
+## Magic Runtime V2 breadth test
+
+V2 adds generic **Beam**, **Field**, **SelfEnhancement**, and discrete
+**Manipulation** form dispatch, plus `Enhancement` and `Manipulation` payloads.
+`MagicFormExecutors` dispatches the new form names and `MagicPayloadExecutors`
+dispatches payload kinds. No runtime branch checks the four V2 spell IDs.
+
+**Lightning Lance** is an immediate, server raycast Beam. It starts from the
+generic caster origin, retains full 3D aim, stops at collidable world geometry,
+and applies its Damage payload only to the first resolved humanoid. Its line is a
+brief debug part. **Burning Ground** validates a bounded WorldPoint, creates one
+server-owned active Field record, pulses a sphere query at its configured interval,
+and destroys its debug marker on expiry. It does not create a burning status.
+
+**Body Reinforcement** applies validated temporary WalkSpeed and JumpPower bonuses
+through the server MovementService. The bonus composes with sprint speed, refreshes
+its own duration on recast rather than stacking, and is removed on expiry, death,
+or respawn. This is a narrow movement modifier, not a character-stat framework.
+
+**Stone Raise** only resolves a server-tagged `MagicManipulable` Earth BasePart
+near the submitted target point. The sandbox creates one such anchored stone at
+`(-2, 1, -22)`, with `MagicMaterial = "Earth"` and `MagicRaise = true`. A valid
+cast moves that actual object upward once by its data-defined distance; no client
+Instance is accepted and no continuous control remains.
+
+All V2 tuning lives in `Sandbox.Magic.V2`; the proof definitions are in
+`Spells.luau`. The four development controls are **4**, **5**, **6**, and **7**.
+They do not replace equipment controls. Test Lightning Lance against a dummy with
+and without a wall in between; point up and down as well as horizontally. Place a
+field under an enemy and let it pulse/expire. Cast reinforcement while walking and
+sprinting, then wait five seconds or respawn. Aim Stone Raise at the tagged stone;
+aiming elsewhere must return an `IMPOSSIBLE` debug response.
+
+## Lower-Layer Open-World Graybox V1
+
+`LowerLayerGraybox` is a development-only runtime builder with all layout values
+in `shared/Configuration/LowerLayerGraybox.luau`. It creates a single organized
+`Workspace.LowerLayerGraybox` root on Play and can be disabled with its `Enabled`
+flag. The old baseplate is now a larger catch surface centered at Y `-90` with a
+top at Y `-80`, leaving the descending district physically clear above it.
+
+The main route runs about 430 studs from Recruit Barracks at `(0, 0, 150)` to the
+Ancient Threshold at `(0, -45, -232)`. It is not enclosed: distant shaft walls,
+upper bridges, threshold masses, and background habitation extend beyond its
+rough 220-stud-wide playable core. Civilian streets are 22 studs wide, alleys are
+10, and catwalks are 7. The staging yard sits at `(0, -6, -35)`; broad steps,
+an overlook, and a maintenance shortcut lead down to the frontline at
+`(0, -45, -170)`.
+
+The frontline has an approximately 96×82-stud open kill zone with cover islands,
+side routes, retreat space, and a defensive wall. Existing temporary waves now
+spawn there. The threshold beyond it maintains a deliberately nonhuman negative
+space: 180 studs of clear width and 336 studs of vertical scale, framed by uneven
+side masses, incomplete inward ribs, and an oversized crown rather than a normal
+arch. The builder creates **142 static Parts**: large anchored volumes, not a
+procedural city or final environment. Named markers include RecruitSpawn,
+CivilianDistrict, MilitaryStaging, Frontline, AncientThreshold, and three future
+encounter markers. No spawn, mission, NPC, or encounter system is added.
 
 ## Equipment Foundation V1
 
@@ -223,6 +359,7 @@ Every sandbox module is listed below; paths are relative to `src/`.
 | `client/Controllers/InputController.luau` | ContextActionService bindings and sprint release on focus changes. |
 | `client/Controllers/MovementController.luau` | Immediate local sprint/dash prediction, dash collision sweeps, cleanup, cooldown feedback, and rejected-prediction cancellation. |
 | `client/Controllers/CombatController.luau` | Predicted swing boxes, one buffered click, combo reconciliation, and other players' approved swing effects. |
+| `client/Controllers/CameraController.luau` | Scriptable third-person mouse look, center-screen aim ray, and lightweight obstruction handling. |
 | `client/Controllers/MagicController.luau` | Collects camera aim for temporary spell shortcuts and sends only cast intent. |
 | `client/Controllers/EquipmentController.luau` | Routes mouse actions through the locally confirmed active slot and requests equipment switches. |
 | `client/Controllers/DebugController.luau` | Minimal HUD plus server-confirmed per-target outline/damage numbers, combo/dash feedback, and shared wave/living count. |
@@ -240,6 +377,8 @@ Every sandbox module is listed below; paths are relative to `src/`.
 | `server/Services/SandboxService.luau` | Creates a spawn and one anchored dummy with health text and a delayed replacement on death. No NPC framework. |
 | `shared/Configuration/Sandbox.luau` | Central movement, attack, dummy, networking, and debug tuning. |
 | `shared/Configuration/Spells.luau` | Registered data definitions for Fireball, Body Burst, and Stone Shot. |
+| `shared/Configuration/GeneratedSpellStress.luau` | Development-only deterministic generated-spell registry. |
+| `shared/Modules/SpellDefinitionValidator.luau` | Structural validator for the currently supported Magic Runtime V1 subset. |
 | `shared/Configuration/Items.luau` | Small item registry and profile-to-registered-spell mappings for equipment. |
 | `shared/Types/CombatTypes.luau` | Shared Luau attack/request/result/state types. State type declarations expose no runtime player data. |
 | `shared/Types/MagicTypes.luau` | V1 cast-intent, validation-result, and active-spell type contracts. |

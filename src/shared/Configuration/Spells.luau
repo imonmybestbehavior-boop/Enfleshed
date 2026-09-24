@@ -2,6 +2,9 @@
 
 -- Registered data interpreted by MagicService. New V1 projectile spells should
 -- normally add data here, not another spell-specific service.
+local Sandbox = require(script.Parent.Sandbox)
+local V2 = Sandbox.Magic.V2
+
 return table.freeze({
 	Fireball = {
 		SpellId = "Fireball",
@@ -77,7 +80,9 @@ return table.freeze({
 		Targeting = "AimDirection",
 		Geometry = "Sphere",
 		Motion = "Linear",
-		Casting = { Mode = "Instant", Cooldown = 0.16 },
+		-- A deliberate early military focus cadence. MagicService enforces this
+		-- server-side for every request, including held input.
+		Casting = { Mode = "Instant", Cooldown = 0.60 },
 		Lifetime = { Mode = "FixedDuration", Duration = 1.5 },
 		Cost = { ManaDemand = 7, Strain = 3, Complexity = 1 },
 		Projectile = { Speed = 105, Radius = 0.45 },
@@ -104,5 +109,77 @@ return table.freeze({
 			Payloads = { { Kind = "Damage", Amount = 22 } },
 		},
 		Triggers = { OnCast = true },
+	},
+	LightningLance = {
+		SpellId = "LightningLance",
+		Name = "Lightning Lance",
+		Version = 2,
+		Tags = { "Energy", "Lightning" },
+		Source = { Principle = "Energy", Expression = "Lightning" },
+		Form = "Beam",
+		Targeting = "AimDirection",
+		Geometry = "Line",
+		Motion = "Instantaneous",
+		Casting = { Mode = "Instant", Cooldown = 0.55 },
+		Lifetime = { Mode = "Instantaneous" },
+		Cost = { ManaDemand = 14, Strain = 6, Complexity = 2 },
+		Beam = { Range = V2.BeamRange, DebugDuration = V2.BeamDebugDuration },
+		Triggers = { OnCast = { { Kind = "Damage", Amount = 28 } } },
+	},
+	BurningGround = {
+		SpellId = "BurningGround",
+		Name = "Burning Ground",
+		Version = 2,
+		Tags = { "Energy", "Fire", "Field" },
+		Source = { Principle = "Energy", Expression = "Fire" },
+		Form = "Field",
+		Targeting = "WorldPoint",
+		Geometry = "Sphere",
+		Motion = "Stationary",
+		Casting = { Mode = "Instant", Cooldown = 1.4 },
+		Lifetime = { Mode = "FixedDuration", Duration = V2.FieldDuration },
+		Cost = { ManaDemand = 24, Strain = 10, Complexity = 3 },
+		Field = { Radius = 7, Interval = V2.FieldPulseInterval, DebugHeight = V2.FieldDebugHeight },
+		Visual = { Color = Color3.fromRGB(255, 125, 50) },
+		Triggers = { OnInterval = { { Kind = "Damage", Amount = 9 } } },
+	},
+	BodyReinforcement = {
+		SpellId = "BodyReinforcement",
+		Name = "Body Reinforcement",
+		Version = 2,
+		Tags = { "Body", "Enhancement" },
+		Source = { Principle = "Body", Expression = "BodyEnhancement" },
+		Form = "SelfEnhancement",
+		Targeting = "Self",
+		Geometry = "Self",
+		Motion = "Stationary",
+		Casting = { Mode = "Instant", Cooldown = 1 },
+		Lifetime = { Mode = "UntilToggledOff" },
+		Cost = { ManaDemand = 18, Strain = 8, Complexity = 2 },
+		Triggers = {
+			OnCast = {
+				{
+					Kind = "Enhancement",
+					SpeedMultiplier = V2.EnhancementSpeedMultiplier,
+					JumpPowerBonus = V2.EnhancementJumpPowerBonus,
+				},
+			},
+		},
+	},
+	StoneRaise = {
+		SpellId = "StoneRaise",
+		Name = "Stone Raise",
+		Version = 2,
+		Tags = { "Matter", "Earth", "Manipulation" },
+		Source = { Principle = "Matter", Expression = "Earth" },
+		Form = "Manipulation",
+		Targeting = "MaterialTarget",
+		Geometry = "Point",
+		Motion = "Instantaneous",
+		Casting = { Mode = "Instant", Cooldown = 0.8 },
+		Lifetime = { Mode = "Instantaneous" },
+		Cost = { ManaDemand = 12, Strain = 7, Complexity = 2 },
+		Material = { Material = "Earth", SearchRadius = V2.ManipulationRange },
+		Triggers = { OnCast = { { Kind = "Manipulation", Operation = "Raise", Distance = V2.RaiseDistance } } },
 	},
 })

@@ -65,6 +65,12 @@ local function attachVisual(player: Player, state: State)
 	part.Massless = true
 	part.CFrame = hand.CFrame * visual.Offset
 	part.Parent = character
+	if visual.MuzzleOffset then
+		local muzzle = Instance.new("Attachment")
+		muzzle.Name = "Muzzle"
+		muzzle.CFrame = visual.MuzzleOffset
+		muzzle.Parent = part
+	end
 	local weld = Instance.new("WeldConstraint")
 	weld.Part0 = hand
 	weld.Part1 = part
@@ -107,21 +113,24 @@ function Equipment.switch(player: Player, slot: any, remote: RemoteEvent): boole
 	return true
 end
 
-function Equipment.magicSpell(player: Player, action: any): string?
+function Equipment.magicCast(player: Player, action: any): (string?, { Origin: Vector3 }?)
 	local state = states[player]
 	if not state or state.ActiveSlot ~= "PrimaryWeapon" or (action ~= "Primary" and action ~= "Area") then
-		return nil
+		return nil, nil
 	end
 	local itemId = state.PrimaryWeapon
 	local item = if itemId and state.Owned[itemId] then Definitions.Items[itemId] else nil
 	if not item or item.ItemType ~= "Weapon" or item.WeaponType ~= "MagicFocus" then
-		return nil
+		return nil, nil
 	end
 	local profile = Definitions.MagicProfiles[item.MagicProfile]
 	if not profile then
-		return nil
+		return nil, nil
 	end
-	return if action == "Primary" then profile.PrimarySpellId else profile.AreaSpellId
+	local weapon = player.Character and player.Character:FindFirstChild("SandboxEquippedWeapon")
+	local muzzle = if weapon then weapon:FindFirstChild("Muzzle") else nil
+	local context = if muzzle and muzzle:IsA("Attachment") then { Origin = muzzle.WorldPosition } else nil
+	return if action == "Primary" then profile.PrimarySpellId else profile.AreaSpellId, context
 end
 
 function Equipment.meleeActive(player: Player): boolean

@@ -22,6 +22,7 @@ return table.freeze({
 				Color = Color3.fromRGB(135, 220, 255),
 				Material = Enum.Material.Neon,
 				Offset = CFrame.new(0, -0.65, -1.2) * CFrame.Angles(math.rad(90), 0, 0),
+				MuzzleOffset = CFrame.new(0, 0, -1.5),
 			},
 		},
 		RecruitMeleeWeapon = {

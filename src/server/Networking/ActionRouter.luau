@@ -69,11 +69,17 @@ function Router.start()
 			humanoid.MaxHealth = Config.Player.MaxHealth
 			humanoid.Health = Config.Player.MaxHealth
 			humanoid.WalkSpeed = Config.Movement.WalkSpeed
+			character:SetAttribute("MagicWalkSpeedBonus", 0)
+			character:SetAttribute("MagicSpeedMultiplier", 1)
+			character:SetAttribute("MagicJumpPowerBonus", 0)
 			states[player] = {
 				Character = character,
 				Humanoid = humanoid,
 				Root = root,
 				Sprinting = false,
+				MagicWalkSpeedBonus = 0,
+				MagicSpeedMultiplier = 1,
+				MagicJumpPowerBonus = 0,
 				DashUntil = 0,
 				DashReadyAt = 0,
 				DashCheckUntil = 0,
@@ -218,13 +224,13 @@ function Router.start()
 		elseif action == Protocol.EquipmentSwitch then
 			accepted = Equipment.switch(player, payload.EquipmentSlot, feedback)
 		elseif action == Protocol.EquipmentUse and now >= state.DashUntil then
-			local spellId = Equipment.magicSpell(player, payload.EquipmentAction)
+			local spellId, castContext = Equipment.magicCast(player, payload.EquipmentAction)
 			if spellId then
 				Magic.start(player, state, {
 					SpellId = spellId,
 					AimDirection = payload.AimDirection,
 					WorldPoint = payload.WorldPoint,
-				}, feedback)
+				}, feedback, castContext)
 				accepted = true
 			end
 		end

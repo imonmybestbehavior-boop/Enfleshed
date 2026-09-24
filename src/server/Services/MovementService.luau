@@ -3,11 +3,52 @@
 local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
 local Config = require(Shared:WaitForChild("Configuration"):WaitForChild("Sandbox")).Movement
 local Types = require(Shared:WaitForChild("Types"):WaitForChild("CombatTypes"))
+local Speed = require(Shared.Modules.MovementSpeed)
 local Movement = {}
+
+local function maximumSpeed(state: Types.PlayerState): number
+	local multiplier = state.MagicSpeedMultiplier
+	if workspace:GetServerTimeNow() < (state.MagicSpeedGraceUntil or 0) then
+		multiplier = math.max(multiplier, state.MagicPreviousMultiplier or 1)
+	end
+	return Speed.calculate(Config.WalkSpeed, Config.SprintSpeed, true, state.MagicWalkSpeedBonus, multiplier)
+end
+
+local function applySpeed(state: Types.PlayerState)
+	state.Humanoid.WalkSpeed = Speed.calculate(
+		Config.WalkSpeed,
+		Config.SprintSpeed,
+		state.Sprinting,
+		state.MagicWalkSpeedBonus,
+		state.MagicSpeedMultiplier
+	)
+	state.Humanoid.JumpPower = 50 + state.MagicJumpPowerBonus
+end
 
 function Movement.sprint(state: Types.PlayerState, enabled: boolean)
 	state.Sprinting = enabled
-	state.Humanoid.WalkSpeed = if enabled then Config.SprintSpeed else Config.WalkSpeed
+	applySpeed(state)
+end
+
+-- This deliberately composes with sprinting instead of owning a separate stat
+-- system. MagicService provides only validated temporary bonuses.
+function Movement.setMagicEnhancement(
+	state: Types.PlayerState,
+	walkSpeedBonus: number,
+	jumpPowerBonus: number,
+	multiplier: number?
+)
+	-- Account for enhanced motion already observed in this validation window
+	-- when the player turns the spell off while sprinting or dashing.
+	state.MagicPreviousMultiplier = state.MagicSpeedMultiplier
+	state.MagicSpeedGraceUntil = workspace:GetServerTimeNow() + Config.ValidationInterval + Config.DashReplicationGrace
+	state.MagicSpeedMultiplier = multiplier or 1
+	state.Character:SetAttribute("MagicSpeedMultiplier", state.MagicSpeedMultiplier)
+	state.MagicWalkSpeedBonus = walkSpeedBonus
+	state.MagicJumpPowerBonus = jumpPowerBonus
+	state.Character:SetAttribute("MagicWalkSpeedBonus", walkSpeedBonus)
+	state.Character:SetAttribute("MagicJumpPowerBonus", jumpPowerBonus)
+	applySpeed(state)
 end
 
 function Movement.dash(state: Types.PlayerState, now: number): boolean
@@ -62,7 +103,7 @@ function Movement.update(player: Player, state: Types.PlayerState, now: number, 
 	local horizontal = Vector3.new(delta.X, 0, delta.Z).Magnitude
 	-- Horizontal checks leave jumping and falling alone. This is a sandbox guard,
 	-- not a complete anti-cheat for client-owned Roblox character physics.
-	local budget = Config.SprintSpeed * elapsed + state.DashAllowance + Config.PositionTolerance
+	local budget = maximumSpeed(state) * elapsed + state.DashAllowance + Config.PositionTolerance
 	-- Check before every damage sample, not just when advancing the movement anchor.
 	if horizontal ~= horizontal or horizontal > budget then
 		-- This violation is horizontal: preserve current jumping/falling height.
@@ -104,7 +145,7 @@ function Movement.update(player: Player, state: Types.PlayerState, now: number, 
 		local displacement = state.Root.Position - state.DashOrigin
 		local limit = Config.DashDistance
 			+ Config.PositionTolerance
-			+ Config.SprintSpeed * (Config.ValidationInterval + Config.DashReplicationGrace)
+			+ maximumSpeed(state) * (Config.ValidationInterval + Config.DashReplicationGrace)
 		if Vector3.new(displacement.X, 0, displacement.Z).Magnitude > limit then
 			correct(
 				state,

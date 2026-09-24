@@ -6,6 +6,7 @@ local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
 local Config = require(Shared:WaitForChild("Configuration"):WaitForChild("Sandbox")).Movement
 local Protocol = require(Shared:WaitForChild("Networking"):WaitForChild("Protocol"))
 local Types = require(Shared:WaitForChild("Types"):WaitForChild("CombatTypes"))
+local Speed = require(Shared.Modules.MovementSpeed)
 local Movement = {}
 
 function Movement.start(send: (string, Types.ActionOptions?) -> number)
@@ -15,6 +16,40 @@ function Movement.start(send: (string, Types.ActionOptions?) -> number)
 	local dashSequence = 0
 	local sprintSequence = 0
 	local stopDash: (() -> ())? = nil
+	local speedConnection: RBXScriptConnection? = nil
+	local multiplierConnection: RBXScriptConnection? = nil
+
+	local function applyPredictedSpeed()
+		local character = player.Character
+		local humanoid = if character then character:FindFirstChildOfClass("Humanoid") else nil
+		if humanoid and humanoid.Health > 0 then
+			local bonus = character:GetAttribute("MagicWalkSpeedBonus")
+			local multiplier = character:GetAttribute("MagicSpeedMultiplier")
+			humanoid.WalkSpeed = Speed.calculate(
+				Config.WalkSpeed,
+				Config.SprintSpeed,
+				sprinting,
+				if typeof(bonus) == "number" then bonus else 0,
+				if typeof(multiplier) == "number" then multiplier else 1
+			)
+		end
+	end
+
+	local function bindCharacter(character: Model)
+		if multiplierConnection then
+			multiplierConnection:Disconnect()
+		end
+		if speedConnection then
+			speedConnection:Disconnect()
+		end
+		speedConnection = character:GetAttributeChangedSignal("MagicWalkSpeedBonus"):Connect(applyPredictedSpeed)
+		multiplierConnection = character:GetAttributeChangedSignal("MagicSpeedMultiplier"):Connect(applyPredictedSpeed)
+		applyPredictedSpeed()
+	end
+	player.CharacterAdded:Connect(bindCharacter)
+	if player.Character then
+		bindCharacter(player.Character)
+	end
 
 	local function cancel()
 		if stopDash then
@@ -30,7 +65,7 @@ function Movement.start(send: (string, Types.ActionOptions?) -> number)
 		local character = player.Character
 		local humanoid = if character then character:FindFirstChildOfClass("Humanoid") else nil
 		if humanoid and humanoid.Health > 0 then
-			humanoid.WalkSpeed = if enabled then Config.SprintSpeed else Config.WalkSpeed
+			applyPredictedSpeed()
 			sprintSequence = send(Protocol.Sprint, { Sprinting = enabled })
 		end
 	end
@@ -150,13 +185,9 @@ function Movement.start(send: (string, Types.ActionOptions?) -> number)
 					end
 				end
 			elseif message.Action == Protocol.Sprint and message.Sequence == sprintSequence then
-				local character = player.Character
-				local humanoid = if character then character:FindFirstChildOfClass("Humanoid") else nil
 				-- Apply only the latest sprint acknowledgement.
 				sprinting = message.Sprinting
-				if humanoid then
-					humanoid.WalkSpeed = if sprinting then Config.SprintSpeed else Config.WalkSpeed
-				end
+				applyPredictedSpeed()
 			end
 		end,
 	}

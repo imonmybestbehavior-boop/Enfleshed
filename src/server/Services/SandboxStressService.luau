@@ -6,6 +6,7 @@ local PhysicsService = game:GetService("PhysicsService")
 local RunService = game:GetService("RunService")
 local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
 local Sandbox = require(Shared:WaitForChild("Configuration"):WaitForChild("Sandbox"))
+local Topology = require(Shared:WaitForChild("Configuration"):WaitForChild("PhaseATopology"))
 local Config = Sandbox.StressTest
 local Enemy = require(script.Parent.EnemyService)
 local StressTest = {}
@@ -18,7 +19,8 @@ function StressTest.start()
 	assert(#Config.WaveSizes > 0, "Configure at least one wave")
 	assert(Config.PathStartsPerSecond > 0 and Config.MaxPathsInFlight >= 1, "Invalid path budget")
 	assert(Config.MaxPathsInFlight % 1 == 0 and Config.HitQueryRate > 0, "Invalid path concurrency/hit rate")
-	assert(Config.MinSpawnSpacing > 0 and Config.SpawnRadius > 0 and Config.SpawnAttempts >= 1, "Invalid spawn layout")
+	assert(Config.MinSpawnSpacing > 0 and Config.SpawnCandidateMinimumDistance > 0, "Invalid spawn layout")
+	assert(Config.SpawnCandidateMaximumDistance > Config.SpawnCandidateMinimumDistance, "Invalid spawn distance range")
 	assert(Config.InterWaveDelay >= 0 and Config.CorpseLifetime >= 0, "Invalid wave timing")
 	for _, count in Config.WaveSizes do
 		assert(count >= 1 and count % 1 == 0, "Wave sizes must be positive integers")
@@ -82,6 +84,7 @@ function StressTest.start()
 		pathCursor = 0
 	end
 
+	local candidateCursor = 0
 	local function positions(count: number): { Vector3 }?
 		local protected = { Sandbox.Dummy.Position }
 		local spawn = workspace:FindFirstChild("SandboxSpawn")
@@ -99,22 +102,43 @@ function StressTest.start()
 		overlap.FilterType = Enum.RaycastFilterType.Exclude
 		overlap.FilterDescendantsInstances = { folder }
 		overlap.RespectCanCollide = true
-		local minimumRadius = if count > 1 then Config.MinSpawnSpacing / (2 * math.sin(math.pi / count)) else 0
-		for attempt = 0, Config.SpawnAttempts - 1 do
-			local radius = math.max(Config.SpawnRadius, minimumRadius)
-				+ math.floor(attempt / 4) * Config.SpawnRadiusStep
-			local result: { Vector3 } = {}
-			for index = 1, count do
-				local angle = -math.pi / 2 + (index - 1) * 2 * math.pi / count + (attempt % 4) * math.pi / (2 * count)
-				local position = Config.SpawnCenter + Vector3.new(math.cos(angle) * radius, 0, math.sin(angle) * radius)
-				local valid = math.abs(position.X) < 250 and math.abs(position.Z) < 250 -- Existing 512-stud baseplate.
+		local graybox = workspace:FindFirstChild("LowerLayerGraybox")
+		local debugFolder = if graybox then graybox:FindFirstChild("Debug") else nil
+		local function groundedPosition(candidate: Vector3): Vector3?
+			if not graybox then
+				return nil
+			end
+			local ray = RaycastParams.new()
+			ray.FilterType = Enum.RaycastFilterType.Exclude
+			ray.FilterDescendantsInstances = { folder }
+			ray.RespectCanCollide = true
+			-- Probe around the authored route height. The old 140-stud probe began
+			-- above the surface and therefore hit it before an underground floor.
+			local origin = candidate + Vector3.new(0, Config.GroundProbeHeight, 0)
+			local hit = workspace:Raycast(origin, Vector3.new(0, -Config.GroundProbeDistance, 0), ray)
+			if
+				not hit
+				or hit.Normal.Y < 0.9
+				or not hit.Instance:IsDescendantOf(graybox)
+				or (debugFolder and hit.Instance:IsDescendantOf(debugFolder))
+			then
+				return nil
+			end
+			local rootHeight = Sandbox.Enemy.CollisionHull.Height / 2 - Sandbox.Enemy.CollisionHull.CenterOffsetY
+			return hit.Position + Vector3.new(0, rootHeight + Config.GroundClearance, 0)
+		end
+		local available: { { Position: Vector3, Score: number } } = {}
+		for _, candidate in Topology.SpawnCandidates do
+			local source = (candidate.Position or Topology.Nodes[candidate.Node]) + candidate.Offset
+			local position = groundedPosition(source)
+			if position then
+				local closest = math.huge
 				for _, point in protected do
 					local delta = position - point
-					if Vector3.new(delta.X, 0, delta.Z).Magnitude < Config.SpawnClearance then
-						valid = false
-						break
-					end
+					closest = math.min(closest, Vector3.new(delta.X, 0, delta.Z).Magnitude)
 				end
+				local valid = closest >= math.max(Config.SpawnCandidateMinimumDistance, Config.SpawnClearance)
+					and closest <= Config.SpawnCandidateMaximumDistance
 				if
 					valid
 					and #workspace:GetPartBoundsInBox(
@@ -126,16 +150,36 @@ function StressTest.start()
 				then
 					valid = false
 				end
-				if not valid then
-					break
+				if valid then
+					table.insert(available, { Position = position, Score = closest })
 				end
-				table.insert(result, position)
-			end
-			if #result == count then
-				return result
 			end
 		end
-		return nil -- Occupied layouts retry rather than placing enemies inside characters/walls.
+		table.sort(available, function(left, right)
+			return left.Score < right.Score
+		end)
+		local result: { Vector3 } = {}
+		if #available > 0 then
+			candidateCursor = candidateCursor % #available
+			for offset = 1, #available do
+				local candidate = available[(candidateCursor + offset - 1) % #available + 1]
+				local spaced = true
+				for _, chosen in result do
+					if (candidate.Position - chosen).Magnitude < Config.MinSpawnSpacing then
+						spaced = false
+						break
+					end
+				end
+				if spaced then
+					table.insert(result, candidate.Position)
+					if #result == count then
+						candidateCursor += offset
+						return result
+					end
+				end
+			end
+		end
+		return nil -- Candidates retry later instead of placing enemies inside characters/walls.
 	end
 
 	local function startWave(now: number)

@@ -11,7 +11,7 @@ function Debug.start()
 	gui.ResetOnSpawn = false
 	gui.Parent = Players.LocalPlayer:WaitForChild("PlayerGui")
 	local label = Instance.new("TextLabel")
-	label.Size = UDim2.fromOffset(560, 112)
+	label.Size = UDim2.fromOffset(760, 156)
 	label.Position = UDim2.fromOffset(12, 12)
 	label.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
 	label.BackgroundTransparency = 0.25
@@ -24,6 +24,7 @@ function Debug.start()
 	local stress: Instance? = nil
 	local magicText = ""
 	local magicUntil = 0
+	local generatedText = ""
 	local function waveText(): string
 		if not stress or not stress.Parent then
 			stress = workspace:FindFirstChild("SandboxStressTest")
@@ -111,13 +112,17 @@ function Debug.start()
 			)
 			magicUntil = os.clock() + 2.5
 		end,
+		Generated = function(text: string)
+			generatedText = text
+		end,
 		Update = function(combo: number, cooldown: number)
 			label.Text = string.format(
-				"Combo %d/3  |  Dash %.1fs\n%s\n%s\n%s",
+				"Combo %d/3  |  Dash %.1fs\n%s\n%s\n%s\n%s\nV2: 4 Lance | 5 Ground | 6 Reinforcement | 7 Raise",
 				combo,
 				cooldown,
 				if os.clock() < hitUntil then hitText else "",
 				if os.clock() < magicUntil then magicText else "",
+				generatedText,
 				waveText()
 			)
 		end,

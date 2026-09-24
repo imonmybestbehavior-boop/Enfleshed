@@ -1,14 +1,18 @@
 --!strict
 
 local CollectionService = game:GetService("CollectionService")
-local Config = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared").Configuration.Sandbox)
+local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
+local Config = require(Shared.Configuration.Sandbox)
+local World = require(Shared.Configuration.LowerLayerGraybox)
+local Graybox = require(script.Parent.Parent.Development.LowerLayerGraybox)
 local Sandbox = {}
 
 function Sandbox.start()
+	Graybox.start()
 	local spawn = Instance.new("SpawnLocation")
-	spawn.Name = "SandboxSpawn"
+	spawn.Name = "RecruitSpawnLocation"
 	spawn.Size = Vector3.new(6, 1, 6)
-	spawn.Position = Vector3.new(0, 0.5, 8)
+	spawn.Position = World.PhaseA.RecruitSpawn
 	spawn.Anchored = true
 	spawn.Neutral = true
 	spawn.Duration = 0
@@ -75,7 +79,7 @@ function Sandbox.start()
 	local earth = Instance.new("Part")
 	earth.Name = "EarthMagicMaterial"
 	earth.Size = Vector3.new(6, 3, 6)
-	earth.Position = Vector3.new(-9, 1.5, -12)
+	earth.Position = Vector3.new(-70, 1.5, 1460)
 	earth.Anchored = true
 	earth.Material = Enum.Material.Slate
 	earth.Color = Color3.fromRGB(100, 75, 55)
@@ -83,6 +87,17 @@ function Sandbox.start()
 	earth:SetAttribute("AvailableAmount", 50)
 	earth.Parent = workspace
 	CollectionService:AddTag(earth, "MagicMaterialSource")
+	local manipulable = Instance.new("Part")
+	manipulable.Name = "EarthRaiseStone"
+	manipulable.Size = Vector3.new(5, 2, 5)
+	manipulable.Position = Vector3.new(75, 1, 1460)
+	manipulable.Anchored = true
+	manipulable.Material = Enum.Material.Slate
+	manipulable.Color = Color3.fromRGB(90, 105, 80)
+	manipulable:SetAttribute("MagicMaterial", "Earth")
+	manipulable:SetAttribute("MagicRaise", true)
+	manipulable.Parent = workspace
+	CollectionService:AddTag(manipulable, "MagicManipulable")
 	local label = Instance.new("BillboardGui")
 	label.Size = UDim2.fromOffset(180, 30)
 	label.StudsOffset = Vector3.new(0, 3, 0)
