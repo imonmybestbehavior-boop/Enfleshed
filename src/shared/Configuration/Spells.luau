@@ -16,9 +16,13 @@ return table.freeze({
 		Casting = { Mode = "Instant", Cooldown = 0.45 },
 		Lifetime = { Mode = "FixedDuration", Duration = 2.2 },
 		Cost = { ManaDemand = 18, Strain = 8, Complexity = 2 },
-		Projectile = { Speed = 72, Radius = 1.1, DirectDamage = 10, Color = Color3.fromRGB(255, 105, 50) },
+		Projectile = { Speed = 72, Radius = 1.1 },
+		Visual = { Color = Color3.fromRGB(255, 105, 50) },
 		Triggers = {
-			OnImpact = { { Behavior = "Explode", Radius = 7, Payloads = { { Kind = "Damage", Amount = 18 } } } },
+			OnImpact = {
+				{ Payloads = { { Kind = "Damage", Amount = 10 } } },
+				{ Behavior = "Explode", Radius = 7, Payloads = { { Kind = "Damage", Amount = 18 } } },
+			},
 		},
 	},
 	BodyBurst = {
@@ -59,7 +63,8 @@ return table.freeze({
 		Lifetime = { Mode = "FixedDuration", Duration = 2.5 },
 		Cost = { ManaDemand = 14, Strain = 15, Complexity = 2 },
 		Material = { Material = "Earth", Amount = 1, SearchRadius = 12 },
-		Projectile = { Speed = 62, Radius = 0.9, DirectDamage = 26, Color = Color3.fromRGB(125, 95, 65) },
-		Triggers = { OnImpact = {} },
+		Projectile = { Speed = 62, Radius = 0.9 },
+		Visual = { Color = Color3.fromRGB(125, 95, 65) },
+		Triggers = { OnImpact = { { Payloads = { { Kind = "Damage", Amount = 26 } } } } },
 	},
 })

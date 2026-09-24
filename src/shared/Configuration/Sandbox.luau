@@ -59,11 +59,13 @@ return {
 		MinimumWorldAimDot = 0.35,
 		ChargeCostScale = 0.35,
 		Player = {
-			Mana = 120,
-			Capacity = 120, -- Future Locus capacity modifier seam.
+			Mana = 300, -- Temporary sandbox reserve, not final balance.
+			Capacity = 300, -- Future Locus capacity modifier seam.
+			ManaRegenerationPerSecond = 30, -- Temporary testing recovery.
 			Efficiency = 1, -- Future mana-demand modifier seam.
 			Potency = 1, -- Future payload modifier seam.
 			StrainTolerance = 30,
+			StrainRecoveryPerSecond = 8,
 			SafeManaDemand = 35,
 			SafeStrain = 18,
 			ComplexityCapacity = 8,

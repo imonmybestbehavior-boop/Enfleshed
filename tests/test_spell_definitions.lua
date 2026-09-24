@@ -14,9 +14,13 @@ local spells = assert(loadfile("src/shared/Configuration/Spells.luau", "t", {
 	},
 }))()
 
-assert(spells.Fireball.Form == "Projectile" and spells.Fireball.Triggers.OnImpact[1].Behavior == "Explode")
+assert(spells.Fireball.Form == "Projectile" and spells.Fireball.Triggers.OnImpact[2].Behavior == "Explode")
+assert(
+	not spells.Fireball.Projectile.DirectDamage and spells.Fireball.Triggers.OnImpact[1].Payloads[1].Kind == "Damage"
+)
 assert(spells.BodyBurst.Form == "Wave" and #spells.BodyBurst.Wave.Payloads == 2)
 assert(spells.StoneShot.Targeting == "MaterialTarget" and spells.StoneShot.Material.Material == "Earth")
+assert(not spells.StoneShot.Projectile.DirectDamage and spells.StoneShot.Triggers.OnImpact[1].Payloads[1].Amount == 26)
 for id, definition in pairs(spells) do
 	assert(definition.SpellId == id and definition.Cost and definition.Casting and definition.Lifetime)
 end

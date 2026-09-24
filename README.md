@@ -86,7 +86,8 @@ server measures charge time, retrieves and validates data, calculates costs,
 consumes material, moves logical projectiles with swept raycasts, queries targets,
 and applies damage through `DamageService`.
 
-Temporary magic stats start at 120 mana on each spawn. Mana demand, Locus strain,
+Temporary magic stats start at 300 mana on each spawn and recover 30 mana per
+second. Mana demand, Locus strain,
 and complexity remain separate. `VALID` executes normally. `UNSAFE` executes
 with a debug warning; a nearly full charged Stone Shot reaches the default safe
 strain threshold. `IMPOSSIBLE` executes nothing, including for invalid spell/aim,
@@ -103,6 +104,12 @@ with Damage and Force payloads; Force changes velocity only. Stone Shot uses the
 same generic projectile executor as Fireball but adds charged casting and a
 material requirement. Visuals are temporary debug primitives separate from hit
 geometry.
+
+Projectile direct impact is also an `OnImpact` Damage payload, so `Projectile`
+contains only speed and radius while `Visual` holds its temporary color. Named
+behaviors dispatch through `MagicBehaviorExecutors`; V1 registers only `Explode`.
+Adding a future behavior means registering its handler there, without changing
+MagicService's impact dispatch.
 
 V1 intentionally excludes awakening, spell editing, persistence, progression,
 unlocks, further principles/expressions, beams/fields/auras/constructs, complex
@@ -189,6 +196,7 @@ Every sandbox module is listed below; paths are relative to `src/`.
 | `server/Services/MovementService.luau` | Authorizes sprint/dash, tracks cooldown/distance budgets, checks dash obstacles, and corrects obvious movement violations. |
 | `server/Services/CombatService.luau` | Owns combo progression/timing, samples active swings, and deduplicates targets across each swing. |
 | `server/Services/MagicService.luau` | Interprets registered V1 spell data: validation, charge timing, cost/material handling, logical projectiles, geometry queries, and payload execution. |
+| `server/Services/MagicBehaviorExecutors.luau` | Named V1 behavior registry; currently provides the generic `Explode` handler. |
 | `server/Services/HitDetectionService.luau` | Neutral model/origin/box query with caller-supplied target policy, optional reach/facing limits, and solid-obstacle raycasts; returns living Humanoids. |
 | `server/Services/EnemyService.luau` | Creates independent enemy handles with update/cleanup/path-job functions; preserves combat states, fixed telegraphs, and damage. |
 | `server/Services/SandboxStressService.luau` | Temporary wave creation/cleanup, spaced spawn layouts, one shared enemy update connection, and round-robin path admission. |

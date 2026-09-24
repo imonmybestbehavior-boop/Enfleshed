@@ -10,6 +10,7 @@ local Sandbox = require(Shared.Configuration.Sandbox)
 local Definitions = require(Shared.Configuration.Spells)
 local HitDetection = require(script.Parent.HitDetectionService)
 local Damage = require(script.Parent.DamageService)
+local Behaviors = require(script.Parent.MagicBehaviorExecutors)
 local Magic = {}
 
 type State = { Character: Model, Humanoid: Humanoid, Root: BasePart }
@@ -188,7 +189,7 @@ local function visual(definition: any, position: Vector3): BasePart
 	part.CanTouch = false
 	part.CanQuery = false
 	part.Material = Enum.Material.Neon
-	part.Color = definition.Projectile.Color
+	part.Color = definition.Visual.Color
 	part.Parent = workspace
 	return part
 end
@@ -217,17 +218,17 @@ local function execute(
 	end
 	feedback(remote, player, result, definition, { Mana = stats.Mana, Strain = stats.Strain, Complexity = complexity })
 	if definition.Form == "Wave" then
-		local targets =
-			HitDetection.findCone(state.Character, state.Root.CFrame, definition.Wave.Range, definition.Wave.Dot, {
-				OverlapCollisionGroup = Sandbox.Combat.OverlapCollisionGroup,
-				RequireLineOfSight = true,
-			})
-		applyPayloads(state.Character, state.Root.CFrame, targets, definition.Wave.Payloads, direction, remote, player)
+		local castFrame = CFrame.lookAt(state.Root.Position, state.Root.Position + direction)
+		local targets = HitDetection.findCone(state.Character, castFrame, definition.Wave.Range, definition.Wave.Dot, {
+			OverlapCollisionGroup = Sandbox.Combat.OverlapCollisionGroup,
+			RequireLineOfSight = true,
+		})
+		applyPayloads(state.Character, castFrame, targets, definition.Wave.Payloads, direction, remote, player)
 		local marker = Instance.new("Part")
 		marker.Name = "MagicWaveDebug"
 		marker.Shape = Enum.PartType.Ball
 		marker.Size = Vector3.new(definition.Wave.Range * 2, 0.15, definition.Wave.Range * 2)
-		marker.CFrame = state.Root.CFrame * CFrame.new(0, -2.7, -definition.Wave.Range / 2)
+		marker.CFrame = castFrame * CFrame.new(0, -2.7, -definition.Wave.Range / 2)
 		marker.Anchored, marker.CanCollide, marker.CanQuery = true, false, false
 		marker.Transparency, marker.Material, marker.Color = 0.6, Enum.Material.Neon, Color3.fromRGB(170, 255, 170)
 		marker.Parent = workspace
@@ -330,6 +331,11 @@ function Magic.remove(player: Player)
 end
 
 RunService.Heartbeat:Connect(function(delta)
+	for _, stats in playerData do
+		stats.Mana =
+			math.min(Sandbox.Magic.Player.Capacity, stats.Mana + Sandbox.Magic.Player.ManaRegenerationPerSecond * delta)
+		stats.Strain = math.max(0, stats.Strain - Sandbox.Magic.Player.StrainRecoveryPerSecond * delta)
+	end
 	for index = #active, 1, -1 do
 		local spell = active[index]
 		if not spell.Caster:IsDescendantOf(workspace) then
@@ -353,31 +359,36 @@ RunService.Heartbeat:Connect(function(delta)
 		if impact or spell.RemainingLifetime <= 0 then
 			local hitModel = if impact then impact.Instance:FindFirstAncestorOfClass("Model") else nil
 			local hitHumanoid = if hitModel then hitModel:FindFirstChildOfClass("Humanoid") else nil
-			if hitHumanoid and hitModel ~= spell.Caster and definition.Projectile.DirectDamage > 0 then
-				local dealt = Damage.apply(
-					spell.Caster,
-					hitHumanoid,
-					definition.Projectile.DirectDamage * Sandbox.Magic.Player.Potency
-				)
-				if dealt > 0 then
-					feedback(spell.Remote, spell.Player, "HIT", definition, { Damage = dealt, Reason = hitModel.Name })
-				end
-			end
 			for _, trigger in definition.Triggers.OnImpact or {} do
-				if trigger.Behavior == "Explode" then
-					local targets = HitDetection.findSphere(spell.Caster, CFrame.new(spell.Position), trigger.Radius, {
-						OverlapCollisionGroup = Sandbox.Combat.OverlapCollisionGroup,
-						RequireLineOfSight = true,
-					})
+				if trigger.Payloads and hitHumanoid and hitModel ~= spell.Caster then
 					applyPayloads(
 						spell.Caster,
 						CFrame.new(spell.Position),
-						targets,
+						{ hitHumanoid },
 						trigger.Payloads,
 						spell.Direction,
 						spell.Remote,
 						spell.Player
 					)
+				end
+				if trigger.Behavior then
+					Behaviors.execute(trigger.Behavior, {
+						ApplySpherePayloads = function(radius: number, payloads: { any })
+							local targets = HitDetection.findSphere(spell.Caster, CFrame.new(spell.Position), radius, {
+								OverlapCollisionGroup = Sandbox.Combat.OverlapCollisionGroup,
+								RequireLineOfSight = true,
+							})
+							applyPayloads(
+								spell.Caster,
+								CFrame.new(spell.Position),
+								targets,
+								payloads,
+								spell.Direction,
+								spell.Remote,
+								spell.Player
+							)
+						end,
+					}, trigger)
 				end
 			end
 			spell.Visual:Destroy()
