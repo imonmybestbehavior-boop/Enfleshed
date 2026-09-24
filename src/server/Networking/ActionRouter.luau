@@ -10,6 +10,7 @@ local Services = script.Parent.Parent.Services
 local Movement = require(Services.MovementService)
 local Combat = require(Services.CombatService)
 local Magic = require(Services.MagicService)
+local Equipment = require(Services.EquipmentService)
 local Router = {}
 
 function Router.start()
@@ -29,6 +30,7 @@ function Router.start()
 	local function bind(player: Player)
 		limits[player] = { Tokens = Config.Networking.Burst, Updated = os.clock(), Sequence = 0 }
 		Magic.bind(player)
+		Equipment.bind(player)
 		local function characterAdded(character: Model)
 			if player.Character ~= character then
 				return
@@ -90,6 +92,7 @@ function Router.start()
 				ActiveUntil = 0,
 				HitTargets = {},
 			}
+			Equipment.characterAdded(player, feedback)
 		end
 		connections[player] = {
 			player.CharacterAdded:Connect(characterAdded),
@@ -110,6 +113,7 @@ function Router.start()
 		states[player] = nil
 		limits[player] = nil
 		Magic.remove(player)
+		Equipment.remove(player)
 		for _, connection in connections[player] or {} do
 			connection:Disconnect()
 		end
@@ -155,6 +159,8 @@ function Router.start()
 			and action ~= Protocol.Light
 			and action ~= Protocol.MagicStart
 			and action ~= Protocol.MagicRelease
+			and action ~= Protocol.EquipmentSwitch
+			and action ~= Protocol.EquipmentUse
 		then
 			return
 		end
@@ -188,7 +194,7 @@ function Router.start()
 			accepted = true
 		elseif action == Protocol.Light then
 			validPosition = Movement.update(player, state, now, feedback)
-			accepted = validPosition and Combat.request(state, now)
+			accepted = validPosition and Equipment.meleeActive(player) and Combat.request(state, now)
 		elseif action == Protocol.Dash and validPosition then
 			local direction = payload.Direction
 			if
@@ -209,6 +215,18 @@ function Router.start()
 		elseif action == Protocol.MagicRelease then
 			Magic.release(player, state, payload, feedback)
 			accepted = true
+		elseif action == Protocol.EquipmentSwitch then
+			accepted = Equipment.switch(player, payload.EquipmentSlot, feedback)
+		elseif action == Protocol.EquipmentUse and now >= state.DashUntil then
+			local spellId = Equipment.magicSpell(player, payload.EquipmentAction)
+			if spellId then
+				Magic.start(player, state, {
+					SpellId = spellId,
+					AimDirection = payload.AimDirection,
+					WorldPoint = payload.WorldPoint,
+				}, feedback)
+				accepted = true
+			end
 		end
 		feedback:FireClient(player, {
 			Kind = "Action",

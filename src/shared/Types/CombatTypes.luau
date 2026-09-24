@@ -16,6 +16,8 @@ export type ActionOptions = {
 	SpellId: string?,
 	AimDirection: Vector3?,
 	WorldPoint: Vector3?,
+	EquipmentSlot: string?,
+	EquipmentAction: string?,
 }
 
 export type ActionRequest = {
@@ -27,6 +29,8 @@ export type ActionRequest = {
 	SpellId: string?,
 	AimDirection: Vector3?,
 	WorldPoint: Vector3?,
+	EquipmentSlot: string?,
+	EquipmentAction: string?,
 }
 
 export type HitResult = { Target: Model, Damage: number, Health: number }

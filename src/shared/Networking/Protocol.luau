@@ -9,4 +9,6 @@ return table.freeze({
 	Light = "Light",
 	MagicStart = "MagicStart",
 	MagicRelease = "MagicRelease",
+	EquipmentSwitch = "EquipmentSwitch",
+	EquipmentUse = "EquipmentUse",
 })

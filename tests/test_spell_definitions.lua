@@ -21,6 +21,11 @@ assert(
 assert(spells.BodyBurst.Form == "Wave" and #spells.BodyBurst.Wave.Payloads == 2)
 assert(spells.StoneShot.Targeting == "MaterialTarget" and spells.StoneShot.Material.Material == "Earth")
 assert(not spells.StoneShot.Projectile.DirectDamage and spells.StoneShot.Triggers.OnImpact[1].Payloads[1].Amount == 26)
+assert(
+	spells.RecruitMagicBolt.Form == "Projectile"
+		and spells.RecruitMagicBolt.Triggers.OnImpact[1].Payloads[1].Amount == 18
+)
+assert(spells.RecruitMagicDischarge.Form == "Wave" and spells.RecruitMagicDischarge.Wave.Dot == -1)
 for id, definition in pairs(spells) do
 	assert(definition.SpellId == id and definition.Cost and definition.Casting and definition.Lifetime)
 end

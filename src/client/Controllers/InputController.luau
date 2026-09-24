@@ -7,9 +7,10 @@ local Input = {}
 function Input.start(
 	sprint: (boolean) -> (),
 	dash: () -> (),
-	attack: () -> (),
 	magicStart: (string) -> (),
-	magicRelease: () -> ()
+	magicRelease: () -> (),
+	useEquipment: (string) -> (),
+	switchEquipment: () -> ()
 )
 	ContextActionService:BindAction("SandboxSprint", function(_, state)
 		if state == Enum.UserInputState.End or state == Enum.UserInputState.Cancel then
@@ -27,10 +28,22 @@ function Input.start(
 	end, false, Enum.KeyCode.Q)
 	ContextActionService:BindAction("SandboxLight", function(_, state)
 		if state == Enum.UserInputState.Begin and not UserInputService:GetFocusedTextBox() then
-			attack()
+			useEquipment("Primary")
 		end
 		return Enum.ContextActionResult.Sink
 	end, false, Enum.UserInputType.MouseButton1)
+	ContextActionService:BindAction("SandboxEquipmentArea", function(_, state)
+		if state == Enum.UserInputState.Begin and not UserInputService:GetFocusedTextBox() then
+			useEquipment("Area")
+		end
+		return Enum.ContextActionResult.Sink
+	end, false, Enum.UserInputType.MouseButton2)
+	ContextActionService:BindAction("SandboxEquipmentSwitch", function(_, state)
+		if state == Enum.UserInputState.Begin and not UserInputService:GetFocusedTextBox() then
+			switchEquipment()
+		end
+		return Enum.ContextActionResult.Sink
+	end, false, Enum.KeyCode.E)
 	for spellId, key in { Fireball = Enum.KeyCode.One, BodyBurst = Enum.KeyCode.Two, StoneShot = Enum.KeyCode.Three } do
 		ContextActionService:BindAction("Sandbox" .. spellId, function(_, state)
 			if UserInputService:GetFocusedTextBox() then

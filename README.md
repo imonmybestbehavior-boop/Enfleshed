@@ -16,6 +16,7 @@ stylua --verify src tests/test_sandbox_tuning.lua
 stylua --check src tests/test_sandbox_tuning.lua
 lua tests/test_sandbox_tuning.lua
 lua tests/test_spell_definitions.lua
+lua tests/test_equipment_definitions.lua
 rojo build default.project.json -o Enfleshed.rbxlx
 python3 tests/test_place_references.py
 git diff --check
@@ -50,6 +51,9 @@ and server/client Output in Studio in addition to the playtests below.
 | 1 | Cast Fireball toward camera aim |
 | 2 | Cast Body Burst in facing direction |
 | Hold/release 3 | Charge/release Stone Shot; aim at the Earth source |
+| E | Switch between the equipped melee trainer and primary magic focus |
+| Left mouse click with magic focus | Recruit Magic Bolt |
+| Right mouse click with magic focus | Recruit Magic Discharge |
 
 Keyboard/mouse only in this sandbox. Sprint clears when the window loses focus,
 a text box is focused, or the character dies/respawns. Attacks never change
@@ -115,6 +119,36 @@ V1 intentionally excludes awakening, spell editing, persistence, progression,
 unlocks, further principles/expressions, beams/fields/auras/constructs, complex
 conditions, sustained commands, status effects, terrain destruction, and polished
 visuals/audio/animations.
+
+## Equipment Foundation V1
+
+`EquipmentService` owns temporary server-side equipment state with
+`PrimaryWeapon`, `SecondaryWeapon`, `Utility`, owned-item state, and an active
+slot. The prototype automatically grants a `RecruitMagicWeapon` in Primary and a
+`RecruitMeleeWeapon` in Secondary; Utility is empty. It starts with Secondary
+active to preserve the existing left-click melee flow. Press **E** to request a
+server-validated switch. The active item is shown as a small primitive attached
+to the character's right hand.
+
+Item and magic-profile data are in `shared/Configuration/Items.luau`. The magic
+focus references the `RecruitGeneric` profile, whose Primary and Area actions
+resolve to `RecruitMagicBolt` and `RecruitMagicDischarge` in the existing spell
+registry. The client sends only an equipment action plus aim. The server resolves
+the active, owned item and its profile before calling MagicService; it never
+accepts a client-selected item, profile, spell, damage, or cost.
+
+With the focus active, left click fires the 18-damage, 105-stud/second projectile
+and right click uses a 9-stud broad discharge for 22 damage. Both values, costs,
+cooldowns, radii, and lifetimes remain registered spell data. They preserve
+walking, strafing, jumping, and sprint movement; equipment magic is rejected only
+during the existing active dash interval. Direct debug spell controls **1**, **2**,
+and **3** remain available.
+
+Another weapon can be introduced by adding item/profile data and pointing its
+actions at compatible registered spells. A future character screen can read and
+request changes to this state without becoming part of the backend. Awakening can
+later replace or modify the focus's `MagicProfile` while continuing to use the
+same equipment and Magic Runtime routing.
 
 ## Focused combat tuning pass
 
@@ -190,6 +224,7 @@ Every sandbox module is listed below; paths are relative to `src/`.
 | `client/Controllers/MovementController.luau` | Immediate local sprint/dash prediction, dash collision sweeps, cleanup, cooldown feedback, and rejected-prediction cancellation. |
 | `client/Controllers/CombatController.luau` | Predicted swing boxes, one buffered click, combo reconciliation, and other players' approved swing effects. |
 | `client/Controllers/MagicController.luau` | Collects camera aim for temporary spell shortcuts and sends only cast intent. |
+| `client/Controllers/EquipmentController.luau` | Routes mouse actions through the locally confirmed active slot and requests equipment switches. |
 | `client/Controllers/DebugController.luau` | Minimal HUD plus server-confirmed per-target outline/damage numbers, combo/dash feedback, and shared wave/living count. |
 | `server/init.server.luau` | Explicitly starts the sandbox, action router, and temporary wave stress test. |
 | `server/Networking/ActionRouter.luau` | Creates remotes, validates/rate-limits requests, owns per-player state/lifecycle, and runs one server update loop. |
@@ -197,6 +232,7 @@ Every sandbox module is listed below; paths are relative to `src/`.
 | `server/Services/CombatService.luau` | Owns combo progression/timing, samples active swings, and deduplicates targets across each swing. |
 | `server/Services/MagicService.luau` | Interprets registered V1 spell data: validation, charge timing, cost/material handling, logical projectiles, geometry queries, and payload execution. |
 | `server/Services/MagicBehaviorExecutors.luau` | Named V1 behavior registry; currently provides the generic `Explode` handler. |
+| `server/Services/EquipmentService.luau` | Server-owned prototype loadout, item-slot validation, active-slot visuals, and magic-profile action resolution. |
 | `server/Services/HitDetectionService.luau` | Neutral model/origin/box query with caller-supplied target policy, optional reach/facing limits, and solid-obstacle raycasts; returns living Humanoids. |
 | `server/Services/EnemyService.luau` | Creates independent enemy handles with update/cleanup/path-job functions; preserves combat states, fixed telegraphs, and damage. |
 | `server/Services/SandboxStressService.luau` | Temporary wave creation/cleanup, spaced spawn layouts, one shared enemy update connection, and round-robin path admission. |
@@ -204,8 +240,10 @@ Every sandbox module is listed below; paths are relative to `src/`.
 | `server/Services/SandboxService.luau` | Creates a spawn and one anchored dummy with health text and a delayed replacement on death. No NPC framework. |
 | `shared/Configuration/Sandbox.luau` | Central movement, attack, dummy, networking, and debug tuning. |
 | `shared/Configuration/Spells.luau` | Registered data definitions for Fireball, Body Burst, and Stone Shot. |
+| `shared/Configuration/Items.luau` | Small item registry and profile-to-registered-spell mappings for equipment. |
 | `shared/Types/CombatTypes.luau` | Shared Luau attack/request/result/state types. State type declarations expose no runtime player data. |
 | `shared/Types/MagicTypes.luau` | V1 cast-intent, validation-result, and active-spell type contracts. |
+| `shared/Types/EquipmentTypes.luau` | Shared backend equipment-slot and state type contracts. |
 | `shared/Types/init.meta.json` | Explicitly maps the new Types directory to a Folder. |
 | `shared/Networking/Protocol.luau` | Remote names and the three supported action identifiers. |
 

@@ -25,6 +25,8 @@ local function send(action: string, extra: Types.ActionOptions?): number
 		SpellId = if extra then extra.SpellId else nil,
 		AimDirection = if extra then extra.AimDirection else nil,
 		WorldPoint = if extra then extra.WorldPoint else nil,
+		EquipmentSlot = if extra then extra.EquipmentSlot else nil,
+		EquipmentAction = if extra then extra.EquipmentAction else nil,
 	}
 	request:FireServer(payload)
 	return sequence
@@ -34,16 +36,18 @@ local debug = require(script.Controllers.DebugController).start()
 local movement = require(script.Controllers.MovementController).start(send)
 local combat = require(script.Controllers.CombatController).start(send, movement, debug)
 local magic = require(script.Controllers.MagicController).start(send)
+local equipment = require(script.Controllers.EquipmentController).start(send, combat.Attack, magic.WeaponAction)
 require(script.Controllers.InputController).start(movement.Sprint, function()
 	if combat.CanDash() then
 		movement.Dash()
 	end
-end, combat.Attack, magic.Cast, magic.Release)
+end, magic.Cast, magic.Release, equipment.Use, equipment.Switch)
 
 local function reset()
 	movement.Reset()
 	combat.Reset()
 	magic.Reset()
+	equipment.Reset()
 end
 player.CharacterRemoving:Connect(reset)
 local deathConnection: RBXScriptConnection? = nil
@@ -63,11 +67,12 @@ if player.Character then
 	task.spawn(characterAdded, player.Character)
 end
 feedback.OnClientEvent:Connect(function(message)
-	if message.Kind == "Swing" or (player.Character ~= nil and message.Character == player.Character) then
+	if message.Kind == "Equipment" then
+		equipment.Feedback(message)
+	elseif message.Kind == "Magic" then
+		debug.Magic(message)
+	elseif message.Kind == "Swing" or (player.Character ~= nil and message.Character == player.Character) then
 		movement.Feedback(message)
 		combat.Feedback(message)
-		if message.Kind == "Magic" then
-			debug.Magic(message)
-		end
 	end
 end)

@@ -48,6 +48,10 @@ function Magic.start(send: (string, Types.ActionOptions?) -> number)
 			send(Protocol.MagicRelease, { SpellId = activeSpell, AimDirection = direction, WorldPoint = point })
 			activeSpell = nil
 		end,
+		WeaponAction = function(action: string)
+			local direction, point = aim()
+			send(Protocol.EquipmentUse, { EquipmentAction = action, AimDirection = direction, WorldPoint = point })
+		end,
 		Reset = function()
 			activeSpell = nil
 		end,
