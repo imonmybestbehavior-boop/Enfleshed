@@ -102,7 +102,8 @@ function Combat.start(
 					swing(message.Character, message.Combo)
 				end
 			elseif message.Kind == "Hit" then
-				debug.Hit(message.Damage)
+				local target = message.Target
+				debug.Hit(message.Damage, if typeof(target) == "Instance" and target:IsA("Model") then target else nil)
 			elseif message.Kind == "Correction" then
 				bufferedUntil = 0
 			elseif message.Kind == "Action" and message.Action == Protocol.Light and message.Sequence == pending then

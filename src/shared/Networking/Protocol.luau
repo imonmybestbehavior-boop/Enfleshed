@@ -7,4 +7,6 @@ return table.freeze({
 	Sprint = "Sprint",
 	Dash = "Dash",
 	Light = "Light",
+	MagicStart = "MagicStart",
+	MagicRelease = "MagicRelease",
 })

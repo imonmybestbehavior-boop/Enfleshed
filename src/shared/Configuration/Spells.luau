@@ -1,0 +1,65 @@
+--!strict
+
+-- Registered data interpreted by MagicService. New V1 projectile spells should
+-- normally add data here, not another spell-specific service.
+return table.freeze({
+	Fireball = {
+		SpellId = "Fireball",
+		Name = "Fireball",
+		Version = 1,
+		Tags = { "Energy", "Fire" },
+		Source = { Principle = "Energy", Expression = "Fire" },
+		Form = "Projectile",
+		Targeting = "AimDirection",
+		Geometry = "Sphere",
+		Motion = "Linear",
+		Casting = { Mode = "Instant", Cooldown = 0.45 },
+		Lifetime = { Mode = "FixedDuration", Duration = 2.2 },
+		Cost = { ManaDemand = 18, Strain = 8, Complexity = 2 },
+		Projectile = { Speed = 72, Radius = 1.1, DirectDamage = 10, Color = Color3.fromRGB(255, 105, 50) },
+		Triggers = {
+			OnImpact = { { Behavior = "Explode", Radius = 7, Payloads = { { Kind = "Damage", Amount = 18 } } } },
+		},
+	},
+	BodyBurst = {
+		SpellId = "BodyBurst",
+		Name = "Body Burst",
+		Version = 1,
+		Tags = { "Body", "Enhancement" },
+		Source = { Principle = "Body", Expression = "BodyEnhancement" },
+		Form = "Wave",
+		Targeting = "Self",
+		Geometry = "Cone",
+		Motion = "Stationary",
+		Casting = { Mode = "Instant", Cooldown = 1.2 },
+		Lifetime = { Mode = "Instantaneous" },
+		Cost = { ManaDemand = 22, Strain = 14, Complexity = 3 },
+		Wave = {
+			Range = 10,
+			Dot = 0.35,
+			DebugDuration = 0.18,
+			Payloads = {
+				{ Kind = "Damage", Amount = 16 },
+				{ Kind = "Force", Magnitude = 54, Upward = 8 },
+			},
+		},
+		Triggers = { OnCast = true },
+	},
+	StoneShot = {
+		SpellId = "StoneShot",
+		Name = "Stone Shot",
+		Version = 1,
+		Tags = { "Matter", "Earth" },
+		Source = { Principle = "Matter", Expression = "Earth" },
+		Form = "Projectile",
+		Targeting = "MaterialTarget",
+		Geometry = "Sphere",
+		Motion = "Linear",
+		Casting = { Mode = "Charged", MinimumCharge = 0.15, MaximumCharge = 1.2, Cooldown = 0.7 },
+		Lifetime = { Mode = "FixedDuration", Duration = 2.5 },
+		Cost = { ManaDemand = 14, Strain = 15, Complexity = 2 },
+		Material = { Material = "Earth", Amount = 1, SearchRadius = 12 },
+		Projectile = { Speed = 62, Radius = 0.9, DirectDamage = 26, Color = Color3.fromRGB(125, 95, 65) },
+		Triggers = { OnImpact = {} },
+	},
+})

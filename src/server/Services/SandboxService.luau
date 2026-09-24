@@ -1,5 +1,6 @@
 --!strict
 
+local CollectionService = game:GetService("CollectionService")
 local Config = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared").Configuration.Sandbox)
 local Sandbox = {}
 
@@ -71,6 +72,29 @@ function Sandbox.start()
 		model.Parent = workspace
 	end
 	createDummy()
+	local earth = Instance.new("Part")
+	earth.Name = "EarthMagicMaterial"
+	earth.Size = Vector3.new(6, 3, 6)
+	earth.Position = Vector3.new(-9, 1.5, -12)
+	earth.Anchored = true
+	earth.Material = Enum.Material.Slate
+	earth.Color = Color3.fromRGB(100, 75, 55)
+	earth:SetAttribute("MagicMaterial", "Earth")
+	earth:SetAttribute("AvailableAmount", 50)
+	earth.Parent = workspace
+	CollectionService:AddTag(earth, "MagicMaterialSource")
+	local label = Instance.new("BillboardGui")
+	label.Size = UDim2.fromOffset(180, 30)
+	label.StudsOffset = Vector3.new(0, 3, 0)
+	label.AlwaysOnTop = true
+	label.Parent = earth
+	local text = Instance.new("TextLabel")
+	text.Size = UDim2.fromScale(1, 1)
+	text.BackgroundTransparency = 1
+	text.TextColor3 = Color3.new(1, 1, 1)
+	text.TextStrokeTransparency = 0
+	text.Text = "Earth source (Stone Shot)"
+	text.Parent = label
 end
 
 return Sandbox

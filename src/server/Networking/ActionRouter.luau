@@ -9,6 +9,7 @@ local Types = require(Shared:WaitForChild("Types"):WaitForChild("CombatTypes"))
 local Services = script.Parent.Parent.Services
 local Movement = require(Services.MovementService)
 local Combat = require(Services.CombatService)
+local Magic = require(Services.MagicService)
 local Router = {}
 
 function Router.start()
@@ -27,8 +28,13 @@ function Router.start()
 
 	local function bind(player: Player)
 		limits[player] = { Tokens = Config.Networking.Burst, Updated = os.clock(), Sequence = 0 }
+		Magic.bind(player)
 		local function characterAdded(character: Model)
+			if player.Character ~= character then
+				return
+			end
 			states[player] = nil
+			Magic.reset(player)
 			local humanoid = character:WaitForChild("Humanoid", 10)
 			local root = character:WaitForChild("HumanoidRootPart", 10)
 			if
@@ -41,7 +47,25 @@ function Router.start()
 			then
 				return
 			end
+			-- CharacterAdded precedes parenting, rig scaling, and final spawn placement.
+			-- Do not seed a movement anchor from the provisional character transform.
+			local deadline = os.clock() + Config.Movement.CharacterReadyTimeout
+			while not root:IsDescendantOf(workspace) do
+				if player.Character ~= character or not limits[player] or humanoid.Health <= 0 then
+					return
+				end
+				if os.clock() >= deadline then
+					warn("Sandbox: character did not enter Workspace for " .. player.Name)
+					return
+				end
+				RunService.Heartbeat:Wait()
+			end
+			if player.Character ~= character or not limits[player] or humanoid.Health <= 0 then
+				return
+			end
 			local now = workspace:GetServerTimeNow()
+			humanoid.MaxHealth = Config.Player.MaxHealth
+			humanoid.Health = Config.Player.MaxHealth
 			humanoid.WalkSpeed = Config.Movement.WalkSpeed
 			states[player] = {
 				Character = character,
@@ -57,6 +81,7 @@ function Router.start()
 				LastCheck = now,
 				DashAllowance = 0,
 				CorrectionUntil = 0,
+				SpawnGraceUntil = now + Config.Movement.SpawnValidationGrace,
 				Combo = 0,
 				ReadyAt = 0,
 				ComboExpires = 0,
@@ -68,8 +93,11 @@ function Router.start()
 		end
 		connections[player] = {
 			player.CharacterAdded:Connect(characterAdded),
-			player.CharacterRemoving:Connect(function()
-				states[player] = nil
+			player.CharacterRemoving:Connect(function(character)
+				local state = states[player]
+				if state and state.Character == character then
+					states[player] = nil
+				end
 			end),
 		}
 		if player.Character then
@@ -81,6 +109,7 @@ function Router.start()
 	Players.PlayerRemoving:Connect(function(player)
 		states[player] = nil
 		limits[player] = nil
+		Magic.remove(player)
 		for _, connection in connections[player] or {} do
 			connection:Disconnect()
 		end
@@ -120,7 +149,13 @@ function Router.start()
 		end
 		limit.Sequence = sequence
 		local action = payload.Action
-		if action ~= Protocol.Sprint and action ~= Protocol.Dash and action ~= Protocol.Light then
+		if
+			action ~= Protocol.Sprint
+			and action ~= Protocol.Dash
+			and action ~= Protocol.Light
+			and action ~= Protocol.MagicStart
+			and action ~= Protocol.MagicRelease
+		then
 			return
 		end
 		local state = states[player]
@@ -168,6 +203,12 @@ function Router.start()
 				validPosition = Movement.update(player, state, now, feedback)
 				accepted = accepted and validPosition
 			end
+		elseif action == Protocol.MagicStart then
+			Magic.start(player, state, payload, feedback)
+			accepted = true
+		elseif action == Protocol.MagicRelease then
+			Magic.release(player, state, payload, feedback)
+			accepted = true
 		end
 		feedback:FireClient(player, {
 			Kind = "Action",

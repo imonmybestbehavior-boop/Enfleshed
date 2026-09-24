@@ -39,6 +39,17 @@ local function correct(state: Types.PlayerState, position: Vector3, now: number,
 end
 
 function Movement.update(player: Player, state: Types.PlayerState, now: number, feedback: RemoteEvent): boolean
+	if now < state.SpawnGraceUntil then
+		-- Roblox may still place/scale the rig after it first enters Workspace.
+		-- Track the actual spawn position without fighting that engine movement.
+		state.LastPosition = state.Root.Position
+		state.LastFramePosition = state.Root.Position
+		state.LastCheck = now
+		if state.DashOrigin then
+			state.DashOrigin = state.Root.Position
+		end
+		return true
+	end
 	if state.CorrectionUntil > 0 then
 		if now < state.CorrectionUntil then
 			return false
@@ -54,7 +65,14 @@ function Movement.update(player: Player, state: Types.PlayerState, now: number, 
 	local budget = Config.SprintSpeed * elapsed + state.DashAllowance + Config.PositionTolerance
 	-- Check before every damage sample, not just when advancing the movement anchor.
 	if horizontal ~= horizontal or horizontal > budget then
-		correct(state, state.LastPosition, now, player, feedback)
+		-- This violation is horizontal: preserve current jumping/falling height.
+		correct(
+			state,
+			Vector3.new(state.LastPosition.X, state.Root.Position.Y, state.LastPosition.Z),
+			now,
+			player,
+			feedback
+		)
 		return false
 	end
 	if state.DashOrigin then
@@ -88,7 +106,13 @@ function Movement.update(player: Player, state: Types.PlayerState, now: number, 
 			+ Config.PositionTolerance
 			+ Config.SprintSpeed * (Config.ValidationInterval + Config.DashReplicationGrace)
 		if Vector3.new(displacement.X, 0, displacement.Z).Magnitude > limit then
-			correct(state, state.DashOrigin, now, player, feedback)
+			correct(
+				state,
+				Vector3.new(state.DashOrigin.X, state.Root.Position.Y, state.DashOrigin.Z),
+				now,
+				player,
+				feedback
+			)
 			return false
 		end
 		if now >= state.DashCheckUntil then

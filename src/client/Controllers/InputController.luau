@@ -4,7 +4,13 @@ local ContextActionService = game:GetService("ContextActionService")
 local UserInputService = game:GetService("UserInputService")
 local Input = {}
 
-function Input.start(sprint: (boolean) -> (), dash: () -> (), attack: () -> ())
+function Input.start(
+	sprint: (boolean) -> (),
+	dash: () -> (),
+	attack: () -> (),
+	magicStart: (string) -> (),
+	magicRelease: () -> ()
+)
 	ContextActionService:BindAction("SandboxSprint", function(_, state)
 		if state == Enum.UserInputState.End or state == Enum.UserInputState.Cancel then
 			sprint(false)
@@ -25,6 +31,21 @@ function Input.start(sprint: (boolean) -> (), dash: () -> (), attack: () -> ())
 		end
 		return Enum.ContextActionResult.Sink
 	end, false, Enum.UserInputType.MouseButton1)
+	for spellId, key in { Fireball = Enum.KeyCode.One, BodyBurst = Enum.KeyCode.Two, StoneShot = Enum.KeyCode.Three } do
+		ContextActionService:BindAction("Sandbox" .. spellId, function(_, state)
+			if UserInputService:GetFocusedTextBox() then
+				return Enum.ContextActionResult.Sink
+			end
+			if state == Enum.UserInputState.Begin then
+				magicStart(spellId)
+			elseif
+				spellId == "StoneShot" and (state == Enum.UserInputState.End or state == Enum.UserInputState.Cancel)
+			then
+				magicRelease()
+			end
+			return Enum.ContextActionResult.Sink
+		end, false, key)
+	end
 	UserInputService.WindowFocusReleased:Connect(function()
 		sprint(false)
 	end)

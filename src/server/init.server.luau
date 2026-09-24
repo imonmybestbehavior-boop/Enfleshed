@@ -1,9 +1,9 @@
 --!strict
 
 local Sandbox = require(script.Services.SandboxService)
-local Enemy = require(script.Services.EnemyService)
+local StressTest = require(script.Services.SandboxStressService)
 local ActionRouter = require(script.Networking.ActionRouter)
 
 Sandbox.start()
 ActionRouter.start()
-Enemy.start()
+StressTest.start()

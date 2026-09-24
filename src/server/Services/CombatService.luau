@@ -5,6 +5,7 @@ local Config = require(Shared:WaitForChild("Configuration"):WaitForChild("Sandbo
 local Types = require(Shared:WaitForChild("Types"):WaitForChild("CombatTypes"))
 local HitDetection = require(script.Parent.HitDetectionService)
 local Damage = require(script.Parent.DamageService)
+local Enemy = require(script.Parent.EnemyService)
 local Combat = {}
 
 function Combat.request(state: Types.PlayerState, now: number): boolean
@@ -37,6 +38,7 @@ function Combat.update(player: Player, state: Types.PlayerState, now: number, fe
 	local origin = state.Root.CFrame
 	for _, target in
 		HitDetection.find(state.Character, origin, origin * CFrame.new(0, 0, -attack.Offset), attack.Size, {
+			OverlapCollisionGroup = Config.Combat.OverlapCollisionGroup,
 			MaxDistance = attack.Reach,
 			MinimumFacingDot = Config.Combat.MinimumFacingDot,
 			RequireLineOfSight = true,
@@ -48,6 +50,7 @@ function Combat.update(player: Player, state: Types.PlayerState, now: number, fe
 		state.HitTargets[target] = true
 		local amount = Damage.apply(state.Character, target, attack.Damage)
 		if amount > 0 then
+			Enemy.onLightHit(target)
 			local hit: Types.HitResult = { Target = target.Parent :: Model, Damage = amount, Health = target.Health }
 			feedback:FireClient(player, {
 				Kind = "Hit",

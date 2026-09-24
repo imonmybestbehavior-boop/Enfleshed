@@ -3,6 +3,7 @@
 local HitDetection = {}
 
 export type Rules = {
+	OverlapCollisionGroup: string?,
 	MaxDistance: number?,
 	MinimumFacingDot: number?,
 	RequireLineOfSight: boolean?,
@@ -12,6 +13,7 @@ export type Rules = {
 -- Geometry and target policy come from the caller, never from attacker identity.
 function HitDetection.find(attacker: Model, origin: CFrame, hitbox: CFrame, size: Vector3, rules: Rules): { Humanoid }
 	local overlap = OverlapParams.new()
+	overlap.CollisionGroup = rules.OverlapCollisionGroup or "Default"
 	overlap.FilterType = Enum.RaycastFilterType.Exclude
 	overlap.FilterDescendantsInstances = { attacker }
 	local found: { [Humanoid]: boolean } = {}
@@ -62,6 +64,72 @@ function HitDetection.find(attacker: Model, origin: CFrame, hitbox: CFrame, size
 		table.insert(targets, humanoid)
 	end
 	return targets
+end
+
+-- Sphere and cone use the same target/LOS policy as melee. They remain neutral
+-- queries: callers provide geometry and target policy rather than attacker roles.
+function HitDetection.findSphere(attacker: Model, origin: CFrame, radius: number, rules: Rules): { Humanoid }
+	local overlap = OverlapParams.new()
+	overlap.CollisionGroup = rules.OverlapCollisionGroup or "Default"
+	overlap.FilterType = Enum.RaycastFilterType.Exclude
+	overlap.FilterDescendantsInstances = { attacker }
+	local found: { [Humanoid]: boolean } = {}
+	local targets: { Humanoid } = {}
+	for _, part in workspace:GetPartBoundsInRadius(origin.Position, radius, overlap) do
+		local model = part:FindFirstAncestorOfClass("Model")
+		local humanoid = if model then model:FindFirstChildOfClass("Humanoid") else nil
+		local root = if model then model:FindFirstChild("HumanoidRootPart") else nil
+		if
+			not model
+			or not humanoid
+			or not root
+			or not root:IsA("BasePart")
+			or humanoid.Health <= 0
+			or found[humanoid]
+		then
+			continue
+		end
+		found[humanoid] = true
+		local delta = root.Position - origin.Position
+		if
+			(rules.MaxDistance and delta.Magnitude > rules.MaxDistance)
+			or (rules.CanTarget and not rules.CanTarget(model, humanoid))
+		then
+			continue
+		end
+		if rules.RequireLineOfSight then
+			local ray = RaycastParams.new()
+			ray.FilterType = Enum.RaycastFilterType.Exclude
+			ray.FilterDescendantsInstances = { attacker, model }
+			ray.RespectCanCollide = true
+			if workspace:Raycast(origin.Position, delta, ray) then
+				continue
+			end
+		end
+		table.insert(targets, humanoid)
+	end
+	return targets
+end
+
+function HitDetection.findCone(
+	attacker: Model,
+	origin: CFrame,
+	range: number,
+	minimumDot: number,
+	rules: Rules
+): { Humanoid }
+	local result: { Humanoid } = {}
+	for _, humanoid in HitDetection.findSphere(attacker, origin, range, rules) do
+		local root = humanoid.Parent and humanoid.Parent:FindFirstChild("HumanoidRootPart")
+		if root and root:IsA("BasePart") then
+			local delta = root.Position - origin.Position
+			local horizontal = Vector3.new(delta.X, 0, delta.Z)
+			if horizontal.Magnitude == 0 or origin.LookVector:Dot(horizontal.Unit) >= minimumDot then
+				table.insert(result, humanoid)
+			end
+		end
+	end
+	return result
 end
 
 return HitDetection

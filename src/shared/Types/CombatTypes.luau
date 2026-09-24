@@ -10,7 +10,13 @@ export type Attack = {
 	Reach: number,
 }
 
-export type ActionOptions = { Sprinting: boolean?, Direction: Vector3? }
+export type ActionOptions = {
+	Sprinting: boolean?,
+	Direction: Vector3?,
+	SpellId: string?,
+	AimDirection: Vector3?,
+	WorldPoint: Vector3?,
+}
 
 export type ActionRequest = {
 	Action: string,
@@ -18,6 +24,9 @@ export type ActionRequest = {
 	Character: Model,
 	Sprinting: boolean?,
 	Direction: Vector3?,
+	SpellId: string?,
+	AimDirection: Vector3?,
+	WorldPoint: Vector3?,
 }
 
 export type HitResult = { Target: Model, Damage: number, Health: number }
@@ -37,6 +46,7 @@ export type PlayerState = {
 	LastCheck: number,
 	DashAllowance: number,
 	CorrectionUntil: number,
+	SpawnGraceUntil: number,
 	Combo: number,
 	ReadyAt: number,
 	ComboExpires: number,
