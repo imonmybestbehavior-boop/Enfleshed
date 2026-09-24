@@ -2,7 +2,8 @@
 
 A deliberately small Roblox multiplayer movement/melee sandbox. Implemented:
 sprinting, a predicted directional dash, a three-hit light combo, server-owned
-hit detection/damage, one resetting target dummy, and minimal debug feedback.
+hit detection/damage, one resetting target dummy, one combat-capable Stage 1 Enfleshed test enemy,
+and minimal debug feedback.
 No external runtime dependencies or frameworks are used.
 
 ## Build and tools
@@ -26,7 +27,8 @@ required modules and runtime state do not hot-reload automatically.
 
 Rojo validates serialization and mappings, and StyLua parses/formats Luau.
 `tests/test_place_references.py` checks literal Shared module lookups against the
-built instance tree and verifies that the build contains current source. This
+built instance tree, validates direct script-relative module references, and
+verifies that the build contains current source. This
 regression check catches misspelled folder names that would otherwise wait forever.
 Neither these checks nor the build runs Roblox physics or type-checks the scripts. Check Script Analysis
 and server/client Output in Studio in addition to the playtests below.
@@ -84,11 +86,12 @@ Every sandbox module is listed below; paths are relative to `src/`.
 | `client/Controllers/MovementController.luau` | Immediate local sprint/dash prediction, dash collision sweeps, cleanup, cooldown feedback, and rejected-prediction cancellation. |
 | `client/Controllers/CombatController.luau` | Predicted swing boxes, one buffered click, combo reconciliation, and other players' approved swing effects. |
 | `client/Controllers/DebugController.luau` | One small display for combo step, dash cooldown, and confirmed hit damage. |
-| `server/init.server.luau` | Explicitly starts the sandbox and action router. |
+| `server/init.server.luau` | Explicitly starts the sandbox, action router, and single test enemy. |
 | `server/Networking/ActionRouter.luau` | Creates remotes, validates/rate-limits requests, owns per-player state/lifecycle, and runs one server update loop. |
 | `server/Services/MovementService.luau` | Authorizes sprint/dash, tracks cooldown/distance budgets, checks dash obstacles, and corrects obvious movement violations. |
 | `server/Services/CombatService.luau` | Owns combo progression/timing, samples active swings, and deduplicates targets across each swing. |
-| `server/Services/HitDetectionService.luau` | Server-oriented box queries, living-Humanoid resolution, reach/facing checks, and solid-obstacle raycasts. |
+| `server/Services/HitDetectionService.luau` | Neutral model/origin/box query with caller-supplied target policy, optional reach/facing limits, and solid-obstacle raycasts; returns living Humanoids. |
+| `server/Services/EnemyService.luau` | Creates one connected placeholder rig; owns idle/chase/telegraph/attack/recovery/death, simple navigation, temporary debug telegraphs, and health display. |
 | `server/Services/DamageService.luau` | Applies server-only Humanoid damage and returns actual health removed. |
 | `server/Services/SandboxService.luau` | Creates a spawn and one anchored dummy with health text and a delayed replacement on death. No NPC framework. |
 | `shared/Configuration/Sandbox.luau` | Central movement, attack, dummy, networking, and debug tuning. |
@@ -192,3 +195,98 @@ before treating the initial tolerances as production-ready.
 
 Studio UI reference: [testing modes](https://create.roblox.com/docs/studio/testing-modes)
 and [Network Simulator](https://create.roblox.com/docs/studio/network-simulator).
+
+
+## Stage 1 Enfleshed enemy
+
+One `Stage1Enfleshed` is created per play session at **(35, 3, -35)**, to the
+right and forward of the spawn pad. It has 80 HP and moves at 12 studs/second.
+The existing dummy remains. The enemy stays dead when defeated; restart Play
+for another fight. There is no NPC spawning manager or reward system.
+
+`Enemy` in `src/shared/Configuration/Sandbox.luau` holds every enemy gameplay
+setting, including position, health, detection/disengagement distances, speed,
+attack geometry/timing/damage, and navigation thresholds. The initial values are
+28 studs for detection, 45 for disengagement, 4.5 for attack initiation, a
+0.7-second windup, a 0.12-second hit window, a 0.8-second recovery, and 12 damage.
+
+The server selects the nearest visible living player when idle, retains that
+target during pursuit, and disengages if they die, leave, or exceed disengagement
+range. Direct pursuit uses a body-width collision sweep; only blocked or stalled
+pursuit requests a rate-limited path. Blocked paths and sufficiently moved goals
+are recomputed. Failed routes stop safely and retry. Asynchronous results are
+invalidated when the target/state changes or the enemy dies. Navigation is aimed
+at this flat sandbox, not general open-world terrain traversal.
+
+The states are Idle → Chase → Telegraph → Attack → Recover. When telegraphing,
+the enemy stops, faces its target once, and commits the attack's world transform.
+Its root is anchored through recovery to prevent contact physics moving the
+strike. Neither the enemy nor its box follows a dodging player. After recovery,
+server-owned movement resumes. An attack may hit multiple players in its fixed
+box, but each at most once. A dead or disconnected original target never causes
+the attack to redirect to someone else.
+
+The orange box/highlight, red active box, and state label are **temporary debug
+feedback only**. `Enemy.DebugTelegraph` disables the box/highlight without changing
+combat; leave it enabled while testing dodge timing. These are ordinary replicated
+instances with no collision/query participation, not a VFX framework or damage
+source. The displayed box is the actual query volume. Contact with body parts in
+the box can count, so move fully outside it when testing a dodge.
+
+Both player and enemy combat call the same neutral `HitDetectionService.find`:
+`find(attackerModel, originCFrame, boxCFrame, size, rules)`. Rules specify optional
+maximum distance, minimum facing dot, line-of-sight enforcement, and a target
+predicate. No player/enemy identity logic lives inside this query. EnemyService
+supplies a predicate restricting victims to current player characters. Damage
+always goes through the existing `DamageService.apply`. Player attacks continue
+to hit the dummy, enemy, or other living characters through the original rules.
+
+Player health uses the normal Roblox health bar and Humanoid death/respawn.
+Enemy death cancels attacks, clears debug parts, invalidates outstanding paths,
+disconnects its update/listeners, and leaves an inert corpse with a Dead label.
+No loot, XP, progression, evolution, factions, patrols, or status effects exist.
+
+### Exact enemy Studio tests
+
+1. Run the build/check commands above. Stop the old Studio session and reopen
+   the rebuilt `Enfleshed.rbxlx` from disk (do not overwrite it by saving the old
+   open copy). Under Wine, paste this into Studio's Open File filename box:
+   `Z:\home\deck\Projects\Enfleshed\Enfleshed.rbxlx`.
+2. Press **F5 / Test**. Confirm the dummy still appears. Find the enemy to the
+   right and ahead at `(35, 3, -35)`. Its label should say **Idle** at the spawn;
+   approach within 28 studs with an unobstructed view to see **Chase**.
+3. Let it approach. It should stop within about 4.5 studs, show an orange box
+   and **Telegraph**, briefly turn red for **Attack**, then show **Recover**.
+   Remain inside for one strike: your health should drop from 100 to 88, once.
+4. On the next orange telegraph, hold **A or D and press Q** to dash sideways
+   fully outside the box. Its orientation/location must remain fixed, and the
+   missed attack must not reduce health. Repeat by dashing backward and circling
+   behind it. Q has no invulnerability; remaining inside the box can still hurt.
+5. Sprint and use left-click combos against it. Movement should remain mobile.
+   One full 10/12/18 combo reduces enemy health **80 → 70 → 58 → 40**. Kill it,
+   including during a windup: the box must disappear, no later strike may land,
+   and it must stay dead. The dummy should still work independently.
+6. Restart Play. Stand still and allow nine successful 12-damage strikes to
+   verify normal player death and respawn. The enemy should stop attacking the
+   dead character, and your new character's movement/combo/dash state should work.
+   It may reacquire your new character if you respawn within detection range.
+7. For navigation, stop Play and insert an anchored, collidable Part with Size
+   `(16, 10, 2)` and Position `(35, 5, -22)`. Start Play, approach around the wall's
+   right end near `(46, 3, -27)` until detected, then retreat behind the wall near
+   `(35, 3, -10)`. The enemy should route around the wall rather than walk through
+   it. While following a path, block that route with another collidable Part in
+   the server view: it should replan or stop/retry safely. Remove the test walls
+   after stopping. Attacks should never damage through a solid wall.
+8. Choose **Server & Clients**, set **2 clients**, and press **F7**. Have one
+   player approach first, then bring the second closer: the enemy should retain
+   its living, in-range original target. Both clients must see the same enemy
+   health/state/telegraph. Let the first player die, disconnect, or move beyond
+   45 studs: the enemy should idle or acquire the other visible nearby player.
+   Both players can damage it; it must not damage the target dummy.
+9. Repeat sideways dodges using Network Simulator with roughly 100 ms latency
+   in each direction. There is no lag compensation; very late dodges can reach
+   the server after a hit, but the box must never follow the player. Compare this
+   separately from baseline responsiveness and tune windup time if necessary.
+10. Inspect client/server Output and Script Analysis. Confirm no missing-instance
+    waits, path errors, or lingering enemy behavior after death. Source/build
+    checks do not substitute for these engine playtests.

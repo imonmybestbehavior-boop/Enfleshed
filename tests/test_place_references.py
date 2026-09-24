@@ -31,6 +31,21 @@ class PlaceReferences(unittest.TestCase):
                     checked += 1
         self.assertGreater(checked, 0, 'No Shared module lookups checked')
 
+    def test_relative_module_lookups(self):
+        tree = ET.parse(ROOT / 'Enfleshed.rbxlx').getroot()
+        parents = {item: parent for parent in tree.iter() for item in parent}
+        checked = 0
+        for script in tree.iter('Item'):
+            source = script.findtext("Properties/*[@name='Source']") or ''
+            for reference in re.findall(r'require\((script(?:\.[A-Za-z_]\w*)+)\)', source):
+                with self.subTest(script=script.findtext("Properties/string[@name='Name']"), reference=reference):
+                    node = script
+                    for name in reference.split('.')[1:]:
+                        node = parents[node] if name == 'Parent' else child(node, name)
+                    self.assertEqual(node.attrib['class'], 'ModuleScript')
+                    checked += 1
+        self.assertGreater(checked, 0, 'No relative module lookups checked')
+
     def test_built_scripts_match_source(self):
         tree = ET.parse(ROOT / 'Enfleshed.rbxlx').getroot()
         for source_dir, destination in (

@@ -34,7 +34,14 @@ function Combat.update(player: Player, state: Types.PlayerState, now: number, fe
 	if now < state.ActiveAt then
 		return
 	end
-	for _, target in HitDetection.find(state, attack) do
+	local origin = state.Root.CFrame
+	for _, target in
+		HitDetection.find(state.Character, origin, origin * CFrame.new(0, 0, -attack.Offset), attack.Size, {
+			MaxDistance = attack.Reach,
+			MinimumFacingDot = Config.Combat.MinimumFacingDot,
+			RequireLineOfSight = true,
+		})
+	do
 		if state.HitTargets[target] then
 			continue
 		end
