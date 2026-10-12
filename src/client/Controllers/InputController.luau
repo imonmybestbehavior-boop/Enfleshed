@@ -2,6 +2,10 @@
 
 local ContextActionService = game:GetService("ContextActionService")
 local UserInputService = game:GetService("UserInputService")
+local player = game:GetService("Players").LocalPlayer
+local SummonConfig = require(game:GetService("ReplicatedStorage").Shared.Configuration.MagicSummons)
+local development = game:GetService("RunService"):IsStudio()
+	and require(game:GetService("ReplicatedStorage").Shared.Configuration.CityLife).DevelopmentSpells
 local Input = {}
 
 function Input.start(
@@ -13,9 +17,14 @@ function Input.start(
 	switchEquipment: () -> (),
 	cycleGenerated: () -> (),
 	startGenerated: () -> (),
-	releaseGenerated: () -> ()
+	releaseGenerated: () -> (),
+	cycleSummonSelection: () -> (),
+	summonCommand: (string) -> ()
 )
 	ContextActionService:BindAction("SandboxSprint", function(_, state)
+		if not player:GetAttribute("OpeningComplete") or player:GetAttribute("MagicLabOpen") then
+			return Enum.ContextActionResult.Pass
+		end
 		if state == Enum.UserInputState.End or state == Enum.UserInputState.Cancel then
 			sprint(false)
 		elseif state == Enum.UserInputState.Begin and not UserInputService:GetFocusedTextBox() then
@@ -24,24 +33,57 @@ function Input.start(
 		return Enum.ContextActionResult.Sink
 	end, false, Enum.KeyCode.LeftShift)
 	ContextActionService:BindAction("SandboxDash", function(_, state)
+		if not player:GetAttribute("OpeningComplete") or player:GetAttribute("MagicLabOpen") then
+			return Enum.ContextActionResult.Pass
+		end
 		if state == Enum.UserInputState.Begin and not UserInputService:GetFocusedTextBox() then
 			dash()
 		end
 		return Enum.ContextActionResult.Sink
 	end, false, Enum.KeyCode.Q)
 	ContextActionService:BindAction("SandboxLight", function(_, state)
+		if not player:GetAttribute("OpeningComplete") or player:GetAttribute("MagicLabOpen") then
+			return Enum.ContextActionResult.Pass
+		end
 		if state == Enum.UserInputState.Begin and not UserInputService:GetFocusedTextBox() then
 			useEquipment("Primary")
 		end
 		return Enum.ContextActionResult.Sink
 	end, false, Enum.UserInputType.MouseButton1)
+	for mode, keyName in pairs(SummonConfig.CommandKeys) do
+		local key = Enum.KeyCode[keyName]
+		ContextActionService:BindAction("SandboxSummon" .. mode, function(_, state)
+			if not player:GetAttribute("OpeningComplete") or player:GetAttribute("MagicLabOpen") then
+				return Enum.ContextActionResult.Pass
+			end
+			if state == Enum.UserInputState.Begin and not UserInputService:GetFocusedTextBox() then
+				summonCommand(mode)
+			end
+			return Enum.ContextActionResult.Sink
+		end, false, key)
+	end
 	ContextActionService:BindAction("SandboxEquipmentArea", function(_, state)
+		if not player:GetAttribute("OpeningComplete") or player:GetAttribute("MagicLabOpen") then
+			return Enum.ContextActionResult.Pass
+		end
 		if state == Enum.UserInputState.Begin and not UserInputService:GetFocusedTextBox() then
 			useEquipment("Area")
 		end
 		return Enum.ContextActionResult.Sink
 	end, false, Enum.UserInputType.MouseButton2)
+	ContextActionService:BindAction("SandboxSummonSelect", function(_, state)
+		if not player:GetAttribute("OpeningComplete") or player:GetAttribute("MagicLabOpen") then
+			return Enum.ContextActionResult.Pass
+		end
+		if state == Enum.UserInputState.Begin and not UserInputService:GetFocusedTextBox() then
+			cycleSummonSelection()
+		end
+		return Enum.ContextActionResult.Sink
+	end, false, Enum.KeyCode[SummonConfig.SelectionKey])
 	ContextActionService:BindAction("SandboxEquipmentSwitch", function(_, state)
+		if not player:GetAttribute("OpeningComplete") or player:GetAttribute("MagicLabOpen") then
+			return Enum.ContextActionResult.Pass
+		end
 		if state == Enum.UserInputState.Begin and not UserInputService:GetFocusedTextBox() then
 			switchEquipment()
 		end
@@ -59,6 +101,12 @@ function Input.start(
 		}
 	do
 		ContextActionService:BindAction("Sandbox" .. spellId, function(_, state)
+			if not development then
+				return Enum.ContextActionResult.Pass
+			end
+			if not player:GetAttribute("OpeningComplete") or player:GetAttribute("MagicLabOpen") then
+				return Enum.ContextActionResult.Pass
+			end
 			if UserInputService:GetFocusedTextBox() then
 				return Enum.ContextActionResult.Sink
 			end
@@ -73,12 +121,24 @@ function Input.start(
 		end, false, key)
 	end
 	ContextActionService:BindAction("SandboxGeneratedCycle", function(_, state)
+		if not development then
+			return Enum.ContextActionResult.Pass
+		end
+		if not player:GetAttribute("OpeningComplete") or player:GetAttribute("MagicLabOpen") then
+			return Enum.ContextActionResult.Pass
+		end
 		if state == Enum.UserInputState.Begin and not UserInputService:GetFocusedTextBox() then
 			cycleGenerated()
 		end
 		return Enum.ContextActionResult.Sink
 	end, false, Enum.KeyCode.F)
 	ContextActionService:BindAction("SandboxGeneratedCast", function(_, state)
+		if not development then
+			return Enum.ContextActionResult.Pass
+		end
+		if not player:GetAttribute("OpeningComplete") or player:GetAttribute("MagicLabOpen") then
+			return Enum.ContextActionResult.Pass
+		end
 		if UserInputService:GetFocusedTextBox() then
 			return Enum.ContextActionResult.Sink
 		end

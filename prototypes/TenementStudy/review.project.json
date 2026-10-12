@@ -1,0 +1,82 @@
+{
+  "name": "Enfleshed_TenementStudy",
+  "tree": {
+    "$className": "DataModel",
+    "Workspace": {
+      "$className": "Workspace",
+      "ReviewGround": {
+        "$className": "Part",
+        "$properties": {
+          "Anchored": true,
+          "Size": [
+            150,
+            1,
+            100
+          ],
+          "Position": [
+            0,
+            -0.5,
+            0
+          ],
+          "Color": [
+            0.22,
+            0.22,
+            0.21
+          ],
+          "Material": "Concrete"
+        }
+      },
+      "ReviewSpawn": {
+        "$className": "SpawnLocation",
+        "$properties": {
+          "Anchored": true,
+          "Neutral": true,
+          "Size": [
+            5,
+            0.2,
+            5
+          ],
+          "Position": [
+            0,
+            0.1,
+            -28
+          ],
+          "Transparency": 1,
+          "Duration": 0,
+          "Orientation": [
+            0,
+            180,
+            0
+          ]
+        }
+      },
+      "Tenement": {
+        "$path": "Tenement.rbxmx"
+      }
+    },
+    "Lighting": {
+      "$className": "Lighting",
+      "$properties": {
+        "Ambient": [
+          0.28,
+          0.29,
+          0.3
+        ],
+        "OutdoorAmbient": [
+          0.3,
+          0.31,
+          0.33
+        ],
+        "Brightness": 1.5,
+        "ClockTime": 15,
+        "GlobalShadows": true
+      }
+    },
+    "StarterPlayer": {
+      "$className": "StarterPlayer",
+      "$properties": {
+        "CameraMaxZoomDistance": 160
+      }
+    }
+  }
+}

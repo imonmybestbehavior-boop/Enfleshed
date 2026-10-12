@@ -9,19 +9,11 @@ local env = setmetatable(
 local plan = assert(loadfile("src/shared/Configuration/PhaseATopology.luau", "t", env))()
 local clip = assert(loadfile("src/server/Development/LowerLayer/InfillLayout.luau"))()
 local geometry = assert(loadfile("src/server/Development/LowerLayer/RouteGeometry.luau"))().build(plan, clip)
+local lots = clip.build(geometry.Reservations)
+-- Test the route manifest here; the Python scene test adds actual detailed
+-- buildings and runtime clipping. The retired rectangular storefront generator
+-- is no longer part of the live city and must not stand in for it.
 local obstacles = { table.unpack(geometry.Parts) }
-for _, r in ipairs(clip.build(geometry.Reservations)) do
-	table.insert(obstacles, {
-		Name = "Housing infill",
-		X = (r[1] + r[3]) / 2,
-		Y = 32,
-		Z = (r[2] + r[4]) / 2,
-		W = r[3] - r[1],
-		H = 64,
-		D = r[4] - r[2],
-		Collision = true,
-	})
-end
 -- Approximate the configured Stage 1 navigation envelope (radius 2, height 9).
 -- Ignore the first 1.6 studs above a tread so ordinary step risers are legal.
 local function blocksAgent(p, x, y, z)
@@ -130,29 +122,4 @@ print(
 		#geometry.Doors,
 		#clip.build(geometry.Reservations)
 	)
-)
-local routeLights = 0
-for _, edge in ipairs(plan.Edges) do
-	if edge.Kind == "Street" or edge.Kind == "Alley" then
-		local points = edge.Points or { plan.Nodes[edge[1]], plan.Nodes[edge[2]] }
-		routeLights = routeLights + (#points - 1) * 2
-	end
-end
-local environmentalLights = routeLights + #plan.UndergroundNodes * 2 + 4 + #plan.Buildings * 6
-local expectedParts = #geometry.Parts
-	+ #geometry.Planes[0]
-	+ #clip.build(geometry.Reservations) * 11
-	+ 12
-	+ 2
-	+ 8
-	+ 6
-	+ 4
-	+ environmentalLights
-	+ #plan.UpperNodes * 4
-	+ #plan.Buildings
-	+ 2
-print(
-	"Phase A expected generated Part count: "
-		.. expectedParts
-		.. " (includes hidden support, enclosure, markers and lights)"
 )

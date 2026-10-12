@@ -1,0 +1,20 @@
+{
+  "v1_sha256_unchanged": {
+    "/home/deck/Projects/Enfleshed/assets/blender/scripts/storefront_kit_v1.py": "4453922cf00b01ec8482d0fd03d585cf4a5b8fc0149c0c85e920e470e7e16732",
+    "/home/deck/Projects/Enfleshed/assets/blender/generated/storefront_kit_v1.blend": "56e0466a4dae11b266a96326247bf3c30ef6a7523e76c4fe37e4deb05c59507e"
+  },
+  "files": {
+    "assets/blender/scripts/storefront_kit_v2.py": "7dba6a9199bf5f2d9b0f317011596437dcf07f64bd15fd09d3e9d1fb9563f71a",
+    "assets/blender/STOREFRONT_KIT_V2.md": "8e74974492f54a6ae8bbc3fecb3b0f4c71a62270c179ceb99c45bdc7bb2d611e",
+    "assets/blender/scripts/verify_storefront_v2.py": "744731f7a3ed32783657e3b947f5079976c6c6fec4ff157e2e13f80db75184ad",
+    "assets/blender/generated/storefront_v2/04_detail.png": "97e4bb3d1b07549f234c7e1bf334bd758cef9c47fba3b8946828fcefee84ce3d",
+    "assets/blender/generated/storefront_v2/01_detail.png": "aa7cbdb2c493771730e47244c9917c31737f67ef611f4766e7c3ffe04957f11e",
+    "assets/blender/generated/storefront_v2/05_detail.png": "45631604ec0bebf3c38d4da794ae015b088de6251dfe45cd66ef473198b804fb",
+    "assets/blender/generated/storefront_v2/validation.json": "bb83843d46fa549b4800b65dc2e589628eb0d508370bed4f6842abd4f18e13c3",
+    "assets/blender/generated/storefront_v2/02_detail.png": "05f2a2873a3e4bb99bb6249e7e938051b5d06f72cb738931cd9fc6fbba7011c0",
+    "assets/blender/generated/storefront_v2/storefront_kit_v2.blend": "c4372f1173763bd4c0262ad46659681da0d779a09b2a10609bb88d4f203a840c",
+    "assets/blender/generated/storefront_v2/03_detail.png": "0a846e746888115c7898afbcc1a0b7a421606dfc450d6978c374877f727d9901",
+    "assets/blender/generated/storefront_v2/storefront_v2_overview.png": "25a48624847ac4dd3053de1a5fac8631c3eda92ce056486fd0b05c910689c428",
+    "assets/blender/generated/storefront_v2/06_detail.png": "eb5d4c8e945936a721cabcbc29378ace3e2bd2390acd576cf86670097844e370"
+  }
+}

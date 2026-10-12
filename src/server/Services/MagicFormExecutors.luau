@@ -5,6 +5,18 @@
 local Forms = {}
 
 Forms.Executors = {
+	Aura = function(d, context)
+		context.CreateAura(d)
+	end,
+	Construct = function(d, context)
+		context.CreateConstruct(d)
+	end,
+	Projectile = function(definition, context)
+		context.CreateProjectile(definition)
+	end,
+	Wave = function(definition, context)
+		context.ExecuteWave(definition)
+	end,
 	Beam = function(definition: any, context: any)
 		context.ExecuteBeam(definition)
 	end,

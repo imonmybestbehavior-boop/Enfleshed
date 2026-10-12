@@ -1,12 +1,14 @@
 --!strict
 
 local HitDetection = {}
+local Geometry = require(game:GetService("ReplicatedStorage").Shared.Modules.MagicGeometry)
 
 export type Rules = {
 	OverlapCollisionGroup: string?,
 	MaxDistance: number?,
 	MinimumFacingDot: number?,
 	RequireLineOfSight: boolean?,
+	IncludeAttacker: boolean?,
 	CanTarget: ((Model, Humanoid) -> boolean)?,
 }
 
@@ -15,7 +17,7 @@ function HitDetection.find(attacker: Model, origin: CFrame, hitbox: CFrame, size
 	local overlap = OverlapParams.new()
 	overlap.CollisionGroup = rules.OverlapCollisionGroup or "Default"
 	overlap.FilterType = Enum.RaycastFilterType.Exclude
-	overlap.FilterDescendantsInstances = { attacker }
+	overlap.FilterDescendantsInstances = if rules.IncludeAttacker then {} else { attacker }
 	local found: { [Humanoid]: boolean } = {}
 	local targets: { Humanoid } = {}
 	for _, part in workspace:GetPartBoundsInBox(hitbox, size, overlap) do
@@ -27,7 +29,7 @@ function HitDetection.find(attacker: Model, origin: CFrame, hitbox: CFrame, size
 		local root = if model then model:FindFirstChild("HumanoidRootPart") else nil
 		if
 			not model
-			or model == attacker
+			or (model == attacker and not rules.IncludeAttacker)
 			or not humanoid
 			or humanoid.Health <= 0
 			or not root
@@ -52,7 +54,7 @@ function HitDetection.find(attacker: Model, origin: CFrame, hitbox: CFrame, size
 		then
 			continue
 		end
-		if rules.RequireLineOfSight then
+		if rules.RequireLineOfSight and delta.Magnitude > 0.001 then
 			local ray = RaycastParams.new()
 			ray.FilterType = Enum.RaycastFilterType.Exclude
 			ray.FilterDescendantsInstances = { attacker, model }
@@ -66,13 +68,28 @@ function HitDetection.find(attacker: Model, origin: CFrame, hitbox: CFrame, size
 	return targets
 end
 
+function HitDetection.findArea(attacker: Model, origin: CFrame, shape: string, area: any, rules: Rules): { Humanoid }
+	local size = Geometry.areaSize(shape, area)
+	local queryFrame = Geometry.areaQueryFrame(shape, origin, area)
+	local queryRules = table.clone(rules)
+	local previousCanTarget = rules.CanTarget
+	queryRules.CanTarget = function(model, humanoid)
+		local root = model:FindFirstChild("HumanoidRootPart")
+		if not root or not root:IsA("BasePart") or not Geometry.containsArea(shape, origin, root.Position, area) then
+			return false
+		end
+		return not previousCanTarget or previousCanTarget(model, humanoid)
+	end
+	return HitDetection.find(attacker, origin, queryFrame, size, queryRules)
+end
+
 -- Sphere and cone use the same target/LOS policy as melee. They remain neutral
 -- queries: callers provide geometry and target policy rather than attacker roles.
 function HitDetection.findSphere(attacker: Model, origin: CFrame, radius: number, rules: Rules): { Humanoid }
 	local overlap = OverlapParams.new()
 	overlap.CollisionGroup = rules.OverlapCollisionGroup or "Default"
 	overlap.FilterType = Enum.RaycastFilterType.Exclude
-	overlap.FilterDescendantsInstances = { attacker }
+	overlap.FilterDescendantsInstances = if rules.IncludeAttacker then {} else { attacker }
 	local found: { [Humanoid]: boolean } = {}
 	local targets: { Humanoid } = {}
 	for _, part in workspace:GetPartBoundsInRadius(origin.Position, radius, overlap) do
@@ -84,6 +101,7 @@ function HitDetection.findSphere(attacker: Model, origin: CFrame, radius: number
 			or not humanoid
 			or not root
 			or not root:IsA("BasePart")
+			or (model == attacker and not rules.IncludeAttacker)
 			or humanoid.Health <= 0
 			or found[humanoid]
 		then
@@ -97,7 +115,7 @@ function HitDetection.findSphere(attacker: Model, origin: CFrame, radius: number
 		then
 			continue
 		end
-		if rules.RequireLineOfSight then
+		if rules.RequireLineOfSight and delta.Magnitude > 0.001 then
 			local ray = RaycastParams.new()
 			ray.FilterType = Enum.RaycastFilterType.Exclude
 			ray.FilterDescendantsInstances = { attacker, model }
@@ -123,8 +141,7 @@ function HitDetection.findCone(
 		local root = humanoid.Parent and humanoid.Parent:FindFirstChild("HumanoidRootPart")
 		if root and root:IsA("BasePart") then
 			local delta = root.Position - origin.Position
-			local horizontal = Vector3.new(delta.X, 0, delta.Z)
-			if horizontal.Magnitude == 0 or origin.LookVector:Dot(horizontal.Unit) >= minimumDot then
+			if Geometry.withinCone(origin.LookVector, delta, minimumDot) then
 				table.insert(result, humanoid)
 			end
 		end

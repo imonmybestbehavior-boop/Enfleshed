@@ -6,3 +6,8 @@
 /*.rbxl.lock
 
 sourcemap.json
+
+# Generated local caches and Blender backup files
+__pycache__/
+*.pyc
+*.blend1

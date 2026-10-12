@@ -1,0 +1,18 @@
+{
+  "blender": "5.2.0 LTS",
+  "saved_blend_reopened": true,
+  "storefront_collections": 6,
+  "cameras": 7,
+  "mesh_objects": 911,
+  "main_route_markers": 27,
+  "discovered_route_markers": 13,
+  "checked_route_chain": [
+    "Court 17 passage",
+    "courtyard",
+    "stair",
+    "catwalk",
+    "alley stair",
+    "street threshold"
+  ],
+  "scope": "scene structure and route continuity markers; Roblox collision and controller traversal remain untested"
+}

@@ -4,7 +4,11 @@ local vector = {
 	end,
 }
 local topology = assert(
-	loadfile("src/shared/Configuration/PhaseATopology.luau", "t", { Vector3 = vector, table = table, ipairs = ipairs })
+	loadfile(
+		"src/shared/Configuration/PhaseATopology.luau",
+		"t",
+		{ Vector3 = vector, table = table, ipairs = ipairs, pairs = pairs }
+	)
 )()
 local dataTable = setmetatable({
 	freeze = function(value)

@@ -6,6 +6,7 @@ local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
 local Definitions = require(Shared.Configuration.Assignments)
 local Locations = require(Shared.Configuration.AssignmentLocations)
 local Enemy = require(script.Parent.EnemyService)
+local Runtime = require(script.Parent.EnemyRuntime)
 
 local Assignments = {}
 type State = {
@@ -80,12 +81,9 @@ end
 local function spawnEncounter(player: Player, state: State, count: number)
 	local center = Locations[state.Location].Position
 	for i = 1, count do
-		local handle = Enemy.create(
+		local handle = Runtime.create(
 			center + Vector3.new((i - 1) * 7 - 3.5, 4, 8),
-			workspace:WaitForChild("RecruitAssignments"):WaitForChild("Encounters"),
-			"Default",
-			i * 0.03,
-			1 / 30
+			workspace:WaitForChild("RecruitAssignments"):WaitForChild("Encounters")
 		)
 		handle.Model:SetAttribute("AssignmentOwner", player.UserId)
 		handle.Model:SetAttribute("AssignmentId", state.Id)
@@ -199,7 +197,7 @@ function Assignments.start()
 		end
 	end)
 	Players.PlayerAdded:Connect(function(player)
-		player:SetAttribute("MilitaryScrip", 0)
+		player:SetAttribute("MilitaryScrip", player:GetAttribute("MilitaryScrip") or 0)
 		publish(player)
 		player.CharacterAdded:Connect(function(character)
 			local h = character:WaitForChild("Humanoid", 10)
@@ -212,17 +210,15 @@ function Assignments.start()
 	end)
 	Players.PlayerRemoving:Connect(cleanup)
 	for _, player in Players:GetPlayers() do
-		player:SetAttribute("MilitaryScrip", 0)
+		player:SetAttribute("MilitaryScrip", player:GetAttribute("MilitaryScrip") or 0)
 		publish(player)
 	end
 	RunService.Heartbeat:Connect(function()
 		local now = os.clock()
 		for player, state in states do
-			for _, enemy in state.Enemies do
-				enemy.Update(now)
-			end
 			for index = #state.Enemies, 1, -1 do
 				if not state.Enemies[index].IsAlive() then
+					state.Enemies[index].Destroy()
 					table.remove(state.Enemies, index)
 				end
 			end

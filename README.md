@@ -1,9 +1,14 @@
 # Enfleshed
 
+Latest bounded content pass: **72 ambient human target and 35 street fronts (29 enterable)**, preserving existing dense routes. See [CITY_STREETFRONT_PASS.md](CITY_STREETFRONT_PASS.md) for changed files, limits and the focused Studio checklist.
+
+The current normal-play entry point is **Core Gameplay Loop V1**: session amnesia opening, one starter weapon, a small living city, and nearby server-owned world events. See [CORE_GAMEPLAY_LOOP_V1.md](CORE_GAMEPLAY_LOOP_V1.md) for the full implementation report, configuration, limitations and exact two-client Studio procedure. Older sandbox notes below describe opt-in development features; stress waves and development spell controls are off in normal play.
+
 A deliberately small Roblox multiplayer movement/melee sandbox. Implemented:
 sprinting, a predicted directional dash, a three-hit light combo, server-owned
 hit detection/damage, one resetting target dummy, temporary waves of Stage 1 Enfleshed test enemies,
-minimal debug feedback, and a server-authoritative Magic Runtime V1.
+minimal debug feedback, and a server-authoritative Magic Runtime V1 with bounded
+server-grown Construct geometry.
 No external runtime dependencies or frameworks are used.
 
 ## Build and tools
@@ -17,14 +22,49 @@ stylua --check src tests/test_sandbox_tuning.lua
 lua tests/test_sandbox_tuning.lua
 lua tests/test_spell_definitions.lua
 lua tests/test_equipment_definitions.lua
+lua tests/test_world_events.lua
+lua tests/test_street_frontage.lua
 lua tests/test_generated_spell_stress.lua
 lua tests/test_magic_v2.lua
+lua tests/test_magic_aerial_movement_spec.lua
+lua tests/test_magic_trigger_spec.lua
+lua tests/test_magic_material_spec.lua
+lua tests/test_magic_audio_spec.lua
+lua tests/test_magic_visual_spec.lua
+lua tests/test_magic_presentation_budget.lua
+lua tests/test_magic_pose_spec.lua
+lua tests/test_magic_casting_spec.lua
+lua tests/test_magic_motion_phases.lua
+lua tests/test_magic_construct_geometry_spec.lua
+lua tests/test_magic_construct_growth_spec.lua
+lua tests/test_magic_body_region_spec.lua
+lua tests/test_magic_spell_identity_spec.lua
+lua tests/test_magic_condition_spec.lua
+lua tests/test_magic_condition_evaluator.lua
+lua tests/test_magic_elemental_mark_spec.lua
+lua tests/test_magic_condition_tree.lua
+lua tests/test_magic_relationship.lua
+lua tests/test_magic_area_membership.lua
+lua tests/test_magic_summons.lua
+lua tests/test_magic_companion_spell_policy.lua
+lua tests/test_magic_reveal_spec.lua
+lua tests/test_magic_library_profile.lua
+lua tests/test_magic_locus_profile.lua
+lua tests/test_magic_locus_progression.lua
+lua tests/test_magic_area_spec.lua
+lua tests/test_magic_area_growth.lua
+lua tests/test_magic_target_consent.lua
+lua tests/test_magic_shield_pool.lua
+lua tests/test_magic_lifetime_spec.lua
+lua tests/test_magic_lifetime_condition_spec.lua
+lua tests/test_projectile_behavior_limits.lua
 lua tests/test_lower_layer_graybox.lua
 lua tests/test_housing_infill.lua
 lua tests/test_phase_a_topology.lua
 lua tests/test_phase_a_geometry.lua
 rojo build default.project.json -o Enfleshed.rbxlx
 python3 tests/test_place_references.py
+python3 tests/test_magic_registry_parity.py
 git diff --check
 ```
 
@@ -192,8 +232,8 @@ request the selected registered ID. Set `Enabled = false` outside development.
 Press **F** to cycle the generated definitions shown in the debug panel. Hold and
 release **R** for a charged generated spell; tap R for an instant one. The generator
 uses only currently executed Projectile/Wave, Damage/Force, Explode, instant/charged,
-fixed/instant lifetime, and Earth-material combinations. Generated Matter spells
-need the existing Earth source. `SpellDefinitionValidator` rejects unsupported
+fixed/instant lifetime, and Earth-affinity material combinations. Generated Matter spells
+need a matching Earth, Metal, or Wood source; Water spells need Water. `SpellDefinitionValidator` rejects unsupported
 or malformed data before MagicService can execute it; invalid test data is never
 registered or exposed to the client.
 
@@ -266,12 +306,15 @@ active to preserve the existing left-click melee flow. Press **E** to request a
 server-validated switch. The active item is shown as a small primitive attached
 to the character's right hand.
 
-Item and magic-profile data are in `shared/Configuration/Items.luau`. The magic
-focus references the `RecruitGeneric` profile, whose Primary and Area actions
-resolve to `RecruitMagicBolt` and `RecruitMagicDischarge` in the existing spell
-registry. The client sends only an equipment action plus aim. The server resolves
-the active, owned item and its profile before calling MagicService; it never
-accepts a client-selected item, profile, spell, damage, or cost.
+Item data is in `shared/Configuration/Items.luau`; reusable focus profiles are
+in `shared/Configuration/MagicProfiles.luau`. Press **K** to open the Focus
+Profile panel. Every test profile is available immediately; choose Recruit,
+Fire, Earth, or Body Enhancement to route the equipped focus's Primary/Area
+actions to registered spell IDs. The selected profile is a saved test preference,
+not an awakening or progression unlock. The client requests only a profile ID;
+the server validates that it exists, saves the selection, and resolves the focus
+actions before calling MagicService. The client cannot select a spell directly
+through this equipment route.
 
 With the focus active, left click fires the 18-damage, 105-stud/second projectile
 and right click uses a 9-stud broad discharge for 22 damage. Both values, costs,
@@ -281,10 +324,9 @@ during the existing active dash interval. Direct debug spell controls **1**, **2
 and **3** remain available.
 
 Another weapon can be introduced by adding item/profile data and pointing its
-actions at compatible registered spells. A future character screen can read and
-request changes to this state without becoming part of the backend. Awakening can
-later replace or modify the focus's `MagicProfile` while continuing to use the
-same equipment and Magic Runtime routing.
+actions at compatible registered spells. These initial awakenings are bounded
+profile swaps for testing the focus-routing extension point; they do not add a
+new spell editor, spell behaviors, or final RPG progression balance.
 
 ## Focused combat tuning pass
 
@@ -672,3 +714,5 @@ numbered enemy losing health is the one that flashes and receives a number;
 nearby unhit enemies should not flash. Test a miss and a swing reaching multiple
 targets. In a two-client test, each client should see feedback only for their own
 confirmed hits. Also check whether physical crowd bottlenecks need further work.
+
+Current city layout and playtest instructions: [Phase A hive topology](PHASE_A_HIVE_TOPOLOGY.md). Open the rebuilt main `Enfleshed.rbxlx` for this pass.

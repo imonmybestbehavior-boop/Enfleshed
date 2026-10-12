@@ -26,10 +26,16 @@ local spells = assert(loadfile("src/shared/Configuration/Spells.luau", "t", {
 		return sandbox
 	end,
 }))()
+local principleSpec = assert(loadfile("src/shared/Modules/MagicPrincipleSpec.luau"))()
 local validator = assert(loadfile("src/shared/Modules/SpellDefinitionValidator.luau", "t", {
 	typeof = type,
 	table = table,
 	ipairs = ipairs,
+	script = { Parent = { MagicPrincipleSpec = "principles" } },
+	require = function(reference)
+		assert(reference == "principles")
+		return principleSpec
+	end,
 }))()
 
 assert(spells.Fireball.Form == "Projectile" and spells.Fireball.Triggers.OnImpact[2].Behavior == "Explode")
@@ -53,4 +59,52 @@ for id, definition in pairs(spells) do
 	assert(definition.SpellId == id and definition.Cost and definition.Casting and definition.Lifetime)
 	assert(validator.validate(definition))
 end
+local matterWater = {}
+for key, value in pairs(spells.Fireball) do
+	matterWater[key] = value
+end
+matterWater.Source = { Principle = "Matter", Expression = "Water" }
+assert(
+	validator.validate(matterWater),
+	"Water should be a valid represented Matter expression for generic Projectile spells"
+)
+local spaceSpell = {}
+for key, value in pairs(spells.LightningLance) do
+	spaceSpell[key] = value
+end
+spaceSpell.Source = { Principle = "Space", Expression = "SpatialFold" }
+assert(validator.validate(spaceSpell), "Space/SpatialFold should be valid on its supported Beam Form")
+local soulSpell = {}
+for key, value in pairs(spells.LightningLance) do
+	soulSpell[key] = value
+end
+soulSpell.Source = { Principle = "Soul", Expression = "Spirit" }
+assert(validator.validate(soulSpell), "Soul/Spirit should be valid on its supported Beam Form")
+local timeSpell = {}
+for key, value in pairs(spells.LightningLance) do
+	timeSpell[key] = value
+end
+timeSpell.Source = { Principle = "Time", Expression = "TemporalShift" }
+assert(validator.validate(timeSpell), "Time/TemporalShift should be valid on its supported Beam Form")
+local forceSpell = {}
+for key, value in pairs(spells.Fireball) do
+	forceSpell[key] = value
+end
+forceSpell.Source = { Principle = "Energy", Expression = "Force" }
+assert(validator.validate(forceSpell), "Force should be a valid Energy expression on generic Forms")
+local invalidCrossPrinciple = {}
+for key, value in pairs(spells.Fireball) do
+	invalidCrossPrinciple[key] = value
+end
+invalidCrossPrinciple.Source = { Principle = "Matter", Expression = "Fire" }
+assert(not validator.validate(invalidCrossPrinciple), "Expressions cannot be assigned to a different Principle")
+local unsupportedPrinciple = {}
+for key, value in pairs(spells.Fireball) do
+	unsupportedPrinciple[key] = value
+end
+unsupportedPrinciple.Source = { Principle = "Time", Expression = "" }
+assert(
+	not validator.validate(unsupportedPrinciple),
+	"A Time spell with an unsupported expression must not silently execute"
+)
 print("PASS: V1 and V2 registered spell data is valid")

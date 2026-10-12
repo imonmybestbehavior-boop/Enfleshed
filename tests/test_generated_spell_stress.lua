@@ -5,10 +5,16 @@ local function vector(x, y, z)
 end
 local sandbox =
 	assert(loadfile("src/shared/Configuration/Sandbox.luau", "t", { Vector3 = { new = vector }, math = math }))()
+local principleSpec = assert(loadfile("src/shared/Modules/MagicPrincipleSpec.luau"))()
 local validator = assert(loadfile("src/shared/Modules/SpellDefinitionValidator.luau", "t", {
 	typeof = type,
 	table = table,
 	ipairs = ipairs,
+	script = { Parent = { MagicPrincipleSpec = "principles" } },
+	require = function(reference)
+		assert(reference == "principles")
+		return principleSpec
+	end,
 }))()
 local generated = assert(loadfile("src/shared/Configuration/GeneratedSpellStress.luau", "t", {
 	math = math,
@@ -21,13 +27,21 @@ local generated = assert(loadfile("src/shared/Configuration/GeneratedSpellStress
 			return { R = r, G = g, B = b }
 		end,
 	},
-	script = { Parent = { Sandbox = "sandbox", Parent = { Modules = { SpellDefinitionValidator = "validator" } } } },
+	script = {
+		Parent = {
+			Sandbox = "sandbox",
+			Parent = { Modules = { SpellDefinitionValidator = "validator", MagicPrincipleSpec = "principles" } },
+		},
+	},
 	require = function(reference)
 		if reference == "sandbox" then
 			return sandbox
 		end
 		if reference == "validator" then
 			return validator
+		end
+		if reference == "principles" then
+			return principleSpec
 		end
 		error("Unexpected module reference")
 	end,

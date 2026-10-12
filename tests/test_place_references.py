@@ -1,10 +1,12 @@
 """Check static Shared lookups against the built place; does not run Roblox."""
+import os
 import re
 import unittest
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+PLACE_FILE = Path(os.environ.get("ENFLESHED_PLACE_FILE", ROOT / "Enfleshed.rbxlx"))
 CHAIN = re.compile(r'Shared((?::WaitForChild\("[^"]+"\))+)')
 NAME = re.compile(r':WaitForChild\("([^"]+)"\)')
 
@@ -18,7 +20,7 @@ def child(node, name):
 
 class PlaceReferences(unittest.TestCase):
     def test_shared_module_lookups(self):
-        tree = ET.parse(ROOT / 'Enfleshed.rbxlx').getroot()
+        tree = ET.parse(PLACE_FILE).getroot()
         shared = child(child(tree, 'ReplicatedStorage'), 'Shared')
         checked = 0
         for source in (ROOT / 'src').rglob('*.luau'):
@@ -32,7 +34,7 @@ class PlaceReferences(unittest.TestCase):
         self.assertGreater(checked, 0, 'No Shared module lookups checked')
 
     def test_relative_module_lookups(self):
-        tree = ET.parse(ROOT / 'Enfleshed.rbxlx').getroot()
+        tree = ET.parse(PLACE_FILE).getroot()
         parents = {item: parent for parent in tree.iter() for item in parent}
         checked = 0
         for script in tree.iter('Item'):
@@ -47,7 +49,7 @@ class PlaceReferences(unittest.TestCase):
         self.assertGreater(checked, 0, 'No relative module lookups checked')
 
     def test_built_scripts_match_source(self):
-        tree = ET.parse(ROOT / 'Enfleshed.rbxlx').getroot()
+        tree = ET.parse(PLACE_FILE).getroot()
         for source_dir, destination in (
             ('client', ('StarterPlayer', 'StarterPlayerScripts', 'Client')),
             ('server', ('ServerScriptService', 'Server')),

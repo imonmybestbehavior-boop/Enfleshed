@@ -1,5 +1,6 @@
 --!strict
 
+local Collection = game:GetService("CollectionService")
 local Players = game:GetService("Players")
 local PathfindingService = game:GetService("PathfindingService")
 local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
@@ -36,6 +37,7 @@ local function createRig(
 ): (Model, Humanoid, BasePart, TextLabel, (string, number) -> ())
 	local model = Instance.new("Model")
 	model.Name = "Stage1Enfleshed"
+	Collection:AddTag(model, "Enfleshed")
 	local function part(name: string, size: Vector3, offset: Vector3, color: Color3?): Part
 		local result = Instance.new("Part")
 		result.Name = name
@@ -154,15 +156,28 @@ local function createRig(
 	local gui = Instance.new("BillboardGui")
 	gui.Size = UDim2.fromOffset(240, 48)
 	gui.StudsOffset = Vector3.new(0, 2, 0)
-	gui.AlwaysOnTop = true
+	gui.AlwaysOnTop = false
+	gui.MaxDistance = 55
 	gui.Parent = head
 	local label = Instance.new("TextLabel")
-	label.Size = UDim2.fromScale(1, 1)
+	label.Name = "NameLabel"
+	label.Size = UDim2.fromScale(1, 0.5)
 	label.BackgroundTransparency = 1
 	label.TextColor3 = Color3.new(1, 1, 1)
 	label.TextStrokeTransparency = 0
 	label.TextSize = 16
 	label.Parent = gui
+	local bar = Instance.new("Frame")
+	bar.Name = "HealthBack"
+	bar.Size = UDim2.fromScale(0.7, 0.14)
+	bar.Position = UDim2.fromScale(0.15, 0.62)
+	bar.BorderSizePixel, bar.BackgroundColor3 = 0, Color3.fromRGB(20, 20, 20)
+	bar.Parent = gui
+	local fill = Instance.new("Frame")
+	fill.Name = "HealthFill"
+	fill.Size = UDim2.fromScale(1, 1)
+	fill.BorderSizePixel, fill.BackgroundColor3 = 0, Color3.fromRGB(155, 58, 68)
+	fill.Parent = bar
 	model.Parent = container
 	root:SetNetworkOwner(nil)
 	local function pose(
@@ -264,7 +279,7 @@ function Enemy.create(
 ): Handle
 	local model, humanoid, root, label, pose = createRig(position, container, collisionGroup)
 	local state: State = "Idle"
-	local target: Player? = nil
+	local target: Instance? = nil
 	local nextThink = os.clock() + thinkOffset
 	local nextHit = 0
 	local activeAt, activeUntil, recoverUntil = 0, 0, 0
@@ -361,13 +376,21 @@ function Enemy.create(
 	end
 
 	local function display()
-		label.Text = string.format(
-			"%s  %d/%d\n%s",
-			model:GetAttribute("SandboxLabel") or "Stage 1 Enfleshed",
-			humanoid.Health,
-			humanoid.MaxHealth,
-			state
-		)
+		label.Text = if Config.DebugLabels
+			then string.format(
+				"%s  %d/%d\n%s",
+				model:GetAttribute("SandboxLabel") or "Nascent",
+				humanoid.Health,
+				humanoid.MaxHealth,
+				state
+			)
+			else "Nascent"
+		local fill = label.Parent
+			and label.Parent:FindFirstChild("HealthBack")
+			and label.Parent.HealthBack:FindFirstChild("HealthFill")
+		if fill and fill:IsA("Frame") then
+			fill.Size = UDim2.fromScale(math.max(0, humanoid.Health / humanoid.MaxHealth), 1)
+		end
 		model:SetAttribute("SandboxState", state)
 		model:SetAttribute("NascentAttack", attackName)
 		model:SetAttribute("NascentVulnerable", state == "Vulnerable")
@@ -386,8 +409,14 @@ function Enemy.create(
 		humanoid:Move(Vector3.zero)
 	end
 
-	local function targetRoot(player: Player?): BasePart?
-		local character = if player and player.Parent == Players then player.Character else nil
+	local function targetRoot(subject: Instance?): BasePart?
+		local character = if subject and subject:IsA("Player")
+			then subject.Character
+			elseif subject and subject:IsA("Model") then subject
+			else nil
+		if subject and subject:IsA("Player") and not subject:GetAttribute("OpeningComplete") then
+			return nil
+		end
 		local health = if character then character:FindFirstChildOfClass("Humanoid") else nil
 		local result = if character then character:FindFirstChild("HumanoidRootPart") else nil
 		if health and health.Health > 0 and result and result:IsA("BasePart") and result:IsDescendantOf(workspace) then
@@ -795,6 +824,7 @@ function Enemy.create(
 						RequireLineOfSight = true,
 						CanTarget = function(character)
 							return Players:GetPlayerFromCharacter(character) ~= nil
+								or Collection:HasTag(character, "CityHuman")
 						end,
 					})
 				do
@@ -861,14 +891,25 @@ function Enemy.create(
 		end
 		nextThink = now + Config.ThinkInterval
 		local other = targetRoot(target)
-		if not other or (other.Position - root.Position).Magnitude > Config.DisengageRange then
+		local order = model:FindFirstChild("ObjectiveTarget")
+		local objective = if order and order:IsA("ObjectValue") then order.Value else nil
+		if
+			not other or (target ~= objective and (other.Position - root.Position).Magnitude > Config.DisengageRange)
+		then
 			target = nil
 			other = nil
 			clearPath()
 			stopMoving()
 			setState("Idle")
 			local nearest = Config.DetectionRange
+			local candidates: { Instance } = {}
 			for _, player in Players:GetPlayers() do
+				table.insert(candidates, player)
+			end
+			for _, human in Collection:GetTagged("CityHuman") do
+				table.insert(candidates, human)
+			end
+			for _, player in candidates do
 				local candidate = targetRoot(player)
 				if candidate then
 					local distance = (candidate.Position - root.Position).Magnitude
@@ -878,6 +919,9 @@ function Enemy.create(
 						other = candidate
 					end
 				end
+			end
+			if not other and objective then
+				target, other = objective, targetRoot(objective)
 			end
 			if other then
 				progressAt = now

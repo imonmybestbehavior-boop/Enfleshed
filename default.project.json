@@ -2,19 +2,16 @@
   "name": "Enfleshed",
   "tree": {
     "$className": "DataModel",
-
     "ReplicatedStorage": {
       "Shared": {
         "$path": "src/shared"
       }
     },
-
     "ServerScriptService": {
       "Server": {
         "$path": "src/server"
       }
     },
-
     "StarterPlayer": {
       "StarterPlayerScripts": {
         "Client": {
@@ -22,7 +19,6 @@
         }
       }
     },
-
     "Workspace": {
       "$properties": {
         "FilteringEnabled": true,
@@ -69,6 +65,18 @@
     "SoundService": {
       "$properties": {
         "RespectFilteringEnabled": true
+      }
+    },
+    "ServerStorage": {
+      "$className": "ServerStorage",
+      "CompressionPilotAssets": {
+        "$className": "Folder",
+        "Commercial": {
+          "$path": "prototypes/FacadeStudy/Facade.rbxmx"
+        },
+        "Tenement": {
+          "$path": "prototypes/TenementStudy/Tenement.rbxmx"
+        }
       }
     }
   }

@@ -1,0 +1,792 @@
+--!strict
+
+-- Bounded V1 status effects shared by player and NPC Humanoids.
+local RunService = game:GetService("RunService")
+local CollectionService = game:GetService("CollectionService")
+local Players = game:GetService("Players")
+local Limits = require(game:GetService("ReplicatedStorage").Shared.Configuration.MagicLab)
+local ShieldPool = require(game:GetService("ReplicatedStorage").Shared.Modules.MagicShieldPool)
+local AttributeSpec = require(game:GetService("ReplicatedStorage").Shared.Modules.MagicAttributeSpec)
+local MovementEffects = require(game:GetService("ReplicatedStorage").Shared.Modules.MagicMovementEffects)
+local RevealSpec = require(game:GetService("ReplicatedStorage").Shared.Modules.MagicRevealSpec)
+local TemporalRate = require(game:GetService("ReplicatedStorage").Shared.Modules.MagicTemporalRate)
+local TransformationSpec = require(game:GetService("ReplicatedStorage").Shared.Modules.MagicTransformationSpec)
+local EffectSpec = require(game:GetService("ReplicatedStorage").Shared.Modules.MagicStatusEffectSpec)
+local ElementalMarkSpec = require(game:GetService("ReplicatedStorage").Shared.Modules.MagicElementalMarkSpec)
+local DamageRules = require(game:GetService("ReplicatedStorage").Shared.Modules.MagicDamageRules)
+local Movement = require(script.Parent.MovementService)
+TemporalRate.configure(Limits.MinTimeRate, Limits.MaxTimeRate)
+
+type Effect = {
+	Kind: string,
+	Attribute: string?,
+	Caster: Model,
+	SpellId: string,
+	ExpiresAt: number,
+	Remaining: number?,
+	LastUpdateAt: number?,
+	Amount: number?,
+	Multiplier: number?,
+	OnBreak: ((Humanoid) -> ())?,
+	ViewerUserId: number?,
+	Color: Color3?,
+	OnTargetDeath: ((Humanoid) -> ())?,
+	Element: string?,
+	Stacks: number?,
+	RequiredElementalMark: string?,
+}
+type TargetState = {
+	Humanoid: Humanoid,
+	Effects: { Effect },
+	Connections: { RBXScriptConnection },
+	RevealAttributes: { [string]: boolean },
+	TransformModel: Model?,
+	OriginalScale: number?,
+	AppliedScale: number?,
+}
+
+local Status = {}
+local targets: { [Humanoid]: TargetState } = setmetatable({}, { __mode = "k" }) :: any
+local active: { TargetState } = {}
+local lastSweep = 0
+
+local function setAttribute(humanoid: Humanoid, model: Model?, name: string, value: any)
+	humanoid:SetAttribute(name, value)
+	if model then
+		model:SetAttribute(name, value)
+	end
+end
+
+local function captureTransformBaseline(state: TargetState, model: Model): boolean
+	if state.TransformModel == model and state.OriginalScale then
+		return true
+	end
+	local ok, scale = pcall(function()
+		return model:GetScale()
+	end)
+	if not ok or type(scale) ~= "number" then
+		return false
+	end
+	state.TransformModel = model
+	state.OriginalScale = scale
+	state.AppliedScale = scale
+	return true
+end
+
+local function restoreTransform(state: TargetState)
+	local model = state.TransformModel
+	local scale = state.OriginalScale
+	-- A live model may be moved out of Workspace before cleanup runs. Restore
+	-- its authored size while it still exists so reparenting it later cannot
+	-- preserve an expired transformation.
+	if model and scale and model.Parent ~= nil then
+		pcall(function()
+			model:ScaleTo(scale)
+		end)
+	end
+	state.TransformModel = nil
+	state.OriginalScale = nil
+	state.AppliedScale = nil
+end
+
+local function getState(humanoid: Humanoid, create: boolean): TargetState?
+	local state = targets[humanoid]
+	if state or not create or #active >= Limits.MaxEffectTargets then
+		return state
+	end
+	local model = humanoid.Parent
+	if not model or not model:IsA("Model") or not humanoid:IsDescendantOf(workspace) then
+		return nil
+	end
+	state = { Humanoid = humanoid, Effects = {}, Connections = {}, RevealAttributes = {} }
+	targets[humanoid] = state
+	table.insert(active, state)
+	state.Connections = {
+		humanoid.Died:Connect(function()
+			local callbacks = {}
+			local seen = {}
+			local now = os.clock()
+			for _, effect in state.Effects do
+				local casterHumanoid = effect.Caster:FindFirstChildOfClass("Humanoid")
+				local casterAlive = effect.Caster:IsDescendantOf(workspace)
+					and (not casterHumanoid or casterHumanoid.Health > 0)
+				local viewerPresent = not effect.ViewerUserId or Players:GetPlayerByUserId(effect.ViewerUserId) ~= nil
+				if
+					effect.OnTargetDeath
+					and not EffectSpec.isExpired(
+						effect.Kind,
+						effect.ExpiresAt,
+						effect.Remaining,
+						now,
+						casterAlive,
+						viewerPresent
+					)
+				then
+					local sourceSpells = seen[effect.Caster]
+					if not sourceSpells then
+						sourceSpells = {}
+						seen[effect.Caster] = sourceSpells
+					end
+					if not sourceSpells[effect.SpellId] then
+						sourceSpells[effect.SpellId] = true
+						table.insert(callbacks, effect.OnTargetDeath)
+					end
+				end
+			end
+			for _, callback in callbacks do
+				task.defer(callback, humanoid)
+			end
+			Status.clear(humanoid)
+		end),
+		humanoid.AncestryChanged:Connect(function(_, parent)
+			if parent == nil then
+				Status.clear(humanoid)
+			end
+		end),
+	}
+	return state
+end
+
+local function removeState(state: TargetState)
+	if targets[state.Humanoid] ~= state then
+		return
+	end
+	targets[state.Humanoid] = nil
+	for i = #active, 1, -1 do
+		if active[i] == state then
+			table.remove(active, i)
+			break
+		end
+	end
+	for _, connection in state.Connections do
+		connection:Disconnect()
+	end
+	restoreTransform(state)
+	local model = state.Humanoid.Parent
+	if model and model:IsA("Model") then
+		for attribute in state.RevealAttributes do
+			model:SetAttribute(attribute, nil)
+			model:SetAttribute(string.gsub(attribute, "Until", "Color"), nil)
+		end
+		if next(state.RevealAttributes) then
+			CollectionService:RemoveTag(model, "MagicRevealedTarget")
+		end
+	end
+	Movement.setMagicSlow(state.Humanoid, 1)
+	setAttribute(state.Humanoid, if model and model:IsA("Model") then model else nil, "MagicShield", 0)
+	setAttribute(state.Humanoid, if model and model:IsA("Model") then model else nil, "MagicArmorBonus", 0)
+	setAttribute(state.Humanoid, if model and model:IsA("Model") then model else nil, "MagicStrengthBonus", 0)
+	setAttribute(state.Humanoid, if model and model:IsA("Model") then model else nil, "MagicMovementBound", false)
+	setAttribute(state.Humanoid, if model and model:IsA("Model") then model else nil, "MagicShieldExpiresAt", nil)
+	setAttribute(state.Humanoid, if model and model:IsA("Model") then model else nil, "MagicSlowMultiplier", 1)
+	setAttribute(state.Humanoid, if model and model:IsA("Model") then model else nil, "MagicTimeRate", 1)
+	setAttribute(state.Humanoid, if model and model:IsA("Model") then model else nil, "MagicElementalMarks", nil)
+end
+
+local function refreshAttributes(state: TargetState)
+	local now = os.clock()
+	for index = #state.Effects, 1, -1 do
+		local effect = state.Effects[index]
+		if
+			effect.RequiredElementalMark
+			and ElementalMarkSpec.stackCount(state.Effects, effect.RequiredElementalMark, now) <= 0
+		then
+			table.remove(state.Effects, index)
+		end
+	end
+	local shield = 0
+	local timeRate = TemporalRate.combine(state.Effects, now)
+	local slow = MovementEffects.multiplier(state.Effects, now)
+	local movementMultiplier = math.clamp(slow * timeRate, 0, TemporalRate.Maximum)
+	local bound = movementMultiplier <= 0
+	local armorBonus = AttributeSpec.aggregate(state.Effects, "MagicArmor", now)
+	local strengthBonus = AttributeSpec.aggregate(state.Effects, "MagicStrength", now)
+	local earliestShield: number? = nil
+	local reveals = RevealSpec.aggregate(state.Effects, now)
+	local elementalMarks = ElementalMarkSpec.encode(state.Effects, now)
+	local transformScale = TransformationSpec.aggregate(state.Effects, now)
+	for _, effect in state.Effects do
+		if effect.Kind == "Shield" then
+			shield += effect.Amount or 0
+			earliestShield = if earliestShield then math.min(earliestShield, effect.ExpiresAt) else effect.ExpiresAt
+		end
+	end
+	local model = state.Humanoid.Parent
+	local parentModel = if model and model:IsA("Model") then model else nil
+	if state.TransformModel and state.OriginalScale and state.TransformModel:IsDescendantOf(workspace) then
+		local targetScale = state.OriginalScale * transformScale
+		if math.abs(targetScale - (state.AppliedScale or state.OriginalScale)) > 0.001 then
+			local ok = pcall(function()
+				state.TransformModel:ScaleTo(targetScale)
+			end)
+			if ok then
+				state.AppliedScale = targetScale
+			end
+		end
+	end
+	local currentRevealAttributes: { [string]: boolean } = {}
+	if parentModel then
+		for userId, reveal in reveals do
+			local untilAttribute, colorAttribute = RevealSpec.attributeNames(userId)
+			local serverExpiry = workspace:GetServerTimeNow() + reveal.ExpiresAt - now
+			local currentExpiry = parentModel:GetAttribute(untilAttribute)
+			if type(currentExpiry) ~= "number" or math.abs(currentExpiry - serverExpiry) > 0.05 then
+				parentModel:SetAttribute(untilAttribute, serverExpiry)
+			end
+			if parentModel:GetAttribute(colorAttribute) ~= reveal.Color then
+				parentModel:SetAttribute(colorAttribute, reveal.Color)
+			end
+			currentRevealAttributes[untilAttribute] = true
+		end
+		for attribute in state.RevealAttributes do
+			if not currentRevealAttributes[attribute] then
+				parentModel:SetAttribute(attribute, nil)
+				parentModel:SetAttribute(string.gsub(attribute, "Until", "Color"), nil)
+			end
+		end
+		if next(currentRevealAttributes) then
+			CollectionService:AddTag(parentModel, "MagicRevealedTarget")
+		else
+			CollectionService:RemoveTag(parentModel, "MagicRevealedTarget")
+		end
+		state.RevealAttributes = currentRevealAttributes
+	end
+	setAttribute(state.Humanoid, parentModel, "MagicShield", shield)
+	setAttribute(state.Humanoid, parentModel, "MagicArmorBonus", armorBonus)
+	setAttribute(state.Humanoid, parentModel, "MagicStrengthBonus", strengthBonus)
+	setAttribute(state.Humanoid, parentModel, "MagicMovementBound", bound)
+	local expiresAt = if earliestShield then workspace:GetServerTimeNow() + earliestShield - os.clock() else nil
+	setAttribute(state.Humanoid, parentModel, "MagicShieldExpiresAt", expiresAt)
+	setAttribute(state.Humanoid, parentModel, "MagicSlowMultiplier", slow)
+	setAttribute(state.Humanoid, parentModel, "MagicTimeRate", timeRate)
+	setAttribute(state.Humanoid, parentModel, "MagicElementalMarks", elementalMarks)
+	Movement.setMagicSlow(state.Humanoid, movementMultiplier)
+end
+
+function Status.elementalMark(
+	caster: Model,
+	humanoid: Humanoid,
+	spellId: string,
+	element: string,
+	stacks: number,
+	duration: number
+): boolean
+	if
+		not DamageRules.KnownElements[element]
+		or element == "Neutral"
+		or type(stacks) ~= "number"
+		or stacks ~= stacks
+		or stacks % 1 ~= 0
+		or stacks < 1
+		or type(duration) ~= "number"
+		or duration ~= duration
+		or humanoid.Health <= 0
+		or not humanoid:IsDescendantOf(workspace)
+		or not caster:IsDescendantOf(workspace)
+	then
+		return false
+	end
+	local state = getState(humanoid, true)
+	if not state then
+		return false
+	end
+	local now = os.clock()
+	for index = #state.Effects, 1, -1 do
+		local effect = state.Effects[index]
+		if
+			effect.Kind == "ElementalMark"
+			and ElementalMarkSpec.stackCount({ effect }, effect.Element or "", now) == 0
+		then
+			table.remove(state.Effects, index)
+		end
+	end
+	local safeDuration = math.clamp(duration, 0.1, Limits.MaxDuration)
+	local timeRate = TemporalRate.combine(state.Effects, now)
+	local expiresAt = now + TemporalRate.worldDuration(safeDuration, timeRate)
+	local candidate: Effect = {
+		Kind = "ElementalMark",
+		Element = element,
+		Stacks = stacks,
+		Caster = caster,
+		SpellId = spellId,
+		ExpiresAt = expiresAt,
+		Remaining = safeDuration,
+		LastUpdateAt = now,
+	}
+	if
+		not ElementalMarkSpec.apply(
+			state.Effects,
+			candidate,
+			Limits.MaxElementalMarkStacks,
+			now,
+			Limits.MaxEffectsPerTarget
+		)
+	then
+		if #state.Effects == 0 then
+			removeState(state)
+		end
+		return false
+	end
+	refreshAttributes(state)
+	return true
+end
+
+function Status.consumeElementalMark(humanoid: Humanoid, element: string, stacks: number): number
+	local state = targets[humanoid]
+	if not state or not DamageRules.KnownElements[element] or element == "Neutral" then
+		return 0
+	end
+	local consumed = ElementalMarkSpec.consume(state.Effects, element, math.max(0, math.floor(stacks)), os.clock())
+	if consumed > 0 then
+		refreshAttributes(state)
+		if #state.Effects == 0 then
+			removeState(state)
+		end
+	end
+	return consumed
+end
+
+function Status.hasElementalMark(humanoid: Humanoid, element: string): boolean
+	local state = targets[humanoid]
+	return state ~= nil and ElementalMarkSpec.stackCount(state.Effects, element, os.clock()) > 0
+end
+
+local function sameSource(effect: Effect, caster: Model, spellId: string, kind: string, attribute: string?): boolean
+	return effect.Caster == caster
+		and effect.SpellId == spellId
+		and effect.Kind == kind
+		and effect.Attribute == attribute
+end
+
+local function putEffect(
+	humanoid: Humanoid,
+	caster: Model,
+	spellId: string,
+	kind: string,
+	duration: number,
+	amount: number?,
+	multiplier: number?,
+	onBreak: ((Humanoid) -> ())?,
+	attribute: string?,
+	viewerUserId: number?,
+	color: Color3?,
+	onTargetDeath: ((Humanoid) -> ())?,
+	requiredElementalMark: string?
+): boolean
+	if humanoid.Health <= 0 or not humanoid:IsDescendantOf(workspace) or not caster:IsDescendantOf(workspace) then
+		return false
+	end
+	local state = getState(humanoid, true)
+	if not state then
+		return false
+	end
+	local now = os.clock()
+	local safeDuration = math.clamp(duration, 0.1, Limits.MaxDuration)
+	local timeRate = TemporalRate.combine(state.Effects, now)
+	local expiresAt = now
+		+ if kind == "TimeDilation" then safeDuration else TemporalRate.worldDuration(safeDuration, timeRate)
+	for index, effect in state.Effects do
+		if
+			sameSource(effect, caster, spellId, kind, attribute)
+			and effect.RequiredElementalMark == requiredElementalMark
+		then
+			effect.ExpiresAt = expiresAt
+			effect.Remaining = if kind == "TimeDilation" then nil else safeDuration
+			effect.LastUpdateAt = if kind == "TimeDilation" then nil else now
+			if kind == "Shield" then
+				effect.OnBreak = onBreak
+				local otherShield = 0
+				for _, other in state.Effects do
+					if other ~= effect and other.Kind == "Shield" then
+						otherShield += other.Amount or 0
+					end
+				end
+				effect.Amount = math.min(
+					math.max(effect.Amount or 0, amount or 0),
+					math.max(0, Limits.MaxShieldPerTarget - otherShield)
+				)
+				if (effect.Amount or 0) <= 0 then
+					table.remove(state.Effects, index)
+					if #state.Effects == 0 then
+						removeState(state)
+					else
+						refreshAttributes(state)
+					end
+					return false
+				end
+			elseif kind == "ModifyAttribute" then
+				effect.Amount = amount
+				effect.Attribute = attribute
+			elseif kind == "Transformation" then
+				effect.Multiplier = multiplier
+			elseif kind == "Reveal" then
+				effect.ViewerUserId = viewerUserId
+				effect.Color = color
+			else
+				effect.Multiplier = multiplier
+			end
+			effect.OnTargetDeath = onTargetDeath
+			refreshAttributes(state)
+			return true
+		end
+	end
+	if #state.Effects >= Limits.MaxEffectsPerTarget then
+		return false
+	end
+	if kind == "Transformation" then
+		local model = humanoid.Parent
+		if not model or not model:IsA("Model") or not captureTransformBaseline(state, model) then
+			return false
+		end
+	end
+	local totalShield = 0
+	for _, effect in state.Effects do
+		if effect.Kind == "Shield" then
+			totalShield += effect.Amount or 0
+		end
+	end
+	if kind == "Shield" then
+		amount = math.min(amount or 0, math.max(0, Limits.MaxShieldPerTarget - totalShield))
+		if amount <= 0 then
+			return false
+		end
+	end
+	table.insert(state.Effects, {
+		Kind = kind,
+		Attribute = attribute,
+		Caster = caster,
+		SpellId = spellId,
+		ExpiresAt = expiresAt,
+		Remaining = if kind == "TimeDilation" then nil else safeDuration,
+		LastUpdateAt = if kind == "TimeDilation" then nil else now,
+		Amount = amount,
+		Multiplier = multiplier,
+		OnBreak = onBreak,
+		ViewerUserId = viewerUserId,
+		Color = color,
+		OnTargetDeath = onTargetDeath,
+		RequiredElementalMark = requiredElementalMark,
+		Multiplier = multiplier,
+	})
+	refreshAttributes(state)
+	return true
+end
+
+function Status.heal(caster: Model, humanoid: Humanoid, amount: number): number
+	if humanoid.Health <= 0 or not humanoid:IsDescendantOf(workspace) or not caster:IsDescendantOf(workspace) then
+		return 0
+	end
+	local before = humanoid.Health
+	humanoid.Health = math.min(humanoid.MaxHealth, before + math.clamp(amount, 0, Limits.MaxHeal))
+	return math.max(0, humanoid.Health - before)
+end
+
+function Status.shield(
+	caster: Model,
+	humanoid: Humanoid,
+	spellId: string,
+	amount: number,
+	duration: number,
+	onBreak: ((Humanoid) -> ())?,
+	onTargetDeath: ((Humanoid) -> ())?
+): boolean
+	return putEffect(
+		humanoid,
+		caster,
+		spellId,
+		"Shield",
+		duration,
+		math.clamp(amount, 0, Limits.MaxShield),
+		nil,
+		onBreak,
+		nil,
+		nil,
+		nil,
+		onTargetDeath
+	)
+end
+
+function Status.slow(
+	caster: Model,
+	humanoid: Humanoid,
+	spellId: string,
+	multiplier: number,
+	duration: number,
+	onTargetDeath: ((Humanoid) -> ())?,
+	requiredElementalMark: string?
+): boolean
+	return putEffect(
+		humanoid,
+		caster,
+		spellId,
+		"Slow",
+		duration,
+		nil,
+		math.clamp(multiplier, Limits.MinSlowMultiplier, 1),
+		nil,
+		nil,
+		nil,
+		nil,
+		onTargetDeath,
+		requiredElementalMark
+	)
+end
+
+function Status.temporalRate(
+	caster: Model,
+	humanoid: Humanoid,
+	spellId: string,
+	multiplier: number,
+	duration: number,
+	onTargetDeath: ((Humanoid) -> ())?
+): boolean
+	return putEffect(
+		humanoid,
+		caster,
+		spellId,
+		"TimeDilation",
+		duration,
+		nil,
+		TemporalRate.clamp(multiplier),
+		nil,
+		nil,
+		nil,
+		nil,
+		onTargetDeath
+	)
+end
+
+function Status.timeRate(humanoid: Humanoid): number
+	local state = targets[humanoid]
+	return if state then TemporalRate.combine(state.Effects, os.clock()) else 1
+end
+
+function Status.bind(
+	caster: Model,
+	humanoid: Humanoid,
+	spellId: string,
+	duration: number,
+	onTargetDeath: ((Humanoid) -> ())?
+): boolean
+	return putEffect(
+		humanoid,
+		caster,
+		spellId,
+		"Bind",
+		math.min(duration, Limits.MaxBindDuration),
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		onTargetDeath
+	)
+end
+
+function Status.reveal(
+	viewer: Player,
+	caster: Model,
+	humanoid: Humanoid,
+	spellId: string,
+	duration: number,
+	color: Color3,
+	onTargetDeath: ((Humanoid) -> ())?
+): boolean
+	return putEffect(
+		humanoid,
+		caster,
+		spellId,
+		"Reveal",
+		math.min(duration, Limits.MaxRevealDuration, Limits.MaxDuration),
+		nil,
+		nil,
+		nil,
+		nil,
+		viewer.UserId,
+		color,
+		onTargetDeath
+	)
+end
+
+function Status.modifyAttribute(
+	caster: Model,
+	humanoid: Humanoid,
+	spellId: string,
+	attribute: string,
+	amount: number,
+	duration: number,
+	onTargetDeath: ((Humanoid) -> ())?,
+	requiredElementalMark: string?
+): boolean
+	local safeAmount = AttributeSpec.clamp(attribute, amount)
+	if safeAmount == nil then
+		return false
+	end
+	return putEffect(
+		humanoid,
+		caster,
+		spellId,
+		"ModifyAttribute",
+		duration,
+		safeAmount,
+		nil,
+		nil,
+		attribute,
+		nil,
+		nil,
+		onTargetDeath,
+		requiredElementalMark
+	)
+end
+
+function Status.transform(
+	caster: Model,
+	humanoid: Humanoid,
+	spellId: string,
+	multiplier: number,
+	duration: number,
+	onTargetDeath: ((Humanoid) -> ())?
+): boolean
+	local scale = TransformationSpec.clampScale(multiplier)
+	if scale == nil then
+		return false
+	end
+	local model = humanoid.Parent
+	if not model or not model:IsA("Model") then
+		return false
+	end
+	local state = getState(humanoid, true)
+	if not state or not captureTransformBaseline(state, model) then
+		return false
+	end
+	return putEffect(
+		humanoid,
+		caster,
+		spellId,
+		"Transformation",
+		duration,
+		nil,
+		scale,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		onTargetDeath
+	)
+end
+
+function Status.absorb(humanoid: Humanoid, amount: number): (number, number, { Effect })
+	local state = targets[humanoid]
+	if not state or amount <= 0 then
+		return amount, 0, {}
+	end
+	local now = os.clock()
+	for i = #state.Effects, 1, -1 do
+		if state.Effects[i].ExpiresAt <= now then
+			table.remove(state.Effects, i)
+		end
+	end
+	-- Spend the soonest-expiring shield first so refreshes remain intuitive.
+	table.sort(state.Effects, function(a, b)
+		if a.Kind ~= "Shield" then
+			return false
+		elseif b.Kind ~= "Shield" then
+			return true
+		end
+		return a.ExpiresAt < b.ExpiresAt
+	end)
+	local remaining, absorbed, broken = ShieldPool.consume(state.Effects, amount)
+	for i = #state.Effects, 1, -1 do
+		local effect = state.Effects[i]
+		if effect.Kind == "Shield" and (effect.Amount or 0) <= 0 then
+			table.remove(state.Effects, i)
+		end
+	end
+	refreshAttributes(state)
+	if #state.Effects == 0 then
+		removeState(state)
+	end
+	return remaining, absorbed, broken
+end
+
+function Status.clear(humanoid: Humanoid)
+	local state = targets[humanoid]
+	if state then
+		removeState(state)
+	end
+end
+
+RunService.Heartbeat:Connect(function()
+	local now = os.clock()
+	if now - lastSweep < 0.2 then
+		return
+	end
+	lastSweep = now
+	for i = #active, 1, -1 do
+		local state = active[i]
+		local humanoid = state.Humanoid
+		if not humanoid:IsDescendantOf(workspace) or humanoid.Health <= 0 then
+			removeState(state)
+		else
+			for j = #state.Effects, 1, -1 do
+				local effect = state.Effects[j]
+				if effect.Kind == "TimeDilation" then
+					local casterHumanoid = effect.Caster:FindFirstChildOfClass("Humanoid")
+					local casterAlive = effect.Caster:IsDescendantOf(workspace)
+						and (not casterHumanoid or casterHumanoid.Health > 0)
+					local viewerPresent = not effect.ViewerUserId
+						or Players:GetPlayerByUserId(effect.ViewerUserId) ~= nil
+					if
+						EffectSpec.isExpired(
+							effect.Kind,
+							effect.ExpiresAt,
+							effect.Remaining,
+							now,
+							casterAlive,
+							viewerPresent
+						)
+					then
+						table.remove(state.Effects, j)
+					end
+				end
+			end
+			local timeRate = TemporalRate.combine(state.Effects, now)
+			for j = #state.Effects, 1, -1 do
+				local effect = state.Effects[j]
+				local casterAlive = effect.Caster:IsDescendantOf(workspace)
+				local casterHumanoid = effect.Caster:FindFirstChildOfClass("Humanoid")
+				if casterHumanoid and casterHumanoid.Health <= 0 then
+					casterAlive = false
+				end
+				local viewerPresent = not effect.ViewerUserId or Players:GetPlayerByUserId(effect.ViewerUserId) ~= nil
+				if effect.Kind ~= "TimeDilation" then
+					local elapsed = math.max(0, now - (effect.LastUpdateAt or now))
+					effect.Remaining = TemporalRate.advance(effect.Remaining or 0, elapsed, timeRate)
+					effect.LastUpdateAt = now
+					effect.ExpiresAt = now + TemporalRate.worldDuration(effect.Remaining, timeRate)
+				end
+				if
+					EffectSpec.isExpired(
+						effect.Kind,
+						effect.ExpiresAt,
+						effect.Remaining,
+						now,
+						casterAlive,
+						viewerPresent
+					)
+				then
+					table.remove(state.Effects, j)
+				end
+			end
+			if #state.Effects == 0 then
+				removeState(state)
+			else
+				refreshAttributes(state)
+			end
+		end
+	end
+end)
+
+return Status

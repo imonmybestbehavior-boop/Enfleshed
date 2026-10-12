@@ -1,0 +1,16 @@
+{
+  "passed": true,
+  "assets": 17,
+  "visual_meshes": 28,
+  "exports": 68,
+  "triangles": 13508,
+  "local_route_samples": 628,
+  "assembled_route_samples": 710,
+  "connection_samples": 285,
+  "errors": [],
+  "limitations": [
+    "Static box-envelope checks do not replace Roblox Humanoid stair testing.",
+    "FBX files checked for hashes/existence; GLB files reimported and bounds checked.",
+    "Studio scale, collision setup and streaming remain manual validation."
+  ]
+}

@@ -10,7 +10,11 @@ function Equipment.start(
 	meleeAttack: () -> (),
 	magicAction: (string) -> ()
 )
-	local activeSlot = "SecondaryWeapon"
+	local player = game:GetService("Players").LocalPlayer
+	local activeSlot = player:GetAttribute("ActiveEquipmentSlot") or "SecondaryWeapon"
+	player:GetAttributeChangedSignal("ActiveEquipmentSlot"):Connect(function()
+		activeSlot = player:GetAttribute("ActiveEquipmentSlot") or "SecondaryWeapon"
+	end)
 	return {
 		Use = function(action: string)
 			if activeSlot == "SecondaryWeapon" and action == "Primary" then
@@ -32,7 +36,7 @@ function Equipment.start(
 			end
 		end,
 		Reset = function()
-			activeSlot = "SecondaryWeapon"
+			activeSlot = player:GetAttribute("ActiveEquipmentSlot") or "SecondaryWeapon"
 		end,
 	}
 end

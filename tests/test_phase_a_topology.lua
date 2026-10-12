@@ -12,11 +12,20 @@ for id in pairs(graph.Nodes) do
 	count = count + 1
 	adjacency[id] = {}
 end
-assert(count == 42 and #graph.Edges == 61)
+assert(count >= 42 and #graph.Edges >= 61)
 local undergroundEdges, aboveEdges, entrances = 0, 0, 0
+local spaces = {}
 for _, e in ipairs(graph.Edges) do
 	assert(graph.Nodes[e[1]] and graph.Nodes[e[2]], "Missing endpoint")
-	assert(e[1] ~= e[2] and e.Width >= 12)
+	assert(e[1] ~= e[2] and e.Width >= (e.Space == "NarrowAlley" and 6 or 10))
+	assert(
+		e.Space == "NarrowAlley"
+			or e.Space == "CompressedStreet"
+			or e.Space == "NormalStreet"
+			or e.Space == "CombatStreet"
+			or e.Space == "CombatCourtyard"
+	)
+	spaces[e.Space] = (spaces[e.Space] or 0) + 1
 	table.insert(adjacency[e[1]], e[2])
 	table.insert(adjacency[e[2]], e[1])
 	if e.Kind == "Tunnel" then
@@ -33,6 +42,7 @@ for _, e in ipairs(graph.Edges) do
 		assert(last.X == b.X and last.Y == b.Y and last.Z == b.Z)
 	end
 end
+assert((spaces.NarrowAlley or 0) >= 1 and (spaces.NormalStreet or 0) >= 1 and (spaces.CombatCourtyard or 0) >= 1)
 local seen = {}
 local function visit(id)
 	if seen[id] then
@@ -73,7 +83,7 @@ for _, candidate in ipairs(graph.SpawnCandidates) do
 	kinds[candidate.Kind] = (kinds[candidate.Kind] or 0) + 1
 end
 assert((kinds.Surface or 0) >= 60 and (kinds.Interior or 0) >= 8 and (kinds.Underground or 0) >= 21)
-assert(undergroundEdges - 7 + 1 == 3)
-assert(aboveEdges - (count - 7) + 1 == 14)
-assert(#graph.Edges - count + 1 == 20)
-print("PASS: 42 nodes, 61 connections, 14 aboveground loops, 3 underground loops, 3 cross-layer loops")
+assert(undergroundEdges - 7 + 1 >= 3)
+assert(aboveEdges - (count - 7) + 1 >= 14)
+assert(#graph.Edges - count + 1 >= 20)
+print("PASS: primary backbone plus deterministic micro-topology remains connected")

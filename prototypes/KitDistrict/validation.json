@@ -1,0 +1,13 @@
+{
+  "passed": true,
+  "parts": 6526,
+  "ground_cells": 17039,
+  "preserved_reference_cells": 13638,
+  "module_samples": 2829,
+  "connector_samples": 613,
+  "enemy_candidates": 28,
+  "covered_connector_samples": 585,
+  "compiled_references": 77,
+  "errors": [],
+  "studio_verified": false
+}

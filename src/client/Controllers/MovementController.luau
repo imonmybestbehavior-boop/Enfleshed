@@ -18,6 +18,9 @@ function Movement.start(send: (string, Types.ActionOptions?) -> number)
 	local stopDash: (() -> ())? = nil
 	local speedConnection: RBXScriptConnection? = nil
 	local multiplierConnection: RBXScriptConnection? = nil
+	local slowConnection: RBXScriptConnection? = nil
+	local boundConnection: RBXScriptConnection? = nil
+	local castingConnection: RBXScriptConnection? = nil
 
 	local function applyPredictedSpeed()
 		local character = player.Character
@@ -25,13 +28,15 @@ function Movement.start(send: (string, Types.ActionOptions?) -> number)
 		if humanoid and humanoid.Health > 0 then
 			local bonus = character:GetAttribute("MagicWalkSpeedBonus")
 			local multiplier = character:GetAttribute("MagicSpeedMultiplier")
+			local slow = character:GetAttribute("MagicSlowMultiplier")
+			local casting = character:GetAttribute("MagicCastingMultiplier")
 			humanoid.WalkSpeed = Speed.calculate(
 				Config.WalkSpeed,
 				Config.SprintSpeed,
 				sprinting,
 				if typeof(bonus) == "number" then bonus else 0,
 				if typeof(multiplier) == "number" then multiplier else 1
-			)
+			) * (if typeof(slow) == "number" then slow else 1) * (if typeof(casting) == "number" then casting else 1)
 		end
 	end
 
@@ -39,11 +44,23 @@ function Movement.start(send: (string, Types.ActionOptions?) -> number)
 		if multiplierConnection then
 			multiplierConnection:Disconnect()
 		end
+		if slowConnection then
+			slowConnection:Disconnect()
+		end
+		if boundConnection then
+			boundConnection:Disconnect()
+		end
+		if castingConnection then
+			castingConnection:Disconnect()
+		end
 		if speedConnection then
 			speedConnection:Disconnect()
 		end
 		speedConnection = character:GetAttributeChangedSignal("MagicWalkSpeedBonus"):Connect(applyPredictedSpeed)
 		multiplierConnection = character:GetAttributeChangedSignal("MagicSpeedMultiplier"):Connect(applyPredictedSpeed)
+		slowConnection = character:GetAttributeChangedSignal("MagicSlowMultiplier"):Connect(applyPredictedSpeed)
+		boundConnection = character:GetAttributeChangedSignal("MagicMovementBound"):Connect(applyPredictedSpeed)
+		castingConnection = character:GetAttributeChangedSignal("MagicCastingMultiplier"):Connect(applyPredictedSpeed)
 		applyPredictedSpeed()
 	end
 	player.CharacterAdded:Connect(bindCharacter)
@@ -78,7 +95,15 @@ function Movement.start(send: (string, Types.ActionOptions?) -> number)
 		local character = player.Character
 		local humanoid = if character then character:FindFirstChildOfClass("Humanoid") else nil
 		local root = if character then character:FindFirstChild("HumanoidRootPart") else nil
-		if not character or not humanoid or humanoid.Health <= 0 or not root or not root:IsA("BasePart") then
+		if
+			not character
+			or character:GetAttribute("MagicMovementBound") == true
+			or character:GetAttribute("MagicCastingLocked") == true
+			or not humanoid
+			or humanoid.Health <= 0
+			or not root
+			or not root:IsA("BasePart")
+		then
 			return false
 		end
 		local move = humanoid.MoveDirection
@@ -123,7 +148,12 @@ function Movement.start(send: (string, Types.ActionOptions?) -> number)
 			stopDash = nil
 		end
 		connection = RunService.PreSimulation:Connect(function(dt)
-			if player.Character ~= character or humanoid.Health <= 0 or not root.Parent then
+			if
+				player.Character ~= character
+				or humanoid.Health <= 0
+				or not root.Parent
+				or character:GetAttribute("MagicCastingLocked") == true
+			then
 				cancel()
 				return
 			end

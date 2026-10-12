@@ -18,11 +18,8 @@ function Assignment.start()
 	label.Parent = gui
 	game:GetService("RunService").RenderStepped:Connect(function()
 		local id, status = player:GetAttribute("AssignmentId"), player:GetAttribute("AssignmentState")
-		if not id or id == "" then
-			label.Text = string.format(
-				"RECRUIT DUTY  |  Military Scrip: %d\nApproach the Barracks assignment board.",
-				player:GetAttribute("MilitaryScrip") or 0
-			)
+		gui.Enabled = id ~= nil and id ~= "" and player:GetAttribute("OpeningComplete") == true
+		if not gui.Enabled then
 			return
 		end
 		local definition = Definitions[id]

@@ -1,0 +1,23 @@
+{
+  "passed": true,
+  "plan_only": true,
+  "confirmed_courtyard_side": "dangerous",
+  "ground_route_reservations": 25,
+  "upper_route_reservations": 5,
+  "ground_route_endpoints_connected": true,
+  "upper_stair_endpoints_on_ground_network": true,
+  "unintended_ground_wall_crossings": 0,
+  "kit_widths_verified": [
+    12,
+    16,
+    24
+  ],
+  "not_validated": [
+    "final building footprints",
+    "sightlines through final geometry",
+    "stair footprints",
+    "collision",
+    "Roblox navigation",
+    "runtime performance"
+  ]
+}

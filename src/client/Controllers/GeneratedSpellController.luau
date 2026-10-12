@@ -29,7 +29,8 @@ function GeneratedController.start(magic: any, debug: any)
 				return
 			end
 			local id = Generated.Order[selected]
-			magic.Cast(id, Generated.Definitions[id].Casting.Mode == "Charged")
+			local mode = Generated.Definitions[id].Casting.Mode
+			magic.Cast(id, mode == "Charged" or mode == "HoldAndRelease")
 		end,
 		Release = function()
 			magic.Release()

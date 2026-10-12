@@ -1,0 +1,29 @@
+{
+  "blender": "5.2.0 LTS",
+  "source": "storefront_kit_v2.blend",
+  "storefront_collections": [
+    "01 Hearth food counter",
+    "02 Ration and dry goods",
+    "03 Tool repair workshop",
+    "04 Lower dispensary",
+    "05 Cloth and mending",
+    "06 Residential through passage"
+  ],
+  "main_route": "street through exposed inspection checkpoint",
+  "discovered_route": "Court 17 passage -> courtyard -> stair -> catwalk -> alley -> street",
+  "cameras": [
+    "CAM 01 Street Arrival",
+    "CAM 02 Shops Player Height",
+    "CAM 03 Checkpoint",
+    "CAM 04 Passage Entry",
+    "CAM 05 Secret Courtyard",
+    "CAM 06 Catwalk Route",
+    "CAM 07 Overhead Layout"
+  ],
+  "mesh_objects": 911,
+  "limitations": [
+    "art review geometry",
+    "not optimized",
+    "not Roblox collision tested"
+  ]
+}

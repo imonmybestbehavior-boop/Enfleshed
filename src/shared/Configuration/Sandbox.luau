@@ -2,6 +2,16 @@
 
 return {
 	Player = { MaxHealth = 400 }, -- Temporary stress-test health, not progression.
+	TrainingDummies = {
+		Enabled = true,
+		MaxPerPlayer = 12,
+		MaxTotal = 36,
+		Health = 300,
+		SpawnDistance = 10,
+		SpawnAttempts = 8,
+		ResetDelay = 2.5,
+		RequestCooldown = 0.2,
+	},
 	Movement = {
 		WalkSpeed = 16,
 		SprintSpeed = 28,
@@ -57,18 +67,15 @@ return {
 	Magic = {
 		MaxAimDistance = 90,
 		MinimumWorldAimDot = 0.35,
+		MinimumEntityAimDot = 0.55,
+		LockOnAcquireRange = 100,
 		ChargeCostScale = 0.35,
-		Player = {
-			Mana = 300, -- Temporary sandbox reserve, not final balance.
-			Capacity = 300, -- Future Locus capacity modifier seam.
-			ManaRegenerationPerSecond = 30, -- Temporary testing recovery.
-			Efficiency = 1, -- Future mana-demand modifier seam.
-			Potency = 1, -- Future payload modifier seam.
-			StrainTolerance = 30,
+		SandboxResources = {
+			StartingMana = 300,
+			ManaRegenerationPerSecond = 30, -- Accelerated sandbox recovery.
 			StrainRecoveryPerSecond = 8,
 			SafeManaDemand = 35,
 			SafeStrain = 18,
-			ComplexityCapacity = 8,
 		},
 		V2 = { -- Development breadth-test tuning; not final spell balance.
 			BeamRange = 90,
@@ -102,6 +109,7 @@ return {
 		Health = 180,
 		DesperateHealthFraction = 0.35,
 		DebugNascent = false,
+		DebugLabels = false,
 		VisualCollisionGroup = "SandboxEnemyVisuals",
 		CollisionHull = { Height = 9, Diameter = 2.8, CenterOffsetY = 1.5, Friction = 0 },
 		WalkSpeed = 18,
@@ -215,6 +223,7 @@ return {
 		},
 	},
 	StressTest = { -- Temporary test harness, not a production spawn system.
+		Enabled = false, -- Explicit development-only load test; never starts in normal play.
 		WaveSizes = { 1, 5, 10, 20 },
 		EnemyCollisions = true, -- Keep bodies separate; toggle only for crowd comparisons.
 		InterWaveDelay = 3,

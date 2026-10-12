@@ -1,0 +1,183 @@
+{
+  "name": "Enfleshed_CitySaferSide",
+  "tree": {
+    "$className": "DataModel",
+    "ReplicatedStorage": {
+      "Shared": {
+        "$path": "../../src/shared"
+      }
+    },
+    "ServerScriptService": {
+      "Server": {
+        "$path": "Server.server.luau",
+        "Services": {
+          "$className": "Folder",
+          "AmbientEnemyService": {
+            "$path": "../../src/server/Services/AmbientEnemyService.luau"
+          },
+          "AssignmentService": {
+            "$path": "../../src/server/Services/AssignmentService.luau"
+          },
+          "CityPopulationLayout": {
+            "$path": "../../src/server/Services/CityPopulationLayout.luau"
+          },
+          "CombatService": {
+            "$path": "../../src/server/Services/CombatService.luau"
+          },
+          "DamageService": {
+            "$path": "../../src/server/Services/DamageService.luau"
+          },
+          "MagicStatusEffectService": {
+            "$path": "../../src/server/Services/MagicStatusEffectService.luau"
+          },
+          "EnemyRuntime": {
+            "$path": "../../src/server/Services/EnemyRuntime.luau"
+          },
+          "EnemyService": {
+            "$path": "../../src/server/Services/EnemyService.luau"
+          },
+          "EquipmentService": {
+            "$path": "../../src/server/Services/EquipmentService.luau"
+          },
+          "HitDetectionService": {
+            "$path": "../../src/server/Services/HitDetectionService.luau"
+          },
+          "LivingCityService": {
+            "$path": "../../src/server/Services/LivingCityService.luau"
+          },
+          "MagicBehaviorExecutors": {
+            "$path": "../../src/server/Services/MagicBehaviorExecutors.luau"
+          },
+          "MagicFormExecutors": {
+            "$path": "../../src/server/Services/MagicFormExecutors.luau"
+          },
+          "MagicPayloadExecutors": {
+            "$path": "../../src/server/Services/MagicPayloadExecutors.luau"
+          },
+          "MagicProjectileBehaviorExecutors": {
+            "$path": "../../src/server/Services/MagicProjectileBehaviorExecutors.luau"
+          },
+          "MagicService": {
+            "$path": "../../src/server/Services/MagicService.luau"
+          },
+          "SummonService": {
+            "$path": "../../src/server/Services/SummonService.luau"
+          },
+          "MovementService": {
+            "$path": "../../src/server/Services/MovementService.luau"
+          },
+          "NascentAttackSelector": {
+            "$path": "../../src/server/Services/NascentAttackSelector.luau"
+          },
+          "OpeningService": {
+            "$path": "../KitBlock/OpeningService.luau"
+          },
+          "SandboxService": {
+            "$path": "../../src/server/Services/SandboxService.luau"
+          },
+          "SandboxStressService": {
+            "$path": "../../src/server/Services/SandboxStressService.luau"
+          },
+          "WorldEventRules": {
+            "$path": "../../src/server/Services/WorldEventRules.luau"
+          },
+          "WorldEventService": {
+            "$path": "../../src/server/Services/WorldEventService.luau"
+          },
+          "WorldSpawnService": {
+            "$path": "../../src/server/Services/WorldSpawnService.luau"
+          },
+          "MagicTriggerExecutors": {
+            "$path": "../../src/server/Services/MagicTriggerExecutors.luau"
+          },
+          "MagicConditions": {
+            "$path": "../../src/server/Services/MagicConditions.luau"
+          },
+          "MagicLabService": {
+            "$path": "../../src/server/Services/MagicLabService.luau"
+          },
+          "TrainingDummyService": {
+            "$path": "../../src/server/Services/TrainingDummyService.luau"
+          },
+          "MagicPresentation": {
+            "$path": "../../src/server/Services/MagicPresentation.luau"
+          }
+        },
+        "Networking": {
+          "$path": "../../src/server/Networking"
+        },
+        "Development": {
+          "$path": "../../src/server/Development"
+        }
+      }
+    },
+    "StarterPlayer": {
+      "$className": "StarterPlayer",
+      "StarterPlayerScripts": {
+        "Client": {
+          "$path": "Client.client.luau",
+          "Controllers": {
+            "$path": "../../src/client/Controllers"
+          }
+        }
+      }
+    },
+    "Workspace": {
+      "$properties": {
+        "StreamingEnabled": true,
+        "FallenPartsDestroyHeight": -60,
+        "StreamingMinRadius": 256,
+        "StreamingTargetRadius": 768
+      },
+      "TestSpawn": {
+        "$className": "SpawnLocation",
+        "$properties": {
+          "Anchored": true,
+          "Neutral": true,
+          "Duration": 0,
+          "Transparency": 1,
+          "CanCollide": true,
+          "Size": [
+            8,
+            1,
+            8
+          ],
+          "CFrame": [
+            1020,
+            -0.5,
+            460,
+            1,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            1
+          ]
+        }
+      },
+      "CitySaferSide": {
+        "$path": "City.rbxmx"
+      }
+    },
+    "Lighting": {
+      "$properties": {
+        "Ambient": [
+          0.17,
+          0.17,
+          0.18
+        ],
+        "OutdoorAmbient": [
+          0.08,
+          0.08,
+          0.1
+        ],
+        "Brightness": 0,
+        "ClockTime": 0,
+        "GlobalShadows": true
+      }
+    }
+  }
+}

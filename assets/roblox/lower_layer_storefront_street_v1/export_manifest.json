@@ -1,0 +1,142 @@
+{
+  "blender": "5.2.0 LTS",
+  "source": "lower_layer_storefront_street_v1.blend",
+  "units": "meters",
+  "recommended_studio_scale_unit": "Meter",
+  "recommended_import": {
+    "world_forward": "Front",
+    "world_up": "Top",
+    "insert_using_scene_position": true,
+    "import_only_as_model": true
+  },
+  "expected_scale_checks_studs": {
+    "street_clear_width_approx": 25.0,
+    "shop_door_clear_height_approx": 7.9,
+    "shop_front_width_approx": 14.3
+  },
+  "visuals": {
+    "objects": 11,
+    "vertices": 65288,
+    "triangles": 106184
+  },
+  "visual_meshes": {
+    "VIS_StreetSurface": {
+      "vertices": 848,
+      "triangles": 1632
+    },
+    "VIS_Shop01_Hearth": {
+      "vertices": 12532,
+      "triangles": 17948
+    },
+    "VIS_Shop02_Rations": {
+      "vertices": 6940,
+      "triangles": 11684
+    },
+    "VIS_Shop03_Repair": {
+      "vertices": 7452,
+      "triangles": 12132
+    },
+    "VIS_Shop04_Dispensary": {
+      "vertices": 7884,
+      "triangles": 12448
+    },
+    "VIS_Shop05_Cloth": {
+      "vertices": 6940,
+      "triangles": 11724
+    },
+    "VIS_Shop06_Court17": {
+      "vertices": 8868,
+      "triangles": 12024
+    },
+    "VIS_UpperBuildingsAndProps": {
+      "vertices": 8936,
+      "triangles": 17196
+    },
+    "VIS_OppositeStreet": {
+      "vertices": 1184,
+      "triangles": 2280
+    },
+    "VIS_Checkpoint": {
+      "vertices": 584,
+      "triangles": 1116
+    },
+    "VIS_SecretRoute": {
+      "vertices": 3120,
+      "triangles": 6000
+    }
+  },
+  "collision": {
+    "objects": 53,
+    "vertices": 424,
+    "triangles": 636
+  },
+  "visual_group_names": [
+    "VIS_StreetSurface",
+    "VIS_Shop01_Hearth",
+    "VIS_Shop02_Rations",
+    "VIS_Shop03_Repair",
+    "VIS_Shop04_Dispensary",
+    "VIS_Shop05_Cloth",
+    "VIS_Shop06_Court17",
+    "VIS_UpperBuildingsAndProps",
+    "VIS_OppositeStreet",
+    "VIS_Checkpoint",
+    "VIS_SecretRoute"
+  ],
+  "collision_object_names": [
+    "COL_StreetFloor",
+    "COL_CourtyardFloor",
+    "COL_CatwalkFloor",
+    "COL_CourtyardLanding",
+    "COL_Shop01_Floor",
+    "COL_Shop01_LeftPier",
+    "COL_Shop01_RightPier",
+    "COL_Shop01_Ceiling",
+    "COL_Shop01_BackWall",
+    "COL_Shop02_Floor",
+    "COL_Shop02_LeftPier",
+    "COL_Shop02_RightPier",
+    "COL_Shop02_Ceiling",
+    "COL_Shop02_BackWall",
+    "COL_Shop03_Floor",
+    "COL_Shop03_LeftPier",
+    "COL_Shop03_RightPier",
+    "COL_Shop03_Ceiling",
+    "COL_Shop03_BackWall",
+    "COL_Shop04_Floor",
+    "COL_Shop04_LeftPier",
+    "COL_Shop04_RightPier",
+    "COL_Shop04_Ceiling",
+    "COL_Shop04_BackWall",
+    "COL_Shop05_Floor",
+    "COL_Shop05_LeftPier",
+    "COL_Shop05_RightPier",
+    "COL_Shop05_Ceiling",
+    "COL_Shop05_BackWall",
+    "COL_Shop06_Floor",
+    "COL_Shop06_LeftPier",
+    "COL_Shop06_RightPier",
+    "COL_Shop06_Ceiling",
+    "COL_Court17_BackLeft",
+    "COL_Court17_BackRight",
+    "COL_Court17_BackLintel",
+    "COL_NorthUpperMass01",
+    "COL_NorthUpperMass02",
+    "COL_NorthUpperMass03",
+    "COL_NorthUpperMass04",
+    "COL_NorthUpperMass05",
+    "COL_NorthUpperMass06",
+    "COL_OppositeWall",
+    "COL_CheckpointTowerWest",
+    "COL_CheckpointTowerEast",
+    "COL_CheckpointBarrierLeft",
+    "COL_CheckpointBarrierRight",
+    "COL_CourtEastWall",
+    "COL_CourtRearWall",
+    "COL_AlleyWestWall",
+    "COL_AlleyEastWall",
+    "COL_CourtStairRamp",
+    "COL_AlleyStairRamp"
+  ],
+  "source_scene_modified": false
+}

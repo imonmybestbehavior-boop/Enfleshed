@@ -69,10 +69,10 @@ function Camera.start()
 		return if root and root:IsA("BasePart") then root else nil
 	end
 
-	local function getAim(): (Vector3, Vector3)
+	local function getAim(): (Vector3, Vector3, Model?, Instance?)
 		local camera = Workspace.CurrentCamera
 		if not camera then
-			return Vector3.zAxis, Vector3.zero
+			return Vector3.zAxis, Vector3.zero, nil, nil
 		end
 		local params = RaycastParams.new()
 		params.FilterType = Enum.RaycastFilterType.Exclude
@@ -80,12 +80,27 @@ function Camera.start()
 		params.RespectCanCollide = true
 		local direction = camera.CFrame.LookVector
 		local hit = Workspace:Raycast(camera.CFrame.Position, direction * Config.AimDistance, params)
-		return direction, if hit then hit.Position else camera.CFrame.Position + direction * Config.AimDistance
+		local target: Model? = nil
+		local targetParams = RaycastParams.new()
+		targetParams.FilterType = Enum.RaycastFilterType.Exclude
+		targetParams.FilterDescendantsInstances = { player.Character or Workspace }
+		targetParams.RespectCanCollide = false
+		local targetHit = Workspace:Raycast(camera.CFrame.Position, direction * Config.AimDistance, targetParams)
+		if targetHit then
+			local model = targetHit.Instance:FindFirstAncestorOfClass("Model")
+			if model and model:FindFirstChildOfClass("Humanoid") then
+				target = model
+			end
+		end
+		return direction,
+			if hit then hit.Position else camera.CFrame.Position + direction * Config.AimDistance,
+			target,
+			if targetHit then targetHit.Instance else nil
 	end
 
 	function Camera:SetGameplayMouseLookEnabled(value: boolean)
 		enabled = value
-		setMouseLocked(value)
+		setMouseLocked(value and player:GetAttribute("OpeningComplete") == true)
 	end
 
 	RunService:BindToRenderStep("SandboxThirdPersonCamera", Enum.RenderPriority.Camera.Value, function()
@@ -95,11 +110,13 @@ function Camera.start()
 			return
 		end
 		camera.CameraType = Enum.CameraType.Scriptable
-		if not enabled then
-			return
-		end
-		setMouseLocked(true)
-		local delta = UserInputService:GetMouseDelta()
+		local playing = enabled
+			and player:GetAttribute("OpeningComplete") == true
+			and not player:GetAttribute("MagicLabOpen")
+		setMouseLocked(playing)
+		local character = player.Character
+		local rotationLocked = character and character:GetAttribute("MagicRotationLocked") == true
+		local delta = if playing and not rotationLocked then UserInputService:GetMouseDelta() else Vector2.zero
 		yaw -= delta.X * Config.MouseSensitivity
 		pitch = math.clamp(pitch - delta.Y * Config.MouseSensitivity, Config.MinimumPitch, Config.MaximumPitch)
 		local target = root.Position + Vector3.new(0, Config.Height, 0)
@@ -138,7 +155,7 @@ function Camera.start()
 		Camera:SetGameplayMouseLookEnabled(true)
 	end)
 
-	setMouseLocked(true)
+	setMouseLocked(player:GetAttribute("OpeningComplete") == true)
 	return {
 		GetAim = getAim,
 		SetGameplayMouseLookEnabled = function(value: boolean)

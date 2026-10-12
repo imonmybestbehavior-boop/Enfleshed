@@ -6,11 +6,17 @@ local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
 local Config = require(Shared:WaitForChild("Configuration"):WaitForChild("Sandbox"))
 local Protocol = require(Shared:WaitForChild("Networking"):WaitForChild("Protocol"))
 local Types = require(Shared:WaitForChild("Types"):WaitForChild("CombatTypes"))
+local TargetConsent = require(Shared.Modules.MagicTargetConsentSpec)
 local Services = script.Parent.Parent.Services
 local Movement = require(Services.MovementService)
 local Combat = require(Services.CombatService)
+local Damage = require(Services.DamageService)
 local Magic = require(Services.MagicService)
 local Equipment = require(Services.EquipmentService)
+local CityConfig = require(Shared.Configuration.CityLife)
+local Opening = require(Services.OpeningService)
+local Summons = require(Services.SummonService)
+local Discovery = require(Services.MagicDiscoveryService)
 local Router = {}
 
 function Router.start()
@@ -22,20 +28,50 @@ function Router.start()
 	local feedback = Instance.new("RemoteEvent")
 	feedback.Name = Protocol.Feedback
 	feedback.Parent = folder
+	local aerialControl = Instance.new("RemoteEvent")
+	aerialControl.Name = Protocol.AerialControl
+	aerialControl.Parent = folder
+	Damage.Applied:Connect(function(_attacker: Model, target: Humanoid, amount: number)
+		local model = target.Parent
+		if model and model:IsA("Model") then
+			feedback:FireAllClients({
+				Kind = "ImpactNumber",
+				Effect = "Damage",
+				Amount = amount,
+				Target = model,
+			})
+		end
+	end)
+	Opening.start(folder, feedback)
+	Discovery.start()
 
 	local states: { [Player]: Types.PlayerState } = {}
 	local limits: { [Player]: { Tokens: number, Updated: number, Sequence: number } } = {}
 	local connections: { [Player]: { RBXScriptConnection } } = {}
+	local aerialInputAt: { [Player]: number } = {}
+	local function clearState(player: Player)
+		local state = states[player]
+		if state then
+			Movement.unbind(state)
+			states[player] = nil
+		end
+		aerialInputAt[player] = nil
+	end
 
 	local function bind(player: Player)
+		if player:GetAttribute(TargetConsent.Attribute) == nil then
+			player:SetAttribute(TargetConsent.Attribute, false)
+		end
 		limits[player] = { Tokens = Config.Networking.Burst, Updated = os.clock(), Sequence = 0 }
 		Magic.bind(player)
 		Equipment.bind(player)
+		Opening.bind(player)
 		local function characterAdded(character: Model)
 			if player.Character ~= character then
 				return
 			end
-			states[player] = nil
+			clearState(player)
+			player:SetAttribute("CharacterReady", false)
 			Magic.reset(player)
 			local humanoid = character:WaitForChild("Humanoid", 10)
 			local root = character:WaitForChild("HumanoidRootPart", 10)
@@ -65,6 +101,7 @@ function Router.start()
 			if player.Character ~= character or not limits[player] or humanoid.Health <= 0 then
 				return
 			end
+			Opening.prepareCharacter(player, character)
 			local now = workspace:GetServerTimeNow()
 			humanoid.MaxHealth = Config.Player.MaxHealth
 			humanoid.Health = Config.Player.MaxHealth
@@ -79,7 +116,17 @@ function Router.start()
 				Sprinting = false,
 				MagicWalkSpeedBonus = 0,
 				MagicSpeedMultiplier = 1,
+				MagicSlowMultiplier = 1,
+				MagicCastingMultiplier = 1,
+				MagicRotationLocked = false,
+				MagicCastingDirection = nil,
+				MagicBaseJumpHeight = humanoid.JumpHeight,
 				MagicJumpPowerBonus = 0,
+				MagicAerialSpeed = 0,
+				MagicAerialInput = Vector3.zero,
+				MagicAerialInputExpiresAt = 0,
+				MagicAerialAttachment = nil,
+				MagicAerialVelocity = nil,
 				DashUntil = 0,
 				DashReadyAt = 0,
 				DashCheckUntil = 0,
@@ -98,14 +145,23 @@ function Router.start()
 				ActiveUntil = 0,
 				HitTargets = {},
 			}
+			Movement.bind(states[player])
+			character:SetAttribute("MagicSlowMultiplier", 1)
+			character:SetAttribute("MagicCastingMultiplier", 1)
+			character:SetAttribute("MagicCastingLocked", false)
+			character:SetAttribute("MagicRotationLocked", false)
 			Equipment.characterAdded(player, feedback)
+			if require(Services.CombatSandboxService).enabled() then
+				Equipment.chooseStarter(player, "Magic", feedback)
+			end
+			player:SetAttribute("CharacterReady", true)
 		end
 		connections[player] = {
 			player.CharacterAdded:Connect(characterAdded),
 			player.CharacterRemoving:Connect(function(character)
 				local state = states[player]
 				if state and state.Character == character then
-					states[player] = nil
+					clearState(player)
 				end
 			end),
 		}
@@ -116,10 +172,11 @@ function Router.start()
 
 	Players.PlayerAdded:Connect(bind)
 	Players.PlayerRemoving:Connect(function(player)
-		states[player] = nil
+		clearState(player)
 		limits[player] = nil
 		Magic.remove(player)
 		Equipment.remove(player)
+		Opening.remove(player)
 		for _, connection in connections[player] or {} do
 			connection:Disconnect()
 		end
@@ -129,9 +186,31 @@ function Router.start()
 		bind(player)
 	end
 
+	aerialControl.OnServerEvent:Connect(function(player: Player, character: any, direction: any)
+		local state = states[player]
+		if
+			not state
+			or not player:GetAttribute("OpeningComplete")
+			or character ~= state.Character
+			or player.Character ~= state.Character
+			or state.Humanoid.Health <= 0
+			or not state.Root:IsDescendantOf(workspace)
+		then
+			return
+		end
+		local now = workspace:GetServerTimeNow()
+		if now - (aerialInputAt[player] or 0) < 0.075 then
+			return
+		end
+		aerialInputAt[player] = now
+		if typeof(direction) == "Vector3" then
+			Movement.aerialInput(state, direction, now)
+		end
+	end)
+
 	request.OnServerEvent:Connect(function(player: Player, payload: any)
 		local limit = limits[player]
-		if not limit then
+		if not limit or not player:GetAttribute("OpeningComplete") then
 			return
 		end
 		local clock = os.clock()
@@ -165,8 +244,12 @@ function Router.start()
 			and action ~= Protocol.Light
 			and action ~= Protocol.MagicStart
 			and action ~= Protocol.MagicRelease
+			and action ~= Protocol.MagicAimUpdate
 			and action ~= Protocol.EquipmentSwitch
 			and action ~= Protocol.EquipmentUse
+			and action ~= Protocol.MagicAwakeningSelect
+			and action ~= Protocol.SummonCommand
+			and action ~= Protocol.MagicConsent
 		then
 			return
 		end
@@ -215,14 +298,39 @@ function Router.start()
 				validPosition = Movement.update(player, state, now, feedback)
 				accepted = accepted and validPosition
 			end
-		elseif action == Protocol.MagicStart then
+		elseif action == Protocol.MagicStart and RunService:IsStudio() and CityConfig.DevelopmentSpells then
 			Magic.start(player, state, payload, feedback)
 			accepted = true
-		elseif action == Protocol.MagicRelease then
+		elseif action == Protocol.MagicRelease and RunService:IsStudio() and CityConfig.DevelopmentSpells then
 			Magic.release(player, state, payload, feedback)
+			accepted = true
+		elseif action == Protocol.MagicAimUpdate and RunService:IsStudio() and CityConfig.DevelopmentSpells then
+			accepted = Magic.updateAim(player, state, payload)
+		elseif action == Protocol.MagicConsent and TargetConsent.valid(payload.AllowsTargetedSpells) then
+			player:SetAttribute(TargetConsent.Attribute, payload.AllowsTargetedSpells)
 			accepted = true
 		elseif action == Protocol.EquipmentSwitch then
 			accepted = Equipment.switch(player, payload.EquipmentSlot, feedback)
+		elseif action == Protocol.MagicAwakeningSelect then
+			local selected, reason = Discovery.selectAwakeningProfile(player, payload.AwakeningProfileId)
+			accepted = selected
+			feedback:FireClient(player, {
+				Kind = "MagicAwakening",
+				Accepted = selected,
+				ProfileId = payload.AwakeningProfileId,
+				CurrentProfileId = Discovery.awakeningProfileId(player),
+				Reason = reason,
+			})
+		elseif action == Protocol.SummonCommand then
+			local commandAccepted, reason =
+				Summons.command(player, payload.SummonMode, payload.TargetModel, payload.WorldPoint, payload.SummonId)
+			accepted = commandAccepted
+			feedback:FireClient(player, {
+				Kind = "SummonCommand",
+				Mode = payload.SummonMode,
+				Accepted = commandAccepted,
+				Reason = reason,
+			})
 		elseif action == Protocol.EquipmentUse and now >= state.DashUntil then
 			local spellId, castContext = Equipment.magicCast(player, payload.EquipmentAction)
 			if spellId then
@@ -230,6 +338,8 @@ function Router.start()
 					SpellId = spellId,
 					AimDirection = payload.AimDirection,
 					WorldPoint = payload.WorldPoint,
+					TargetModel = payload.TargetModel,
+					TargetInstance = payload.TargetInstance,
 				}, feedback, castContext)
 				accepted = true
 			end
@@ -254,12 +364,20 @@ function Router.start()
 		local now = workspace:GetServerTimeNow()
 		for player, state in states do
 			if state.Humanoid.Health <= 0 or not state.Root:IsDescendantOf(workspace) then
-				states[player] = nil
+				clearState(player)
 			elseif Movement.update(player, state, now, feedback) then
 				Combat.update(player, state, now, feedback)
 			end
 		end
 	end)
+	require(Services.MagicLabService).start(folder, function(player)
+		return states[player]
+	end, feedback)
+	require(Services.TrainingDummyService).start(folder, function(player)
+		return states[player]
+	end)
+	require(Services.MagicPresentation).start(folder)
+	Summons.start(Magic.castSummonSpell, Magic.getCompanionSpellProfile, feedback, Magic.executeSummonCommand)
 	-- Publish only after listeners are connected.
 	folder.Parent = Shared
 end

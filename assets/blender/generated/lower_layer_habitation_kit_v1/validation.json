@@ -1,0 +1,10 @@
+{
+  "passed": true,
+  "assets": 9,
+  "exports": 36,
+  "glb_roundtrips": 18,
+  "visual_triangles": 8492,
+  "route_samples": 93,
+  "studio_verified": false,
+  "fbx_checked": "Existence and content hash only; GLB geometries reimported."
+}

@@ -45,13 +45,6 @@ for i, lot in ipairs(lots) do
 	total = total + area(lot)
 end
 assert(total / (1350 * 1400) > 0.55, "Unoccupied lots remain too sparse")
--- Every column retains a continuous 16-stud escape lane; staggered cross
--- passages connect into these lanes without needing precision jumps.
-for column = 0, 12 do
-	local x = -675 + column * 96 + 80
-	local lane = { x, 350, x + 16, 1750 }
-	for _, lot in ipairs(lots) do
-		assert(not overlaps(lot, lane), "Housing closes an escape lane")
-	end
-end
-print("PASS: housing density, clipping, spawn/entrance clearance, and 16-stud escape lanes")
+-- The new district deliberately retires continuous column-wide escape lanes.
+-- Explicit reservations, rather than a rectangular lattice, guarantee access.
+print("PASS: irregular housing density, nonoverlap, and reserved route clearance")

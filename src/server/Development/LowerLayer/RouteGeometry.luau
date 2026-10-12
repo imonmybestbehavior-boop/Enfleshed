@@ -150,14 +150,66 @@ function Geometry.build(plan, clipping)
 		if e.Kind == "Street" or e.Kind == "Alley" then
 			local pts = e.Points or { plan.Nodes[e[1]], plan.Nodes[e[2]] }
 			for n = 2, #pts do
-				segment("Route" .. i, pts[n - 1], pts[n], e.Width, "Human")
+				segment(
+					"Route" .. i,
+					pts[n - 1],
+					pts[n],
+					e.SegmentWidths and e.SegmentWidths[n - 1] or e.Width,
+					"Human"
+				)
+			end
+		end
+	end
+	for i, branch in ipairs(plan.Hive and plan.Hive.Branches or {}) do
+		for n = 2, #branch do
+			local a, b = branch[n - 1], branch[n]
+			if a[2] == b[2] then
+				segment("HiveBranch" .. i, point(a[1], a[2], a[3]), point(b[1], b[2], b[3]), 8, "Human")
+			else
+				local length = math.abs(b[1] - a[1]) + math.abs(b[3] - a[3])
+				local dx, dz = (b[1] - a[1]) / length, (b[3] - a[3]) / length
+				local count = math.ceil(math.abs(b[2] - a[2]) / 0.5)
+				for step = 1, count do
+					local t = (step - 0.5) / count
+					local top = a[2] + (b[2] - a[2]) * step / count
+					box(
+						"HiveBranchStep",
+						a[1] + (b[1] - a[1]) * t,
+						top - 0.4,
+						a[3] + (b[3] - a[3]) * t,
+						dx == 0 and 8 or length / count + 0.2,
+						0.8,
+						dz == 0 and 8 or length / count + 0.2,
+						"Human"
+					)
+				end
+				floor(
+					"HiveBranchLanding",
+					b[1] + dx * 2,
+					b[2],
+					b[3] + dz * 2,
+					dx == 0 and 8 or 4,
+					dz == 0 and 8 or 4,
+					"Human"
+				)
+				reserve(
+					rect(
+						(a[1] + b[1]) / 2 + dx * 2,
+						(a[3] + b[3]) / 2 + dz * 2,
+						math.abs(a[1] - b[1]) + 12,
+						math.abs(a[3] - b[3]) + 12
+					)
+				)
 			end
 		end
 	end
 	for i = 1, 15 do
 		local p = plan.Nodes["S" .. i]
-		floor("Court" .. i, p.X, 0, p.Z, 52, 52, "Human")
-		reserve(rect(p.X, p.Z, 56, 56))
+		-- Most intersections are occupied human junctions; only selected primary
+		-- nodes retain a broader market/military release for multi-enemy combat.
+		local size = (i == 1 or i == 5 or i == 10) and 50 or 30
+		floor("Court" .. i, p.X, 0, p.Z, size, size, "Human")
+		reserve(rect(p.X, p.Z, size + 4, size + 4))
 	end
 	for _, b in ipairs(plan.Buildings) do
 		local p = plan.Nodes[b.Ground]
@@ -273,6 +325,148 @@ function Geometry.build(plan, clipping)
 	-- the four stair shafts are intentionally cut out of it.
 	floor("NeighborhoodPaving", 0, 0, 1050, 1400, 1400, "HumanDark")
 	reserve(rect(460, 650, 128, 128))
+	local walks = {}
+	for _, e in ipairs(plan.Edges) do
+		if e.Kind == "Street" or e.Kind == "Alley" then
+			local pts = e.Points or { plan.Nodes[e[1]], plan.Nodes[e[2]] }
+			for i = 2, #pts do
+				local a, b = pts[i - 1], pts[i]
+				local width = e.SegmentWidths and e.SegmentWidths[i - 1] or e.Width
+				table.insert(
+					walks,
+					rect((a.X + b.X) / 2, (a.Z + b.Z) / 2, math.abs(a.X - b.X) + width, math.abs(a.Z - b.Z) + width)
+				)
+			end
+		end
+	end
+	for _, branch in ipairs(plan.Hive and plan.Hive.Branches or {}) do
+		for i = 2, #branch do
+			local a, b = branch[i - 1], branch[i]
+			table.insert(
+				walks,
+				rect((a[1] + b[1]) / 2, (a[3] + b[3]) / 2, math.abs(a[1] - b[1]) + 8, math.abs(a[3] - b[3]) + 8)
+			)
+		end
+	end
+	-- Protect old working doorways/stairs where the new fabric meets them.
+	for _, b in ipairs(plan.Buildings) do
+		local p = plan.Nodes[b.Ground]
+		table.insert(walks, rect(p.X, p.Z, 108, 144))
+	end
+	for i, r in ipairs(plan.Hive and plan.Hive.Accretions or {}) do
+		local heights = { 0, r[5] }
+		for _, y in ipairs({ 36, 72 }) do
+			if y + 0.51 < r[5] then
+				table.insert(heights, y + 0.51)
+			end
+			if y + 10 < r[5] then
+				table.insert(heights, y + 10)
+			end
+		end
+		table.sort(heights)
+		for level = 2, #heights do
+			local low, high = heights[level - 1], heights[level]
+			local cuts = {}
+			for _, edge in ipairs(plan.Edges) do
+				if edge.Kind == "Catwalk" or edge.Kind == "RoofBridge" then
+					local pts = edge.Points or { plan.Nodes[edge[1]], plan.Nodes[edge[2]] }
+					for k = 2, #pts do
+						local a, b = pts[k - 1], pts[k]
+						if low >= a.Y + 0.5 and high <= a.Y + 10 then
+							table.insert(
+								cuts,
+								rect(
+									(a.X + b.X) / 2,
+									(a.Z + b.Z) / 2,
+									math.abs(a.X - b.X) + edge.Width,
+									math.abs(a.Z - b.Z) + edge.Width
+								)
+							)
+						end
+					end
+				end
+			end
+			for _, piece in ipairs(cutAll({ { r[1], r[2], r[3], r[4] } }, cuts)) do
+				box(
+					"AccretedServiceWing" .. i,
+					(piece[1] + piece[3]) / 2,
+					(low + high) / 2,
+					(piece[2] + piece[4]) / 2,
+					piece[3] - piece[1],
+					high - low,
+					piece[4] - piece[2],
+					i % 2 == 0 and "Human" or "HumanDark"
+				)
+			end
+		end
+		reserve({ r[1], r[2], r[3], r[4] })
+		for y = 16, r[5] - 8, 16 do
+			box("OccupiedWingLintel", (r[1] + r[3]) / 2, y, r[2] - 0.2, r[3] - r[1], 0.7, 0.5, "Military", false)
+			box(
+				"OccupiedWingWindow",
+				(r[1] + r[3]) / 2,
+				y - 4,
+				r[2] - 0.1,
+				math.min(6, r[3] - r[1] - 4),
+				5,
+				0.25,
+				"AncientDark",
+				false
+			)
+		end
+	end
+	for _, e in ipairs(plan.Edges) do
+		if e.Spaces then
+			local pts = e.Points
+			for i = 2, #pts do
+				local space = e.Spaces[i - 1]
+				if space == "Room" or space == "Covered" or space == "Service" then
+					local a, b = pts[i - 1], pts[i]
+					local width = e.SegmentWidths[i - 1]
+					local x, z = (a.X + b.X) / 2, (a.Z + b.Z) / 2
+					local w, d = math.abs(a.X - b.X) + width + 2, math.abs(a.Z - b.Z) + width + 2
+					local shellCuts = {}
+					for _, building in ipairs(plan.Buildings) do
+						local p = plan.Nodes[building.Ground]
+						table.insert(shellCuts, rect(p.X, p.Z, 108, 144))
+					end
+					for _, r in ipairs(cutAll({ rect(x, z, w, d) }, shellCuts)) do
+						box(
+							"Hive" .. space .. "Ceiling",
+							(r[1] + r[3]) / 2,
+							14.5,
+							(r[2] + r[4]) / 2,
+							r[3] - r[1],
+							1,
+							r[4] - r[2],
+							"HumanDark"
+						)
+					end
+					for _, side in ipairs({ -1, 1 }) do
+						local vertical = a.X == b.X
+						local wall = rect(
+							x + (vertical and side * (width / 2 + 0.5) or 0),
+							z + (vertical and 0 or side * (width / 2 + 0.5)),
+							vertical and 1 or w,
+							vertical and d or 1
+						)
+						for _, r in ipairs(cutAll({ wall }, walks)) do
+							box(
+								"Hive" .. space .. "Wall",
+								(r[1] + r[3]) / 2,
+								7,
+								(r[2] + r[4]) / 2,
+								r[3] - r[1],
+								14,
+								r[4] - r[2],
+								"Human"
+							)
+						end
+					end
+				end
+			end
+		end
+	end
 	result.Planes = planes
 	return result
 end

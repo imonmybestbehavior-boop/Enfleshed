@@ -79,12 +79,27 @@ end
 
 function Equipment.bind(player: Player)
 	states[player] = {
-		Owned = { RecruitMagicWeapon = true, RecruitMeleeWeapon = true },
-		PrimaryWeapon = "RecruitMagicWeapon",
-		SecondaryWeapon = "RecruitMeleeWeapon",
+		Owned = {},
+		PrimaryWeapon = nil,
+		SecondaryWeapon = nil,
 		Utility = nil,
 		ActiveSlot = "SecondaryWeapon", -- Preserve existing melee controls on spawn.
 	}
+end
+
+function Equipment.chooseStarter(player: Player, path: string, remote: RemoteEvent): boolean
+	local state = states[player]
+	if not state or next(state.Owned) ~= nil or (path ~= "Melee" and path ~= "Magic") then
+		return false
+	end
+	local id = if path == "Melee" then "RecruitMeleeWeapon" else "RecruitMagicWeapon"
+	local slot: Slot = if path == "Melee" then "SecondaryWeapon" else "PrimaryWeapon"
+	state.Owned[id] = true
+	state[slot] = id
+	state.ActiveSlot = slot
+	attachVisual(player, state)
+	publish(player, state, remote)
+	return true
 end
 
 function Equipment.characterAdded(player: Player, remote: RemoteEvent)
@@ -123,7 +138,9 @@ function Equipment.magicCast(player: Player, action: any): (string?, { Origin: V
 	if not item or item.ItemType ~= "Weapon" or item.WeaponType ~= "MagicFocus" then
 		return nil, nil
 	end
-	local profile = Definitions.MagicProfiles[item.MagicProfile]
+	local selectedProfileId = require(script.Parent.MagicDiscoveryService).awakeningProfileId(player)
+	local profileId = selectedProfileId or item.MagicProfile
+	local profile = Definitions.MagicProfiles[profileId]
 	if not profile then
 		return nil, nil
 	end
@@ -131,6 +148,27 @@ function Equipment.magicCast(player: Player, action: any): (string?, { Origin: V
 	local muzzle = if weapon then weapon:FindFirstChild("Muzzle") else nil
 	local context = if muzzle and muzzle:IsA("Attachment") then { Origin = muzzle.WorldPosition } else nil
 	return if action == "Primary" then profile.PrimarySpellId else profile.AreaSpellId, context
+end
+
+function Equipment.freeHandCount(player: Player): number
+	local state = states[player]
+	if not state then
+		return 0
+	end
+	local character = player.Character
+	local handCount = 2
+	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+	local rigHandCount = humanoid and humanoid:GetAttribute("MagicHandCount")
+	if type(rigHandCount) == "number" and rigHandCount == rigHandCount then
+		handCount = math.clamp(math.floor(rigHandCount), 0, 8)
+	end
+	local itemId = itemInSlot(state, state.ActiveSlot)
+	local item = if itemId and state.Owned[itemId] then Definitions.Items[itemId] else nil
+	local occupied = if item then item.HandsOccupied else 0
+	if type(occupied) ~= "number" or occupied ~= occupied then
+		occupied = if item and item.ItemType == "Weapon" then 1 else 0
+	end
+	return math.max(0, handCount - math.clamp(math.floor(occupied), 0, handCount))
 end
 
 function Equipment.meleeActive(player: Player): boolean

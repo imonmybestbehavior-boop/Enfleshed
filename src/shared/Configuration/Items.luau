@@ -2,19 +2,16 @@
 
 -- Small equipment data registry. Profiles intentionally resolve magical actions
 -- to registered Magic Runtime spell IDs rather than embedding execution logic.
+local MagicProfiles = require(script.Parent.MagicProfiles)
+
 return table.freeze({
-	MagicProfiles = {
-		RecruitGeneric = {
-			ProfileId = "RecruitGeneric",
-			PrimarySpellId = "RecruitMagicBolt",
-			AreaSpellId = "RecruitMagicDischarge",
-		},
-	},
+	MagicProfiles = MagicProfiles,
 	Items = {
 		RecruitMagicWeapon = {
 			ItemId = "RecruitMagicWeapon",
 			ItemType = "Weapon",
 			WeaponType = "MagicFocus",
+			HandsOccupied = 1,
 			MagicProfile = "RecruitGeneric",
 			Visual = {
 				Name = "Recruit Magic Focus",
@@ -29,6 +26,7 @@ return table.freeze({
 			ItemId = "RecruitMeleeWeapon",
 			ItemType = "Weapon",
 			WeaponType = "Melee",
+			HandsOccupied = 1,
 			Visual = {
 				Name = "Recruit Melee Trainer",
 				Size = Vector3.new(0.3, 0.45, 3.2),

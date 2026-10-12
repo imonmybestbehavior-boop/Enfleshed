@@ -1,0 +1,221 @@
+{
+  "blender": "5.2.0 LTS",
+  "assets": [
+    {
+      "asset": "F01_NarrowShop",
+      "triangles": 2068,
+      "colliders": 12,
+      "portals": 1
+    },
+    {
+      "asset": "F02_RecessedShop",
+      "triangles": 2024,
+      "colliders": 13,
+      "portals": 1
+    },
+    {
+      "asset": "F03_ShutteredStore",
+      "triangles": 3960,
+      "colliders": 6,
+      "portals": 0
+    },
+    {
+      "asset": "F04_BarredStore",
+      "triangles": 2608,
+      "colliders": 12,
+      "portals": 1
+    },
+    {
+      "asset": "F05_ResidentialEntry",
+      "triangles": 1576,
+      "colliders": 8,
+      "portals": 1
+    },
+    {
+      "asset": "F06_ServiceEntry",
+      "triangles": 1188,
+      "colliders": 8,
+      "portals": 1
+    },
+    {
+      "asset": "F07_AlleyMouth",
+      "triangles": 924,
+      "colliders": 8,
+      "portals": 1
+    },
+    {
+      "asset": "F08_ThroughPassage",
+      "triangles": 1320,
+      "colliders": 8,
+      "portals": 1
+    },
+    {
+      "asset": "F09_PatchedBlank",
+      "triangles": 1584,
+      "colliders": 2,
+      "portals": 0
+    },
+    {
+      "asset": "F10_WindowFront",
+      "triangles": 2816,
+      "colliders": 14,
+      "portals": 0
+    },
+    {
+      "asset": "F11_BalconyFront",
+      "triangles": 2564,
+      "colliders": 12,
+      "portals": 1
+    },
+    {
+      "asset": "F12_OverhangingRoom",
+      "triangles": 4928,
+      "colliders": 29,
+      "portals": 1
+    },
+    {
+      "asset": "D_Awning_Canvas",
+      "triangles": 264,
+      "colliders": 0,
+      "portals": 0
+    },
+    {
+      "asset": "D_Awning_Corrugated",
+      "triangles": 1408,
+      "colliders": 0,
+      "portals": 0
+    },
+    {
+      "asset": "D_Awning_Retracted",
+      "triangles": 88,
+      "colliders": 0,
+      "portals": 0
+    },
+    {
+      "asset": "D_SignBand_Timber",
+      "triangles": 132,
+      "colliders": 0,
+      "portals": 0
+    },
+    {
+      "asset": "D_SignBand_Steel",
+      "triangles": 132,
+      "colliders": 0,
+      "portals": 0
+    },
+    {
+      "asset": "D_SignBand_Recessed",
+      "triangles": 176,
+      "colliders": 0,
+      "portals": 0
+    },
+    {
+      "asset": "D_SignBracket_Braced",
+      "triangles": 188,
+      "colliders": 0,
+      "portals": 0
+    },
+    {
+      "asset": "D_SignBracket_Elbow",
+      "triangles": 232,
+      "colliders": 0,
+      "portals": 0
+    },
+    {
+      "asset": "D_Drain_Straight12",
+      "triangles": 196,
+      "colliders": 0,
+      "portals": 0
+    },
+    {
+      "asset": "D_Drain_Elbow",
+      "triangles": 224,
+      "colliders": 0,
+      "portals": 0
+    },
+    {
+      "asset": "D_Drain_Offset",
+      "triangles": 224,
+      "colliders": 0,
+      "portals": 0
+    },
+    {
+      "asset": "D_Conduit_Straight12",
+      "triangles": 216,
+      "colliders": 0,
+      "portals": 0
+    },
+    {
+      "asset": "D_Conduit_Bend",
+      "triangles": 296,
+      "colliders": 0,
+      "portals": 0
+    },
+    {
+      "asset": "D_Vent_Square",
+      "triangles": 440,
+      "colliders": 0,
+      "portals": 0
+    },
+    {
+      "asset": "D_Vent_Wide",
+      "triangles": 440,
+      "colliders": 0,
+      "portals": 0
+    },
+    {
+      "asset": "D_Utility_FuseBox",
+      "triangles": 248,
+      "colliders": 0,
+      "portals": 0
+    },
+    {
+      "asset": "D_Utility_Meter",
+      "triangles": 204,
+      "colliders": 0,
+      "portals": 0
+    },
+    {
+      "asset": "D_PlasterPatch_Broad",
+      "triangles": 44,
+      "colliders": 0,
+      "portals": 0
+    },
+    {
+      "asset": "D_PlasterPatch_Tall",
+      "triangles": 44,
+      "colliders": 0,
+      "portals": 0
+    },
+    {
+      "asset": "D_MasonryPatch_Narrow",
+      "triangles": 936,
+      "colliders": 0,
+      "portals": 0
+    },
+    {
+      "asset": "D_MasonryPatch_Wide",
+      "triangles": 1112,
+      "colliders": 0,
+      "portals": 0
+    }
+  ],
+  "total_triangles": 34804,
+  "max_asset_triangles": 4928,
+  "checks": [
+    "saved scene reopened",
+    "33 collection assets",
+    "local pivots and transforms",
+    "atlas UV0 and packed UV1",
+    "embedded PBR textures and one visual material",
+    "closed manifold components",
+    "positive finite nondegenerate geometry",
+    "frontage seam dimensions",
+    "collision portal clearances",
+    "self-contained GLB structure",
+    "FBX presence",
+    "GLB round-trip bounds and origin",
+    "snapped ground and upper review assembly seams"
+  ],
+  "engine_test": "Not run: Studio import and live collision acceptance remain required."
+}

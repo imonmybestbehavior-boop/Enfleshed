@@ -31,8 +31,15 @@ function Layout.build(reservations)
 		local offset = (column % 3) * 28
 		for row = -1, 12 do
 			local z = 350 + row * 116 + offset
-			local pieces = { { x, math.max(350, z), math.min(675, x + 80), math.min(1750, z + 100) } }
-			for _, cut in ipairs(reservations) do
+			local setback = ((row + column) % 3 - 1) * 8
+			local left = math.max(-675, x + setback)
+			local width = ({ 88, 100, 108 })[(row + column) % 3 + 1]
+			local pieces = { { left, math.max(350, z), math.min(675, left + width), math.min(1750, z + 108) } }
+			local cuts = { table.unpack(reservations) }
+			for _, occupied in ipairs(lots) do
+				table.insert(cuts, occupied)
+			end
+			for _, cut in ipairs(cuts) do
 				local remaining = {}
 				for _, piece in ipairs(pieces) do
 					for _, fragment in ipairs(Layout.subtract(piece, cut)) do

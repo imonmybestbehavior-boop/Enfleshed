@@ -1,0 +1,2197 @@
+{
+  "version": 1,
+  "units": "stud",
+  "axes": "X across, +Y inward, Z up",
+  "assets": [
+    {
+      "name": "U01_ApartmentWindowBay",
+      "width": 12,
+      "depth": 2,
+      "kind": "facade",
+      "use": "Grouped residential windows and masonry apron; non-enterable frontage layer.",
+      "colliders": [
+        {
+          "name": "backing_wall",
+          "center": [
+            0,
+            1,
+            9
+          ],
+          "size": [
+            12,
+            2,
+            18
+          ],
+          "role": "wall"
+        }
+      ],
+      "ports": [
+        {
+          "name": "mount",
+          "position": [
+            0,
+            0,
+            0
+          ],
+          "normal": [
+            0,
+            -1,
+            0
+          ],
+          "width": 8,
+          "height": 12,
+          "walkable": false
+        }
+      ],
+      "routes": [],
+      "samples": [],
+      "triangles": 836,
+      "bounds": {
+        "min": [
+          -6.0,
+          -0.9300000667572021,
+          0.0
+        ],
+        "max": [
+          6.0,
+          2.0,
+          18.0
+        ]
+      }
+    },
+    {
+      "name": "U02_RecessedApartmentEntry",
+      "width": 16,
+      "depth": 6,
+      "kind": "interior",
+      "use": "Recessed residential entry alcove, with closed apartment door at the back.",
+      "colliders": [
+        {
+          "name": "continuous_floor",
+          "center": [
+            0,
+            3.0,
+            -0.3
+          ],
+          "size": [
+            16,
+            6,
+            0.6
+          ],
+          "role": "floor"
+        },
+        {
+          "name": "ceiling",
+          "center": [
+            0,
+            3.0,
+            13.55
+          ],
+          "size": [
+            16,
+            6,
+            0.6
+          ],
+          "role": "ceiling"
+        },
+        {
+          "name": "end_pier",
+          "center": [
+            -6.0,
+            0.3,
+            9
+          ],
+          "size": [
+            4.0,
+            0.6,
+            18
+          ],
+          "role": "wall"
+        },
+        {
+          "name": "end_pier",
+          "center": [
+            6.0,
+            0.3,
+            9
+          ],
+          "size": [
+            4.0,
+            0.6,
+            18
+          ],
+          "role": "wall"
+        },
+        {
+          "name": "end_header",
+          "center": [
+            0,
+            0.3,
+            15
+          ],
+          "size": [
+            16,
+            0.6,
+            6
+          ],
+          "role": "wall"
+        },
+        {
+          "name": "door_jamb",
+          "center": [
+            -4.16,
+            0.3,
+            6
+          ],
+          "size": [
+            0.32,
+            0.8,
+            12
+          ],
+          "role": "wall"
+        },
+        {
+          "name": "door_jamb",
+          "center": [
+            4.16,
+            0.3,
+            6
+          ],
+          "size": [
+            0.32,
+            0.8,
+            12
+          ],
+          "role": "wall"
+        },
+        {
+          "name": "door_lintel",
+          "center": [
+            0,
+            0.3,
+            12.35
+          ],
+          "size": [
+            8.8,
+            0.9,
+            0.6
+          ],
+          "role": "wall"
+        },
+        {
+          "name": "side_wall",
+          "center": [
+            -7.7,
+            3,
+            9
+          ],
+          "size": [
+            0.6,
+            6,
+            18
+          ],
+          "role": "wall"
+        },
+        {
+          "name": "side_wall",
+          "center": [
+            7.7,
+            3,
+            9
+          ],
+          "size": [
+            0.6,
+            6,
+            18
+          ],
+          "role": "wall"
+        },
+        {
+          "name": "rear_wall",
+          "center": [
+            0,
+            5.7,
+            9
+          ],
+          "size": [
+            16,
+            0.6,
+            18
+          ],
+          "role": "wall"
+        },
+        {
+          "name": "ConnectionSupport_south",
+          "center": [
+            0,
+            0,
+            -0.22
+          ],
+          "size": [
+            8,
+            0.4,
+            0.4
+          ],
+          "role": "floor"
+        }
+      ],
+      "ports": [
+        {
+          "name": "south",
+          "position": [
+            0,
+            0,
+            0
+          ],
+          "normal": [
+            0,
+            -1,
+            0
+          ],
+          "width": 8,
+          "height": 12,
+          "walkable": true
+        }
+      ],
+      "routes": [
+        {
+          "name": "entry",
+          "points": [
+            [
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              3,
+              0
+            ]
+          ]
+        }
+      ],
+      "samples": [
+        {
+          "route": "entry",
+          "position": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "route": "entry",
+          "position": [
+            0.0,
+            0.75,
+            0.0
+          ]
+        },
+        {
+          "route": "entry",
+          "position": [
+            0.0,
+            1.5,
+            0.0
+          ]
+        },
+        {
+          "route": "entry",
+          "position": [
+            0.0,
+            2.25,
+            0.0
+          ]
+        },
+        {
+          "route": "entry",
+          "position": [
+            0.0,
+            3.0,
+            0.0
+          ]
+        }
+      ],
+      "triangles": 748,
+      "bounds": {
+        "min": [
+          -8.0,
+          -0.15000009536743164,
+          -0.6000000238418579
+        ],
+        "max": [
+          8.0,
+          6.0,
+          18.0
+        ]
+      }
+    },
+    {
+      "name": "U03_BridgeApartment",
+      "width": 16,
+      "depth": 24,
+      "kind": "interior",
+      "use": "Enclosed through-room built across older structures; two aligned eight-stud portals.",
+      "colliders": [
+        {
+          "name": "continuous_floor",
+          "center": [
+            0,
+            12.0,
+            -0.3
+          ],
+          "size": [
+            16,
+            24,
+            0.6
+          ],
+          "role": "floor"
+        },
+        {
+          "name": "ceiling",
+          "center": [
+            0,
+            12.0,
+            13.55
+          ],
+          "size": [
+            16,
+            24,
+            0.6
+          ],
+          "role": "ceiling"
+        },
+        {
+          "name": "end_pier",
+          "center": [
+            -6.0,
+            0.3,
+            9
+          ],
+          "size": [
+            4.0,
+            0.6,
+            18
+          ],
+          "role": "wall"
+        },
+        {
+          "name": "end_pier",
+          "center": [
+            6.0,
+            0.3,
+            9
+          ],
+          "size": [
+            4.0,
+            0.6,
+            18
+          ],
+          "role": "wall"
+        },
+        {
+          "name": "end_header",
+          "center": [
+            0,
+            0.3,
+            15
+          ],
+          "size": [
+            16,
+            0.6,
+            6
+          ],
+          "role": "wall"
+        },
+        {
+          "name": "door_jamb",
+          "center": [
+            -4.16,
+            0.3,
+            6
+          ],
+          "size": [
+            0.32,
+            0.8,
+            12
+          ],
+          "role": "wall"
+        },
+        {
+          "name": "door_jamb",
+          "center": [
+            4.16,
+            0.3,
+            6
+          ],
+          "size": [
+            0.32,
+            0.8,
+            12
+          ],
+          "role": "wall"
+        },
+        {
+          "name": "door_lintel",
+          "center": [
+            0,
+            0.3,
+            12.35
+          ],
+          "size": [
+            8.8,
+            0.9,
+            0.6
+          ],
+          "role": "wall"
+        },
+        {
+          "name": "end_pier",
+          "center": [
+            -6.0,
+            23.7,
+            9
+          ],
+          "size": [
+            4.0,
+            0.6,
+            18
+          ],
+          "role": "wall"
+        },
+        {
+          "name": "end_pier",
+          "center": [
+            6.0,
+            23.7,
+            9
+          ],
+          "size": [
+            4.0,
+            0.6,
+            18
+          ],
+          "role": "wall"
+        },
+        {
+          "name": "end_header",
+          "center": [
+            0,
+            23.7,
+            15
+          ],
+          "size": [
+            16,
+            0.6,
+            6
+          ],
+          "role": "wall"
+        },
+        {
+          "name": "door_jamb",
+          "center": [
+            -4.16,
+            23.7,
+            6
+          ],
+          "size": [
+            0.32,
+            0.8,
+            12
+          ],
+          "role": "wall"
+        },
+        {
+          "name": "door_jamb",
+          "center": [
+            4.16,
+            23.7,
+            6
+          ],
+          "size": [
+            0.32,
+            0.8,
+            12
+          ],
+          "role": "wall"
+        },
+        {
+          "name": "door_lintel",
+          "center": [
+            0,
+            23.7,
+            12.35
+          ],
+          "size": [
+            8.8,
+            0.9,
+            0.6
+          ],
+          "role": "wall"
+        },
+        {
+          "name": "side_wall",
+          "center": [
+            -7.7,
+            12,
+            9
+          ],
+          "size": [
+            0.6,
+            24,
+            18
+          ],
+          "role": "wall"
+        },
+        {
+          "name": "side_wall",
+          "center": [
+            7.7,
+            12,
+            9
+          ],
+          "size": [
+            0.6,
+            24,
+            18
+          ],
+          "role": "wall"
+        },
+        {
+          "name": "built_in_partition",
+          "center": [
+            -5.8,
+            10,
+            6
+          ],
+          "size": [
+            3.8,
+            0.45,
+            12
+          ],
+          "role": "wall"
+        },
+        {
+          "name": "ConnectionSupport_south",
+          "center": [
+            0,
+            0,
+            -0.22
+          ],
+          "size": [
+            8,
+            0.4,
+            0.4
+          ],
+          "role": "floor"
+        },
+        {
+          "name": "ConnectionSupport_north",
+          "center": [
+            0,
+            24,
+            -0.22
+          ],
+          "size": [
+            8,
+            0.4,
+            0.4
+          ],
+          "role": "floor"
+        }
+      ],
+      "ports": [
+        {
+          "name": "south",
+          "position": [
+            0,
+            0,
+            0
+          ],
+          "normal": [
+            0,
+            -1,
+            0
+          ],
+          "width": 8,
+          "height": 12,
+          "walkable": true
+        },
+        {
+          "name": "north",
+          "position": [
+            0,
+            24,
+            0
+          ],
+          "normal": [
+            0,
+            1,
+            0
+          ],
+          "width": 8,
+          "height": 12,
+          "walkable": true
+        }
+      ],
+      "routes": [
+        {
+          "name": "through_home",
+          "points": [
+            [
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              24,
+              0
+            ]
+          ]
+        }
+      ],
+      "samples": [
+        {
+          "route": "through_home",
+          "position": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "route": "through_home",
+          "position": [
+            0.0,
+            0.75,
+            0.0
+          ]
+        },
+        {
+          "route": "through_home",
+          "position": [
+            0.0,
+            1.5,
+            0.0
+          ]
+        },
+        {
+          "route": "through_home",
+          "position": [
+            0.0,
+            2.25,
+            0.0
+          ]
+        },
+        {
+          "route": "through_home",
+          "position": [
+            0.0,
+            3.0,
+            0.0
+          ]
+        },
+        {
+          "route": "through_home",
+          "position": [
+            0.0,
+            3.75,
+            0.0
+          ]
+        },
+        {
+          "route": "through_home",
+          "position": [
+            0.0,
+            4.5,
+            0.0
+          ]
+        },
+        {
+          "route": "through_home",
+          "position": [
+            0.0,
+            5.25,
+            0.0
+          ]
+        },
+        {
+          "route": "through_home",
+          "position": [
+            0.0,
+            6.0,
+            0.0
+          ]
+        },
+        {
+          "route": "through_home",
+          "position": [
+            0.0,
+            6.75,
+            0.0
+          ]
+        },
+        {
+          "route": "through_home",
+          "position": [
+            0.0,
+            7.5,
+            0.0
+          ]
+        },
+        {
+          "route": "through_home",
+          "position": [
+            0.0,
+            8.25,
+            0.0
+          ]
+        },
+        {
+          "route": "through_home",
+          "position": [
+            0.0,
+            9.0,
+            0.0
+          ]
+        },
+        {
+          "route": "through_home",
+          "position": [
+            0.0,
+            9.75,
+            0.0
+          ]
+        },
+        {
+          "route": "through_home",
+          "position": [
+            0.0,
+            10.5,
+            0.0
+          ]
+        },
+        {
+          "route": "through_home",
+          "position": [
+            0.0,
+            11.25,
+            0.0
+          ]
+        },
+        {
+          "route": "through_home",
+          "position": [
+            0.0,
+            12.0,
+            0.0
+          ]
+        },
+        {
+          "route": "through_home",
+          "position": [
+            0.0,
+            12.75,
+            0.0
+          ]
+        },
+        {
+          "route": "through_home",
+          "position": [
+            0.0,
+            13.5,
+            0.0
+          ]
+        },
+        {
+          "route": "through_home",
+          "position": [
+            0.0,
+            14.25,
+            0.0
+          ]
+        },
+        {
+          "route": "through_home",
+          "position": [
+            0.0,
+            15.0,
+            0.0
+          ]
+        },
+        {
+          "route": "through_home",
+          "position": [
+            0.0,
+            15.75,
+            0.0
+          ]
+        },
+        {
+          "route": "through_home",
+          "position": [
+            0.0,
+            16.5,
+            0.0
+          ]
+        },
+        {
+          "route": "through_home",
+          "position": [
+            0.0,
+            17.25,
+            0.0
+          ]
+        },
+        {
+          "route": "through_home",
+          "position": [
+            0.0,
+            18.0,
+            0.0
+          ]
+        },
+        {
+          "route": "through_home",
+          "position": [
+            0.0,
+            18.75,
+            0.0
+          ]
+        },
+        {
+          "route": "through_home",
+          "position": [
+            0.0,
+            19.5,
+            0.0
+          ]
+        },
+        {
+          "route": "through_home",
+          "position": [
+            0.0,
+            20.25,
+            0.0
+          ]
+        },
+        {
+          "route": "through_home",
+          "position": [
+            0.0,
+            21.0,
+            0.0
+          ]
+        },
+        {
+          "route": "through_home",
+          "position": [
+            0.0,
+            21.75,
+            0.0
+          ]
+        },
+        {
+          "route": "through_home",
+          "position": [
+            0.0,
+            22.5,
+            0.0
+          ]
+        },
+        {
+          "route": "through_home",
+          "position": [
+            0.0,
+            23.25,
+            0.0
+          ]
+        },
+        {
+          "route": "through_home",
+          "position": [
+            0.0,
+            24.0,
+            0.0
+          ]
+        }
+      ],
+      "triangles": 3652,
+      "bounds": {
+        "min": [
+          -8.755000114440918,
+          -0.14999961853027344,
+          -0.6000000238418579
+        ],
+        "max": [
+          8.755000114440918,
+          24.150001525878906,
+          18.0
+        ]
+      }
+    },
+    {
+      "name": "U04_OffsetGalleryLanding",
+      "width": 16,
+      "depth": 24,
+      "kind": "upper",
+      "use": "West-to-north offset landing with a residential backing wall.",
+      "colliders": [
+        {
+          "name": "continuous_floor",
+          "center": [
+            0,
+            12.0,
+            -0.3
+          ],
+          "size": [
+            16,
+            24,
+            0.6
+          ],
+          "role": "floor"
+        },
+        {
+          "name": "south_guard",
+          "center": [
+            0,
+            0.3,
+            2
+          ],
+          "size": [
+            16,
+            0.6,
+            4
+          ],
+          "role": "wall"
+        },
+        {
+          "name": "west_guard",
+          "center": [
+            -7.7,
+            2,
+            2
+          ],
+          "size": [
+            0.6,
+            4,
+            4
+          ],
+          "role": "wall"
+        },
+        {
+          "name": "west_guard",
+          "center": [
+            -7.7,
+            18,
+            2
+          ],
+          "size": [
+            0.6,
+            12,
+            4
+          ],
+          "role": "wall"
+        },
+        {
+          "name": "north_guard",
+          "center": [
+            -7.5,
+            23.7,
+            2
+          ],
+          "size": [
+            1,
+            0.6,
+            4
+          ],
+          "role": "wall"
+        },
+        {
+          "name": "north_guard",
+          "center": [
+            4.5,
+            23.7,
+            2
+          ],
+          "size": [
+            7,
+            0.6,
+            4
+          ],
+          "role": "wall"
+        },
+        {
+          "name": "east_backing",
+          "center": [
+            7.7,
+            12,
+            9
+          ],
+          "size": [
+            0.6,
+            24,
+            18
+          ],
+          "role": "wall"
+        },
+        {
+          "name": "gallery_cover",
+          "center": [
+            0,
+            12,
+            13.55
+          ],
+          "size": [
+            16,
+            24,
+            0.6
+          ],
+          "role": "ceiling"
+        },
+        {
+          "name": "ConnectionSupport_west",
+          "center": [
+            -8,
+            8,
+            -0.22
+          ],
+          "size": [
+            0.4,
+            8,
+            0.4
+          ],
+          "role": "floor"
+        },
+        {
+          "name": "ConnectionSupport_north",
+          "center": [
+            -3,
+            24,
+            -0.22
+          ],
+          "size": [
+            8,
+            0.4,
+            0.4
+          ],
+          "role": "floor"
+        }
+      ],
+      "ports": [
+        {
+          "name": "west",
+          "position": [
+            -8,
+            8,
+            0
+          ],
+          "normal": [
+            -1,
+            0,
+            0
+          ],
+          "width": 8,
+          "height": 12,
+          "walkable": true
+        },
+        {
+          "name": "north",
+          "position": [
+            -3,
+            24,
+            0
+          ],
+          "normal": [
+            0,
+            1,
+            0
+          ],
+          "width": 8,
+          "height": 12,
+          "walkable": true
+        }
+      ],
+      "routes": [
+        {
+          "name": "offset_gallery",
+          "points": [
+            [
+              -8,
+              8,
+              0
+            ],
+            [
+              -3,
+              8,
+              0
+            ],
+            [
+              -3,
+              24,
+              0
+            ]
+          ]
+        }
+      ],
+      "samples": [
+        {
+          "route": "offset_gallery",
+          "position": [
+            -8.0,
+            8.0,
+            0.0
+          ]
+        },
+        {
+          "route": "offset_gallery",
+          "position": [
+            -7.285714285714286,
+            8.0,
+            0.0
+          ]
+        },
+        {
+          "route": "offset_gallery",
+          "position": [
+            -6.571428571428571,
+            8.0,
+            0.0
+          ]
+        },
+        {
+          "route": "offset_gallery",
+          "position": [
+            -5.857142857142858,
+            8.0,
+            0.0
+          ]
+        },
+        {
+          "route": "offset_gallery",
+          "position": [
+            -5.142857142857142,
+            8.0,
+            0.0
+          ]
+        },
+        {
+          "route": "offset_gallery",
+          "position": [
+            -4.428571428571429,
+            8.0,
+            0.0
+          ]
+        },
+        {
+          "route": "offset_gallery",
+          "position": [
+            -3.7142857142857144,
+            8.0,
+            0.0
+          ]
+        },
+        {
+          "route": "offset_gallery",
+          "position": [
+            -3.0,
+            8.0,
+            0.0
+          ]
+        },
+        {
+          "route": "offset_gallery",
+          "position": [
+            -3.0,
+            8.0,
+            0.0
+          ]
+        },
+        {
+          "route": "offset_gallery",
+          "position": [
+            -3.0,
+            8.727272727272727,
+            0.0
+          ]
+        },
+        {
+          "route": "offset_gallery",
+          "position": [
+            -3.0,
+            9.454545454545455,
+            0.0
+          ]
+        },
+        {
+          "route": "offset_gallery",
+          "position": [
+            -3.0,
+            10.181818181818182,
+            0.0
+          ]
+        },
+        {
+          "route": "offset_gallery",
+          "position": [
+            -3.0,
+            10.90909090909091,
+            0.0
+          ]
+        },
+        {
+          "route": "offset_gallery",
+          "position": [
+            -3.0,
+            11.636363636363637,
+            0.0
+          ]
+        },
+        {
+          "route": "offset_gallery",
+          "position": [
+            -3.0,
+            12.363636363636363,
+            0.0
+          ]
+        },
+        {
+          "route": "offset_gallery",
+          "position": [
+            -3.0,
+            13.09090909090909,
+            0.0
+          ]
+        },
+        {
+          "route": "offset_gallery",
+          "position": [
+            -3.0,
+            13.818181818181818,
+            0.0
+          ]
+        },
+        {
+          "route": "offset_gallery",
+          "position": [
+            -3.0,
+            14.545454545454547,
+            0.0
+          ]
+        },
+        {
+          "route": "offset_gallery",
+          "position": [
+            -3.0,
+            15.272727272727273,
+            0.0
+          ]
+        },
+        {
+          "route": "offset_gallery",
+          "position": [
+            -3.0,
+            16.0,
+            0.0
+          ]
+        },
+        {
+          "route": "offset_gallery",
+          "position": [
+            -3.0,
+            16.727272727272727,
+            0.0
+          ]
+        },
+        {
+          "route": "offset_gallery",
+          "position": [
+            -3.0,
+            17.454545454545453,
+            0.0
+          ]
+        },
+        {
+          "route": "offset_gallery",
+          "position": [
+            -3.0,
+            18.18181818181818,
+            0.0
+          ]
+        },
+        {
+          "route": "offset_gallery",
+          "position": [
+            -3.0,
+            18.909090909090907,
+            0.0
+          ]
+        },
+        {
+          "route": "offset_gallery",
+          "position": [
+            -3.0,
+            19.636363636363637,
+            0.0
+          ]
+        },
+        {
+          "route": "offset_gallery",
+          "position": [
+            -3.0,
+            20.363636363636363,
+            0.0
+          ]
+        },
+        {
+          "route": "offset_gallery",
+          "position": [
+            -3.0,
+            21.090909090909093,
+            0.0
+          ]
+        },
+        {
+          "route": "offset_gallery",
+          "position": [
+            -3.0,
+            21.81818181818182,
+            0.0
+          ]
+        },
+        {
+          "route": "offset_gallery",
+          "position": [
+            -3.0,
+            22.545454545454547,
+            0.0
+          ]
+        },
+        {
+          "route": "offset_gallery",
+          "position": [
+            -3.0,
+            23.272727272727273,
+            0.0
+          ]
+        },
+        {
+          "route": "offset_gallery",
+          "position": [
+            -3.0,
+            24.0,
+            0.0
+          ]
+        }
+      ],
+      "triangles": 1760,
+      "bounds": {
+        "min": [
+          -8.0,
+          0.0,
+          -0.6000000238418579
+        ],
+        "max": [
+          8.755000114440918,
+          24.0,
+          18.0
+        ]
+      }
+    },
+    {
+      "name": "U05_ReturnCorner",
+      "width": 16,
+      "depth": 16,
+      "kind": "upper",
+      "use": "Mirrored landing joining the inhabited gallery to a stair return.",
+      "colliders": [
+        {
+          "name": "continuous_floor",
+          "center": [
+            0,
+            8.0,
+            -0.3
+          ],
+          "size": [
+            16,
+            16,
+            0.6
+          ],
+          "role": "floor"
+        },
+        {
+          "name": "north_guard",
+          "center": [
+            0,
+            15.7,
+            2
+          ],
+          "size": [
+            16,
+            0.6,
+            4
+          ],
+          "role": "wall"
+        },
+        {
+          "name": "east_guard",
+          "center": [
+            7.7,
+            8,
+            2
+          ],
+          "size": [
+            0.6,
+            16,
+            4
+          ],
+          "role": "wall"
+        },
+        {
+          "name": "south_guard",
+          "center": [
+            -6,
+            0.3,
+            2
+          ],
+          "size": [
+            4,
+            0.6,
+            4
+          ],
+          "role": "wall"
+        },
+        {
+          "name": "south_guard",
+          "center": [
+            6,
+            0.3,
+            2
+          ],
+          "size": [
+            4,
+            0.6,
+            4
+          ],
+          "role": "wall"
+        },
+        {
+          "name": "west_guard",
+          "center": [
+            -7.7,
+            2,
+            2
+          ],
+          "size": [
+            0.6,
+            4,
+            4
+          ],
+          "role": "wall"
+        },
+        {
+          "name": "west_guard",
+          "center": [
+            -7.7,
+            14,
+            2
+          ],
+          "size": [
+            0.6,
+            4,
+            4
+          ],
+          "role": "wall"
+        },
+        {
+          "name": "ConnectionSupport_south",
+          "center": [
+            0,
+            0,
+            -0.22
+          ],
+          "size": [
+            8,
+            0.4,
+            0.4
+          ],
+          "role": "floor"
+        },
+        {
+          "name": "ConnectionSupport_west",
+          "center": [
+            -8,
+            8,
+            -0.22
+          ],
+          "size": [
+            0.4,
+            8,
+            0.4
+          ],
+          "role": "floor"
+        }
+      ],
+      "ports": [
+        {
+          "name": "south",
+          "position": [
+            0,
+            0,
+            0
+          ],
+          "normal": [
+            0,
+            -1,
+            0
+          ],
+          "width": 8,
+          "height": 12,
+          "walkable": true
+        },
+        {
+          "name": "west",
+          "position": [
+            -8,
+            8,
+            0
+          ],
+          "normal": [
+            -1,
+            0,
+            0
+          ],
+          "width": 8,
+          "height": 12,
+          "walkable": true
+        }
+      ],
+      "routes": [
+        {
+          "name": "corner",
+          "points": [
+            [
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              8,
+              0
+            ],
+            [
+              -8,
+              8,
+              0
+            ]
+          ]
+        }
+      ],
+      "samples": [
+        {
+          "route": "corner",
+          "position": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "route": "corner",
+          "position": [
+            0.0,
+            0.7272727272727273,
+            0.0
+          ]
+        },
+        {
+          "route": "corner",
+          "position": [
+            0.0,
+            1.4545454545454546,
+            0.0
+          ]
+        },
+        {
+          "route": "corner",
+          "position": [
+            0.0,
+            2.1818181818181817,
+            0.0
+          ]
+        },
+        {
+          "route": "corner",
+          "position": [
+            0.0,
+            2.909090909090909,
+            0.0
+          ]
+        },
+        {
+          "route": "corner",
+          "position": [
+            0.0,
+            3.6363636363636362,
+            0.0
+          ]
+        },
+        {
+          "route": "corner",
+          "position": [
+            0.0,
+            4.363636363636363,
+            0.0
+          ]
+        },
+        {
+          "route": "corner",
+          "position": [
+            0.0,
+            5.090909090909091,
+            0.0
+          ]
+        },
+        {
+          "route": "corner",
+          "position": [
+            0.0,
+            5.818181818181818,
+            0.0
+          ]
+        },
+        {
+          "route": "corner",
+          "position": [
+            0.0,
+            6.545454545454546,
+            0.0
+          ]
+        },
+        {
+          "route": "corner",
+          "position": [
+            0.0,
+            7.2727272727272725,
+            0.0
+          ]
+        },
+        {
+          "route": "corner",
+          "position": [
+            0.0,
+            8.0,
+            0.0
+          ]
+        },
+        {
+          "route": "corner",
+          "position": [
+            0.0,
+            8.0,
+            0.0
+          ]
+        },
+        {
+          "route": "corner",
+          "position": [
+            -0.7272727272727273,
+            8.0,
+            0.0
+          ]
+        },
+        {
+          "route": "corner",
+          "position": [
+            -1.4545454545454546,
+            8.0,
+            0.0
+          ]
+        },
+        {
+          "route": "corner",
+          "position": [
+            -2.1818181818181817,
+            8.0,
+            0.0
+          ]
+        },
+        {
+          "route": "corner",
+          "position": [
+            -2.909090909090909,
+            8.0,
+            0.0
+          ]
+        },
+        {
+          "route": "corner",
+          "position": [
+            -3.6363636363636362,
+            8.0,
+            0.0
+          ]
+        },
+        {
+          "route": "corner",
+          "position": [
+            -4.363636363636363,
+            8.0,
+            0.0
+          ]
+        },
+        {
+          "route": "corner",
+          "position": [
+            -5.090909090909091,
+            8.0,
+            0.0
+          ]
+        },
+        {
+          "route": "corner",
+          "position": [
+            -5.818181818181818,
+            8.0,
+            0.0
+          ]
+        },
+        {
+          "route": "corner",
+          "position": [
+            -6.545454545454546,
+            8.0,
+            0.0
+          ]
+        },
+        {
+          "route": "corner",
+          "position": [
+            -7.2727272727272725,
+            8.0,
+            0.0
+          ]
+        },
+        {
+          "route": "corner",
+          "position": [
+            -8.0,
+            8.0,
+            0.0
+          ]
+        }
+      ],
+      "triangles": 308,
+      "bounds": {
+        "min": [
+          -8.0,
+          0.0,
+          -0.6000000238418579
+        ],
+        "max": [
+          8.0,
+          16.0,
+          4.0
+        ]
+      }
+    },
+    {
+      "name": "U06_RoofAddition",
+      "width": 12,
+      "depth": 12,
+      "kind": "roof",
+      "use": "Closed background dwelling with a patched wall and residential windows; no traversal promise.",
+      "colliders": [
+        {
+          "name": "continuous_floor",
+          "center": [
+            0,
+            6.0,
+            -0.3
+          ],
+          "size": [
+            12,
+            12,
+            0.6
+          ],
+          "role": "floor"
+        },
+        {
+          "name": "ceiling",
+          "center": [
+            0,
+            6.0,
+            13.55
+          ],
+          "size": [
+            12,
+            12,
+            0.6
+          ],
+          "role": "ceiling"
+        },
+        {
+          "name": "side",
+          "center": [
+            -5.7,
+            6,
+            7
+          ],
+          "size": [
+            0.6,
+            12,
+            14
+          ],
+          "role": "wall"
+        },
+        {
+          "name": "side",
+          "center": [
+            5.7,
+            6,
+            7
+          ],
+          "size": [
+            0.6,
+            12,
+            14
+          ],
+          "role": "wall"
+        },
+        {
+          "name": "end",
+          "center": [
+            0,
+            0.3,
+            7
+          ],
+          "size": [
+            12,
+            0.6,
+            14
+          ],
+          "role": "wall"
+        },
+        {
+          "name": "end",
+          "center": [
+            0,
+            11.7,
+            7
+          ],
+          "size": [
+            12,
+            0.6,
+            14
+          ],
+          "role": "wall"
+        },
+        {
+          "name": "roof_cap",
+          "center": [
+            0,
+            6,
+            14.2
+          ],
+          "size": [
+            12.4,
+            12.4,
+            0.4
+          ],
+          "role": "wall"
+        }
+      ],
+      "ports": [
+        {
+          "name": "mount",
+          "position": [
+            0,
+            0,
+            0
+          ],
+          "normal": [
+            0,
+            -1,
+            0
+          ],
+          "width": 8,
+          "height": 12,
+          "walkable": false
+        }
+      ],
+      "routes": [],
+      "samples": [],
+      "triangles": 792,
+      "bounds": {
+        "min": [
+          -6.199999809265137,
+          -0.929999828338623,
+          -0.6000000238418579
+        ],
+        "max": [
+          6.199999809265137,
+          12.199999809265137,
+          14.399999618530273
+        ]
+      }
+    },
+    {
+      "name": "U07_RoofParapet",
+      "width": 12,
+      "depth": 1,
+      "kind": "roof",
+      "use": "Short masonry parapet for closed roof edges.",
+      "colliders": [
+        {
+          "name": "parapet",
+          "center": [
+            0,
+            0.5,
+            1.6
+          ],
+          "size": [
+            12,
+            1,
+            3.2
+          ],
+          "role": "wall"
+        },
+        {
+          "name": "coping",
+          "center": [
+            0,
+            0.5,
+            3.4
+          ],
+          "size": [
+            12.3,
+            1.25,
+            0.4
+          ],
+          "role": "wall"
+        }
+      ],
+      "ports": [
+        {
+          "name": "mount",
+          "position": [
+            0,
+            0,
+            0
+          ],
+          "normal": [
+            0,
+            -1,
+            0
+          ],
+          "width": 8,
+          "height": 12,
+          "walkable": false
+        }
+      ],
+      "routes": [],
+      "samples": [],
+      "triangles": 88,
+      "bounds": {
+        "min": [
+          -6.150000095367432,
+          -0.125,
+          0.0
+        ],
+        "max": [
+          6.150000095367432,
+          1.125,
+          3.5999999046325684
+        ]
+      }
+    },
+    {
+      "name": "U08_SteppedCorbel",
+      "width": 12,
+      "depth": 6,
+      "kind": "support",
+      "use": "Masonry wall-mounted corbel carrying an overhead human platform.",
+      "colliders": [
+        {
+          "name": "wall_spine",
+          "center": [
+            0,
+            5,
+            6
+          ],
+          "size": [
+            12,
+            2,
+            12
+          ],
+          "role": "wall"
+        },
+        {
+          "name": "bearing_course",
+          "center": [
+            0,
+            4,
+            5
+          ],
+          "size": [
+            12,
+            4,
+            2
+          ],
+          "role": "wall"
+        },
+        {
+          "name": "bearing_course",
+          "center": [
+            0,
+            3,
+            8
+          ],
+          "size": [
+            12,
+            6,
+            2
+          ],
+          "role": "wall"
+        },
+        {
+          "name": "bearing_course",
+          "center": [
+            0,
+            3,
+            11
+          ],
+          "size": [
+            12,
+            6,
+            2
+          ],
+          "role": "wall"
+        }
+      ],
+      "ports": [
+        {
+          "name": "wall_mount",
+          "position": [
+            0,
+            6,
+            0
+          ],
+          "normal": [
+            0,
+            1,
+            0
+          ],
+          "width": 8,
+          "height": 12,
+          "walkable": false
+        }
+      ],
+      "routes": [],
+      "samples": [],
+      "triangles": 176,
+      "bounds": {
+        "min": [
+          -6.0,
+          0.0,
+          0.0
+        ],
+        "max": [
+          6.0,
+          6.0,
+          12.0
+        ]
+      }
+    },
+    {
+      "name": "U09_AncientTie",
+      "width": 4,
+      "depth": 4,
+      "kind": "support",
+      "use": "Tall structural tie between human construction and the ancient overhead mass.",
+      "colliders": [
+        {
+          "name": "shaft",
+          "center": [
+            0,
+            2,
+            12
+          ],
+          "size": [
+            3,
+            3,
+            24
+          ],
+          "role": "wall"
+        },
+        {
+          "name": "seat",
+          "center": [
+            0,
+            2,
+            1
+          ],
+          "size": [
+            4,
+            4,
+            2
+          ],
+          "role": "wall"
+        },
+        {
+          "name": "seat",
+          "center": [
+            0,
+            2,
+            23
+          ],
+          "size": [
+            4,
+            4,
+            2
+          ],
+          "role": "wall"
+        }
+      ],
+      "ports": [
+        {
+          "name": "base",
+          "position": [
+            0,
+            0,
+            0
+          ],
+          "normal": [
+            0,
+            -1,
+            0
+          ],
+          "width": 8,
+          "height": 12,
+          "walkable": false
+        }
+      ],
+      "routes": [],
+      "samples": [],
+      "triangles": 132,
+      "bounds": {
+        "min": [
+          -2.0,
+          0.0,
+          0.0
+        ],
+        "max": [
+          2.0,
+          4.0,
+          24.0
+        ]
+      }
+    }
+  ],
+  "limitations": [
+    "Closed facade and roof dwellings are explicitly non-traversable.",
+    "Studio physics and final mesh import require separate verification."
+  ]
+}
