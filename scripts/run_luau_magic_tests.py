@@ -12,7 +12,7 @@ import tempfile
 ROOT = Path(__file__).resolve().parents[1]
 parts = ["local sources = {}"]
 for path in sorted((ROOT / "src/shared").rglob("*.luau")):
-    parts.append(f"sources[{str(path.relative_to(ROOT))!r}] = [====[{path.read_text()}]====]")
+    parts.append(f"sources[{path.relative_to(ROOT).as_posix()!r}] = [====[{path.read_text()}]====]")
 test = (ROOT / "tests/test_magic_lab.lua").read_text()
 if "--library-only" in sys.argv:
     test = (ROOT / "tests/test_grimoire_library.lua").read_text()

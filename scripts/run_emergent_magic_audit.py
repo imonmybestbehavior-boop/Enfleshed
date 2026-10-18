@@ -15,7 +15,7 @@ spec_path = Path(sys.argv[2]) if len(sys.argv) > 2 else ROOT / "tests/emergent_m
 parts = ["local sources = {}"]
 for folder in ("src/shared", "src/server"):
     for path in sorted((ROOT / folder).rglob("*.luau")):
-        parts.append(f"sources[{str(path.relative_to(ROOT))!r}] = [====[{path.read_text()}]====]")
+        parts.append(f"sources[{path.relative_to(ROOT).as_posix()!r}] = [====[{path.read_text()}]====]")
 test = (ROOT / "tests/test_magic_lab.lua").read_text()
 marker = 'local spec = load("src/shared/Modules/SpellSpec.luau")'
 test = test[: test.index(marker) + len(marker)] + "\n" + spec_path.read_text()

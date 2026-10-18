@@ -15,7 +15,7 @@ SKIP = {"test_magic_lab.lua", "test_grimoire_library.lua"}
 
 sources = ["local sources = {}"]
 for path in sorted((ROOT / "src").rglob("*.luau")):
-    sources.append(f"sources[{str(path.relative_to(ROOT))!r}] = [====[{path.read_text()}]====]")
+    sources.append(f"sources[{path.relative_to(ROOT).as_posix()!r}] = [====[{path.read_text()}]====]")
 prelude = "\n".join(sources) + '''
 local base = getfenv()
 base.loadfile = function(path, mode, environment)
