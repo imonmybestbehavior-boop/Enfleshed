@@ -10,9 +10,22 @@ local config = assert(loadfile("src/shared/Configuration/Sandbox.luau", "t", {
 	},
 }))()
 
+local melee = assert(loadfile("src/shared/Configuration/MeleeProfiles.luau", "t", {
+	table = {
+		freeze = function(t)
+			return t
+		end,
+	},
+	Vector3 = {
+		new = function(x, y, z)
+			return { X = x, Y = y, Z = z }
+		end,
+	},
+}))()
+
 local totalTime, totalDamage = 0, 0
 local duration = {}
-for index, attack in ipairs(config.Combat.Attacks) do
+for index, attack in ipairs(melee.Profiles.Sword.Lights) do
 	assert(attack.Startup > 0 and attack.Active > 0 and attack.Recovery > 0, "Attack phases must be positive")
 	duration[index] = attack.Startup + attack.Active + attack.Recovery
 	totalTime = totalTime + duration[index]

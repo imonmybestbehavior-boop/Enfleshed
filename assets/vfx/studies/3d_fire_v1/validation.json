@@ -1,0 +1,15 @@
+{
+  "passed": true,
+  "scope": "Blender source and FBX roundtrip only; Roblox import unverified",
+  "patches": 24,
+  "skin_weights": "one normalized influence per vertex",
+  "materials_per_patch": 1,
+  "loop_max_vertex_error": 0.0,
+  "minimum_patch_vertex_motion_at_quarter_cycle": 1.4944638156179118,
+  "fbx_roundtrip": {
+    "meshes": 1,
+    "rigs": 1,
+    "bones": 22,
+    "animation_action": true
+  }
+}

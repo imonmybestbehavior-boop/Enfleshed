@@ -1,0 +1,9 @@
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "{\"Statuses\":[],\"FetchCallOK\":true,\"ImportedMeshes\":[{\"Bones\":73,\"Path\":\"Workspace.connected_fireball.ConnectedFireVolume\",\"MeshId\":\"rbxassetid://135760105803974\",\"Size\":[4.637139320373535,1.9635154008865357,1.949455738067627]}],\"Metadata\":[{\"OK\":true,\"Frame\":\"Frame_001\",\"AssetTypeId\":1},{\"OK\":true,\"Frame\":\"Frame_012\",\"AssetTypeId\":1},{\"OK\":true,\"Frame\":\"Frame_024\",\"AssetTypeId\":1}]}"
+    }
+  ],
+  "isError": false
+}

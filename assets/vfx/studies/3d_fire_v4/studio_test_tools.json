@@ -1,0 +1,91 @@
+{
+  "server": {
+    "protocolVersion": "2024-11-05",
+    "capabilities": {
+      "tools": {
+        "listChanged": true
+      }
+    },
+    "serverInfo": {
+      "name": "RobloxStudio",
+      "version": "1.0.0"
+    },
+    "instructions": "Studio MCP Proxy - bridges MCP clients with Roblox Studio"
+  },
+  "tools": {
+    "tools": [
+      {
+        "name": "start_stop_play",
+        "description": "Start play the game or stop the play.",
+        "inputSchema": {
+          "properties": {
+            "is_start": {
+              "description": "true to start the game, false to stop the game and return to edit mode.",
+              "type": "boolean"
+            },
+            "studio_id": {
+              "description": "Selects Roblox Studio instance, use the list_roblox_studios tool to get available instances",
+              "type": "string"
+            }
+          },
+          "required": [
+            "is_start",
+            "studio_id"
+          ],
+          "type": "object"
+        },
+        "annotations": {
+          "title": "Start/Stop Play",
+          "readOnlyHint": false,
+          "destructiveHint": false,
+          "idempotentHint": false,
+          "openWorldHint": false
+        }
+      },
+      {
+        "name": "screen_capture",
+        "description": "Capture current edit-time screen, return the image data. If camera_position and look_at_position are provided, the camera will be temporarily set to the camera_position and look at the look_at_position.",
+        "inputSchema": {
+          "properties": {
+            "camera_position": {
+              "description": "The position of the camera to capture the screen from.",
+              "items": {
+                "description": "The x, y, z coordinate of the camera position.",
+                "type": "number"
+              },
+              "type": "array"
+            },
+            "capture_id": {
+              "description": "Capture identifier such as 'ScreenCapture_1', 'ScreenCapture_2', etc.",
+              "type": "string"
+            },
+            "look_at_position": {
+              "description": "The position to look at.",
+              "items": {
+                "description": "The x, y, z coordinate of the look at position.",
+                "type": "number"
+              },
+              "type": "array"
+            },
+            "studio_id": {
+              "description": "Selects Roblox Studio instance, use the list_roblox_studios tool to get available instances",
+              "type": "string"
+            }
+          },
+          "required": [
+            "capture_id",
+            "studio_id"
+          ],
+          "type": "object"
+        },
+        "annotations": {
+          "title": "Screen Capture",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        }
+      }
+    ]
+  }
+}

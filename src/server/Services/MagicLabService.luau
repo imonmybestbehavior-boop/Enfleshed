@@ -8,26 +8,38 @@ local Config = require(Shared.Configuration.MagicLab)
 local Slots = require(Shared.Modules.MagicSlots)
 local Spec = require(Shared.Modules.SpellSpec)
 local Profile = require(Shared.Modules.MagicLibraryProfile)
+local SpellIdentitySpec = require(Shared.Modules.MagicSpellIdentitySpec)
+local FeatureFlags = require(script.Parent.FeatureFlagService)
+local Telemetry = require(script.Parent.TelemetryService)
 local Library = require(Shared.Modules.GrimoireLibrary)
 local Starters = require(Shared.Modules.GrimoireStarters)
+local VisualSpec = require(Shared.Modules.MagicVisualSpec)
+local DevelopmentSandbox = require(Shared.Configuration.DevelopmentSandbox)
 local LabCost = require(Shared.Modules.MagicLabCost)
+local Progression = require(script.Parent.MissionProgression)
+local ProgressionRules = require(Shared.Modules.SpellProgressionRules)
 local Magic = require(script.Parent.MagicService)
 local Lab = {}
 
 function Lab.start(folder: Folder, getState: (Player) -> any, feedback: RemoteEvent)
-	local request = Instance.new("RemoteEvent")
-	request.Name = "MagicLabRequest"
-	request.Parent = folder
-	local response = Instance.new("RemoteEvent")
-	response.Name = "MagicLabResponse"
-	response.Parent = folder
-	local catalogResponse = Instance.new("RemoteEvent")
-	catalogResponse.Name, catalogResponse.Parent = "GrimoireResponse", folder
+	local function remote(name: string): RemoteEvent
+		local existing = folder:FindFirstChild(name)
+		if existing and existing:IsA("RemoteEvent") then
+			return existing
+		end
+		local event = Instance.new("RemoteEvent")
+		event.Name, event.Parent = name, folder
+		return event
+	end
+	local request = remote("MagicLabRequest")
+	local response = remote("MagicLabResponse")
+	local catalogResponse = remote("GrimoireResponse")
 	local catalogs = {}
 	local saving = {}
 	local loading = {}
 	local last: { [Player]: number } = {}
 	local definitions: { [Player]: any } = {}
+	local progressProfiles: { [Player]: any } = {}
 	local loaded: { [Player]: boolean } = {}
 	local writable: { [Player]: boolean } = {}
 	local dirty: { [Player]: boolean } = {}
@@ -43,13 +55,56 @@ function Lab.start(folder: Folder, getState: (Player) -> any, feedback: RemoteEv
 	local function allowed(): boolean
 		return Config.Enabled and (RunService:IsStudio() or (not Config.StudioOnly and Config.AllowLive))
 	end
+	local function unrestricted(): boolean
+		return RunService:IsStudio() and DevelopmentSandbox.Enabled == true
+	end
+	local function reprice(definition)
+		if unrestricted() then
+			LabCost.refresh(definition, Spec.estimate, Spec.copy)
+		else
+			ProgressionRules.reprice(definition, Spec.estimate, Spec.copy)
+		end
+	end
+	local function profile(player: Player)
+		local result, ok = Progression.load(player.UserId)
+		if ok then
+			progressProfiles[player] = result
+		end
+		return progressProfiles[player]
+	end
+	local function usable(player: Player, slot: number, definition, recordId: string): (boolean, string)
+		local spellAllowed, disabledReason = FeatureFlags.spellAllowed(definition)
+		if not spellAllowed then
+			return false, disabledReason or "This spell is temporarily disabled"
+		end
+		if unrestricted() then
+			return true, ""
+		end
+		local current = profile(player)
+		if not current then
+			return false, "Combat progression is unavailable; try again later"
+		end
+		if slot > ProgressionRules.slots(current) then
+			return false, "This loadout slot unlocks with more mission XP"
+		end
+		return ProgressionRules.canUse(current, definition, recordId, Spec.estimate)
+	end
+	local function syncCompanion(player: Player, slot: number, definition)
+		local catalog = catalogs[player]
+		local recordId = catalog and catalog.Assignments[tostring(slot)]
+		local canUse = definition and recordId and usable(player, slot, definition, recordId)
+		Magic.setCompanionSpell(player, slot, if canUse then definition else nil)
+	end
 	local function ready(player: Player): boolean
 		local state = getState(player)
 		return state ~= nil
 			and state.Character == player.Character
 			and state.Humanoid.Health > 0
 			and state.Root:IsDescendantOf(workspace)
-			and player:GetAttribute("OpeningComplete") == true
+			and (
+				player:GetAttribute("CharacterReady") == true
+				or (RunService:IsStudio() and DevelopmentSandbox.Enabled == true)
+			)
 	end
 	local function slotId(slot: number): string?
 		return Slots.id(slot)
@@ -60,6 +115,7 @@ function Lab.start(folder: Folder, getState: (Player) -> any, feedback: RemoteEv
 		end
 		local clean = Spec.copy(definition)
 		clean.Development = nil
+		clean.Name = SpellIdentitySpec.repairName(clean.Name)
 		LabCost.normalize(clean)
 		for _, colorKey in { "Color", "SecondaryColor", "AccentColor" } do
 			local color = if type(clean.Visual) == "table" then clean.Visual[colorKey] else nil
@@ -84,6 +140,7 @@ function Lab.start(folder: Folder, getState: (Player) -> any, feedback: RemoteEv
 		return ok == true
 	end
 	local function hydrate(definition, slot: number, id: string)
+		definition.Name = SpellIdentitySpec.repairName(definition.Name)
 		LabCost.normalize(definition)
 		for _, colorKey in { "Color", "SecondaryColor", "AccentColor" } do
 			local color = if type(definition.Visual) == "table" then definition.Visual[colorKey] else nil
@@ -108,14 +165,14 @@ function Lab.start(folder: Folder, getState: (Player) -> any, feedback: RemoteEv
 				definition.Visual.Palette = "LegacyCustom"
 			end
 			definition.SpellId = id
-			LabCost.refresh(definition, Spec.estimate, Spec.copy)
-			definition.Development = true
+			reprice(definition)
+			definition.Development = if unrestricted() then true else nil
 		end
 		return definition
 	end
 	local function dehydrate(definition, slot: number, id: string)
 		definition.SpellId = id
-		LabCost.refresh(definition, Spec.estimate, Spec.copy)
+		reprice(definition)
 		definition.Development = nil
 		for _, colorKey in { "Color", "SecondaryColor", "AccentColor" } do
 			local color = if type(definition.Visual) == "table" then definition.Visual[colorKey] else nil
@@ -159,6 +216,9 @@ function Lab.start(folder: Folder, getState: (Player) -> any, feedback: RemoteEv
 		local catalog = Spec.copy(catalogs[player] or Library.empty())
 		catalog.SaveState = saveState
 			or (if not writable[player] then "SESSION ONLY" elseif dirty[player] then "SAVING" else "SAVED")
+		-- Unrestricted Studio grimoires ignore progression; never block the catalog on a DataStore load.
+		catalog.Progression = if unrestricted() then progressProfiles[player] else profile(player)
+		catalog.Unrestricted = unrestricted()
 		for _, record in pairs(catalog.Records) do
 			record.Definition.Development = nil
 		end
@@ -236,41 +296,282 @@ function Lab.start(folder: Folder, getState: (Player) -> any, feedback: RemoteEv
 			reply(player, "Save", ok, text, nil, nil)
 		end)
 	end
-	local function seedStarters(player: Player)
+	local function seedCuratedCatalog(player: Player)
 		local catalog = catalogs[player]
-		for _, collection in ipairs(catalog.Collections) do
-			if collection == Starters.Collection then
-				return
+		local function removeLegacyStarters(): boolean
+			local changed = false
+			local removed = {}
+			for id, record in pairs(catalog.Records) do
+				if
+					record.Collection == Starters.LegacyCollection
+					or string.find(record.Tags, Starters.LegacyTag, 1, true) ~= nil
+				then
+					removed[id] = true
+					catalog.Records[id] = nil
+					changed = true
+				elseif record.Collection == Starters.LegacyShowcaseExpansionCollection then
+					record.Collection = Starters.ShowcaseCollection
+					changed = true
+				end
 			end
+
+			for key, id in pairs(catalog.Assignments) do
+				if removed[id] then
+					catalog.Assignments[key] = nil
+					local slot = tonumber(key)
+					if slot and definitions[player] then
+						Magic.clearTemporary(player, getState(player), Slots.id(slot))
+						definitions[player][slot] = nil
+						Magic.setCompanionSpell(player, slot, nil)
+					end
+					changed = true
+				end
+			end
+
+			local hasShowcase = table.find(catalog.Collections, Starters.ShowcaseCollection) ~= nil
+			if not hasShowcase then
+				for _, record in pairs(catalog.Records) do
+					if record.Collection == Starters.ShowcaseCollection then
+						hasShowcase = true
+						break
+					end
+				end
+			end
+			if hasShowcase and not table.find(catalog.Collections, Starters.ShowcaseCollection) then
+				table.insert(catalog.Collections, Starters.ShowcaseCollection)
+				changed = true
+			end
+
+			for _, oldCollection in
+				{
+					Starters.LegacyCollection,
+					Starters.LegacyShowcaseExpansionCollection,
+				}
+			do
+				local stillUsed = false
+				for _, record in pairs(catalog.Records) do
+					if record.Collection == oldCollection then
+						stillUsed = true
+						break
+					end
+				end
+				if not stillUsed then
+					for index = #catalog.Collections, 1, -1 do
+						if catalog.Collections[index] == oldCollection then
+							table.remove(catalog.Collections, index)
+							changed = true
+						end
+					end
+				end
+			end
+			return changed
 		end
-		local templates = Starters.build()
-		local recordCount = 0
-		for _ in pairs(catalog.Records) do
-			recordCount += 1
+		local function growSeededArches(): boolean
+			-- Upgrade untouched curated copies when a seeded structure outgrows its
+			-- original decorative dimensions. Keep player-resized versions intact.
+			local dimensionsBySpellId = {
+				AegisBeacon = {
+					From = { Width = 3, Height = 4, Depth = 3 },
+					To = { Width = 12, Height = 12, Depth = 4 },
+				},
+				PrismaticBulwark = {
+					From = { Width = 8, Height = 6, Depth = 2 },
+					To = { Width = 14, Height = 14, Depth = 4 },
+				},
+			}
+			local changed = false
+			for _, record in pairs(catalog.Records) do
+				local upgrade = dimensionsBySpellId[record.Definition.SpellId]
+				local construct = record.Definition.Construct
+				local isCurated = record.Collection == Starters.ShowcaseCollection
+					or record.Collection == Starters.ShowcaseExpansionCollection
+				if
+					upgrade
+					and isCurated
+					and string.find(record.Tags or "", Starters.ShowcaseTag, 1, true)
+					and record.Definition.Geometry == "Arch"
+					and construct
+					and construct.Width == upgrade.From.Width
+					and construct.Height == upgrade.From.Height
+					and construct.Depth == upgrade.From.Depth
+				then
+					local definition = Spec.copy(record.Definition)
+					definition.Construct.Width = upgrade.To.Width
+					definition.Construct.Height = upgrade.To.Height
+					definition.Construct.Depth = upgrade.To.Depth
+					definition.Construct.GrowthStartScale = nil
+					definition.Construct.GrowthEndScale = nil
+					definition.Construct.GrowthDuration = nil
+					reprice(definition)
+					local valid = Spec.validate(definition)
+					if valid then
+						record.Definition = definition
+						changed = true
+					end
+				end
+			end
+			return changed
 		end
-		if recordCount + #templates > Library.MaxRecords or #catalog.Collections >= Library.MaxCollections then
+		local function useElementColours(): boolean
+			-- Curated spells now wear their element's own colours (the Origin palette). Move
+			-- untouched seeded originals and the slots equipped from them off their old
+			-- authored palette; a palette the player changed is left alone.
+			local origin = VisualSpec.PaletteDefinitions.Origin.Colors
+			local function same(a: any, b: Color3): boolean
+				return typeof(a) == "Color3"
+					and math.abs(a.R - b.R) < 0.002
+					and math.abs(a.G - b.G) < 0.002
+					and math.abs(a.B - b.B) < 0.002
+			end
+			local function recolour(visual: any): boolean
+				local palette = type(visual) == "table" and VisualSpec.PaletteDefinitions[visual.Palette]
+				if not palette or visual.Palette == "Origin" or not same(visual.Color, palette.Colors[1]) then
+					return false
+				end
+				visual.Palette = "Origin"
+				visual.Color, visual.SecondaryColor, visual.AccentColor = origin[1], origin[2], origin[3]
+				return true
+			end
+			local changed = false
+			local recoloured = {}
+			for id, record in pairs(catalog.Records) do
+				local isCurated = record.Collection == Starters.ShowcaseCollection
+					or record.Collection == Starters.ShowcaseExpansionCollection
+				if
+					isCurated
+					and string.find(record.Tags or "", Starters.ShowcaseTag, 1, true)
+					and recolour(record.Definition.Visual)
+				then
+					recoloured[id] = true
+					changed = true
+				end
+			end
+			for key, id in pairs(catalog.Assignments) do
+				local slot = tonumber(key)
+				local definition = slot and definitions[player] and definitions[player][slot]
+				if recoloured[id] and definition then
+					recolour(definition.Visual)
+				end
+			end
+			return changed
+		end
+		local function seedCollection(collectionName: string, tag: string, templates: { any }): boolean
+			-- Seed against a candidate catalog so a malformed template cannot leave a
+			-- half-written collection behind or prevent the valid catalog being sent.
+			local candidate = Spec.copy(catalog)
+			local hasCollection = table.find(candidate.Collections, collectionName) ~= nil
+			if not hasCollection and #candidate.Collections >= Library.MaxCollections then
+				return false
+			end
+			if not hasCollection then
+				table.insert(candidate.Collections, collectionName)
+			end
+
+			local present = {}
+			for _, record in pairs(candidate.Records) do
+				if record.Collection == collectionName then
+					present[record.Definition.SpellId] = true
+				end
+			end
+
+			local changed = not hasCollection
+			for _, template in ipairs(templates) do
+				local definition = Spec.copy(template.Definition)
+				if not present[definition.SpellId] then
+					local recordCount = 0
+					for _ in pairs(candidate.Records) do
+						recordCount += 1
+					end
+					if recordCount >= Library.MaxRecords then
+						break
+					end
+					reprice(definition)
+					local valid, reason = Spec.validate(definition)
+					assert(valid, collectionName .. " spell failed server validation: " .. tostring(reason))
+					local id = assert(Library.add(candidate, definition, Spec.copy, os.time()))
+					candidate.Records[id].Collection = collectionName
+					candidate.Records[id].Tags = tag
+					present[definition.SpellId] = true
+					changed = true
+				end
+			end
+
+			catalogs[player] = candidate
+			catalog = candidate
+			return changed
+		end
+		local function trySeedCollection(collectionName: string, tag: string, build: () -> { any }): boolean
+			local built, templates = pcall(build)
+			if not built then
+				warn(string.format("[MagicLab] Could not build %s: %s", collectionName, tostring(templates)))
+				return false
+			end
+			local seeded, changed = pcall(seedCollection, collectionName, tag, templates)
+			if not seeded then
+				warn(string.format("[MagicLab] Could not seed %s: %s", collectionName, tostring(changed)))
+				return false
+			end
+			return changed
+		end
+
+		local changed = removeLegacyStarters()
+		changed = growSeededArches() or changed
+		changed = useElementColours() or changed
+		changed = trySeedCollection(Starters.ShowcaseCollection, Starters.ShowcaseTag, Starters.buildShowcase)
+			or changed
+		changed = trySeedCollection(
+			Starters.ShowcaseExpansionCollection,
+			Starters.ShowcaseExpansionTag,
+			Starters.buildShowcaseExpansion
+		) or changed
+		changed = trySeedCollection(Starters.CombatCollection, Starters.CombatTag, Starters.buildCombatStarters)
+			or changed
+		if changed and writable[player] then
+			scheduleSave(player)
+		end
+	end
+	local function equipFreshStarters(player: Player)
+		if unrestricted() then
 			return
 		end
-		table.insert(catalog.Collections, Starters.Collection)
-		for _, template in ipairs(templates) do
-			local definition = Spec.copy(template.Definition)
-			LabCost.refresh(definition, Spec.estimate, Spec.copy)
-			local valid, reason = Spec.validate(definition)
-			assert(valid, "Starter failed server validation: " .. tostring(reason))
-			local id = assert(Library.add(catalog, definition, Spec.copy, os.time()))
-			catalog.Records[id].Collection = Starters.Collection
-			catalog.Records[id].Tags = Starters.Tag
+		local catalog = catalogs[player]
+		local ids = {}
+		for id, record in pairs(catalog.Records) do
+			if record.Collection == Starters.CombatCollection then
+				table.insert(ids, id)
+			end
 		end
-		if writable[player] then
+		table.sort(ids, function(a, b)
+			return tonumber(a) < tonumber(b)
+		end)
+		for slot, id in ipairs(ids) do
+			if slot > 4 then
+				break
+			end
+			local definition = Spec.copy(catalog.Records[id].Definition)
+			local canUse = usable(player, slot, definition, id)
+			if canUse then
+				definition.SpellId = Slots.id(slot)
+				definition.Development = nil
+				reprice(definition)
+				definitions[player][slot] = definition
+				catalog.Assignments[tostring(slot)] = id
+				syncCompanion(player, slot, definition)
+			end
+		end
+		if next(catalog.Assignments) and writable[player] then
 			scheduleSave(player)
 		end
 	end
 	local function load(player: Player)
+		profile(player)
 		if loading[player] then
 			reply(player, "Load", false, "The library is still loading; try again shortly", nil, nil)
 			return
 		end
 		if loaded[player] then
+			-- Reopening the library also completes any earlier partial catalog migration or seed.
+			seedCuratedCatalog(player)
 			publish(player, true, "Library ready")
 			reply(player, "Load", true, "Spell library ready", makePublic(definitions[player] or {}), nil)
 			return
@@ -279,7 +580,8 @@ function Lab.start(folder: Folder, getState: (Player) -> any, feedback: RemoteEv
 			catalogs[player] = Library.empty()
 			definitions[player] = {}
 			loaded[player], writable[player] = true, false
-			seedStarters(player)
+			seedCuratedCatalog(player)
+			equipFreshStarters(player)
 			reply(player, "Load", true, "Session library ready · persistent storage unavailable", {}, nil)
 			return
 		end
@@ -295,7 +597,8 @@ function Lab.start(folder: Folder, getState: (Player) -> any, feedback: RemoteEv
 			catalogs[player] = Library.empty()
 			definitions[player] = {}
 			loaded[player], writable[player] = true, false
-			seedStarters(player)
+			seedCuratedCatalog(player)
+			equipFreshStarters(player)
 			reply(
 				player,
 				"Load",
@@ -311,16 +614,20 @@ function Lab.start(folder: Folder, getState: (Player) -> any, feedback: RemoteEv
 			catalogs[player] = Library.empty()
 			definitions[player] = {}
 			loaded[player], writable[player] = true, false
-			seedStarters(player)
+			seedCuratedCatalog(player)
+			equipFreshStarters(player)
 			reply(player, "Load", true, reason or "Saved library was left untouched; session library ready", {}, nil)
 			return
 		end
 		catalogs[player] = catalog
 		definitions[player] = result
 		loaded[player], writable[player] = true, true
-		seedStarters(player)
+		seedCuratedCatalog(player)
+		if raw == nil then
+			equipFreshStarters(player)
+		end
 		for slot, definition in pairs(result) do
-			Magic.setCompanionSpell(player, slot, definition)
+			syncCompanion(player, slot, definition)
 		end
 		reply(player, "Load", true, "Spell library loaded", makePublic(result), nil)
 	end
@@ -340,8 +647,65 @@ function Lab.start(folder: Folder, getState: (Player) -> any, feedback: RemoteEv
 			return
 		end
 		if action == "Load" then
+			Telemetry.onboarding(player, "OpenedGrimoire")
 			load(player)
 			publish(player, true, "Library ready")
+			return
+		end
+		if action == "Progression" then
+			if
+				not loaded[player]
+				or type(data) ~= "table"
+				or type(data.Action) ~= "string"
+				or type(data.Id) ~= "string"
+			then
+				publish(player, false, "Load the library before buying upgrades")
+				return
+			end
+			if unrestricted() then
+				publish(player, false, "Studio test spells are already unrestricted")
+				return
+			end
+			if not profile(player) then
+				publish(player, false, "Combat progression is unavailable")
+				return
+			end
+			if
+				data.Action == "Rank"
+				and (not catalogs[player].Records[data.Id] or catalogs[player].Records[data.Id].Archived)
+			then
+				publish(player, false, "Choose an active spell in your library")
+				return
+			end
+			local marksBefore = progressProfiles[player] and progressProfiles[player].Marks or nil
+			local updated, ok, reason = Progression.purchase(player.UserId, data.Action, data.Id, data.ExpectedRank)
+			if ok and updated and marksBefore then
+				Telemetry.economy(
+					player,
+					"Sink",
+					"Marks",
+					marksBefore - updated.Marks,
+					updated.Marks,
+					"Gameplay",
+					data.Action
+						.. ":"
+						.. (
+							if data.Action == "Unlock"
+								then data.Id
+								else "Rank" .. tostring((data.ExpectedRank or 0) + 1)
+						)
+				)
+				if data.Action == "Unlock" then
+					Telemetry.onboarding(player, "BoughtUnlock")
+				end
+			end
+			if updated then
+				progressProfiles[player] = updated
+				for equippedSlot, equippedDefinition in pairs(definitions[player] or {}) do
+					syncCompanion(player, equippedSlot, equippedDefinition)
+				end
+			end
+			publish(player, ok, reason)
 			return
 		end
 		if action == "Library" then
@@ -366,19 +730,24 @@ function Lab.start(folder: Folder, getState: (Player) -> any, feedback: RemoteEv
 				end
 				local definition = record and Spec.copy(record.Definition)
 				if definition then
+					local canUse, why = usable(player, data.Slot, definition, data.Id)
+					if not canUse then
+						publish(player, false, why)
+						return
+					end
 					definition.SpellId, definition.Development = id, nil
 					local valid, reason = Spec.validate(definition)
 					if not valid then
 						publish(player, false, reason)
 						return
 					end
-					LabCost.refresh(definition, Spec.estimate, Spec.copy)
-					definition.Development = true
+					reprice(definition)
+					definition.Development = if unrestricted() then true else nil
 				end
 				Magic.clearTemporary(player, getState(player), id)
 				definitions[player][data.Slot] = if data.Action == "Equip" then definition else nil
 				catalog.Assignments[tostring(data.Slot)] = if data.Action == "Equip" then data.Id else nil
-				Magic.setCompanionSpell(player, data.Slot, definitions[player][data.Slot])
+				syncCompanion(player, data.Slot, definitions[player][data.Slot])
 				changedSlot = data.Slot
 				ok, text =
 					true,
@@ -394,11 +763,12 @@ function Lab.start(folder: Folder, getState: (Player) -> any, feedback: RemoteEv
 					return
 				end
 				local definition = Spec.copy(data.Definition)
-				LabCost.refresh(definition, Spec.estimate, Spec.copy)
+				reprice(definition)
 				local recordId, addReason = Library.add(catalog, definition, Spec.copy, os.time())
 				if recordId then
 					catalog.Records[recordId].Definition = Spec.copy(definition)
 					ok, text = true, "Saved as a separate library spell; no loadout slot changed"
+					Telemetry.onboarding(player, "SavedSpell")
 				else
 					text = addReason or "Spell could not be saved to the library"
 				end
@@ -415,8 +785,8 @@ function Lab.start(folder: Folder, getState: (Player) -> any, feedback: RemoteEv
 				end
 				local definition = Spec.copy(data.Definition)
 				definition.SpellId = record.Definition.SpellId or Slots.id(1)
-				definition.Development = true
-				LabCost.refresh(definition, Spec.estimate, Spec.copy)
+				definition.Development = if unrestricted() then true else nil
+				reprice(definition)
 				ok, text = Library.update(catalog, data.Id, definition, Spec.copy, os.time())
 				if ok then
 					for key, assignedId in pairs(catalog.Assignments) do
@@ -426,7 +796,7 @@ function Lab.start(folder: Folder, getState: (Player) -> any, feedback: RemoteEv
 							assigned.SpellId = Slots.id(assignedSlot)
 							Magic.clearTemporary(player, getState(player), assigned.SpellId)
 							definitions[player][assignedSlot] = assigned
-							Magic.setCompanionSpell(player, assignedSlot, assigned)
+							syncCompanion(player, assignedSlot, assigned)
 						end
 					end
 				end
@@ -436,7 +806,7 @@ function Lab.start(folder: Folder, getState: (Player) -> any, feedback: RemoteEv
 					for key, id in pairs(catalog.Assignments) do
 						if id == data.Id then
 							definitions[player][tonumber(key)].Name = catalog.Records[id].Definition.Name
-							Magic.setCompanionSpell(player, tonumber(key), definitions[player][tonumber(key)])
+							syncCompanion(player, tonumber(key), definitions[player][tonumber(key)])
 						end
 					end
 				end
@@ -477,6 +847,12 @@ function Lab.start(folder: Folder, getState: (Player) -> any, feedback: RemoteEv
 			-- Spec.validate above still enforces expressions, visual enums, and compatibility.
 			local catalog = catalogs[player] or Library.empty()
 			catalogs[player] = catalog
+			local existingId = catalog.Assignments[tostring(slot)] or tostring(catalog.NextId)
+			local canUse, why = usable(player, slot, data, existingId)
+			if not canUse then
+				reply(player, action, false, why, nil, slot)
+				return
+			end
 			local recordId, recordReason = Library.capture(catalog, slot, data, Spec.copy, os.time())
 			if not recordId then
 				reply(player, action, false, recordReason, nil, slot)
@@ -484,8 +860,8 @@ function Lab.start(folder: Folder, getState: (Player) -> any, feedback: RemoteEv
 			end
 			local definition = Spec.copy(data)
 			definition.SpellId = slotIdValue
-			LabCost.refresh(definition, Spec.estimate, Spec.copy)
-			definition.Development = true -- server-only capability, rejected if supplied in client schema
+			reprice(definition)
+			definition.Development = if unrestricted() then true else nil -- server-only capability
 			catalog.Records[recordId].Definition = Spec.copy(definition)
 			-- Keep references to the same library spell consistent across equipped slots.
 			for key, id in pairs(catalog.Assignments) do
@@ -495,14 +871,14 @@ function Lab.start(folder: Folder, getState: (Player) -> any, feedback: RemoteEv
 					other.SpellId = Slots.id(otherSlot)
 					Magic.clearTemporary(player, getState(player), other.SpellId)
 					definitions[player][otherSlot] = other
-					Magic.setCompanionSpell(player, otherSlot, other)
+					syncCompanion(player, otherSlot, other)
 				end
 			end
 			Magic.clearTemporary(player, state, slotIdValue)
 			definitions[player] = definitions[player] or {}
 			definitions[player][slot] = definition
 			dirty[player] = true
-			Magic.setCompanionSpell(player, slot, definition)
+			syncCompanion(player, slot, definition)
 			scheduleSave(player)
 			publish(player, true, "Library updated")
 			reply(
@@ -532,7 +908,23 @@ function Lab.start(folder: Folder, getState: (Player) -> any, feedback: RemoteEv
 				reply(player, action, false, "Apply a valid spell first", nil, slot)
 				return
 			end
-			Magic.start(player, state, data, feedback, nil, definition)
+			local catalog = catalogs[player]
+			local recordId = catalog and catalog.Assignments[tostring(slot)]
+			local record = recordId and catalog.Records[recordId]
+			if not record or record.Archived then
+				reply(player, action, false, "Equipped spell is unavailable", nil, slot)
+				return
+			end
+			local canUse, why = usable(player, slot, record.Definition, recordId)
+			if not canUse then
+				reply(player, action, false, why, nil, slot)
+				return
+			end
+			local castDefinition = Spec.copy(record.Definition)
+			castDefinition.SpellId = slotIdValue
+			castDefinition.Development = if unrestricted() then true else nil
+			reprice(castDefinition)
+			Magic.start(player, state, data, feedback, nil, castDefinition)
 		else
 			reply(player, action, false, "Unknown Lab action", nil, slot)
 		end
@@ -548,6 +940,7 @@ function Lab.start(folder: Folder, getState: (Player) -> any, feedback: RemoteEv
 		catalogs[player], loading[player] = nil, nil
 		last[player], definitions[player], loaded[player], writable[player], dirty[player], saveRevision[player] =
 			nil, nil, nil, nil, nil, nil
+		progressProfiles[player] = nil
 	end
 	Players.PlayerRemoving:Connect(releasePlayer)
 	game:BindToClose(function()

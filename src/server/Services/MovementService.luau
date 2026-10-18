@@ -20,6 +20,17 @@ local impulses = setmetatable({}, { __mode = "k" })
 local playerStates = setmetatable({}, { __mode = "k" })
 local npcSlowRecords: { [Humanoid]: NpcSlowRecord } = setmetatable({}, { __mode = "k" }) :: any
 
+-- Ground speed for the current sprint and guard state, before magic slows and casting.
+local function groundSpeed(state: Types.PlayerState): number
+	return Speed.calculate(
+		Config.WalkSpeed,
+		Config.SprintSpeed,
+		state.Sprinting and not state.Blocking,
+		state.MagicWalkSpeedBonus,
+		state.MagicSpeedMultiplier
+	) * (if state.Blocking then Config.BlockWalkMultiplier else 1)
+end
+
 local function clearAerial(state: Types.PlayerState)
 	if state.MagicAerialVelocity then
 		if state.Root:IsDescendantOf(workspace) then
@@ -164,13 +175,7 @@ function Movement.setMagicSlow(humanoid: Humanoid, multiplier: number)
 		state.MagicSlowMultiplier = multiplier
 		state.Character:SetAttribute("MagicSlowMultiplier", multiplier)
 		humanoid:SetAttribute("MagicSlowMultiplier", multiplier)
-		local base = Speed.calculate(
-			Config.WalkSpeed,
-			Config.SprintSpeed,
-			state.Sprinting,
-			state.MagicWalkSpeedBonus,
-			state.MagicSpeedMultiplier
-		)
+		local base = groundSpeed(state)
 		humanoid.WalkSpeed = base * multiplier * (state.MagicCastingMultiplier or 1)
 		if multiplier <= 0 or (state.MagicCastingMultiplier or 1) <= 0 then
 			if humanoid.UseJumpPower then
@@ -267,13 +272,9 @@ local function maximumSpeed(state: Types.PlayerState): number
 end
 
 local function applySpeed(state: Types.PlayerState)
-	state.Humanoid.WalkSpeed = Speed.calculate(
-		Config.WalkSpeed,
-		Config.SprintSpeed,
-		state.Sprinting,
-		state.MagicWalkSpeedBonus,
-		state.MagicSpeedMultiplier
-	) * (state.MagicSlowMultiplier or 1) * (state.MagicCastingMultiplier or 1)
+	state.Humanoid.WalkSpeed = groundSpeed(state)
+		* (state.MagicSlowMultiplier or 1)
+		* (state.MagicCastingMultiplier or 1)
 	if state.MagicSlowMultiplier <= 0 or (state.MagicCastingMultiplier or 1) <= 0 then
 		if state.Humanoid.UseJumpPower then
 			state.Humanoid.JumpPower = 0
@@ -301,6 +302,11 @@ end
 
 function Movement.sprint(state: Types.PlayerState, enabled: boolean)
 	state.Sprinting = enabled
+	applySpeed(state)
+end
+
+-- Re-applies walk speed after something outside movement changed it (raising or lowering a guard).
+function Movement.refreshSpeed(state: Types.PlayerState)
 	applySpeed(state)
 end
 

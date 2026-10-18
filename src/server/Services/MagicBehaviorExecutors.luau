@@ -6,11 +6,18 @@ local Behaviors = {}
 
 type Context = {
 	ApplySpherePayloads: (radius: number, payloads: { any }) -> (),
+	SpawnEffect: (step: any, eventTargets: { any }?) -> (),
+	Targets: { any }?,
 }
 
 local executors: { [string]: (Context, any) -> () } = {
 	Explode = function(context, behavior)
 		context.ApplySpherePayloads(behavior.Radius, behavior.Payloads)
+	end,
+	-- Starts step.Effect (a validated child effect) at the event. Targets are
+	-- the event targets left after the step's condition filter.
+	SpawnEffect = function(context, behavior)
+		context.SpawnEffect(behavior, context.Targets)
 	end,
 }
 

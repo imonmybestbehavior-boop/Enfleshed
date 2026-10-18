@@ -1,0 +1,746 @@
+{
+  "arcane_prism": {
+    "fallback": "Wedge",
+    "fbx": "arcane_prism.fbx",
+    "glb": "arcane_prism.glb",
+    "size": [
+      0.84,
+      2.0,
+      0.84
+    ],
+    "triangles": 8,
+    "usage": "Elongated faceted octahedral crystal (height 2) for floating arcane cores and orbiting shards."
+  },
+  "arcane_prism_ink": {
+    "fallback": "Wedge",
+    "fbx": "arcane_prism_ink.fbx",
+    "glb": "arcane_prism_ink.glb",
+    "ink_for": "arcane_prism",
+    "size": [
+      0.98,
+      2.14,
+      0.98
+    ],
+    "triangles": 8,
+    "usage": "Inverted-hull ink outline for arcane_prism (render black, same CFrame/size x1.0)."
+  },
+  "chain_link": {
+    "fallback": "Cylinder",
+    "fbx": "chain_link.fbx",
+    "glb": "chain_link.glb",
+    "size": [
+      0.74,
+      1.24,
+      0.156
+    ],
+    "triangles": 384,
+    "usage": "Single chunky chain link (length 1, open centre); binding, control and tether chains."
+  },
+  "chain_link_ink": {
+    "fallback": "Cylinder",
+    "fbx": "chain_link_ink.fbx",
+    "glb": "chain_link_ink.glb",
+    "ink_for": "chain_link",
+    "size": [
+      0.78,
+      1.28,
+      0.191
+    ],
+    "triangles": 384,
+    "usage": "Inverted-hull ink outline for chain_link (render black, same CFrame/size x1.0)."
+  },
+  "chrono_gear": {
+    "fallback": "Cylinder",
+    "fbx": "chrono_gear.fbx",
+    "glb": "chrono_gear.glb",
+    "size": [
+      1.987,
+      0.16,
+      2.0
+    ],
+    "triangles": 508,
+    "usage": "Thick toothed gear (radius 1, flat on XZ) with spokes; time constructs, clockwork auras."
+  },
+  "chrono_gear_ink": {
+    "fallback": "Cylinder",
+    "fbx": "chrono_gear_ink.fbx",
+    "glb": "chrono_gear_ink.glb",
+    "ink_for": "chrono_gear",
+    "size": [
+      2.091,
+      0.273,
+      2.099
+    ],
+    "triangles": 508,
+    "usage": "Inverted-hull ink outline for chrono_gear (render black, same CFrame/size x1.0)."
+  },
+  "comet_spike": {
+    "fallback": "Ball",
+    "fbx": "comet_spike.fbx",
+    "glb": "comet_spike.glb",
+    "size": [
+      1.176,
+      1.098,
+      3.0
+    ],
+    "triangles": 912,
+    "usage": "Projectile silhouette: blunt head, finned body tapering to a long tail (+Z)."
+  },
+  "comet_spike_ink": {
+    "fallback": "Ball",
+    "fbx": "comet_spike_ink.fbx",
+    "glb": "comet_spike_ink.glb",
+    "ink_for": "comet_spike",
+    "size": [
+      1.314,
+      1.221,
+      3.14
+    ],
+    "triangles": 912,
+    "usage": "Inverted-hull ink outline for comet_spike (render black, same CFrame/size x1.0)."
+  },
+  "debris_rock_a": {
+    "fallback": "Block",
+    "fbx": "debris_rock_a.fbx",
+    "glb": "debris_rock_a.glb",
+    "size": [
+      1.607,
+      1.037,
+      1.334
+    ],
+    "triangles": 28,
+    "usage": "Fractured faceted rock chunk (3 variants: _a _b _c); impact debris."
+  },
+  "debris_rock_a_ink": {
+    "fallback": "Block",
+    "fbx": "debris_rock_a_ink.fbx",
+    "glb": "debris_rock_a_ink.glb",
+    "ink_for": "debris_rock_a",
+    "size": [
+      1.709,
+      1.144,
+      1.432
+    ],
+    "triangles": 28,
+    "usage": "Inverted-hull ink outline for debris_rock_a (render black, same CFrame/size x1.0)."
+  },
+  "debris_rock_b": {
+    "fallback": "Block",
+    "fbx": "debris_rock_b.fbx",
+    "glb": "debris_rock_b.glb",
+    "size": [
+      1.862,
+      0.826,
+      1.096
+    ],
+    "triangles": 28,
+    "usage": "Fractured faceted rock chunk (3 variants: _a _b _c); impact debris."
+  },
+  "debris_rock_b_ink": {
+    "fallback": "Block",
+    "fbx": "debris_rock_b_ink.fbx",
+    "glb": "debris_rock_b_ink.glb",
+    "ink_for": "debris_rock_b",
+    "size": [
+      1.982,
+      0.954,
+      1.22
+    ],
+    "triangles": 28,
+    "usage": "Inverted-hull ink outline for debris_rock_b (render black, same CFrame/size x1.0)."
+  },
+  "debris_rock_c": {
+    "fallback": "Block",
+    "fbx": "debris_rock_c.fbx",
+    "glb": "debris_rock_c.glb",
+    "size": [
+      1.458,
+      1.185,
+      1.776
+    ],
+    "triangles": 24,
+    "usage": "Fractured faceted rock chunk (3 variants: _a _b _c); impact debris."
+  },
+  "debris_rock_c_ink": {
+    "fallback": "Block",
+    "fbx": "debris_rock_c_ink.fbx",
+    "glb": "debris_rock_c_ink.glb",
+    "ink_for": "debris_rock_c",
+    "size": [
+      1.576,
+      1.285,
+      1.897
+    ],
+    "triangles": 24,
+    "usage": "Inverted-hull ink outline for debris_rock_c (render black, same CFrame/size x1.0)."
+  },
+  "earth_boulder": {
+    "fallback": "Ball",
+    "fbx": "earth_boulder.fbx",
+    "glb": "earth_boulder.glb",
+    "size": [
+      1.478,
+      1.309,
+      1.61
+    ],
+    "triangles": 60,
+    "usage": "Chunky faceted boulder (~1.6 studs) with flat fracture planes; thrown rocks, meteors."
+  },
+  "earth_boulder_ink": {
+    "fallback": "Ball",
+    "fbx": "earth_boulder_ink.fbx",
+    "glb": "earth_boulder_ink.glb",
+    "ink_for": "earth_boulder",
+    "size": [
+      1.584,
+      1.419,
+      1.713
+    ],
+    "triangles": 60,
+    "usage": "Inverted-hull ink outline for earth_boulder (render black, same CFrame/size x1.0)."
+  },
+  "earth_slab": {
+    "fallback": "Block",
+    "fbx": "earth_slab.fbx",
+    "glb": "earth_slab.glb",
+    "size": [
+      2.454,
+      1.869,
+      0.638
+    ],
+    "triangles": 28,
+    "usage": "Upthrust stone wall slab (W2.4 x H1.8 x D0.6) with broken top edge; earth constructs, walls."
+  },
+  "earth_slab_ink": {
+    "fallback": "Block",
+    "fbx": "earth_slab_ink.fbx",
+    "glb": "earth_slab_ink.glb",
+    "ink_for": "earth_slab",
+    "size": [
+      2.549,
+      1.972,
+      0.731
+    ],
+    "triangles": 28,
+    "usage": "Inverted-hull ink outline for earth_slab (render black, same CFrame/size x1.0)."
+  },
+  "earth_spire": {
+    "fallback": "Wedge",
+    "fbx": "earth_spire.fbx",
+    "glb": "earth_spire.glb",
+    "size": [
+      1.347,
+      2.632,
+      1.218
+    ],
+    "triangles": 30,
+    "usage": "Jagged faceted stone spire erupting along +Y (height ~2.6); earth spikes, pillars, fields."
+  },
+  "earth_spire_ink": {
+    "fallback": "Wedge",
+    "fbx": "earth_spire_ink.fbx",
+    "glb": "earth_spire_ink.glb",
+    "ink_for": "earth_spire",
+    "size": [
+      1.47,
+      2.739,
+      1.343
+    ],
+    "triangles": 30,
+    "usage": "Inverted-hull ink outline for earth_spire (render black, same CFrame/size x1.0)."
+  },
+  "energy_ribbon": {
+    "fallback": "Block",
+    "fbx": "energy_ribbon.fbx",
+    "glb": "energy_ribbon.glb",
+    "size": [
+      1.287,
+      1.27,
+      4.0
+    ],
+    "triangles": 128,
+    "usage": "Twisting helical ribbon strip along +Z (length 4); beams, orbit trails, auras."
+  },
+  "fire_core": {
+    "fallback": "Ball",
+    "fbx": "fire_core.fbx",
+    "glb": "fire_core.glb",
+    "size": [
+      1.839,
+      1.707,
+      1.748
+    ],
+    "triangles": 1472,
+    "usage": "Turbulent lobed energy core; projectile hearts (Neon / ForceField)."
+  },
+  "fire_core_ink": {
+    "fallback": "Ball",
+    "fbx": "fire_core_ink.fbx",
+    "glb": "fire_core_ink.glb",
+    "ink_for": "fire_core",
+    "size": [
+      1.955,
+      1.828,
+      1.874
+    ],
+    "triangles": 1472,
+    "usage": "Inverted-hull ink outline for fire_core (render black, same CFrame/size x1.0)."
+  },
+  "flame_shell": {
+    "fallback": "Ball",
+    "fbx": "flame_shell.fbx",
+    "glb": "flame_shell.glb",
+    "size": [
+      1.843,
+      2.461,
+      1.867
+    ],
+    "triangles": 840,
+    "usage": "Cluster of 7 swept flame tongues around a hollow core; projectile outer shell."
+  },
+  "flame_tongue": {
+    "fallback": "Wedge",
+    "fbx": "flame_tongue.fbx",
+    "glb": "flame_tongue.glb",
+    "size": [
+      0.744,
+      0.331,
+      2.0
+    ],
+    "triangles": 224,
+    "usage": "Single curling blade of flame trailing along +Z; layered around cores."
+  },
+  "flame_tongue_ink": {
+    "fallback": "Wedge",
+    "fbx": "flame_tongue_ink.fbx",
+    "glb": "flame_tongue_ink.glb",
+    "ink_for": "flame_tongue",
+    "size": [
+      0.791,
+      0.38,
+      2.031
+    ],
+    "triangles": 216,
+    "usage": "Inverted-hull ink outline for flame_tongue (render black, same CFrame/size x1.0)."
+  },
+  "flesh_shard": {
+    "fallback": "Wedge",
+    "fbx": "flesh_shard.fbx",
+    "glb": "flesh_shard.glb",
+    "size": [
+      0.781,
+      0.641,
+      2.0
+    ],
+    "triangles": 360,
+    "usage": "Mutated organic spindle with bulges and a hooked tip; body-magic fragments."
+  },
+  "flesh_shard_ink": {
+    "fallback": "Wedge",
+    "fbx": "flesh_shard_ink.fbx",
+    "glb": "flesh_shard_ink.glb",
+    "ink_for": "flesh_shard",
+    "size": [
+      0.921,
+      0.781,
+      2.133
+    ],
+    "triangles": 360,
+    "usage": "Inverted-hull ink outline for flesh_shard (render black, same CFrame/size x1.0)."
+  },
+  "hourglass": {
+    "fallback": "Cylinder",
+    "fbx": "hourglass.fbx",
+    "glb": "hourglass.glb",
+    "size": [
+      1.16,
+      1.96,
+      1.16
+    ],
+    "triangles": 340,
+    "usage": "Hourglass (height 2) with pillar frame and pinched glass; time constructs, slow/haste totems."
+  },
+  "hourglass_ink": {
+    "fallback": "Cylinder",
+    "fbx": "hourglass_ink.fbx",
+    "glb": "hourglass_ink.glb",
+    "ink_for": "hourglass",
+    "size": [
+      1.19,
+      2.0,
+      1.19
+    ],
+    "triangles": 292,
+    "usage": "Inverted-hull ink outline for hourglass (render black, same CFrame/size x1.0)."
+  },
+  "ice_cluster": {
+    "fallback": "Wedge",
+    "fbx": "ice_cluster.fbx",
+    "glb": "ice_cluster.glb",
+    "size": [
+      1.778,
+      2.159,
+      1.571
+    ],
+    "triangles": 252,
+    "usage": "Faceted crystal cluster erupting from a point (Y up); ice fields, constructs, impacts."
+  },
+  "ice_cluster_ink": {
+    "fallback": "Wedge",
+    "fbx": "ice_cluster_ink.fbx",
+    "glb": "ice_cluster_ink.glb",
+    "ink_for": "ice_cluster",
+    "size": [
+      1.885,
+      2.292,
+      1.676
+    ],
+    "triangles": 252,
+    "usage": "Inverted-hull ink outline for ice_cluster (render black, same CFrame/size x1.0)."
+  },
+  "ice_shard_a": {
+    "fallback": "Wedge",
+    "fbx": "ice_shard_a.fbx",
+    "glb": "ice_shard_a.glb",
+    "size": [
+      0.51,
+      1.45,
+      0.5
+    ],
+    "triangles": 10,
+    "usage": "Irregular bipyramid ice fragments (variants _a _b); shatter debris."
+  },
+  "ice_shard_a_ink": {
+    "fallback": "Wedge",
+    "fbx": "ice_shard_a_ink.fbx",
+    "glb": "ice_shard_a_ink.glb",
+    "ink_for": "ice_shard_a",
+    "size": [
+      0.602,
+      1.551,
+      0.596
+    ],
+    "triangles": 10,
+    "usage": "Inverted-hull ink outline for ice_shard_a (render black, same CFrame/size x1.0)."
+  },
+  "ice_shard_b": {
+    "fallback": "Wedge",
+    "fbx": "ice_shard_b.fbx",
+    "glb": "ice_shard_b.glb",
+    "size": [
+      0.451,
+      1.45,
+      0.495
+    ],
+    "triangles": 10,
+    "usage": "Irregular bipyramid ice fragments (variants _a _b); shatter debris."
+  },
+  "ice_shard_b_ink": {
+    "fallback": "Wedge",
+    "fbx": "ice_shard_b_ink.fbx",
+    "glb": "ice_shard_b_ink.glb",
+    "ink_for": "ice_shard_b",
+    "size": [
+      0.545,
+      1.551,
+      0.59
+    ],
+    "triangles": 10,
+    "usage": "Inverted-hull ink outline for ice_shard_b (render black, same CFrame/size x1.0)."
+  },
+  "ice_spike": {
+    "fallback": "Wedge",
+    "fbx": "ice_spike.fbx",
+    "glb": "ice_spike.glb",
+    "size": [
+      0.526,
+      2.956,
+      0.56
+    ],
+    "triangles": 36,
+    "usage": "Single tall faceted crystal spike along +Y; ice projectiles (rotate), pillars, lances."
+  },
+  "ice_spike_ink": {
+    "fallback": "Wedge",
+    "fbx": "ice_spike_ink.fbx",
+    "glb": "ice_spike_ink.glb",
+    "ink_for": "ice_spike",
+    "size": [
+      0.594,
+      3.036,
+      0.64
+    ],
+    "triangles": 36,
+    "usage": "Inverted-hull ink outline for ice_spike (render black, same CFrame/size x1.0)."
+  },
+  "lightning_fork": {
+    "fallback": "Block",
+    "fbx": "lightning_fork.fbx",
+    "glb": "lightning_fork.glb",
+    "size": [
+      1.394,
+      4.0,
+      2.995
+    ],
+    "triangles": 768,
+    "usage": "Jagged forked bolt (square-section tubes) from +Y down to -Y, height 4; strikes, chains."
+  },
+  "lightning_fork_ink": {
+    "fallback": "Block",
+    "fbx": "lightning_fork_ink.fbx",
+    "glb": "lightning_fork_ink.glb",
+    "ink_for": "lightning_fork",
+    "size": [
+      1.389,
+      4.022,
+      3.017
+    ],
+    "triangles": 768,
+    "usage": "Inverted-hull ink outline for lightning_fork (render black, same CFrame/size x1.0)."
+  },
+  "poison_bubbles": {
+    "fallback": "Ball",
+    "fbx": "poison_bubbles.fbx",
+    "glb": "poison_bubbles.glb",
+    "size": [
+      1.413,
+      1.469,
+      1.536
+    ],
+    "triangles": 600,
+    "usage": "Cluster of 6 low-poly bubbles of varied size (~1.6 across); boiling poison, gas sacs."
+  },
+  "poison_bubbles_ink": {
+    "fallback": "Ball",
+    "fbx": "poison_bubbles_ink.fbx",
+    "glb": "poison_bubbles_ink.glb",
+    "ink_for": "poison_bubbles",
+    "size": [
+      1.52,
+      1.577,
+      1.638
+    ],
+    "triangles": 600,
+    "usage": "Inverted-hull ink outline for poison_bubbles (render black, same CFrame/size x1.0)."
+  },
+  "poison_thorn": {
+    "fallback": "Wedge",
+    "fbx": "poison_thorn.fbx",
+    "glb": "poison_thorn.glb",
+    "size": [
+      1.438,
+      2.2,
+      0.39
+    ],
+    "triangles": 320,
+    "usage": "Curved barbed thorn along +Y (length 2.2) with side barbs; venom spikes, needles."
+  },
+  "poison_thorn_ink": {
+    "fallback": "Wedge",
+    "fbx": "poison_thorn_ink.fbx",
+    "glb": "poison_thorn_ink.glb",
+    "ink_for": "poison_thorn",
+    "size": [
+      1.429,
+      2.205,
+      0.371
+    ],
+    "triangles": 320,
+    "usage": "Inverted-hull ink outline for poison_thorn (render black, same CFrame/size x1.0)."
+  },
+  "pressure_cone": {
+    "fallback": "Wedge",
+    "fbx": "pressure_cone.fbx",
+    "glb": "pressure_cone.glb",
+    "size": [
+      2.005,
+      1.249,
+      1.15
+    ],
+    "triangles": 800,
+    "usage": "Body force cone shell opening along -Z (length 1, mouth radius 1) with torn crescent rim."
+  },
+  "rift_frame": {
+    "fallback": "Cylinder",
+    "fbx": "rift_frame.fbx",
+    "glb": "rift_frame.glb",
+    "size": [
+      1.466,
+      3.18,
+      0.08
+    ],
+    "triangles": 256,
+    "usage": "Jagged torn-reality loop (vertical lens, height 3) open in the middle; portals and rifts."
+  },
+  "shockwave_dome": {
+    "fallback": "Ball",
+    "fbx": "shockwave_dome.fbx",
+    "glb": "shockwave_dome.glb",
+    "size": [
+      1.999,
+      0.807,
+      1.999
+    ],
+    "triangles": 760,
+    "usage": "Open hemispherical shell with a torn rim; volumetric blast front."
+  },
+  "shockwave_ring": {
+    "fallback": "Cylinder",
+    "fbx": "shockwave_ring.fbx",
+    "glb": "shockwave_ring.glb",
+    "size": [
+      2.0,
+      0.115,
+      2.0
+    ],
+    "triangles": 512,
+    "usage": "Flat ragged band ring (XZ plane, radius 1); expanding impact fronts."
+  },
+  "sigil_ring": {
+    "fallback": "Cylinder",
+    "fbx": "sigil_ring.fbx",
+    "glb": "sigil_ring.glb",
+    "size": [
+      2.06,
+      0.04,
+      2.06
+    ],
+    "triangles": 2188,
+    "usage": "Industrial casting sigil: geared outer ring + segmented inner band, flat on XZ."
+  },
+  "sinew_tendril": {
+    "fallback": "Cylinder",
+    "fbx": "sinew_tendril.fbx",
+    "glb": "sinew_tendril.glb",
+    "size": [
+      0.631,
+      0.488,
+      3.0
+    ],
+    "triangles": 448,
+    "usage": "Curling organic tube that tapers and twists; tethers, body auras, grips."
+  },
+  "sinew_tendril_ink": {
+    "fallback": "Cylinder",
+    "fbx": "sinew_tendril_ink.fbx",
+    "glb": "sinew_tendril_ink.glb",
+    "ink_for": "sinew_tendril",
+    "size": [
+      0.67,
+      0.525,
+      3.019
+    ],
+    "triangles": 440,
+    "usage": "Inverted-hull ink outline for sinew_tendril (render black, same CFrame/size x1.0)."
+  },
+  "soul_skull": {
+    "fallback": "Ball",
+    "fbx": "soul_skull.fbx",
+    "glb": "soul_skull.glb",
+    "size": [
+      1.558,
+      1.185,
+      1.194
+    ],
+    "triangles": 304,
+    "usage": "Low-poly horned skull (height ~1.3) facing -Z with hollow eye sockets; spirit projectiles, curses."
+  },
+  "soul_skull_ink": {
+    "fallback": "Ball",
+    "fbx": "soul_skull_ink.fbx",
+    "glb": "soul_skull_ink.glb",
+    "ink_for": "soul_skull",
+    "size": [
+      1.625,
+      1.263,
+      1.269
+    ],
+    "triangles": 268,
+    "usage": "Inverted-hull ink outline for soul_skull (render black, same CFrame/size x1.0)."
+  },
+  "void_shard": {
+    "fallback": "Wedge",
+    "fbx": "void_shard.fbx",
+    "glb": "void_shard.glb",
+    "size": [
+      0.5,
+      2.0,
+      0.22
+    ],
+    "triangles": 12,
+    "usage": "Long razor obsidian shard (height 2) with a beveled edge; space blades, rift debris."
+  },
+  "void_shard_ink": {
+    "fallback": "Wedge",
+    "fbx": "void_shard_ink.fbx",
+    "glb": "void_shard_ink.glb",
+    "ink_for": "void_shard",
+    "size": [
+      0.638,
+      2.14,
+      0.36
+    ],
+    "triangles": 12,
+    "usage": "Inverted-hull ink outline for void_shard (render black, same CFrame/size x1.0)."
+  },
+  "ward_dome": {
+    "fallback": "Ball",
+    "fbx": "ward_dome.fbx",
+    "glb": "ward_dome.glb",
+    "size": [
+      1.902,
+      1.0,
+      2.0
+    ],
+    "triangles": 40,
+    "usage": "Faceted geodesic hemisphere (radius 1, open base) for barriers and shields; pair with ward_hex."
+  },
+  "water_crown": {
+    "fallback": "Cylinder",
+    "fbx": "water_crown.fbx",
+    "glb": "water_crown.glb",
+    "size": [
+      2.24,
+      1.252,
+      2.24
+    ],
+    "triangles": 864,
+    "usage": "Open splash crown: wavy wall with spiky droplet tips, radius 1, height ~1.3; water impacts."
+  },
+  "water_curl": {
+    "fallback": "Wedge",
+    "fbx": "water_curl.fbx",
+    "glb": "water_curl.glb",
+    "size": [
+      3.0,
+      1.284,
+      1.181
+    ],
+    "triangles": 504,
+    "usage": "Curling breaking-wave sheet along X (width 3), crest curling forward (-Z); water waves."
+  },
+  "wind_crescent": {
+    "fallback": "Wedge",
+    "fbx": "wind_crescent.fbx",
+    "glb": "wind_crescent.glb",
+    "size": [
+      3.005,
+      0.06,
+      1.542
+    ],
+    "triangles": 192,
+    "usage": "Thick tapered blade crescent (span 3, flat on XZ, convex toward -Z); wind slashes, gust waves."
+  },
+  "wind_funnel": {
+    "fallback": "Cylinder",
+    "fbx": "wind_funnel.fbx",
+    "glb": "wind_funnel.glb",
+    "size": [
+      2.38,
+      3.25,
+      2.298
+    ],
+    "triangles": 480,
+    "usage": "Open twisting tornado funnel of 3 ribbon bands (height 3, top radius 1.2); cyclones, wind auras."
+  }
+}

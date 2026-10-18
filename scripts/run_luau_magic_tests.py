@@ -22,6 +22,23 @@ if "--workflow-only" in sys.argv:
 if "--starters-only" in sys.argv:
     marker = 'local spec = load("src/shared/Modules/SpellSpec.luau")'
     test = test[:test.index(marker) + len(marker)] + "\n" + (ROOT / "tests/grimoire_starters_spec.luau").read_text()
+if "--visual-plan-only" in sys.argv:
+    marker = 'local spec = load("src/shared/Modules/SpellSpec.luau")'
+    test = test[:test.index(marker) + len(marker)] + "\n" + (ROOT / "tests/spell_visual_plan_spec.luau").read_text()
+if "--composer-only" in sys.argv:
+    marker = 'local spec = load("src/shared/Modules/SpellSpec.luau")'
+    test = test[:test.index(marker) + len(marker)] + "\n" + (ROOT / "tests/spell_vfx_composer_lifecycle_spec.luau").read_text()
+if "--vfx-only" in sys.argv:
+    marker = 'local spec = load("src/shared/Modules/SpellSpec.luau")'
+    test = test[:test.index(marker) + len(marker)] + "\n" + (ROOT / "tests/spell_vfx_composition_spec.luau").read_text()
+if "--forge-only" in sys.argv:
+    marker = 'local spec = load("src/shared/Modules/SpellSpec.luau")'
+    test = test[:test.index(marker) + len(marker)] + "\n" + (ROOT / "tests/spell_forge_spec.luau").read_text()
+    parts.append("getfenv().__UI_SOURCES = {}")
+    for ui in sorted((ROOT / "src/client/UI").glob("*.luau")):
+        parts.append(f"getfenv().__UI_SOURCES[{ui.stem!r}] = [====[" + ui.read_text() + "]====]")
+if "--action-flow-only" in sys.argv:
+    test = (ROOT / "tests/magic_action_flow_spec.luau").read_text()
 service = (ROOT / "src/server/Services/MagicLabService.luau").read_text()
 codec = service[service.index("local function validateStored"):service.index("local function makePublic")]
 parts.append("local codec = [====[" + codec + "]====]")
@@ -29,6 +46,11 @@ library_action = service[service.index('if action == "Library" then'):service.in
 apply_action = service[service.index('if action == "Apply" then') + len('if action == "Apply" then'):service.index('elseif action == "Cast" then')]
 parts.append("getfenv().__LIBRARY_ACTION_SOURCE = [====[" + library_action + "]====]")
 parts.append("getfenv().__APPLY_ACTION_SOURCE = [====[" + apply_action + "]====]")
+parts.append(
+    "getfenv().__MAGIC_ACTION_FLOW_SOURCE = [====["
+    + (ROOT / "src/shared/Modules/MagicActionFlow.luau").read_text()
+    + "]====]"
+)
 parts.append('''local base = getfenv()
 base.__CODEC_SOURCE = codec
 base.loadfile = function(path, mode, environment)

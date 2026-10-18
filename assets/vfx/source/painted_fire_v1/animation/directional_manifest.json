@@ -1,0 +1,135 @@
+{
+  "version": 1,
+  "status": "front_true_side_rear_approved",
+  "generator": "built-in image_gen (front); user-supplied source (side)",
+  "views": {
+    "front": {
+      "file": "assets/vfx/source/painted_fire_v1/animation/core_flow_front_v1.png",
+      "sha256": "df5d3ad4085d0fdcc5f0aef9a8a71a8f48e8e8068ea8f917262781e855c4158c",
+      "size": [
+        1774,
+        887
+      ],
+      "alpha_extrema": [
+        0,
+        255
+      ],
+      "grid": [
+        4,
+        2
+      ],
+      "frames": 8,
+      "angle_degrees": 0,
+      "user_motion_approval": "approved",
+      "roblox_id": null,
+      "studio_verified": false,
+      "approval_text": "Looks good but remember to let me generate the images"
+    },
+    "side": {
+      "file": "assets/vfx/source/painted_fire_v1/animation/core_flow_true_side_v1.png",
+      "sha256": "b91ebad8c1b985d077a530970f61abc831e301164a31047f9f9e696aa084353e",
+      "provenance": "user supplied true-side sheet",
+      "size": [
+        1774,
+        887
+      ],
+      "alpha_extrema": [
+        0,
+        255
+      ],
+      "grid": [
+        4,
+        2
+      ],
+      "frames": 8,
+      "angle_degrees": 90,
+      "user_motion_approval": "approved",
+      "perspective_review": "Bright leading rim appears edge-on; compare against earlier side-labeled sheet",
+      "roblox_id": null,
+      "studio_verified": false,
+      "approval_text": "Okay it looks great.",
+      "approval_date": "2026-10-17"
+    },
+    "three_quarter": {
+      "file": "assets/vfx/source/painted_fire_v1/animation/core_flow_three_quarter_v1.png",
+      "sha256": "df441f77d2d3d22968cef0314db3274fc104a082ebf571fc9e4aaa483ccb44a7",
+      "provenance": "user supplied",
+      "size": [
+        1774,
+        887
+      ],
+      "alpha_extrema": [
+        0,
+        255
+      ],
+      "grid": [
+        4,
+        2
+      ],
+      "frames": 8,
+      "angle_degrees": 45,
+      "user_motion_approval": "pending",
+      "perspective_review": "Reads close to side view; assess foreshortening and angle transitions",
+      "roblox_id": null,
+      "studio_verified": false
+    },
+    "previous_side": {
+      "file": "assets/vfx/source/painted_fire_v1/animation/core_flow_user_v1.png",
+      "sha256": "129cf48bbfc91a007daaf702945e3930cfa9304d58d76a2fe08826af167f8603",
+      "size": [
+        1774,
+        887
+      ],
+      "alpha_extrema": [
+        0,
+        255
+      ],
+      "grid": [
+        4,
+        2
+      ],
+      "frames": 8,
+      "angle_degrees": 90,
+      "user_motion_approval": "approved",
+      "roblox_id": null,
+      "studio_verified": false,
+      "perspective_review": "User identified original side profile as closer to 45 degrees; retained without relabeling as an approved 45-degree view."
+    },
+    "rear": {
+      "file": "assets/vfx/source/painted_fire_v1/animation/core_flow_rear_v1.png",
+      "sha256": "79515bf463209a1302ad32e93f88a0feb8d333d07f2b915d5768d09fa0833f3b",
+      "provenance": "user supplied rear animation sheet",
+      "size": [
+        1774,
+        887
+      ],
+      "alpha_extrema": [
+        0,
+        255
+      ],
+      "grid": [
+        4,
+        2
+      ],
+      "frames": 8,
+      "angle_degrees": 180,
+      "user_motion_approval": "approved",
+      "perspective_review": "Centered distant head and larger foreground curls; assess temporal motion and brightness against other views",
+      "roblox_id": null,
+      "studio_verified": false,
+      "approval_text": "It looks good.",
+      "approval_date": "2026-10-17"
+    }
+  },
+  "pending_views": [],
+  "notes": [
+    "No smooth perspective or crossfade is fabricated for missing views.",
+    "Matching frame index is not proof of physical phase alignment.",
+    "Production grid packing, angle transition and Studio visual checks pending."
+  ],
+  "future_artwork_workflow": "Provide prompts; user generates artwork outside project unless explicitly requesting generation here",
+  "pending_coverage": [
+    "Rear three-quarter at 135 degrees has no separate artwork",
+    "Elevation views have no separate artwork"
+  ]
+}

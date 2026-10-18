@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "file": "assets/vfx/source/painted_fire_v1/animation/core_contours_v1.png",
+  "sha256": "0f836aa19d005daf2b091dc64127e90e01bb9a68a2b77a2ef7df5052e8d9cae8",
+  "source_reference": "assets/vfx/source/painted_fire_v1/core.png",
+  "generator": "built-in image_gen",
+  "prompt_file": "assets/vfx/source/painted_fire_v1/animation/core_contours_prompt.txt",
+  "grid": [
+    4,
+    4
+  ],
+  "frames": 16,
+  "order": "row-major",
+  "preview_fps": 12,
+  "size": [
+    1254,
+    1254
+  ],
+  "status": "rejected_by_user_archived",
+  "roblox_id": null,
+  "studio_verified": false,
+  "limitations": [
+    "Generated sheet is not divisible into integer 4x4 cells; preview uses normalized grid sampling.",
+    "Cell padding and frame registration need visual review.",
+    "Frame-to-frame motion and loop seam are not yet approved.",
+    "Original trail and impact contours remain static."
+  ],
+  "rejection": "Reads as bending and squashing a drawing rather than independently moving fire"
+}

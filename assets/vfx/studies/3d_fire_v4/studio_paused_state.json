@@ -1,0 +1,9 @@
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "{\"ColorMap\":\"rbxassetid://111817040702677\",\"MeshTransparency\":0,\"Attributes\":{\"MaxUpdateMS\":0.647299995762296,\"FrameUpdates\":832,\"SurfaceSwitches\":680,\"ReviewFrame\":13,\"ReviewAngle\":0,\"Orbit\":false,\"Paused\":true,\"TextureFrame\":7,\"Frame\":13,\"MeanUpdateMS\":0.17539146648022536},\"Bones\":[{\"Name\":\"Flow_02_02\",\"Transform\":[0,0,-0.021788420155644418,1,0,0,0,1,0,0,0,1]},{\"Name\":\"Flow_05_04\",\"Transform\":[-0.11397231370210648,0.13104617595672608,0,1,0,0,0,1,0,0,0,1]},{\"Name\":\"Flow_07_01\",\"Transform\":[0.35092592239379885,0.028386790305376054,-0.0283867996186018,1,0,0,0,1,0,0,0,1]}],\"DoubleSided\":true,\"MeshId\":\"rbxassetid://135760105803974\",\"SurfaceName\":\"Frame_007\",\"AlphaMode\":\"Transparency\"}"
+    }
+  ],
+  "isError": false
+}

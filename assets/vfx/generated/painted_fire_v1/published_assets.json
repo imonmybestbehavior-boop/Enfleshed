@@ -1,0 +1,65 @@
+{
+  "version": 1,
+  "authorization": "User approved upload of the four packed sheets in this chat",
+  "receipt_sha256": "b5e8f4d8102c9fa2d5692512ee68d9acbfe9d532d062087f1c50529a1c048aaf",
+  "status": "uploaded_studio_playback_verified",
+  "assets": {
+    "front": {
+      "id": "rbxassetid://81011468551955",
+      "export_sha256": "16e5c40861896983ef4e9c506d7d9a20888ff6bfc0c693466fe96c7e57254ac5",
+      "file": "assets/vfx/generated/painted_fire_v1/fire_front_v1.png",
+      "fetch_status": "loaded_in_image_label",
+      "studio_visual_verified": true,
+      "preload_status": "Failure",
+      "verification_scope": "Client ScreenGui playback review, not projectile integration"
+    },
+    "three_quarter": {
+      "id": "rbxassetid://81316819745490",
+      "export_sha256": "8d0c075c9f0f6dc6260cf07f200dc9c16901d81414cca07564a0d163d229f5cf",
+      "file": "assets/vfx/generated/painted_fire_v1/fire_three_quarter_v1.png",
+      "fetch_status": "loaded_in_image_label",
+      "studio_visual_verified": true,
+      "preload_status": "Failure",
+      "verification_scope": "Client ScreenGui playback review, not projectile integration"
+    },
+    "side": {
+      "id": "rbxassetid://97561699384624",
+      "export_sha256": "f36a70e20c3cf1777740cb44de391e95deb188a236a3cdccb1f5d13c4c3fcebd",
+      "file": "assets/vfx/generated/painted_fire_v1/fire_side_v1.png",
+      "fetch_status": "loaded_in_image_label",
+      "studio_visual_verified": true,
+      "preload_status": "Failure",
+      "verification_scope": "Client ScreenGui playback review, not projectile integration"
+    },
+    "rear": {
+      "id": "rbxassetid://92127109486544",
+      "export_sha256": "fc0f943bb90659caa1b65122002ceccc601f65631019c309017e11b1921dddd0",
+      "file": "assets/vfx/generated/painted_fire_v1/fire_rear_v1.png",
+      "fetch_status": "loaded_in_image_label",
+      "studio_visual_verified": true,
+      "preload_status": "Failure",
+      "verification_scope": "Client ScreenGui playback review, not projectile integration"
+    }
+  },
+  "runtime_integrated": false,
+  "verification": {
+    "date": "2026-10-17",
+    "place_id": 0,
+    "receipt": "studio_playback_verify_receipt.json",
+    "capture": "assets/vfx/previews/studio_directional_playback_0.jpg",
+    "fps": 8,
+    "before": {
+      "CurrentFrame": 1,
+      "FrameUpdates": 201,
+      "LoadedImages": 4,
+      "CompletedLoops": 25
+    },
+    "after": {
+      "CurrentFrame": 3,
+      "FrameUpdates": 219,
+      "LoadedImages": 4,
+      "CompletedLoops": 27
+    },
+    "note": "Raw-string PreloadAsync callbacks failed; actual ImageLabels loaded and animated successfully."
+  }
+}

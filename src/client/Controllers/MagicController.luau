@@ -12,9 +12,31 @@ local function handOrigin()
 		else nil
 end
 
-function Magic.start(send: (string, Types.ActionOptions?) -> number, aim: () -> (Vector3, Vector3, Model?, Instance?))
-	require(script.Parent.MagicPresentationController).start()
-	require(script.Parent.MagicLabController).start(send, aim)
+function Magic.start(
+	send: (string, Types.ActionOptions?) -> number,
+	aim: () -> (Vector3, Vector3, Model?, Instance?),
+	launcher: any?
+)
+	-- Start the editor independently of observer presentation. The presentation
+	-- transport may arrive late or fail to initialize; neither condition should
+	-- prevent the Grimoire from binding its launcher.
+	task.spawn(function()
+		local grimoireOk, grimoireError = pcall(function()
+			require(script.Parent.MagicLabController).start(send, aim, launcher)
+		end)
+		if not grimoireOk then
+			warn("Grimoire failed to start: " .. tostring(grimoireError))
+			if launcher then
+				launcher:SetError(tostring(grimoireError))
+			end
+		end
+	end)
+	local presentationOk, presentationError = pcall(function()
+		require(script.Parent.MagicPresentationController).start()
+	end)
+	if not presentationOk then
+		warn("Magic presentation failed to start: " .. tostring(presentationError))
+	end
 	local activeSpell: string? = nil
 	local function cast(spellId: string, charged: boolean?)
 		local direction, point, target, targetInstance = aim()

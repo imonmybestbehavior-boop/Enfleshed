@@ -6,16 +6,69 @@ local Config = require(game:GetService("ReplicatedStorage").Shared.Configuration
 local BudgetSpec = require(game:GetService("ReplicatedStorage").Shared.Modules.MagicPresentationBudget)
 local VisualSpec = require(game:GetService("ReplicatedStorage").Shared.Modules.MagicVisualSpec)
 local TweenService = game:GetService("TweenService")
+local Analyzer = require(game:GetService("ReplicatedStorage").Shared.SpellVFXSystem.Core.SpellVFXAnalyzer)
+local SignaturePlanner = require(game:GetService("ReplicatedStorage").Shared.SpellVFXSystem.Signature.SignaturePlanner)
 local Presentation = {}
+
+-- Spells covered by a client signature (generated-asset VFX) skip the legacy primitive extras
+-- below (hand motes, impact particles/rings, surface pulse). Anchors, sounds and cues still run.
+local function signatureCovered(definition)
+	if type(definition) ~= "table" then
+		return false
+	end
+	local ok, covered = pcall(function()
+		return SignaturePlanner.match(Analyzer.resolve(definition)) ~= nil
+	end)
+	return ok and covered
+end
 local castRemote
 local particleBudget = BudgetSpec.new(Config.ParticleBudget, os.clock())
 function Presentation.start(folder)
-	castRemote = Instance.new("RemoteEvent")
-	castRemote.Name = "MagicPresentation"
-	castRemote.Parent = folder
+	local existing = folder:FindFirstChild("MagicPresentation")
+	if existing and existing:IsA("RemoteEvent") then
+		castRemote = existing
+	else
+		castRemote = Instance.new("RemoteEvent")
+		castRemote.Name = "MagicPresentation"
+		castRemote.Parent = folder
+	end
 end
 local function visualSettings(definition)
 	return (definition and definition.Visual) or {}
+end
+
+local function spellElement(definition)
+	return (definition and definition.Element)
+		or (definition and definition.Source and definition.Source.Expression)
+		or "Neutral"
+end
+
+local function effectColors(definition, fallback)
+	local settings = visualSettings(definition)
+	return settings.Color or fallback,
+		settings.SecondaryColor or settings.Color or fallback,
+		settings.AccentColor or Color3.new(1, 1, 1)
+end
+
+local function addImpactLight(parent, color, range, brightness)
+	local light = Instance.new("PointLight")
+	light.Name = "MagicImpactLight"
+	light.Color = color
+	light.Range = range
+	light.Brightness = brightness
+	light.Shadows = false
+	light.Parent = parent
+	TweenService:Create(light, TweenInfo.new(0.38, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+		Brightness = 0,
+	}):Play()
+end
+
+local function playCustomVFX(definition, target, context)
+	-- Authored presets are resolved into the same geometry-aware composition.
+	if typeof(target) == "Instance" and target:IsA("BasePart") then
+		Analyzer.stamp(target, definition)
+	end
+	return
 end
 function Presentation.material(definition)
 	local name = visualSettings(definition).MaterialAppearance
@@ -70,33 +123,6 @@ local function emitParticles(emitter: ParticleEmitter?, count: number)
 		emitter:Emit(allowed)
 	end
 end
-local function environmentalLayer(parent: BasePart, definition: any?)
-	local settings = visualSettings(definition)
-	local style = settings.EnvironmentalVisual or "None"
-	if style == "None" then
-		return
-	end
-	local color = settings.SecondaryColor or settings.Color or Color3.new(1, 1, 1)
-	local particleStyle = if style == "GroundMist" then "Smoke" else "Sparks"
-	local emitter = particles(parent, color, 2, particleStyle, settings.Emission)
-	if not emitter then
-		return
-	end
-	emitter.EmissionDirection = Enum.NormalId.Top
-	emitter.SpreadAngle = Vector2.new(35, 35)
-	if style == "GroundMist" then
-		emitter.Texture = "rbxasset://textures/particles/smoke_main.dds"
-		emitter.Lifetime = NumberRange.new(1.2, 2.2)
-		emitter.Speed = NumberRange.new(0.1, 0.7)
-		emitter.Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.8), NumberSequenceKeypoint.new(1, 2.2) })
-		emitter.Transparency =
-			NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.75), NumberSequenceKeypoint.new(1, 1) })
-	else
-		emitter.Lifetime = NumberRange.new(0.8, 1.6)
-		emitter.Speed = NumberRange.new(0.3, 1.2)
-		emitter.Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.15), NumberSequenceKeypoint.new(1, 0.35) })
-	end
-end
 function Presentation.profile(definition)
 	local profile = definition.Visual.Profile
 	if not profile or profile == "Auto" then
@@ -112,6 +138,10 @@ local function cue(character, profile, phase, duration, gather)
 	if castRemote then
 		castRemote:FireAllClients(character, profile, phase, duration, gather)
 	end
+end
+
+function Presentation.vfx(definition, target, context)
+	playCustomVFX(definition, target, context or {})
 end
 local function audioId(definition, key)
 	local audio = definition and definition.Audio
@@ -186,13 +216,31 @@ function Presentation.gather(character, definition, duration, gather, phase)
 	cue(character, profile, phase or "Gather", math.clamp(duration, 0.1, Config.MaxPoseDuration), gather)
 	local settings = visualSettings(definition)
 	local root = character:FindFirstChild("HumanoidRootPart")
+	if root and settings.CastingStyle ~= "None" then
+		local glow = Instance.new("Part")
+		glow.Name = "SpellGatherComposition"
+		glow.Transparency = 1
+		glow.CanCollide, glow.CanTouch, glow.CanQuery = false, false, false
+		glow.Massless = true
+		glow.CFrame = root.CFrame
+		glow.Parent = character
+		local weld = Instance.new("WeldConstraint")
+		weld.Part0, weld.Part1, weld.Parent = root, glow, glow
+		Analyzer.stamp(glow, definition, Vector3.new(3, 4, 3), "Gather")
+		Debris:AddItem(glow, duration + 0.1)
+	end
 	Presentation.playSound(
 		definition,
 		"ChargeSoundId",
 		if root and root:IsA("BasePart") then root.Position else character:GetPivot().Position,
 		root
 	)
-	if settings.CastingStyle == "GroundSigil" and root and root:IsA("BasePart") then
+	if
+		settings.CastingStyle == "GroundSigil"
+		and root
+		and root:IsA("BasePart")
+		and not signatureCovered(definition)
+	then
 		local rayParams = RaycastParams.new()
 		rayParams.FilterType = Enum.RaycastFilterType.Exclude
 		rayParams.FilterDescendantsInstances = { character }
@@ -208,7 +256,9 @@ function Presentation.gather(character, definition, duration, gather, phase)
 			)
 		end
 	end
-	if settings.CastingStyle ~= "None" and settings.ParticleStyle ~= "None" then
+	if settings.CastingStyle ~= "None" and settings.ParticleStyle ~= "None" and not signatureCovered(definition) then
+		local element = spellElement(definition)
+		local primary, secondary, accent = effectColors(definition, settings.Color)
 		for _, name in { "RightHand", "LeftHand", "Right Arm", "Left Arm" } do
 			local hand = character:FindFirstChild(name)
 			if hand and hand:IsA("BasePart") then
@@ -216,16 +266,54 @@ function Presentation.gather(character, definition, duration, gather, phase)
 				attachment.Name = "MagicCastGlow"
 				attachment.Position = Vector3.new(0, -hand.Size.Y * 0.4, 0)
 				attachment.Parent = hand
-				emitParticles(
-					particles(attachment, definition.Visual.Color, 0, settings.ParticleStyle, settings.Emission),
-					10
-				)
+				local style = if element == "Fire"
+					then "Embers"
+					elseif element == "Poison" then "Smoke"
+					else settings.ParticleStyle
+				local emitter = particles(attachment, primary, 0, style, settings.Emission)
+				if emitter then
+					emitter.Name = "MagicGatherMotes"
+					emitter.Lifetime = NumberRange.new(0.35, 0.75)
+					emitter.Speed = NumberRange.new(1.2, 3.2)
+					emitter.Size =
+						NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.55), NumberSequenceKeypoint.new(1, 0) })
+					emitter.Color = ColorSequence.new(secondary, accent)
+				end
+				emitParticles(emitter, 16)
+				local light = Instance.new("PointLight")
+				light.Name = "MagicGatherLight"
+				light.Color = primary
+				light.Range = if element == "Fire" then 8 else 5
+				light.Brightness = 1.2
+				light.Shadows = false
+				light.Parent = attachment
+				TweenService:Create(light, TweenInfo.new(math.max(0.2, duration)), { Brightness = 0 }):Play()
 				Debris:AddItem(attachment, duration + 0.2)
 			end
 		end
 	end
 end
 function Presentation.release(character, definition)
+	for _, child in character:GetChildren() do
+		if child.Name == "SpellGatherComposition" then
+			child:Destroy()
+		end
+	end
+	local root = character:FindFirstChild("HumanoidRootPart")
+	if root then
+		local anchor = Instance.new("Part")
+		anchor.Name = "SpellReleaseComposition"
+		anchor.Size = Vector3.one
+		anchor.Transparency = 1
+		anchor.CanCollide, anchor.CanTouch, anchor.CanQuery = false, false, false
+		anchor.Massless = true
+		anchor.CFrame = root.CFrame
+		anchor.Parent = workspace
+		local weld = Instance.new("WeldConstraint")
+		weld.Part0, weld.Part1, weld.Parent = root, anchor, anchor
+		Analyzer.stamp(anchor, definition, Vector3.new(5, 6, 5), "Release")
+		Debris:AddItem(anchor, 0.6)
+	end
 	local timing = Presentation.timing(definition)
 	cue(character, Presentation.profile(definition), "Release", timing.Release + timing.Recovery, timing.Release)
 	local settings = visualSettings(definition)
@@ -238,22 +326,44 @@ function Presentation.release(character, definition)
 	)
 	for _, name in { "RightHand", "Right Arm" } do
 		local hand = character:FindFirstChild(name)
-		if hand and hand:IsA("BasePart") and settings.ParticleStyle ~= "None" then
-			emitParticles(
-				particles(
-					hand,
-					settings.AccentColor or definition.Visual.Color,
-					0,
-					settings.ParticleStyle,
-					settings.Emission
-				),
-				12
-			)
+		if hand and hand:IsA("BasePart") and settings.ParticleStyle ~= "None" and not signatureCovered(definition) then
+			local element = spellElement(definition)
+			local style = if element == "Fire"
+				then "Embers"
+				elseif element == "Poison" then "Smoke"
+				else settings.ParticleStyle
+			local attachment = Instance.new("Attachment")
+			attachment.Name = "MagicReleaseFlash"
+			attachment.Position = Vector3.new(0, -hand.Size.Y * 0.35, 0)
+			attachment.Parent = hand
+			local emitter =
+				particles(attachment, settings.AccentColor or definition.Visual.Color, 0, style, settings.Emission)
+			if emitter then
+				emitter.Name = "MagicReleaseMotes"
+				emitter.Speed = NumberRange.new(2.5, 6)
+				emitter.Size =
+					NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.8), NumberSequenceKeypoint.new(1, 0) })
+			end
+			emitParticles(emitter, 22)
+			local light = Instance.new("PointLight")
+			light.Name = "MagicReleaseLight"
+			light.Color = settings.Color
+			light.Range = if element == "Fire" then 10 else 6
+			light.Brightness = 1.8
+			light.Shadows = false
+			light.Parent = attachment
+			TweenService:Create(light, TweenInfo.new(0.22), { Brightness = 0 }):Play()
+			Debris:AddItem(attachment, 0.75)
 			break
 		end
 	end
 end
 function Presentation.cancel(character, definition)
+	for _, child in character:GetChildren() do
+		if child.Name == "SpellGatherComposition" then
+			child:Destroy()
+		end
+	end
 	cue(character, Presentation.profile(definition), "Cancel", 0, 0)
 end
 function Presentation.sustain(character, definition)
@@ -315,11 +425,53 @@ end
 
 function Presentation.impact(position, color, definition, hit)
 	local settings = visualSettings(definition)
-	surfacePulse(hit, definition)
+	playCustomVFX(
+		definition,
+		position,
+		{ Caster = definition._VFXCaster, Element = definition.Element, Color = color, Power = 1 }
+	)
+	local covered = signatureCovered(definition)
+	if not covered then
+		surfacePulse(hit, definition)
+	end
 	local style = settings.ImpactStyle or "Burst"
 	if style == "None" then
 		return
 	end
+	local sparkAnchor = Instance.new("Part")
+	sparkAnchor.Name = "MagicElementImpact"
+	sparkAnchor.Anchored, sparkAnchor.CanCollide, sparkAnchor.CanTouch, sparkAnchor.CanQuery = true, false, false, false
+	sparkAnchor.Transparency = 1
+	sparkAnchor.Size = Vector3.one * 0.1
+	sparkAnchor.Position = position
+	sparkAnchor.Parent = workspace
+	Analyzer.stamp(sparkAnchor, definition, Vector3.one * 5, "Impact")
+	Debris:AddItem(sparkAnchor, 0.8)
+	if covered then
+		return
+	end
+	local element = spellElement(definition)
+	local burstStyle = if element == "Fire"
+		then "Embers"
+		elseif element == "Poison" then "Smoke"
+		else settings.ParticleStyle
+	local burstColor = settings.AccentColor or settings.SecondaryColor or color
+	local burst = if settings.ParticleStyle == "None"
+		then nil
+		else particles(sparkAnchor, burstColor, 0, burstStyle, settings.Emission)
+	if burst then
+		burst.Speed =
+			NumberRange.new(if element == "Lightning" then 8 else 4, if element == "Lightning" then 18 else 11)
+		burst.Lifetime = NumberRange.new(0.25, 0.65)
+		burst.Size = NumberSequence.new({
+			NumberSequenceKeypoint.new(0, if element == "Fire" then 1.15 else 0.7),
+			NumberSequenceKeypoint.new(1, 0),
+		})
+		burst.LightEmission = 1
+	end
+	emitParticles(burst, if element == "Fire" then 28 else 20)
+	addImpactLight(sparkAnchor, color, if element == "Fire" then 16 else 10, if element == "Fire" then 2.5 else 1.4)
+	Debris:AddItem(sparkAnchor, 0.8)
 	if style == "Ring" or style == "Pulse" then
 		local part = Instance.new("Part")
 		part.Name = if style == "Ring" then "MagicImpactRing" else "MagicImpactPulse"
@@ -328,6 +480,7 @@ function Presentation.impact(position, color, definition, hit)
 		part.Color = settings.AccentColor or settings.SecondaryColor or color
 		part.Transparency = 1 - (settings.Opacity or 0.85)
 		part.Position = position
+		part.Parent = workspace
 		if style == "Ring" then
 			part.Shape = Enum.PartType.Cylinder
 			part.Size = Vector3.new(0.08, 0.7, 0.7)
@@ -338,7 +491,6 @@ function Presentation.impact(position, color, definition, hit)
 			part.Size = Vector3.one * 0.2
 			TweenService:Create(part, TweenInfo.new(0.3), { Size = Vector3.one * 4, Transparency = 1 }):Play()
 		end
-		part.Parent = workspace
 		Debris:AddItem(part, 0.45)
 		return
 	end
@@ -364,34 +516,66 @@ function Presentation.impact(position, color, definition, hit)
 	if settings.ParticleStyle == "None" then
 		return
 	end
-	local anchor = Instance.new("Part")
-	anchor.Name = "MagicImpact"
-	anchor.Anchored, anchor.CanCollide, anchor.CanTouch, anchor.CanQuery = true, false, false, false
-	anchor.Transparency = 1
-	anchor.Size = Vector3.one * 0.1
-	anchor.Position = position
-	anchor.Parent = workspace
-	local emitterColor = settings.AccentColor or settings.SecondaryColor or color
-	local emitter = particles(anchor, emitterColor, 0, settings.ParticleStyle, settings.Emission)
-	if emitter then
-		emitter.Speed = NumberRange.new(3, 8)
-	end
-	emitParticles(emitter, 18)
-	Debris:AddItem(anchor, 0.7)
 end
 function Presentation.construct(part: BasePart, particleCount: number?, definition: any?)
+	Analyzer.stamp(part, definition, part.Size)
 	local settings = visualSettings(definition)
 	local finalTransparency = 1 - (settings.Opacity or 0.85)
+	local element = spellElement(definition)
+	local primary, secondary, accent = effectColors(definition, part.Color)
 	part.Transparency = 0.85
 	TweenService:Create(part, TweenInfo.new(0.25), { Transparency = finalTransparency }):Play()
-	if settings.ParticleStyle ~= "None" then
-		emitParticles(
-			particles(part, settings.SecondaryColor or part.Color, 0, settings.ParticleStyle, settings.Emission),
-			particleCount or 20
+	local outline = Instance.new("Highlight")
+	outline.Name = "MagicConstructHighlight"
+	outline.Adornee = part
+	outline.FillColor = primary
+	outline.FillTransparency = 0.88
+	outline.OutlineColor = accent
+	outline.OutlineTransparency = 0.18
+	outline.DepthMode = Enum.HighlightDepthMode.Occluded
+	outline.Parent = part
+	local light = Instance.new("PointLight")
+	light.Name = "MagicConstructLight"
+	light.Color = secondary
+	light.Range = math.clamp(part.Size.Magnitude * 0.45, 6, 18)
+	light.Brightness = 0.75
+	light.Shadows = false
+	light.Parent = part
+	local top = Instance.new("Attachment")
+	top.Name = "MagicConstructCrest"
+	top.Position = Vector3.new(0, part.Size.Y * 0.5, 0)
+	top.Parent = part
+	local crest = if settings.ParticleStyle == "None"
+		then nil
+		else particles(
+			top,
+			accent,
+			0,
+			if element == "Fire" then "Embers" else settings.ParticleStyle,
+			settings.Emission
 		)
+	if crest then
+		crest.Name = "MagicConstructCrestMotes"
+		crest.EmissionDirection = Enum.NormalId.Top
+		crest.SpreadAngle = Vector2.new(22, 22)
+		crest.Lifetime = NumberRange.new(0.5, 1.1)
+		crest.Speed = NumberRange.new(0.25, 1.2)
+		crest.Size = NumberSequence.new({
+			NumberSequenceKeypoint.new(0, math.clamp(part.Size.Magnitude * 0.04, 0.25, 0.9)),
+			NumberSequenceKeypoint.new(1, 0),
+		})
+	end
+	if settings.ParticleStyle ~= "None" then
+		emitParticles(particles(part, secondary, 0, settings.ParticleStyle, settings.Emission), particleCount or 20)
 	end
 end
 function Presentation.finish(part: Instance)
+	part:SetAttribute("VFXPhase", "End")
+	for _, child in part:GetDescendants() do
+		if child:IsA("BasePart") then
+			child:SetAttribute("VFXPhase", "End")
+		end
+	end
 	stopAttachedAudio(part)
 	if part:IsA("Model") then
 		for _, object in part:GetDescendants() do
@@ -453,47 +637,7 @@ function Presentation.projectile(definition: any, position: Vector3): BasePart
 	part.Color = definition.Visual.Color
 	part.Parent = workspace
 	part.Transparency = 1 - (settings.Opacity or 0.85)
-	local emitter = if settings.ParticleStyle == "None"
-		then nil
-		else particles(
-			part,
-			settings.SecondaryColor or part.Color,
-			Config.ParticleRate,
-			settings.ParticleStyle,
-			settings.Emission
-		)
-	if emitter then
-		emitter.Size = NumberSequence.new({
-			NumberSequenceKeypoint.new(0, 0.35 * appearanceScale),
-			NumberSequenceKeypoint.new(1, 0),
-		})
-	end
-	local a, b = Instance.new("Attachment"), Instance.new("Attachment")
-	a.Position, b.Position = Vector3.new(0, 0.25 * appearanceScale, 0), Vector3.new(0, -0.25 * appearanceScale, 0)
-	a.Parent, b.Parent = part, part
-	if (settings.TrailStyle or "Ribbon") == "Ribbon" then
-		local trail = Instance.new("Trail")
-		trail.Attachment0, trail.Attachment1 = a, b
-		trail.Color = ColorSequence.new(part.Color, settings.AccentColor or settings.SecondaryColor or part.Color)
-		trail.LightEmission = settings.Emission or 1
-		trail.Lifetime = 0.25
-		trail.FaceCamera = true
-		trail.WidthScale = NumberSequence.new(appearanceScale, 0)
-		trail.Transparency = NumberSequence.new(0, 1)
-		trail.Parent = part
-	elseif settings.TrailStyle == "Particles" and settings.ParticleStyle ~= "None" then
-		local trailParticles = particles(
-			a,
-			settings.SecondaryColor or part.Color,
-			Config.ParticleRate,
-			settings.ParticleStyle,
-			settings.Emission
-		)
-		if trailParticles then
-			trailParticles.Lifetime = NumberRange.new(0.18, 0.32)
-			trailParticles.Speed = NumberRange.new(0.1, 0.8)
-		end
-	end
+	Analyzer.stamp(part, definition)
 	Presentation.attachLoop(definition, "TravelSoundId", part)
 	return part
 end
@@ -504,7 +648,8 @@ function Presentation.marker(
 	size: Vector3,
 	color: Color3,
 	duration: number?,
-	shape: Enum.PartType?
+	shape: Enum.PartType?,
+	composed: boolean?
 ): BasePart
 	local part = Instance.new("Part")
 	part.Name = name
@@ -516,7 +661,7 @@ function Presentation.marker(
 	part.Transparency, part.Material, part.Color = 0.55, Enum.Material.Neon, color
 	part.Parent = workspace
 	part.Transparency = 0.85
-	for i = 1, Config.AreaNodes do
+	for i = 1, if composed then 0 else Config.AreaNodes do
 		local angle = i / Config.AreaNodes * math.pi * 2
 		local attachment = Instance.new("Attachment")
 		attachment.Position = Vector3.new(0, math.cos(angle) * size.Y * 0.5, math.sin(angle) * size.Z * 0.5)
@@ -531,8 +676,16 @@ function Presentation.marker(
 	return part
 end
 
-local function finishAreaMarker(marker: BasePart, definition: any?, size: Vector3)
-	environmentalLayer(marker, definition)
+local function finishAreaMarker(marker: BasePart, definition: any?, size: Vector3, shape: string)
+	marker.Transparency = 1
+	for _, child in marker:GetChildren() do
+		if child:IsA("BasePart") then
+			child.Transparency = 1
+		end
+	end
+	marker:SetAttribute("MagicAreaShape", shape)
+	marker:SetAttribute("VFXRotated", shape == "Cylinder" or shape == "Capsule" or shape == "Sphere")
+	Analyzer.stamp(marker, definition, size)
 	local distortion = visualSettings(definition).Distortion or 0
 	if distortion > 0 then
 		marker:SetAttribute("MagicVisualDistortion", distortion)
@@ -553,9 +706,18 @@ function Presentation.areaMarker(
 ): BasePart
 	if shape == "Sphere" then
 		return finishAreaMarker(
-			Presentation.marker(name, frame.Position, Vector3.new(flatHeight or 0.15, size.X, size.Z), color),
+			Presentation.marker(
+				name,
+				frame.Position,
+				Vector3.new(flatHeight or 0.15, size.X, size.Z),
+				color,
+				nil,
+				nil,
+				true
+			),
 			definition,
-			size
+			size,
+			shape
 		)
 	end
 	if shape == "Capsule" then
@@ -585,7 +747,7 @@ function Presentation.areaMarker(
 			weld.Part0, weld.Part1 = marker, cap
 			weld.Parent = marker
 		end
-		return finishAreaMarker(marker, definition, size)
+		return finishAreaMarker(marker, definition, size, shape)
 	end
 	if shape == "Cone" then
 		local anchor = Instance.new("Part")
@@ -626,7 +788,7 @@ function Presentation.areaMarker(
 		edge(Vector3.new(0, -halfHeight, 0), Vector3.new(0, halfHeight, 0))
 		edge(Vector3.new(-halfWidth, -halfHeight, -range), Vector3.new(-halfWidth, halfHeight, -range))
 		edge(Vector3.new(halfWidth, -halfHeight, -range), Vector3.new(halfWidth, halfHeight, -range))
-		return finishAreaMarker(anchor, definition, size)
+		return finishAreaMarker(anchor, definition, size, shape)
 	end
 	local part = Instance.new("Part")
 	part.Name = name
@@ -639,8 +801,7 @@ function Presentation.areaMarker(
 	part.Anchored, part.CanCollide, part.CanTouch, part.CanQuery = true, false, false, false
 	part.Transparency, part.Material, part.Color = 0.88, Enum.Material.Neon, color
 	part.Parent = workspace
-	particles(part, color, 2)
-	return finishAreaMarker(part, definition, size)
+	return finishAreaMarker(part, definition, size, shape)
 end
 
 function Presentation.resizeAreaMarker(
@@ -650,6 +811,7 @@ function Presentation.resizeAreaMarker(
 	size: Vector3,
 	flatHeight: number?
 )
+	marker:SetAttribute("VFXSize", size)
 	if shape == "Capsule" then
 		local radius = size.X / 2
 		local stemHeight = math.max(size.Y - radius * 2, 0.05)
@@ -695,55 +857,72 @@ function Presentation.resizeAreaMarker(
 	end
 end
 
+function Presentation.follow(definition, target: BasePart, size: Vector3, duration: number?)
+	local anchor = Instance.new("Part")
+	anchor.Name = "SpellSustainedComposition"
+	anchor.Size = Vector3.one
+	anchor.Transparency = 1
+	anchor.CanCollide, anchor.CanTouch, anchor.CanQuery = false, false, false
+	anchor.Massless = true
+	anchor.CFrame = target.CFrame
+	anchor.Parent = target
+	local weld = Instance.new("WeldConstraint")
+	weld.Part0, weld.Part1, weld.Parent = target, anchor, anchor
+	Analyzer.stamp(anchor, definition, size)
+	if duration then
+		Debris:AddItem(anchor, duration)
+	end
+	return anchor
+end
+
+function Presentation.wave(definition, frame, range, duration)
+	local anchor = Instance.new("Part")
+	anchor.Name = "MagicWaveComposition"
+	anchor.Anchored, anchor.CanCollide, anchor.CanTouch, anchor.CanQuery = true, false, false, false
+	anchor.Transparency = 1
+	anchor.CFrame = frame
+	anchor.Parent = workspace
+	local size = if definition.Geometry == "Sphere" then Vector3.one * range * 2 else Vector3.new(range * 2, 5, range)
+	Analyzer.stamp(anchor, definition, size, "Release")
+	Debris:AddItem(anchor, math.max(0.65, duration))
+end
+
 function Presentation.beam(
 	origin: Vector3,
 	endpoint: Vector3,
 	width: number,
 	color: Color3,
 	duration: number,
-	definition: any?
-)
-	if (endpoint - origin).Magnitude < 0.01 then
-		return
+	definition: any?,
+	previous: BasePart?,
+	sustained: boolean?
+): BasePart?
+	local length = (endpoint - origin).Magnitude
+	if length < 0.01 then
+		if previous then
+			Presentation.finish(previous)
+		end
+		return nil
 	end
-	local settings = visualSettings(definition)
-	local secondary = settings.SecondaryColor or color
-	local lifetime = math.max(0.45, duration)
-	local model = Instance.new("Model")
-	model.Name = "MagicBeamFlash"
-	model.Parent = workspace
-	local function endpointPart(position)
-		local p = Instance.new("Part")
-		p.Anchored, p.CanCollide, p.CanTouch, p.CanQuery = true, false, false, false
-		p.Shape, p.Material, p.Color = Enum.PartType.Ball, Presentation.material(definition), color
-		p.Size = Vector3.one * math.max(1.8, width)
-		p.Position = position
-		p.Parent = model
-		local attachment = Instance.new("Attachment")
-		attachment.Parent = p
-		game:GetService("TweenService")
-			:Create(p, TweenInfo.new(lifetime), { Transparency = 1, Size = p.Size * 1.7 })
-			:Play()
-		return attachment
+	local anchor = previous
+	if not anchor or not anchor.Parent then
+		anchor = Instance.new("Part")
+		anchor.Name = "MagicBeamPath"
+		anchor.Anchored, anchor.CanCollide, anchor.CanTouch, anchor.CanQuery = true, false, false, false
+		anchor.Transparency = 1
+		anchor.Size = Vector3.one * 0.1
+		anchor.CFrame = CFrame.lookAt(origin, endpoint)
+		anchor.Parent = workspace
+		local beamDefinition = table.clone(definition or {})
+		beamDefinition.Form = "Beam"
+		Analyzer.stamp(anchor, beamDefinition, Vector3.new(width, width, length), "Sustain")
+		if not sustained then
+			Debris:AddItem(anchor, math.max(0.15, duration))
+		end
+	else
+		anchor.CFrame = CFrame.lookAt(origin, endpoint)
+		anchor:SetAttribute("VFXSize", Vector3.new(width, width, length))
 	end
-	local beam = Instance.new("Beam")
-	beam.Attachment0, beam.Attachment1 = endpointPart(origin), endpointPart(endpoint)
-	beam.FaceCamera = true
-	beam.Width0, beam.Width1 = math.max(1.4, width), math.max(1.4, width)
-	beam.Color = ColorSequence.new(color, secondary)
-	beam.LightEmission = settings.Emission or 1
-	beam.Texture = Config.ParticleTexture
-	beam.TextureSpeed = 3
-	beam.TextureLength = 2
-	beam.Parent = model
-	local core = beam:Clone()
-	core.Name = "BeamCore"
-	core.Texture = ""
-	core.Width0, core.Width1 = math.max(0.3, width * 0.3), math.max(0.3, width * 0.3)
-	core.Color = ColorSequence.new(settings.AccentColor or Color3.new(1, 1, 1))
-	core.Parent = model
-	TweenService:Create(core, TweenInfo.new(lifetime), { Width0 = 0, Width1 = 0 }):Play()
-	game:GetService("TweenService"):Create(beam, TweenInfo.new(lifetime), { Width0 = 0, Width1 = 0 }):Play()
-	Debris:AddItem(model, lifetime)
+	return anchor
 end
 return Presentation

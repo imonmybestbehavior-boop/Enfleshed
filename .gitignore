@@ -1,5 +1,5 @@
-# Project place file
-/Enfleshed.rbxlx
+# Place files are built from src with Rojo; old builds and backups live outside source control
+/place-backups/
 
 # Roblox Studio lock files
 /*.rbxlx.lock
@@ -11,3 +11,13 @@ sourcemap.json
 __pycache__/
 *.pyc
 *.blend1
+
+# Local-only: shelved city project, built place file, tool configs
+/Shelved Project/
+/Enfleshed-Defend-The-Walls.rbxlx
+/.mcp.json
+/.codex/
+
+# Generated VFX review pages (large, rebuildable)
+/assets/vfx/studies/*/review.html
+/assets/vfx/previews/*.html

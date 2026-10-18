@@ -1,0 +1,9 @@
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "{\"FetchedSize\":[154.50282287597657,44,600],\"MeshFetchOK\":true,\"PreloadOK\":true,\"Statuses\":[{\"Content\":\"rbxassetid://116032385577570\",\"Status\":\"Success\"},{\"Content\":\"rbxassetid://81127106843904\",\"Status\":\"Success\"}]}"
+    }
+  ],
+  "isError": false
+}

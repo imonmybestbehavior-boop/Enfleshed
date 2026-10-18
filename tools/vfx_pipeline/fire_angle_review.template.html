@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Enfleshed — Fireball Angle Review</title>
+<style>
+:root{color-scheme:dark;font:15px system-ui,sans-serif;color:#eee5df;background:#110f16}*{box-sizing:border-box}body{max-width:1050px;margin:0 auto;padding:22px 16px}h1{font-size:23px;margin:0 0 8px}p{color:#bcafbd;line-height:1.5}canvas{display:block;width:100%;height:auto;background:#19151e;border:1px solid #51414f;border-radius:7px}.controls{display:flex;flex-wrap:wrap;align-items:center;gap:12px;margin:16px 0}button,select,input{font:inherit}button,select{background:#302435;color:#ffe6c7;border:1px solid #69506a;border-radius:5px;padding:9px 12px;cursor:pointer}label{display:flex;gap:8px;align-items:center}input{accent-color:#ff923a}.small{font-size:13px}#angle{flex:1;min-width:130px}#view-name{color:#ffd19a;font-weight:600}
+</style></head><body>
+<h1>Fireball — directional view review</h1>
+<p>__EXPORT_LABEL__</p>
+<p>Compare front, three-quarter, true side and rear. All four play the same frame index. The earlier side-labeled sheet is preserved for comparison.</p>
+<canvas id="angle-stage" width="960" height="390" role="img" aria-label="Fireball viewed from a selected camera angle, with missing views clearly indicated"></canvas>
+<div class="controls"><button id="front" type="button">Front</button><button id="three-quarter" type="button">Three-quarter</button><button id="side" type="button">True side</button><button id="rear" type="button">Rear</button><label for="angle">View angle</label><input id="angle" type="range" min="0" max="180" value="180" step="1"><span id="view-name" aria-live="polite">Rear · 180° candidate</span></div>
+<div class="controls"><label><input id="previous-side" type="checkbox">Compare earlier side-labeled sheet</label></div>
+<div class="controls"><button id="play" type="button">Pause</button><button id="next" type="button">Next frame</button><label>Playback <select id="fps"><option value="6">6 fps</option><option value="8" selected>8 fps</option><option value="12">12 fps</option><option value="16">16 fps</option></select></label><label><input id="light" type="checkbox">Light backdrop</label><span id="frame-label">1 / 8</span></div>
+<div class="controls"><label for="frame">Animation frame</label><input id="frame" type="range" min="0" max="7" value="0" step="1" style="flex:1"></div>
+<canvas id="comparison" width="960" height="700" role="img" aria-label="Front, three-quarter, side and rear fireball animations at the same animation frame"></canvas>
+<p class="small">Top: nearest authored view selected by angle, with discrete switches at 22.5°, 67.5° and 135°. Rear three-quarter and elevation views have no separate artwork. This is a sprite-angle selection test, not a rendered 3D model. Bottom: synchronized comparison. Matching frame index does not guarantee matching physical flame phase; that needs review.</p>
+<script>
+const sources=__VIEWS__,images={};
+const canvas=document.getElementById('angle-stage'),ctx=canvas.getContext('2d'),comparison=document.getElementById('comparison'),pair=comparison.getContext('2d');
+const angle=document.getElementById('angle'),name=document.getElementById('view-name'),play=document.getElementById('play'),fps=document.getElementById('fps'),light=document.getElementById('light'),label=document.getElementById('frame-label');
+const previousSide=document.getElementById('previous-side');
+const frameSlider=document.getElementById('frame');
+let playing=!matchMedia('(prefers-reduced-motion: reduce)').matches,frame=0,accumulator=0,last=0,ready=false;
+function sprite(target,image,cx,cy,size){const columns=image.frameGrid[0],rows=image.frameGrid[1],w=image.width/columns,h=image.height/rows;target.drawImage(image,(frame%columns)*w,Math.floor(frame/columns)*h,w,h,cx-size/2,cy-size/2,size,size);}
+function draw(){if(!ready)return;const a=Number(angle.value),bg=light.checked?'#d8d1c8':'#19151e',ink=light.checked?'#493b48':'#d8c9d9';ctx.fillStyle=bg;ctx.fillRect(0,0,960,390);ctx.fillStyle=ink;ctx.font='15px system-ui';
+ const sideImage=previousSide.checked?images.previous_side:images.side;
+ const view=a<22.5?'front':a<67.5?'three_quarter':a<135?'side':'rear';const title={front:'Front · 0° artwork',three_quarter:'Three-quarter · 45° candidate',side:previousSide.checked?'Earlier side label · angle under review':'True side · 90° approved',rear:'Rear · 180° approved'};sprite(ctx,view==='side'?sideImage:images[view],480,195,350);name.textContent=title[view]+' / camera '+a+'°';
+ pair.fillStyle=bg;pair.fillRect(0,0,960,700);pair.strokeStyle=light.checked?'#a99ca6':'#49384a';pair.beginPath();pair.moveTo(480,0);pair.lineTo(480,700);pair.moveTo(0,350);pair.lineTo(960,350);pair.stroke();sprite(pair,images.front,240,165,290);sprite(pair,images.three_quarter,720,165,290);sprite(pair,sideImage,240,515,290);sprite(pair,images.rear,720,515,290);pair.fillStyle=ink;pair.font='15px system-ui';pair.fillText('FRONT · APPROVED',22,326);pair.fillText('THREE-QUARTER · CANDIDATE',502,326);pair.fillText(previousSide.checked?'EARLIER SIDE-LABELED SHEET':'TRUE SIDE · APPROVED',22,676);pair.fillText('REAR · APPROVED',502,676);label.textContent=(frame+1)+' / 8';frameSlider.value=frame;}
+function animate(now){const dt=last?Math.min((now-last)/1000,.1):0;last=now;if(playing){accumulator+=dt;const interval=1/Number(fps.value);if(accumulator>=interval){const advance=Math.floor(accumulator/interval);frame=(frame+advance)%8;accumulator-=advance*interval;}}draw();requestAnimationFrame(animate);}
+document.getElementById('front').addEventListener('click',()=>{angle.value=0;draw();});document.getElementById('three-quarter').addEventListener('click',()=>{angle.value=45;draw();});document.getElementById('side').addEventListener('click',()=>{angle.value=90;draw();});angle.addEventListener('input',draw);light.addEventListener('change',draw);
+document.getElementById('rear').addEventListener('click',()=>{angle.value=180;draw();});
+frameSlider.addEventListener('input',()=>{playing=false;play.textContent='Play';accumulator=0;frame=Number(frameSlider.value);draw();});
+previousSide.addEventListener('change',draw);
+play.addEventListener('click',()=>{playing=!playing;play.textContent=playing?'Pause':'Play';accumulator=0;});document.getElementById('next').addEventListener('click',()=>{playing=false;play.textContent='Play';frame=(frame+1)%8;draw();});
+Promise.all(Object.entries(sources).map(([key,source])=>new Promise((resolve,reject)=>{const image=new Image();image.frameGrid=source.grid;image.onload=()=>{images[key]=image;resolve();};image.onerror=reject;image.src=source.url;}))).then(()=>{ready=true;play.textContent=playing?'Pause':'Play';draw();requestAnimationFrame(animate);}).catch(error=>{name.textContent='Artwork failed to load';console.error(error);});
+</script></body></html>

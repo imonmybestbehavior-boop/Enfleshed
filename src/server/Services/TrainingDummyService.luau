@@ -5,6 +5,7 @@ local RunService = game:GetService("RunService")
 local CollectionService = game:GetService("CollectionService")
 local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
 local Config = require(Shared.Configuration.Sandbox).TrainingDummies
+local DevelopmentSandbox = require(Shared.Configuration.DevelopmentSandbox)
 
 type DummyEntry = {
 	Alignment: string,
@@ -278,15 +279,21 @@ function TrainingDummies.start(remoteFolder: Folder, getState: (Player) -> any)
 	rootFolder.Name = "TrainingDummies"
 	rootFolder.Parent = workspace
 	folder = rootFolder
-	local request = Instance.new("RemoteEvent")
-	request.Name = "TrainingDummyRequest"
-	request.Parent = remoteFolder
-	local response = Instance.new("RemoteEvent")
-	response.Name = "TrainingDummyResponse"
-	response.Parent = remoteFolder
+	local function remote(name: string): RemoteEvent
+		local existing = remoteFolder:FindFirstChild(name)
+		if existing and existing:IsA("RemoteEvent") then
+			return existing
+		end
+		local event = Instance.new("RemoteEvent")
+		event.Name, event.Parent = name, remoteFolder
+		return event
+	end
+	local request = remote("TrainingDummyRequest")
+	local response = remote("TrainingDummyResponse")
 
 	request.OnServerEvent:Connect(function(player: Player, action: any)
-		if typeof(action) ~= "string" or not player:GetAttribute("OpeningComplete") then
+		local studioSandbox = RunService:IsStudio() and DevelopmentSandbox.Enabled == true
+		if typeof(action) ~= "string" or (not studioSandbox and not player:GetAttribute("CharacterReady")) then
 			return
 		end
 		local now = os.clock()
@@ -355,7 +362,7 @@ function TrainingDummies.start(remoteFolder: Folder, getState: (Player) -> any)
 		elseif action == "ResetPlayer" then
 			player:LoadCharacter()
 		elseif action == "ReturnToStart" and require(script.Parent.CombatSandboxService).enabled() then
-			local position = require(Shared.Configuration.DevelopmentSandbox).Spawn
+			local position = require(Shared.Configuration.CombatBattleMap).Spawn
 			state.Character:PivotTo(CFrame.new(position))
 			state.Root.AssemblyLinearVelocity = Vector3.zero
 			state.LastPosition, state.LastFramePosition = position, position

@@ -95,6 +95,7 @@ Schema.VisualOptions = {
 	CastingStyles = VisualSpec.CastingStyles,
 	SurfaceBehaviors = VisualSpec.SurfaceBehaviors,
 	EnvironmentalVisuals = VisualSpec.EnvironmentalVisuals,
+	VFXDefinitions = VisualSpec.VFXDefinitions,
 }
 Schema.PresentationProfiles = MagicPresentation.Profiles
 Schema.VisualAssetGroups = VisualAssets.Groups
@@ -1796,10 +1797,24 @@ for _, payload in Schema.Payloads do
 	end
 end
 
+-- Channeled Beam and Wave resolve a final hit set when they expire
+-- (MagicService emitExpiry). Schema.supportsEvent still rejects OnExpire for
+-- instant casts, so this only opens the event where it can actually run.
+for kind, payload in Schema.Payloads do
+	if kind ~= "Summon" then
+		for _, formName in { "Beam", "Wave" } do
+			local events = payload.Events[formName]
+			if payload.Forms[formName] and events and Schema.Forms[formName].Events.OnExpire then
+				events.OnExpire = true
+			end
+		end
+	end
+end
+
 Schema.Behaviors = {
 	Explode = {
 		Label = "Explode at event location",
-		Description = "Creates a bounded area effect where this trigger occurred.",
+		Description = "Creates a bounded area effect where this trigger occurred and applies its effects to everything inside.",
 		Forms = set({ "Projectile", "Beam", "Wave", "Field", "Aura", "Construct", "SelfEnhancement" }),
 		Events = {
 			Projectile = set({
@@ -1828,7 +1843,28 @@ Schema.Behaviors = {
 			SelfEnhancement = set({ "OnExpire", "OnDamageTaken", "OnCasterDeath" }),
 		},
 		Defaults = { Radius = 7 },
-		PayloadKinds = { "Damage" },
+		-- Any payload that acts on the Humanoids inside the blast. Caster-only
+		-- (Enhancement, AerialMovement), object (Manipulation) and spawning
+		-- (Summon) payloads have no per-target meaning here.
+		PayloadKinds = {
+			"Damage",
+			"DamageOverTime",
+			"Heal",
+			"Restoration",
+			"Shield",
+			"ModifyAttribute",
+			"Transformation",
+			"Slow",
+			"Bind",
+			"Reveal",
+			"Control",
+			"Force",
+			"Displacement",
+			"TimeDilation",
+			"ElementalMark",
+			"ConsumeElementalMark",
+		},
+		DefaultPayloadKinds = { "Damage" },
 		MinimumPayloads = 1,
 		Fields = {
 			{
@@ -1848,6 +1884,51 @@ for formName, events in Schema.Behaviors.Explode.Events do
 		events.OnBreak = true
 	end
 end
+
+-- Starts a separate Projectile, Field, or Wave at the event, with its own
+-- settings and triggers (step.Effect; see SpellSpec.expandSpawnEffect). It is
+-- offered at the same timings as Explode.
+Schema.Behaviors.SpawnEffect = {
+	Label = "Spawn an effect at event location",
+	Description = "Starts a separate Projectile, Field, or Wave where this trigger occurred. It has its own settings and its own effects.",
+	Forms = Schema.Behaviors.Explode.Forms,
+	Events = (function()
+		local events = {}
+		for formName, formEvents in Schema.Behaviors.Explode.Events do
+			events[formName] = table.clone(formEvents)
+		end
+		-- Unlike Explode, spawning also fits area entry/exit and pulses (a
+		-- Field that reacts to entry, or fires a Projectile on each pulse).
+		-- Active-effect caps and the cascade budget bound how many start.
+		for _, formName in { "Field", "Aura" } do
+			events[formName].OnEnter = true
+			events[formName].OnExit = true
+			events[formName].OnTick = true
+		end
+		events.Projectile.OnTick = true
+		return events
+	end)(),
+	Defaults = { Count = 1, SpreadAngle = 0 },
+	PayloadKinds = {},
+	MinimumPayloads = 0,
+	Fields = {
+		{
+			Key = "Count",
+			Label = "Projectiles spawned",
+			Min = 1,
+			Max = Limits.MaxSpawnCount,
+			Integer = true,
+			Help = "Only spawned Projectiles can use more than one.",
+		},
+		{
+			Key = "SpreadAngle",
+			Label = "Fan angle (degrees)",
+			Min = 0,
+			Max = Limits.MaxSpawnSpreadAngle,
+			Help = "Total angle the spawned Projectiles fan across.",
+		},
+	},
+}
 
 Schema.Conditions = {
 	{
@@ -1940,6 +2021,11 @@ function Schema.supportsEvent(form: string, event: string, castingMode: string?)
 	return true
 end
 
+-- Timings that fire without resolving a target. Under ObjectTarget, payloads
+-- marked TargetIndependent (Summon) may use these in addition to the events
+-- that resolve the selected object.
+Schema.TargetIndependentEvents = set({ "OnCast", "OnSpawn" })
+
 function Schema.eventsForEffects(form: string, castingMode: string?, targeting: string?): { string }
 	local events = {}
 	local definition = Schema.Forms[form]
@@ -1966,12 +2052,19 @@ function Schema.eventsForEffects(form: string, castingMode: string?, targeting: 
 			continue
 		end
 		local supported = false
-		for kind in Schema.PayloadOrder do
+		for _, kind in Schema.PayloadOrder do
 			local payload = Schema.Payloads[kind]
 			local objectEventAllowed = objectEvents == nil or objectEvents[runtimeEvent] == true
 			if
 				Schema.supportsPayloadCapability(kind, form, event)
-				and (objectEventAllowed or (payload and payload.TargetIndependent == true))
+				and (
+					objectEventAllowed
+					or (
+						payload
+						and payload.TargetIndependent == true
+						and Schema.TargetIndependentEvents[runtimeEvent] == true
+					)
+				)
 			then
 				supported = true
 				break

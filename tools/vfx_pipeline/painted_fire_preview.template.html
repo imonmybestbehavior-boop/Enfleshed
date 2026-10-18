@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Enfleshed — Painted Fire Motion Study</title>
+<style>
+:root{color-scheme:dark;font-family:system-ui,sans-serif;background:#100e14;color:#ece5df}
+*{box-sizing:border-box}body{max-width:1100px;margin:0 auto;padding:26px 18px}
+h1{font-size:23px;margin:0 0 8px}p{color:#c7bcc8;line-height:1.5;margin:8px 0 18px}
+canvas{display:block;width:100%;height:auto;background:#15121b;border:1px solid #4b3c49;border-radius:8px}
+.controls{display:flex;gap:18px;align-items:center;flex-wrap:wrap;margin:18px 0}
+button,select,input{font:inherit}button,select{padding:9px 12px;background:#2d2532;color:#fff1d2;border:1px solid #685168;border-radius:5px;cursor:pointer}
+label{display:flex;gap:9px;align-items:center}input[type=range]{width:160px;accent-color:#f9943b}
+.small{font-size:13px}#phase{font-weight:600;color:#ffd389;min-width:100px}
+.reference{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:20px}
+figure{margin:0;min-width:0}figure img{display:block;width:100%;height:150px;object-fit:contain;background:#15121b;border-radius:6px}figcaption{color:#c7bcc8;font-size:13px;margin-top:8px}
+@media(max-width:580px){.reference{grid-template-columns:1fr}figure img{height:180px}input[type=range]{width:120px}}
+</style>
+</head>
+<body>
+<h1>Painted fire — motion study</h1>
+<p>Stable burning core, independently flowing flame tongues, curling outer layers and detached wisps. Travel and impact retain the approved timing. Local motion study, not a Roblox capture.</p>
+<canvas id="stage" width="960" height="440" role="img" aria-label="Animated painted fireball forming, traveling right with a flame trail, and bursting on impact"></canvas>
+<div class="controls">
+<button id="play" type="button">Pause</button><button id="restart" type="button">Restart</button>
+<label>Speed <select id="speed"><option value="0.5">½×</option><option value="1" selected>1×</option><option value="1.5">1½×</option></select></label>
+<label>Size <input id="size" type="range" min="0.55" max="1.45" value="1" step="0.05"></label>
+<label><input id="trail-toggle" type="checkbox" checked> Trail</label>
+<label><input id="light-bg" type="checkbox"> Light backdrop</label>
+<label><input id="contours-toggle" type="checkbox" checked> Layered flames</label>
+<label>Flame activity <select id="flame-fps"><option value="0.6">Slow</option><option value="1" selected>Normal</option><option value="1.4">Fast</option></select></label>
+<label>Flame layers <select id="flame-layer-count"><option value="4">Light</option><option value="8">Medium</option><option value="12" selected>Full</option></select></label>
+<span id="phase" aria-live="polite">Loading</span>
+</div>
+<label class="small">Timeline <input id="timeline" type="range" min="0" max="4.2" value="0" step="0.01" style="flex:1"></label>
+<p class="small">Toggle Layered flames to compare against the original still. The lower view holds the fireball in place so only flame motion is visible. The ribbon and impact artwork are separate pending passes.</p>
+<canvas id="contour-detail" width="960" height="300" role="img" aria-label="Side-by-side comparison of the original fireball and the animated flame contours"></canvas>
+<div class="controls"><button id="next-frame" type="button">Step flame motion</button><span id="frame-label">Independent flame layers</span><span class="small">Left: original still · Right: layered flame motion</span></div>
+<div class="reference">
+<figure><img id="core-ref" alt="Original compact painted fire core"><figcaption>Core · original color and transparency</figcaption></figure>
+<figure><img id="trail-ref" alt="Original painted flame ribbon"><figcaption>Ribbon · not a repeating texture yet</figcaption></figure>
+<figure><img id="impact-ref" alt="Original painted flame impact"><figcaption>Impact · one source keyframe</figcaption></figure>
+</div>
+<script>
+const assets = __ASSETS__;
+__LAYERS__
+const canvas=document.getElementById('stage'),ctx=canvas.getContext('2d');
+const play=document.getElementById('play'),restart=document.getElementById('restart');
+const speed=document.getElementById('speed'),size=document.getElementById('size'),timeline=document.getElementById('timeline');
+const phase=document.getElementById('phase'),trailToggle=document.getElementById('trail-toggle'),lightBg=document.getElementById('light-bg');
+const contoursToggle=document.getElementById('contours-toggle'),flameFPS=document.getElementById('flame-fps'),frameLabel=document.getElementById('frame-label');
+const layerCount=document.getElementById('flame-layer-count');
+const detail=document.getElementById('contour-detail'),detailCtx=detail.getContext('2d');
+const images={};let playing=!matchMedia('(prefers-reduced-motion: reduce)').matches,time=0,last=0,previousPhase='',flameTime=0,flameRenderer=null;
+const clamp=(v,a=0,b=1)=>Math.max(a,Math.min(b,v));
+const ease=t=>1-Math.pow(1-clamp(t),3);
+function layered(target,x,y,w){target.drawImage(flameRenderer.canvas,x-w*2.30/1.52,y-w*1.25/1.52,w*3.35/1.52,w*2.50/1.52);}
+function sprite(image,x,y,w,h,rotation=0,opacity=1){ctx.save();ctx.globalAlpha=clamp(opacity);ctx.translate(x,y);ctx.rotate(rotation);if(image===images.core&&flameRenderer&&contoursToggle.checked){layered(ctx,0,0,w);}else{ctx.drawImage(image,-w/2,-h/2,w,h);}ctx.restore();}
+function drawDetail(){const light=lightBg.checked;detailCtx.fillStyle=light?'#d7d1c8':'#15121b';detailCtx.fillRect(0,0,960,300);detailCtx.strokeStyle=light?'#aaa19a':'#3b303d';detailCtx.beginPath();detailCtx.moveTo(480,0);detailCtx.lineTo(480,300);detailCtx.stroke();detailCtx.drawImage(images.core,110,15,270,270);detailCtx.save();detailCtx.beginPath();detailCtx.rect(485,0,475,300);detailCtx.clip();if(flameRenderer&&contoursToggle.checked){layered(detailCtx,770,150,250);}else{detailCtx.drawImage(images.core,635,15,270,270);}detailCtx.restore();detailCtx.fillStyle=light?'#54464d':'#c7bcc8';detailCtx.font='13px system-ui';detailCtx.fillText('ORIGINAL STILL',20,281);detailCtx.fillText('INDEPENDENT FLAME LAYERS',500,281);frameLabel.textContent='Flame time '+flameTime.toFixed(2)+' s';}
+function draw(t){
+ const light=lightBg.checked,s=Number(size.value);ctx.clearRect(0,0,960,440);ctx.fillStyle=light?'#d7d1c8':'#15121b';ctx.fillRect(0,0,960,440);
+ ctx.strokeStyle=light?'#aaa19a':'#29222f';ctx.lineWidth=1;
+ for(let x=0;x<=960;x+=60){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,440);ctx.stroke();}
+ ctx.beginPath();ctx.moveTo(0,350);ctx.lineTo(960,350);ctx.stroke();
+ let label='Reset';const y=222;
+ if(t<.6){
+  label='Formation';const u=clamp(t/.6),scale=(.08+.92*ease(u))*s;
+  sprite(images.core,130,y,172*scale,172*scale,0,u);
+  for(let i=0;i<5;i++){const a=i*Math.PI*2/5+t*2,r=85*(1-u)+18;ctx.fillStyle='#ffb85c';ctx.globalAlpha=(1-u)*.7;ctx.beginPath();ctx.ellipse(130+Math.cos(a)*r,y+Math.sin(a)*r,2,5,a,0,Math.PI*2);ctx.fill();}ctx.globalAlpha=1;
+ }else if(t<2.25){
+  label='Flight';const u=(t-.6)/1.65,x=130+510*Math.pow(u,.82),bob=0;
+  if(trailToggle.checked){const w=Math.min(390,60+(x-130)*.9)*s; sprite(images.trail,x-w*.50-28*s,y+bob,w,Math.min(130,w/3)*s,Math.sin(t*8)*.025,clamp(u*7));}
+  sprite(images.core,x,y,180*s,180*s,0);
+ }else if(t<3.45){
+  label='Impact';const u=(t-2.25)/1.2,expansion=.25+1.02*ease(u*2.5),alpha=1-clamp((u-.35)/.65);
+  if(trailToggle.checked&&u<.25){sprite(images.trail,475,y,300*s,100*s,0,1-u*4);}
+  sprite(images.impact,640,y,315*s*expansion,315*s*expansion,Math.sin(u*4)*.045,alpha);
+  for(let i=0;i<12;i++){const a=i*2.3999,r=(35+u*130)*s;ctx.fillStyle=i%3?'#ff7d22':'#ffe09a';ctx.globalAlpha=alpha;ctx.beginPath();ctx.ellipse(640+Math.cos(a)*r,y+Math.sin(a)*r+u*u*40,1.5*s,4*s,a,0,Math.PI*2);ctx.fill();}ctx.globalAlpha=1;
+ }else{label='Dissipated';}
+ ctx.fillStyle=light?'#54464d':'#b9a9bb';ctx.font='13px system-ui';ctx.fillText('LOCAL MOTION STUDY / NO ROBLOX RENDERING OR GAMEPLAY',20,30);
+ if(previousPhase!==label){phase.textContent=label;previousPhase=label;}
+}
+function animate(now){const dt=last?Math.min((now-last)/1000,.05):0;last=now;if(playing){const scaled=dt*Number(speed.value);time=(time+scaled)%4.2;flameTime+=scaled;timeline.value=time;}flameRenderer.render(flameTime*Number(flameFPS.value),Number(layerCount.value));draw(time);drawDetail();requestAnimationFrame(animate);}
+play.addEventListener('click',()=>{playing=!playing;play.textContent=playing?'Pause':'Play';});
+restart.addEventListener('click',()=>{time=0;flameTime=0;timeline.value=0;});
+document.getElementById('next-frame').addEventListener('click',()=>{playing=false;play.textContent='Play';flameTime+=1/12;});
+timeline.addEventListener('input',()=>{playing=false;play.textContent='Play';time=Number(timeline.value);});
+Promise.all(Object.entries(assets).map(([name,src])=>new Promise((resolve,reject)=>{const img=new Image();img.onload=()=>{images[name]=img;const ref=document.getElementById(name+'-ref');if(ref)ref.src=src;resolve();};img.onerror=reject;img.src=src;}))).then(()=>{flameRenderer=createLayeredFire(images);play.textContent=playing?'Pause':'Play';requestAnimationFrame(animate);}).catch(error=>{phase.textContent='Preview unavailable';console.error(error);});
+</script>
+</body></html>

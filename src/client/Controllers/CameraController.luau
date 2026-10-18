@@ -8,17 +8,20 @@ local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 local Workspace = game:GetService("Workspace")
 local Config = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared").Configuration.Sandbox).Camera
+local studioSandbox = game:GetService("RunService"):IsStudio()
+	and require(game:GetService("ReplicatedStorage").Shared.Configuration.DevelopmentSandbox).Enabled
 local Camera = {}
 
 function Camera.start()
 	local player = Players.LocalPlayer
 	local enabled = true
 	local yaw = 0
-	local pitch = math.rad(-12)
+	local pitch = Config.InitialPitch
 	local gui = Instance.new("ScreenGui")
 	gui.Name = "SandboxCrosshair"
 	gui.ResetOnSpawn = false
 	gui.IgnoreGuiInset = true
+	gui.DisplayOrder = 120
 	gui.Parent = player:WaitForChild("PlayerGui")
 	local crosshair = Instance.new("Frame")
 	crosshair.Name = "Center"
@@ -51,16 +54,58 @@ function Camera.start()
 		part.AnchorPoint = Vector2.new(0.5, 0.5)
 		part.Size = line[1]
 		part.Position = UDim2.fromScale(0.5, 0.5) + line[2]
-		part.BackgroundColor3 = Color3.new(1, 1, 1)
-		part.BackgroundTransparency = Config.Crosshair.Transparency
+		part.BackgroundColor3 = Color3.fromRGB(255, 239, 198)
+		part.BackgroundTransparency = math.min(Config.Crosshair.Transparency, 0.05)
 		part.BorderSizePixel = 0
+		part.ZIndex = 10
 		part.Parent = crosshair
 	end
 
+	-- ALT toggles a free cursor during gameplay; aim stays on the crosshair.
+	local hint = Instance.new("TextLabel")
+	hint.Name = "CursorHint"
+	hint.AnchorPoint = Vector2.new(0.5, 0)
+	hint.Position = UDim2.new(0.5, 0, 0.5, 26)
+	hint.Size = UDim2.fromOffset(220, 18)
+	hint.BackgroundTransparency = 1
+	hint.Font = Enum.Font.GothamBold
+	hint.TextSize = 12
+	hint.TextColor3 = Color3.fromRGB(255, 239, 198)
+	hint.TextStrokeTransparency = 0.4
+	hint.Text = "ALT · LOCK AIM"
+	hint.Visible = false
+	hint.Parent = gui
+	UserInputService.InputBegan:Connect(function(input)
+		if input.KeyCode == Enum.KeyCode.LeftAlt or input.KeyCode == Enum.KeyCode.RightAlt then
+			player:SetAttribute("CursorFreed", player:GetAttribute("CursorFreed") ~= true)
+		end
+	end)
+
+	local mouseLocked: boolean? = nil
 	local function setMouseLocked(value: boolean)
-		UserInputService.MouseBehavior = if value then Enum.MouseBehavior.LockCenter else Enum.MouseBehavior.Default
-		UserInputService.MouseIconEnabled = not value
-		gui.Enabled = value
+		local grimoireOpen = player:GetAttribute("MagicLabOpen") == true
+		local missionCursor = player:GetAttribute("UIModalOpen") == true
+		value = value and not missionCursor
+		local desiredBehavior = if value then Enum.MouseBehavior.LockCenter else Enum.MouseBehavior.Default
+		local desiredIconEnabled = not value and (missionCursor or not grimoireOpen)
+		-- Only repair properties when another UI (for example, the Escape menu)
+		-- has changed them. This keeps gameplay mouse state stable without
+		-- rewriting it every frame, while the grimoire can own its custom cursor.
+		if mouseLocked == value then
+			if UserInputService.MouseBehavior ~= desiredBehavior then
+				UserInputService.MouseBehavior = desiredBehavior
+			end
+			if UserInputService.MouseIconEnabled ~= desiredIconEnabled then
+				UserInputService.MouseIconEnabled = desiredIconEnabled
+			end
+			return
+		end
+		mouseLocked = value
+		UserInputService.MouseBehavior = desiredBehavior
+		UserInputService.MouseIconEnabled = desiredIconEnabled
+		-- Keep the aim reticle visible while the editor releases the mouse. The
+		-- crosshair marks the viewport-center aim ray in both states.
+		gui.Enabled = true
 	end
 
 	local function getRoot(): BasePart?
@@ -74,18 +119,20 @@ function Camera.start()
 		if not camera then
 			return Vector3.zAxis, Vector3.zero, nil, nil
 		end
+		local viewport = camera.ViewportSize
+		local centerRay = camera:ViewportPointToRay(viewport.X * 0.5, viewport.Y * 0.5)
 		local params = RaycastParams.new()
 		params.FilterType = Enum.RaycastFilterType.Exclude
 		params.FilterDescendantsInstances = { player.Character or Workspace }
 		params.RespectCanCollide = true
-		local direction = camera.CFrame.LookVector
-		local hit = Workspace:Raycast(camera.CFrame.Position, direction * Config.AimDistance, params)
+		local direction = centerRay.Direction.Unit
+		local hit = Workspace:Raycast(centerRay.Origin, direction * Config.AimDistance, params)
 		local target: Model? = nil
 		local targetParams = RaycastParams.new()
 		targetParams.FilterType = Enum.RaycastFilterType.Exclude
 		targetParams.FilterDescendantsInstances = { player.Character or Workspace }
 		targetParams.RespectCanCollide = false
-		local targetHit = Workspace:Raycast(camera.CFrame.Position, direction * Config.AimDistance, targetParams)
+		local targetHit = Workspace:Raycast(centerRay.Origin, direction * Config.AimDistance, targetParams)
 		if targetHit then
 			local model = targetHit.Instance:FindFirstAncestorOfClass("Model")
 			if model and model:FindFirstChildOfClass("Humanoid") then
@@ -93,14 +140,18 @@ function Camera.start()
 			end
 		end
 		return direction,
-			if hit then hit.Position else camera.CFrame.Position + direction * Config.AimDistance,
+			if hit then hit.Position else centerRay.Origin + direction * Config.AimDistance,
 			target,
 			if targetHit then targetHit.Instance else nil
 	end
 
 	function Camera:SetGameplayMouseLookEnabled(value: boolean)
 		enabled = value
-		setMouseLocked(value and player:GetAttribute("OpeningComplete") == true)
+		setMouseLocked(
+			value
+				and player:GetAttribute("MagicLabOpen") ~= true
+				and (studioSandbox or player:GetAttribute("CharacterReady") == true)
+		)
 	end
 
 	RunService:BindToRenderStep("SandboxThirdPersonCamera", Enum.RenderPriority.Camera.Value, function()
@@ -111,9 +162,12 @@ function Camera.start()
 		end
 		camera.CameraType = Enum.CameraType.Scriptable
 		local playing = enabled
-			and player:GetAttribute("OpeningComplete") == true
+			and (studioSandbox or player:GetAttribute("CharacterReady") == true)
 			and not player:GetAttribute("MagicLabOpen")
-		setMouseLocked(playing)
+			and not player:GetAttribute("InventoryOpen")
+			and not player:GetAttribute("UIModalOpen")
+		hint.Visible = playing and player:GetAttribute("CursorFreed") == true
+		setMouseLocked(playing and player:GetAttribute("CursorFreed") ~= true)
 		local character = player.Character
 		local rotationLocked = character and character:GetAttribute("MagicRotationLocked") == true
 		local delta = if playing and not rotationLocked then UserInputService:GetMouseDelta() else Vector2.zero
@@ -155,7 +209,7 @@ function Camera.start()
 		Camera:SetGameplayMouseLookEnabled(true)
 	end)
 
-	setMouseLocked(player:GetAttribute("OpeningComplete") == true)
+	setMouseLocked(studioSandbox or player:GetAttribute("CharacterReady") == true)
 	return {
 		GetAim = getAim,
 		SetGameplayMouseLookEnabled = function(value: boolean)

@@ -27,41 +27,16 @@ return {
 		CorrectionOwnershipTime = 0.2,
 		SpawnValidationGrace = 1, -- Movement anchoring only; not damage immunity.
 		CharacterReadyTimeout = 10,
+		BlockWalkMultiplier = 0.5, -- Walk speed while guarding; sprint is off while blocking.
 	},
 	Combat = {
 		ComboReset = 0.85,
 		InputBuffer = 0.18,
 		MinimumFacingDot = 0,
 		OverlapCollisionGroup = "SandboxCombatQuery",
-		Attacks = {
-			{
-				Startup = 0.05,
-				Active = 0.08,
-				Recovery = 0.12,
-				Damage = 24,
-				Size = Vector3.new(5, 5, 5),
-				Offset = 3,
-				Reach = 6,
-			},
-			{
-				Startup = 0.06,
-				Active = 0.08,
-				Recovery = 0.12,
-				Damage = 26,
-				Size = Vector3.new(5, 5, 5),
-				Offset = 3,
-				Reach = 6,
-			},
-			{
-				Startup = 0.09,
-				Active = 0.10,
-				Recovery = 0.19,
-				Damage = 30,
-				Size = Vector3.new(6, 5, 5),
-				Offset = 3,
-				Reach = 6.5,
-			},
-		},
+		PendingTimeout = 0.6, -- Stop waiting for a lost attack reply after this long.
+		BlockReleaseRecovery = 0.08, -- Lowering a guard can't be cancelled straight into an attack.
+		MaxFacingCorrectionDot = 0, -- Client swing facing may differ from the server's by up to 90 degrees.
 	},
 	Networking = { RequestsPerSecond = 20, Burst = 30, MaxSequence = 2147483647 },
 	Magic = {
@@ -75,6 +50,13 @@ return {
 			ManaRegenerationPerSecond = 30, -- Accelerated sandbox recovery.
 			StrainRecoveryPerSecond = 8,
 			SafeManaDemand = 35,
+			SafeStrain = 18,
+		},
+		CombatResources = {
+			StartingMana = 300,
+			ManaRegenerationPerSecond = 10,
+			StrainRecoveryPerSecond = 4,
+			SafeManaDemand = 45,
 			SafeStrain = 18,
 		},
 		V2 = { -- Development breadth-test tuning; not final spell balance.
@@ -91,9 +73,10 @@ return {
 	},
 	Camera = {
 		MouseSensitivity = 0.0025,
-		Distance = 12,
+		Distance = 8.5,
 		Height = 2.5,
-		ShoulderOffset = 1.5,
+		ShoulderOffset = 2,
+		InitialPitch = math.rad(-20),
 		MinimumPitch = math.rad(-55),
 		MaximumPitch = math.rad(35),
 		ObstructionPadding = 0.35,
@@ -130,10 +113,9 @@ return {
 		},
 		DebugTelegraph = true, -- Temporary replicated parts/highlight, not a VFX system.
 		Reactions = {
-			Minor = { Flinch = 0, CanInterruptTelegraph = false },
-			Significant = { Flinch = 0.18, CanInterruptTelegraph = true },
-			Major = { Flinch = 0.52, CanInterruptTelegraph = true },
-			VulnerabilityMultiplier = 1,
+			Minor = { Flinch = 0 },
+			Significant = { Flinch = 0.18 },
+			Major = { Flinch = 0.52 },
 		},
 		Nascent = {
 			RushingStrike = {

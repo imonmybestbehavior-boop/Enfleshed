@@ -1,0 +1,9 @@
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "builtin_ViewSelector.rbxm.ViewSelector.Main:77: attempt to index nil with 'Parent'\nStack Begin\nScript 'builtin_ViewSelector.rbxm.ViewSelector.Main', Line 77 - function init\nScript 'builtin_ViewSelector.rbxm.ViewSelector.Main', Line 507\nStack End\nContentId: rbxassetid://203785492 failed due to: Asset type does not match requested type\nEclipse Animator successfully loaded! Developed and maintained by @riftkuro"
+    }
+  ],
+  "isError": false
+}

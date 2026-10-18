@@ -90,6 +90,11 @@ local function internalDefault(kind, formName, schema)
 	if definition and definition.Principle then
 		return definition.Principle
 	end
+	-- Matches the Lab's creation step (MagicLabController): material
+	-- Manipulation always uses the Matter Principle.
+	if kind == "Manipulation" then
+		return "Matter"
+	end
 	-- The runtime still requires a valid Source contract. Pick its default privately;
 	-- this value never becomes a creation choice or a description of the spell.
 	if schema.supportsPrincipleForm("Energy", formName) then
@@ -119,6 +124,12 @@ local function candidate(intent, formName, kind, event, schema, spec)
 	local payload = spec.copy(definition.Defaults or {})
 	payload.Kind = kind
 	draft.Triggers[event] = { { Payloads = { payload } } }
+	-- Only offer starters the server will accept as created (for example,
+	-- Manipulation on a Beam needs ObjectTarget and a material the guided
+	-- path does not configure).
+	if not spec.validate(draft) then
+		return nil
+	end
 	return {
 		Form = formName,
 		-- Internal compatibility default required by the current spell contract.

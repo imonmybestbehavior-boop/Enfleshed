@@ -4,6 +4,8 @@ local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local player = Players.LocalPlayer
 local SummonConfig = require(game:GetService("ReplicatedStorage").Shared.Configuration.MagicSummons)
+local studioSandbox = game:GetService("RunService"):IsStudio()
+	and require(game:GetService("ReplicatedStorage").Shared.Configuration.DevelopmentSandbox).Enabled
 local Controller = {}
 
 local commandLabels = {
@@ -263,7 +265,8 @@ function Controller.start(sendCommand: (string) -> (), cycleSelection: () -> ())
 			button.AutoButtonColor = #owned > 0
 			button.TextTransparency = if #owned > 0 then 0 else 0.45
 		end
-		gui.Enabled = player:GetAttribute("OpeningComplete") == true and player:GetAttribute("MagicLabOpen") ~= true
+		gui.Enabled = (studioSandbox or player:GetAttribute("CharacterReady") == true)
+			and player:GetAttribute("MagicLabOpen") ~= true
 	end
 
 	local watchedModels: { [Instance]: boolean } = {}
@@ -302,7 +305,7 @@ function Controller.start(sendCommand: (string) -> (), cycleSelection: () -> ())
 		watchFolder(existingFolder)
 	end
 	player:GetAttributeChangedSignal("MagicSelectedSummonId"):Connect(refresh)
-	player:GetAttributeChangedSignal("OpeningComplete"):Connect(refresh)
+	player:GetAttributeChangedSignal("CharacterReady"):Connect(refresh)
 	player:GetAttributeChangedSignal("MagicLabOpen"):Connect(refresh)
 
 	return {

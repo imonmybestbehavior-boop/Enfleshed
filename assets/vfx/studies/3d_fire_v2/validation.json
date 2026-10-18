@@ -1,0 +1,15 @@
+{
+  "passed": true,
+  "scope": "Blender source and FBX reimport; revised asset not Studio verified",
+  "tongues": 18,
+  "deform_bones_per_tongue": 22,
+  "max_skin_influences": 4,
+  "loop_max_vertex_error": 0.0,
+  "minimum_quarter_cycle_vertex_motion": 0.7152365867943945,
+  "maximum_bone_scale_error": 1.1920928955078125e-07,
+  "maximum_rotation_determinant_error": 1.0728836059570312e-06,
+  "fbx_meshes": 1,
+  "fbx_bones": 23,
+  "fbx_animation_present": true,
+  "export_sha256": "4d16d35fbe00d54c050de195c17af4dba4d281ae7ca8e6db745988e9fe83ba5f"
+}

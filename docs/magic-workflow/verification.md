@@ -2,9 +2,9 @@
 
 ## Open the current build
 
-Open `Enfleshed_GrimoirePreview.rbxlx` in Studio, press Play, then P or click **Open grimoire**. Studio now starts in the practice arena with the real player magic system, an ally and enemy training dummy, range markings, material sources and a movable object. The grimoire's gamepad shortcut is Select/Back; native button selection remains available.
+Open `Enfleshed-Combat-Sandbox.rbxlx` in Studio, press Play, then P or click **Open grimoire**. Studio now starts in the practice arena with the real player magic system, an ally and enemy training dummy, range markings, material sources and a movable object. The grimoire's gamepad shortcut is Select/Back; native button selection remains available.
 
-The original `Enfleshed.rbxlx` is not rewritten. Builds from `default.project.json` include this work.
+The active Rojo build is `Enfleshed-Combat-Sandbox.rbxlx`. The earlier city and narrative content has been moved into `Shelved Project`.
 
 ## Implemented workflow
 
@@ -25,7 +25,7 @@ A real-schema integration test found an existing Lab serialization defect: savin
 
 Studio DataStore saving requires a published test experience with API access enabled. If unavailable, the UI explicitly reports SESSION ONLY; those changes do not survive server shutdown. No claim of offline file persistence is made.
 
-For the existing narrative/city entry point, set `src/shared/Configuration/DevelopmentSandbox.luau` → `Enabled = false`. The override is Studio-only. Narrative scripts, appearance selection and city content remain in the project.
+The Studio fighter sandbox starts directly in the castle arena without a narrative opening.
 
 ## Checks executed
 
@@ -49,7 +49,7 @@ lua tests/test_grimoire_summary.lua
 lua tests/test_magic_lab_access.lua
 python scripts/run_luau_magic_tests.py /path/to/luau --workflow-only
 python scripts/run_luau_ui_tests.py /path/to/luau
-rojo build default.project.json -o Enfleshed_GrimoirePreview.rbxlx
+rojo build default.project.json -o Enfleshed-Combat-Sandbox.rbxlx
 ```
 
 ## Known existing regression-suite mismatch
@@ -67,4 +67,4 @@ This environment has no Roblox Studio runtime. The implementation is not declare
 5. In a published private Studio test with API access, save, stop and restart. Verify spells, collections, labels, favorites, equipped references and help preference. Repeat with API access disabled and confirm session-only feedback and no overwrite of existing saved records.
 6. Exercise malformed/unsupported saved profiles, server validation failure, rapid library commands and save retries. Confirm errors preserve draft context.
 7. Reset targets/player, restore resources, end spells and return to start. Existing expiry effects may execute during cleanup. Dummies are anchored; verify displacement and motion on an appropriate movable target or second client.
-8. Set DevelopmentSandbox.Enabled to false and confirm the original city/narrative entry path remains usable.
+8. Confirm test-only authoring and training remotes stay Studio-gated; live servers should not expose the development Grimoire transport.
