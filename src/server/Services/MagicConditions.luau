@@ -61,7 +61,8 @@ local function environmentZoneAt(position: Vector3): (string?, string?)
 			priority = 0
 		end
 		if
-			priority > selectedPriority or (priority == selectedPriority and (selectedId == nil or zoneId < selectedId))
+			priority > selectedPriority
+			or (priority == selectedPriority and (selectedId == nil or zoneId < selectedId))
 		then
 			selectedId = zoneId
 			selectedTags = EnvironmentZoneSpec.encodeTags(instance:GetAttribute("MagicZoneTags"))

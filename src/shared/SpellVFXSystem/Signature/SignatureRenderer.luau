@@ -367,7 +367,8 @@ local function buildLayers(session, layers)
 		if layer.Kind == "DirectionalSprite" then
 			local definition = Assets.directionalSprite(layer.DirectionalAsset)
 			if definition then
-				entry.Directional = DirectionalSprite.new(session.Host, session.Folder, definition, (p.Size or 4.2)*session.Scale)
+				entry.Directional =
+					DirectionalSprite.new(session.Host, session.Folder, definition, (p.Size or 4.2) * session.Scale)
 			end
 		elseif layer.Kind == "Sprite" or layer.Kind == "Emitter" then
 			local base = if layer.Kind == "Sprite" then 3 / math.max(0.1, p.Lifetime or 0.35) else p.Rate or 0
@@ -784,7 +785,7 @@ local function updateEntry(session, entry, t, dt, frame, tier)
 	local ramp = if (p.Ramp or 0) > 0 then session.Ramp else 1
 	local fading = if session.Ending then math.clamp((session.Clock - session.Ending) / 0.3, 0, 1) else 0
 	if entry.Directional then
-		entry.Directional:Update(frame, workspace.CurrentCamera, t, shown, (p.Opacity or 1)*(1-fading))
+		entry.Directional:Update(frame, workspace.CurrentCamera, t, shown, (p.Opacity or 1) * (1 - fading))
 	end
 	if entry.Emitter and layer.Kind ~= "Burst" then
 		entry.Emitter.Enabled = shown and not session.Ending and ramp > 0.02
@@ -1003,7 +1004,11 @@ function Renderer.attach(anchor: BasePart, plan, options)
 	end
 	local phase = anchor:GetAttribute("VFXPhase") or plan.Phase or "Sustain"
 	local quality = options.Quality or Renderer.Quality
-	local resolved = Planner.plan(plan, phase, { CastingCue = plan.CastingCue, Quality = quality, DirectionalSprites = Renderer.UseDirectionalSprites and Assets.UseCustom })
+	local resolved = Planner.plan(plan, phase, {
+		CastingCue = plan.CastingCue,
+		Quality = quality,
+		DirectionalSprites = Renderer.UseDirectionalSprites and Assets.UseCustom,
+	})
 	if not resolved or #resolved.Layers == 0 then
 		return nil
 	end

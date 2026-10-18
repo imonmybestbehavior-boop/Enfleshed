@@ -170,7 +170,8 @@ function Spec.createDraft(formName: string, principle: string)
 		if draft.Targeting == "ObjectTarget" and formName == "Manipulation" then
 			draft.Material = { SearchRadius = 12 }
 		elseif
-			draft.Targeting == "ObjectTarget" and (formName == "Projectile" or formName == "Beam" or formName == "Wave")
+			draft.Targeting == "ObjectTarget"
+			and (formName == "Projectile" or formName == "Beam" or formName == "Wave")
 		then
 			draft.Material = nil
 		else
@@ -692,7 +693,8 @@ function Spec.validate(d, spawnNesting: number?)
 	then
 		return false, "UntilTargetLost requires an entity or object target"
 	elseif
-		life.Mode == "UntilResourceDepleted" and not bounded(c.ManaUpkeepPerSecond, 0.01, Limits.MaxManaUpkeepPerSecond)
+		life.Mode == "UntilResourceDepleted"
+		and not bounded(c.ManaUpkeepPerSecond, 0.01, Limits.MaxManaUpkeepPerSecond)
 	then
 		return false, "UntilResourceDepleted requires positive ongoing mana upkeep"
 	elseif

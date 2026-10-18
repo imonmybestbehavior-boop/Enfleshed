@@ -149,8 +149,12 @@ function Planner.plan(plan, phase, options)
 	local scalars = Planner.scalars(plan)
 	local palette = tint(signature, plan)
 	local layers = {}
-	local sourceLayers = if role == "Projectile" and phase ~= "End" and signature.ProjectileLayers and options.DirectionalSprites ~= false
-		then signature.ProjectileLayers else signature.Layers
+	local sourceLayers = if role == "Projectile"
+			and phase ~= "End"
+			and signature.ProjectileLayers
+			and options.DirectionalSprites ~= false
+		then signature.ProjectileLayers
+		else signature.Layers
 	for _, slot in ipairs(Library.Slots) do
 		if wanted[slot] then
 			for _, spec in ipairs(sourceLayers) do
