@@ -1,0 +1,9 @@
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "{\"Before\":{\"Frame\":31,\"FrameUpdates\":80},\"After\":{\"Frame\":36,\"FrameUpdates\":113},\"TextureID\":\"rbxassetid://81127106843904\",\"MeshId\":\"rbxassetid://116032385577570\",\"Scope\":\"Imported mesh animated with rigid Bone.Transform poses; per-bone scale omitted\",\"Bones\":22}"
+    }
+  ],
+  "isError": false
+}

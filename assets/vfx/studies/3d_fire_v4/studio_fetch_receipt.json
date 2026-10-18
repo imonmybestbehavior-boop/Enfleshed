@@ -1,0 +1,9 @@
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "{\"Statuses\":[],\"FetchCallOK\":true,\"ImportedMeshes\":[],\"Metadata\":[{\"OK\":true,\"Frame\":\"Frame_001\",\"AssetTypeId\":1},{\"OK\":true,\"Frame\":\"Frame_012\",\"AssetTypeId\":1},{\"OK\":true,\"Frame\":\"Frame_024\",\"AssetTypeId\":1}]}"
+    }
+  ],
+  "isError": false
+}

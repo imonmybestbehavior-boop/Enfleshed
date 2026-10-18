@@ -9,6 +9,21 @@ local registeredSpecialResourceProperties = {}
 ConditionSpec.MaxDepth = 4
 ConditionSpec.MaxNodes = 32
 ConditionSpec.MaxChildren = 8
+-- Families a trigger step may branch on. Environment and Material need world
+-- queries the event context does not perform, so they are not offered.
+ConditionSpec.StepConditionFamilies = {
+	Caster = true,
+	Target = true,
+	Relationship = true,
+	Status = true,
+	Resource = true,
+	SpellState = true,
+	Time = true,
+}
+-- Properties inside allowed families that event contexts cannot resolve.
+ConditionSpec.StepUnavailableProperties = {
+	Target = { HasLineOfSight = true },
+}
 ConditionSpec.EndConditionFamilies = {
 	Caster = true,
 	Resource = true,
@@ -21,6 +36,8 @@ ConditionSpec.EndConditionFamilies = {
 local numeric = { "==", "!=", ">", ">=", "<", "<=", "Within", "Outside" }
 local boolean = { "==", "!=", "Is", "IsNot" }
 local stringComparison = { "==", "!=", "Is", "IsNot", "Has", "DoesNotHave" }
+-- Counters also support cadence: "MultipleOf 3" passes on every third trigger.
+local counter = { "==", "!=", ">", ">=", "<", "<=", "MultipleOf" }
 
 ConditionSpec.Properties = {
 	Caster = {
@@ -56,6 +73,10 @@ ConditionSpec.Properties = {
 		Tags = { Kind = "String", MaxLength = 48, Operators = { "Has", "DoesNotHave" } },
 		Phase = { Kind = "String", MaxLength = 32, Operators = stringComparison },
 		IsMaintained = { Kind = "Boolean", Operators = boolean },
+		-- Runtime counters, kept per active effect by MagicService.emit.
+		TriggerCount = { Kind = "Number", Min = 0, Max = 10000, Integer = true, Operators = counter },
+		AreaOccupants = { Kind = "Number", Min = 0, Max = 64, Integer = true, Operators = numeric },
+		EventTargets = { Kind = "Number", Min = 0, Max = 64, Integer = true, Operators = numeric },
 	},
 	Resource = {
 		Mana = { Kind = "Number", Min = 0, Max = 100000, Operators = numeric },
@@ -208,6 +229,9 @@ local function validateNode(node, depth, budget)
 		if descriptor.Integer and value % 1 ~= 0 then
 			return false, "Condition value must be a whole number"
 		end
+		if node.Operator == "MultipleOf" and value < 1 then
+			return false, "MultipleOf needs a whole number of at least 1"
+		end
 	elseif descriptor.Kind == "Boolean" then
 		if type(value) ~= "boolean" then
 			return false, "Condition value must be true or false"
@@ -251,6 +275,38 @@ function ConditionSpec.validateForFamilies(conditions, families)
 	end
 	if not usesOnlyFamilies(conditions, families) then
 		return false, "Condition uses a target-only family in a caster lifetime rule"
+	end
+	return true
+end
+
+local function usesUnavailableStepProperty(node)
+	if node.Operator == "ALL" or node.Operator == "ANY" or node.Operator == "NOT" then
+		for _, child in ipairs(node.Conditions) do
+			if usesUnavailableStepProperty(child) then
+				return true
+			end
+		end
+		return false
+	end
+	local unavailable = ConditionSpec.StepUnavailableProperties[node.Family]
+	return unavailable ~= nil and unavailable[node.Property] == true
+end
+
+-- A trigger-step condition must be a rule tree (not the legacy list form)
+-- built only from values an event context can resolve.
+function ConditionSpec.validateStep(conditions)
+	if type(conditions) ~= "table" or conditions.Operator == nil then
+		return false, "Step conditions must be an ALL, ANY, or NOT rule group"
+	end
+	local ok, reason = ConditionSpec.validateForFamilies(conditions, ConditionSpec.StepConditionFamilies)
+	if not ok then
+		return false,
+			if reason == "Condition uses a target-only family in a caster lifetime rule"
+				then "Step condition uses a value that trigger events cannot check"
+				else reason
+	end
+	if usesUnavailableStepProperty(conditions) then
+		return false, "Step condition uses a value that trigger events cannot check"
 	end
 	return true
 end

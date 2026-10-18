@@ -18,6 +18,8 @@ local ElementalMarkSpec = require(game:GetService("ReplicatedStorage").Shared.Mo
 local SpecialResourceDefinitions =
 	require(game:GetService("ReplicatedStorage").Shared.Configuration.MagicLocus).SpecialResources
 local Control = require(script.Parent.MagicControlService)
+local StepCondition = require(game:GetService("ReplicatedStorage").Shared.Modules.MagicStepCondition)
+local RuntimeCounters = require(game:GetService("ReplicatedStorage").Shared.Modules.MagicRuntimeCounters)
 
 local MAX_ENVIRONMENT_ZONE_ID_LENGTH = 32
 
@@ -156,6 +158,8 @@ local function values(context: any): { [string]: any }
 		end
 		hitCount = count
 	end
+	-- Runtime counters (MagicService.emit records TriggerCount/EventTargets).
+	local areaOccupants = RuntimeCounters.occupants(castState)
 	local activePosition = castState.Position
 	local activeDistance = if casterRoot and typeof(activePosition) == "Vector3"
 		then (activePosition - casterRoot.Position).Magnitude
@@ -217,6 +221,9 @@ local function values(context: any): { [string]: any }
 			Tags = SpellIdentitySpec.encode(castState.SpellTags or {}),
 			Phase = castState.CurrentPhase or "Casting",
 			IsMaintained = castState.IsChannel == true,
+			TriggerCount = castState.TriggerCount,
+			AreaOccupants = areaOccupants,
+			EventTargets = castState.EventTargets,
 		},
 		Resource = {
 			Mana = resource.Mana,
@@ -532,6 +539,33 @@ function Conditions.targets(
 		end
 	end
 	return result
+end
+
+-- Trigger-step condition adapter: filters the event's targets with the step's
+-- rule tree. Values come from the same whitelisted resolver as cast rules.
+function Conditions.stepTargets(condition: any, context: any): { Humanoid }?
+	local spellState = table.clone(context.SpellState or {})
+	spellState.SpellTags = context.SpellTags or {}
+	return StepCondition.filter(condition, context.Targets or {}, function(humanoid)
+		local model = if typeof(humanoid) == "Instance" then humanoid.Parent else nil
+		local target = if model and model:IsA("Model") then model else nil
+		local resolved = values({
+			Caster = context.Caster,
+			Target = target,
+			Player = context.Player,
+			SpellId = context.SpellId,
+			Resources = context.Resources,
+			Position = context.Origin,
+			TargetRoot = rootOf(target),
+			-- Environment is not a step family; skip the zone lookup.
+			EnvironmentZone = false,
+			SpellState = spellState,
+		})
+		return function(familyName, propertyName)
+			local family = resolved[familyName]
+			return family and family[propertyName]
+		end
+	end)
 end
 
 return Conditions

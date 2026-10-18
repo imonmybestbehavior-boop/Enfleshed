@@ -1,0 +1,471 @@
+{
+  "schema_version": 1,
+  "version": 1,
+  "generator": "tools/vfx_pipeline/illustrated_fire.py",
+  "generator_sha256": "65c8c10dc2824b974a2d228b01af97bcffa6176dcdde30fa12635af6380dd1f9",
+  "status": "local_art_review_only",
+  "palette_preview": [
+    "#18101f",
+    "#a72d35",
+    "#f25b27",
+    "#ffb73d",
+    "#fff0b1"
+  ],
+  "dependencies": [
+    "Pillow"
+  ],
+  "assets": {
+    "core": {
+      "file": "assets/vfx/studies/illustrated_fire_v1/textures/ink_cinder_core_v1.png",
+      "sha256": "f3e60cc7eefb427827212d115ba3c56593195d483908f5363bf290135fc4e026",
+      "size": [
+        1024,
+        1024
+      ],
+      "frames": 16,
+      "layout": "Grid4x4",
+      "loop": true,
+      "fps": 16,
+      "sources": [
+        {
+          "path": "assets/vfx/studies/illustrated_fire_v1/source/core_00.svg",
+          "sha256": "94f0c2fa63fce6b9833ca154019dc72dbf74a561d299d74cfb09da28f56bfbb2"
+        },
+        {
+          "path": "assets/vfx/studies/illustrated_fire_v1/source/core_01.svg",
+          "sha256": "2f892cfc19a87b8f9989cddbada316b49fd986b1f63e59336d21b466ba3e01a6"
+        },
+        {
+          "path": "assets/vfx/studies/illustrated_fire_v1/source/core_02.svg",
+          "sha256": "23f982a039d50743012b86138abb433402c53d4cc026a4fdb86f7c6b51aa9946"
+        },
+        {
+          "path": "assets/vfx/studies/illustrated_fire_v1/source/core_03.svg",
+          "sha256": "626d935504bc6541d31bde15fe33cad0c79e1c99a95158c93893666fa22b579f"
+        },
+        {
+          "path": "assets/vfx/studies/illustrated_fire_v1/source/core_04.svg",
+          "sha256": "0671ff6751b3716a460706c905ac71c38a28abbed121fa34a4309e7fed8ce15c"
+        },
+        {
+          "path": "assets/vfx/studies/illustrated_fire_v1/source/core_05.svg",
+          "sha256": "a98b895e26b856a4a092db8f8efc235a8be16efd42cfe701a18d1a54b25faae1"
+        },
+        {
+          "path": "assets/vfx/studies/illustrated_fire_v1/source/core_06.svg",
+          "sha256": "492216be294bac84fe0a79b1a63d74c37d03743d35cc06492c80556b8d7a7ef4"
+        },
+        {
+          "path": "assets/vfx/studies/illustrated_fire_v1/source/core_07.svg",
+          "sha256": "677d594aff12f4d9081099a7350c23dd381d9b86d6b89754c18f3d20dbe042ce"
+        },
+        {
+          "path": "assets/vfx/studies/illustrated_fire_v1/source/core_08.svg",
+          "sha256": "4cdfcf56387c63fe20cfb990d3af2d156e91ea894311fa481e7aa25daac4796a"
+        },
+        {
+          "path": "assets/vfx/studies/illustrated_fire_v1/source/core_09.svg",
+          "sha256": "142823282e6dc1a7349c0dcb1a5ae1683ec5fc63f1aa0a7a2999d0919e9fad6f"
+        },
+        {
+          "path": "assets/vfx/studies/illustrated_fire_v1/source/core_10.svg",
+          "sha256": "28cb5eea9417a7905a899f694121f4782bb344ae567e1ddc7946c9d3970aee37"
+        },
+        {
+          "path": "assets/vfx/studies/illustrated_fire_v1/source/core_11.svg",
+          "sha256": "f5e52ecc9c933a21bd8a9ae93ead3b2367005f5583c95211a5c175024c9d6952"
+        },
+        {
+          "path": "assets/vfx/studies/illustrated_fire_v1/source/core_12.svg",
+          "sha256": "ff48c4b1639d6b3c6a8e925dc46fe459c488e9791b49cb19584def1513a7ed9b"
+        },
+        {
+          "path": "assets/vfx/studies/illustrated_fire_v1/source/core_13.svg",
+          "sha256": "30348be40d8db97e107fdcb35daf967ae0f2d15b8b1b8635038559fabaf2a9de"
+        },
+        {
+          "path": "assets/vfx/studies/illustrated_fire_v1/source/core_14.svg",
+          "sha256": "34e5bc6781ee1c5879e0a88ee2ebf81f95fdace8d488b40ac346d98c61533c83"
+        },
+        {
+          "path": "assets/vfx/studies/illustrated_fire_v1/source/core_15.svg",
+          "sha256": "bc6197dda61cbaffae3d09c1529bcab456380f04970969f9249902287cc4f43d"
+        }
+      ],
+      "roblox_id": null,
+      "studio_verified": false,
+      "candidate_slot": "core_plasma"
+    },
+    "tongue": {
+      "file": "assets/vfx/studies/illustrated_fire_v1/textures/ink_cinder_tongue_v1.png",
+      "sha256": "97cc0dd37b38940119a110baf92783071be69ab11934d4ee8653be466689f117",
+      "size": [
+        1024,
+        1024
+      ],
+      "frames": 16,
+      "layout": "Grid4x4",
+      "loop": true,
+      "fps": 16,
+      "sources": [
+        {
+          "path": "assets/vfx/studies/illustrated_fire_v1/source/tongue_00.svg",
+          "sha256": "b48715bcb09d61f0a92d3d39823dda9451bbb7516855b90d69d1bebc776c835e"
+        },
+        {
+          "path": "assets/vfx/studies/illustrated_fire_v1/source/tongue_01.svg",
+          "sha256": "07c1aa4a54b8cd7aba71f20a452a0f34a1ff5f57b160fd0d1dcfb6abe7e764ef"
+        },
+        {
+          "path": "assets/vfx/studies/illustrated_fire_v1/source/tongue_02.svg",
+          "sha256": "7a46824bf27a35ed799711519685bacd98b76c3252cb1251c6139716ea6424ee"
+        },
+        {
+          "path": "assets/vfx/studies/illustrated_fire_v1/source/tongue_03.svg",
+          "sha256": "72b9663536916cf66f112d56e5878f6ab3ae989ea3060b68aef6de1d8393c942"
+        },
+        {
+          "path": "assets/vfx/studies/illustrated_fire_v1/source/tongue_04.svg",
+          "sha256": "d1c1023b8844bc7ddc3cca8e3244bbeee1c10cf2c7541097997962b97aa77b22"
+        },
+        {
+          "path": "assets/vfx/studies/illustrated_fire_v1/source/tongue_05.svg",
+          "sha256": "72b9663536916cf66f112d56e5878f6ab3ae989ea3060b68aef6de1d8393c942"
+        },
+        {
+          "path": "assets/vfx/studies/illustrated_fire_v1/source/tongue_06.svg",
+          "sha256": "7a46824bf27a35ed799711519685bacd98b76c3252cb1251c6139716ea6424ee"
+        },
+        {
+          "path": "assets/vfx/studies/illustrated_fire_v1/source/tongue_07.svg",
+          "sha256": "07c1aa4a54b8cd7aba71f20a452a0f34a1ff5f57b160fd0d1dcfb6abe7e764ef"
+        },
+        {
+          "path": "assets/vfx/studies/illustrated_fire_v1/source/tongue_08.svg",
+          "sha256": "b48715bcb09d61f0a92d3d39823dda9451bbb7516855b90d69d1bebc776c835e"
+        },
+        {
+          "path": "assets/vfx/studies/illustrated_fire_v1/source/tongue_09.svg",
+          "sha256": "bfd1651f1af3cc8510abae737b9aa081a0a7d6ebd2b2f6a8feec47f7ba4da398"
+        },
+        {
+          "path": "assets/vfx/studies/illustrated_fire_v1/source/tongue_10.svg",
+          "sha256": "34f65354892520888460d121b1695cf084897150d10560151bee048710beced3"
+        },
+        {
+          "path": "assets/vfx/studies/illustrated_fire_v1/source/tongue_11.svg",
+          "sha256": "7c09d4748632a9e257bb742487842ab8fcede8d29589ed3f28d21d56abb32837"
+        },
+        {
+          "path": "assets/vfx/studies/illustrated_fire_v1/source/tongue_12.svg",
+          "sha256": "8ffc18426a9d09be31d2f8f9a0db7dcc46285d20eddd0c2190ba23a5da66c5a1"
+        },
+        {
+          "path": "assets/vfx/studies/illustrated_fire_v1/source/tongue_13.svg",
+          "sha256": "7c09d4748632a9e257bb742487842ab8fcede8d29589ed3f28d21d56abb32837"
+        },
+        {
+          "path": "assets/vfx/studies/illustrated_fire_v1/source/tongue_14.svg",
+          "sha256": "34f65354892520888460d121b1695cf084897150d10560151bee048710beced3"
+        },
+        {
+          "path": "assets/vfx/studies/illustrated_fire_v1/source/tongue_15.svg",
+          "sha256": "bfd1651f1af3cc8510abae737b9aa081a0a7d6ebd2b2f6a8feec47f7ba4da398"
+        }
+      ],
+      "roblox_id": null,
+      "studio_verified": false,
+      "candidate_slot": "flame_tongue"
+    },
+    "trail": {
+      "file": "assets/vfx/studies/illustrated_fire_v1/textures/ink_cinder_trail_v1.png",
+      "sha256": "20efbcd3ad9c38a90d62d84e0f2e1139c974b444ec988809e01e57cd80b0bf6a",
+      "size": [
+        256,
+        256
+      ],
+      "frames": 1,
+      "layout": null,
+      "loop": true,
+      "fps": 16,
+      "sources": [
+        {
+          "path": "assets/vfx/studies/illustrated_fire_v1/source/trail_00.svg",
+          "sha256": "5e9f76012f29264b0ad00e20f22ad1a80ecb5504e32ad67be669c64d151110c2"
+        }
+      ],
+      "roblox_id": null,
+      "studio_verified": false,
+      "candidate_slot": "trail_flame"
+    },
+    "impact": {
+      "file": "assets/vfx/studies/illustrated_fire_v1/textures/ink_cinder_impact_v1.png",
+      "sha256": "7f1e8119624f14a967957a63a3f89ff82ff44f2a8f06b9d056cfdc13c27f872e",
+      "size": [
+        1024,
+        1024
+      ],
+      "frames": 16,
+      "layout": "Grid4x4",
+      "loop": false,
+      "fps": 24,
+      "sources": [
+        {
+          "path": "assets/vfx/studies/illustrated_fire_v1/source/impact_00.svg",
+          "sha256": "51114eac8bc404000b0bc0eeef07a61b12ef90c202e8778782fa6bb09ca3bd37"
+        },
+        {
+          "path": "assets/vfx/studies/illustrated_fire_v1/source/impact_01.svg",
+          "sha256": "f06a1a4be18dc8208fcef83d4fcaf953b3d325cc380aa6884893bd5c960c346c"
+        },
+        {
+          "path": "assets/vfx/studies/illustrated_fire_v1/source/impact_02.svg",
+          "sha256": "9d24eec7dd4ce167e3bc12d679efd2947611e56e572603529cb1c0a309f00ab1"
+        },
+        {
+          "path": "assets/vfx/studies/illustrated_fire_v1/source/impact_03.svg",
+          "sha256": "cb360118671709925a54f9b6c20db3787db6743fbbd6b5c2b79a89d56dbc7ac4"
+        },
+        {
+          "path": "assets/vfx/studies/illustrated_fire_v1/source/impact_04.svg",
+          "sha256": "fea4cb455cf4741fd7ca4826258f6da124740c38f40856a900fe78bc52f99c61"
+        },
+        {
+          "path": "assets/vfx/studies/illustrated_fire_v1/source/impact_05.svg",
+          "sha256": "919df210bfb98aa67d90d20dacca65b9fe9f3de5347836a51d42b0bfe988138b"
+        },
+        {
+          "path": "assets/vfx/studies/illustrated_fire_v1/source/impact_06.svg",
+          "sha256": "b46214c6eb152947bed44294b0336fffdc02b691d582d4b0d1ef2edbdc409fe7"
+        },
+        {
+          "path": "assets/vfx/studies/illustrated_fire_v1/source/impact_07.svg",
+          "sha256": "e40b2fe752d1a788e330b85d3c78e33e81ce62ab293aeb65e7341b90c6cd1272"
+        },
+        {
+          "path": "assets/vfx/studies/illustrated_fire_v1/source/impact_08.svg",
+          "sha256": "a1e0b81700501b3cfc9f04922521fe1af84d9f9cd7ceeb69dc916782ed576749"
+        },
+        {
+          "path": "assets/vfx/studies/illustrated_fire_v1/source/impact_09.svg",
+          "sha256": "02a9c9c8ccfead9d360099bd7749fbef38bcf31d17d90e89a981e7af1c65a0c9"
+        },
+        {
+          "path": "assets/vfx/studies/illustrated_fire_v1/source/impact_10.svg",
+          "sha256": "a6424fd98a298f01c16b65bccb8cea240e5144fc1b9971eaecc9195e47174683"
+        },
+        {
+          "path": "assets/vfx/studies/illustrated_fire_v1/source/impact_11.svg",
+          "sha256": "2b15d61c0f1f3908c9028c6bd35f4b967152259b6babacd59981e25099e2eb40"
+        },
+        {
+          "path": "assets/vfx/studies/illustrated_fire_v1/source/impact_12.svg",
+          "sha256": "e8116c416f3b3eeb1574e6d1759c42b84dddc4342fe87d78a1cffc768c395dc9"
+        },
+        {
+          "path": "assets/vfx/studies/illustrated_fire_v1/source/impact_13.svg",
+          "sha256": "419b22f5524bfe7220ecfe35899a894f52b11307b75217d12848b076033c0efe"
+        },
+        {
+          "path": "assets/vfx/studies/illustrated_fire_v1/source/impact_14.svg",
+          "sha256": "b7a6942cb05e46a739677a13a9c0e1e3eef65b85df578889f47b4ec155aaabbf"
+        },
+        {
+          "path": "assets/vfx/studies/illustrated_fire_v1/source/impact_15.svg",
+          "sha256": "110cbf3e37461a3f56f66c72087fba369bfd250f8a05fb3d149992f2d2d11801"
+        }
+      ],
+      "roblox_id": null,
+      "studio_verified": false,
+      "candidate_slot": "explosion_fire"
+    },
+    "smoke": {
+      "file": "assets/vfx/studies/illustrated_fire_v1/textures/ink_cinder_smoke_v1.png",
+      "sha256": "0c0c8cc9f887f67540e4075ec7ccc94a7eca4b4ba43ab4fa51f91e8841b3bfdc",
+      "size": [
+        1024,
+        1024
+      ],
+      "frames": 16,
+      "layout": "Grid4x4",
+      "loop": true,
+      "fps": 16,
+      "sources": [
+        {
+          "path": "assets/vfx/studies/illustrated_fire_v1/source/smoke_00.svg",
+          "sha256": "efb7514ceac90888395483dda1c01d151427233e5b989e1ac4a61e636784da81"
+        },
+        {
+          "path": "assets/vfx/studies/illustrated_fire_v1/source/smoke_01.svg",
+          "sha256": "56c9bb401e6dc4c8501335e79c25ef6c2d34a368fcd2f10cd8514bd1b25d9ba3"
+        },
+        {
+          "path": "assets/vfx/studies/illustrated_fire_v1/source/smoke_02.svg",
+          "sha256": "747d1e798bb94981a551e7b585d5c7ddbe16672c8621ecc5dbc0defcf87ee8d1"
+        },
+        {
+          "path": "assets/vfx/studies/illustrated_fire_v1/source/smoke_03.svg",
+          "sha256": "106fcfe2281f004108131a0ed7aea3eb6f9bdeb012af61af6e953fe1a8eb0f84"
+        },
+        {
+          "path": "assets/vfx/studies/illustrated_fire_v1/source/smoke_04.svg",
+          "sha256": "bccec509a9d573c3eea49b1d56dd90e18253300987a7b69a1b452ff04b4476e8"
+        },
+        {
+          "path": "assets/vfx/studies/illustrated_fire_v1/source/smoke_05.svg",
+          "sha256": "33211041fc3b4846bbef5a3c6d55f4fe77f0fa8d48d5e382482872aa2c282a73"
+        },
+        {
+          "path": "assets/vfx/studies/illustrated_fire_v1/source/smoke_06.svg",
+          "sha256": "2e3888a4fab3c5ec7d816640ae8c20882ef067e06077590bc673352c7ff3e09e"
+        },
+        {
+          "path": "assets/vfx/studies/illustrated_fire_v1/source/smoke_07.svg",
+          "sha256": "9c2f5feb344edf2d9e6544337f0da2777cea033dd83276996e543e84ff3b5fa7"
+        },
+        {
+          "path": "assets/vfx/studies/illustrated_fire_v1/source/smoke_08.svg",
+          "sha256": "857e844cf024cb26492be7cd8c9810857afb891686797afb1d4659c4cbc1eab2"
+        },
+        {
+          "path": "assets/vfx/studies/illustrated_fire_v1/source/smoke_09.svg",
+          "sha256": "6e0240e64af8e9d6a40c3076c981ed725a6593dffbe1a11a60f9ea525a3139b2"
+        },
+        {
+          "path": "assets/vfx/studies/illustrated_fire_v1/source/smoke_10.svg",
+          "sha256": "7fbc7859ac5277812af8574b674161a6994823da36d55228c3c0fa349e88947a"
+        },
+        {
+          "path": "assets/vfx/studies/illustrated_fire_v1/source/smoke_11.svg",
+          "sha256": "7f1720d32f654b692ff458228cf8abc841287f03b4d603455a74c77d7ac80602"
+        },
+        {
+          "path": "assets/vfx/studies/illustrated_fire_v1/source/smoke_12.svg",
+          "sha256": "9d1ed9c4e0f5ce976ef4ecb60c2619636f0e1fd23a09bf7fb7ed25e71568485c"
+        },
+        {
+          "path": "assets/vfx/studies/illustrated_fire_v1/source/smoke_13.svg",
+          "sha256": "f06ecea98ec0840cfb4d9c4316d854765a8cdd23871d9423d6435445ae463765"
+        },
+        {
+          "path": "assets/vfx/studies/illustrated_fire_v1/source/smoke_14.svg",
+          "sha256": "6ca250db469cb001ff1846a79f8b74a50b68fd8394bf7ca229304bff9c2fc37a"
+        },
+        {
+          "path": "assets/vfx/studies/illustrated_fire_v1/source/smoke_15.svg",
+          "sha256": "d5dcde36ed9cfbe8ec076d327c6390e10a6ccbb2b2863df774408e32f3fdbf3a"
+        }
+      ],
+      "roblox_id": null,
+      "studio_verified": false,
+      "candidate_slot": "smoke_billow"
+    },
+    "ember": {
+      "file": "assets/vfx/studies/illustrated_fire_v1/textures/ink_cinder_ember_v1.png",
+      "sha256": "8874077031df46780b58d10ae84c7128754b194dba813fe468968c86683bedef",
+      "size": [
+        256,
+        256
+      ],
+      "frames": 1,
+      "layout": null,
+      "loop": true,
+      "fps": 16,
+      "sources": [
+        {
+          "path": "assets/vfx/studies/illustrated_fire_v1/source/ember_00.svg",
+          "sha256": "f26bbd59d61b069fa9772cf07c1d99f1b2bceb5d7fd5e89db3673bfc73c2ccc1"
+        }
+      ],
+      "roblox_id": null,
+      "studio_verified": false,
+      "candidate_slot": "ember_streak"
+    },
+    "charge": {
+      "file": "assets/vfx/studies/illustrated_fire_v1/textures/ink_cinder_charge_v1.png",
+      "sha256": "e59c7d35aac056091c74e0092a50dbf30ac5cb66b891f2ad981aeba5224d75a9",
+      "size": [
+        1024,
+        1024
+      ],
+      "frames": 16,
+      "layout": "Grid4x4",
+      "loop": true,
+      "fps": 16,
+      "sources": [
+        {
+          "path": "assets/vfx/studies/illustrated_fire_v1/source/charge_00.svg",
+          "sha256": "75cc50575193562867193b49a117012b099f9033ab546b45d976f1d983b267a4"
+        },
+        {
+          "path": "assets/vfx/studies/illustrated_fire_v1/source/charge_01.svg",
+          "sha256": "d151f6a8be5d2e58b0bbe214451dd307edc12d89cc24eee315417ced5ecc3970"
+        },
+        {
+          "path": "assets/vfx/studies/illustrated_fire_v1/source/charge_02.svg",
+          "sha256": "90d938338437c8528202c8d435752157e3ad031d08f91643b09074c14295a418"
+        },
+        {
+          "path": "assets/vfx/studies/illustrated_fire_v1/source/charge_03.svg",
+          "sha256": "892044b63b3895bb44b9e007bc579e853ace149cc4ecdc1eb39fd76ee4dcb190"
+        },
+        {
+          "path": "assets/vfx/studies/illustrated_fire_v1/source/charge_04.svg",
+          "sha256": "f90f94dc2cb2ab07e89103c15f3896afb11f45fefb8e4cbdb36c4add2edb768e"
+        },
+        {
+          "path": "assets/vfx/studies/illustrated_fire_v1/source/charge_05.svg",
+          "sha256": "5f8cf38161301a3a5ffdca8486cbba3605a39de9e2bbd8fe6b95874ff7a45f44"
+        },
+        {
+          "path": "assets/vfx/studies/illustrated_fire_v1/source/charge_06.svg",
+          "sha256": "4d0f7d5614f44053b7df393fd4b0a1833b5efda64de6c46b94ce4c215daece9f"
+        },
+        {
+          "path": "assets/vfx/studies/illustrated_fire_v1/source/charge_07.svg",
+          "sha256": "1ba899147435e7e6ded84bc4349e7b831ed16490f960dd2ef3a4c5109faaa160"
+        },
+        {
+          "path": "assets/vfx/studies/illustrated_fire_v1/source/charge_08.svg",
+          "sha256": "f6b48134747d9b48ad01d3603d937f35122ace84fddbb2f612033f65e27c76cd"
+        },
+        {
+          "path": "assets/vfx/studies/illustrated_fire_v1/source/charge_09.svg",
+          "sha256": "762379ec39d8f18cf0393cf960254281ae804cbd028e510d4d887a2b745063e0"
+        },
+        {
+          "path": "assets/vfx/studies/illustrated_fire_v1/source/charge_10.svg",
+          "sha256": "f50f01c53b2c6e531774338462a510f060c28347bbfcad5505e3fe817427bb20"
+        },
+        {
+          "path": "assets/vfx/studies/illustrated_fire_v1/source/charge_11.svg",
+          "sha256": "3d2c8f618e515871b474d24d7927ac43603a82606a82093f91c3aaab4cb6179b"
+        },
+        {
+          "path": "assets/vfx/studies/illustrated_fire_v1/source/charge_12.svg",
+          "sha256": "72c1018d59ef204614e678d7f6dad1af1cef59fc2de3d394994cf7d51d755a0f"
+        },
+        {
+          "path": "assets/vfx/studies/illustrated_fire_v1/source/charge_13.svg",
+          "sha256": "b7f36bc9c2e282d44a459631bcfa9d8d0d732d94ffa8a8032ef56c30307725f1"
+        },
+        {
+          "path": "assets/vfx/studies/illustrated_fire_v1/source/charge_14.svg",
+          "sha256": "64acd68e2b78e5658b9da35e0ea7486d32d42e21053300fcad3f38ec4eda0786"
+        },
+        {
+          "path": "assets/vfx/studies/illustrated_fire_v1/source/charge_15.svg",
+          "sha256": "1ffd50ecf2acf62bac7feb22d84d32ce7705226508ebf2c6de6651bf4b0bd5ce"
+        }
+      ],
+      "roblox_id": null,
+      "studio_verified": false,
+      "candidate_slot": "rune_circle"
+    }
+  },
+  "notes": [
+    "No IDs copied from existing assets; these files have not been uploaded.",
+    "SVG records path design; impact scale/fade is applied by the generator during atlas assembly.",
+    "Existing signature integration is deliberately gated on Studio review."
+  ]
+}

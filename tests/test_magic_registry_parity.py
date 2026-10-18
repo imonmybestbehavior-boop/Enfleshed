@@ -34,10 +34,14 @@ class MagicRegistryParity(unittest.TestCase):
 		spec = (ROOT / "src/shared/Modules/SpellSpec.luau").read_text()
 		self.assertIn('d.Geometry = d.Geometry or (Schema.Forms[d.Form] and Schema.Forms[d.Form].Geometry)', spec)
 		service = (ROOT / "src/server/Services/MagicService.luau").read_text()
-		self.assertGreaterEqual(service.count('Geometry == "Sphere" then HitDetection.findSphere'), 2)
-		self.assertGreaterEqual(service.count("Vector3.one * waveRange * 2"), 2)
+		# Both server pulses (initial cast and channeled tick) choose the sphere query.
+		self.assertGreaterEqual(len(re.findall(r'Geometry == "Sphere" then HitDetection\.findSphere\(', service)), 2)
+		presentation = (ROOT / "src/server/Services/MagicPresentation.luau").read_text()
+		wave_preview = block(presentation, "function Presentation.wave(", "\nend")
+		self.assertIn('Geometry == "Sphere" then Vector3.one * range * 2', wave_preview)
 		lab = (ROOT / "src/client/Controllers/MagicLabController.luau").read_text()
-		self.assertIn('sphere("WaveSphere", root.Position, previewRange', lab)
+		geometry_preview = (ROOT / "src/client/Controllers/GrimoireGeometryPreview.luau").read_text()
+		self.assertIn('sphere("WaveSphere", root.Position, previewRange', geometry_preview)
 		self.assertIn('"Wave shape"', lab)
 
 	def test_active_forms_expose_supported_caster_lifecycle_events(self):
@@ -125,7 +129,11 @@ class MagicRegistryParity(unittest.TestCase):
 			"local executors: { [string]: (Context, any) -> () } = {",
 			"\n}\n\nfunction Behaviors.execute",
 		)
-		definitions = top_level_table_keys(behavior_definitions)
+		# Behaviors are declared in the table literal or added afterwards as
+		# Schema.Behaviors.<Name> = { (SpawnEffect builds on Explode's events).
+		definitions = top_level_table_keys(behavior_definitions) | set(
+			re.findall(r"^Schema\.Behaviors\.([A-Za-z][A-Za-z0-9]*) = \{", self.schema, re.MULTILINE)
+		)
 		handlers = set(re.findall(r"^\t([A-Za-z][A-Za-z0-9]*) = function", executor_table, re.MULTILINE))
 		self.assertEqual(definitions, handlers, "Every selectable generic Behavior must have a server handler")
 
@@ -140,8 +148,10 @@ class MagicRegistryParity(unittest.TestCase):
 		self.assertIn('Spec.EnvironmentalVisuals = { "None", "Motes", "GroundMist" }', visual_spec)
 		self.assertIn("EnvironmentalVisuals = VisualSpec.EnvironmentalVisuals", schema)
 		self.assertIn('select(\n\t\t\t\t\t"Environmental layer"', lab)
-		self.assertIn('local style = settings.EnvironmentalVisual or "None"', presentation)
-		self.assertIn("environmentalLayer(marker, definition)", presentation)
+		# EnvironmentalVisual stays valid in saved data but no longer drives
+		# composition (SpellVFXAnalyzer.LegacyFields).
+		analyzer = (ROOT / "src/shared/SpellVFXSystem/Core/SpellVFXAnalyzer.luau").read_text()
+		self.assertIn('"EnvironmentalVisual",', block(analyzer, "Analyzer.LegacyFields = {", "\n}"))
 		self.assertIn('marker:SetAttribute("MagicVisualDistortion", distortion)', presentation)
 		self.assertIn('CollectionService:AddTag(marker, "MagicDistortionArea")', presentation)
 		self.assertIn('CollectionService:GetTagged("MagicDistortionArea")', presentation_controller)
@@ -232,10 +242,6 @@ class MagicRegistryParity(unittest.TestCase):
 		self.assertIn('Options = { "Caster", "Event" }', self.schema)
 		self.assertIn('Kind = "Summon",\n\t\t\t\t\tArchetype = "Wisp"', self.lab_test)
 
-	def test_combat_sandbox_keeps_avatar_appearance_instead_of_city_clothing(self):
-		opening = (ROOT / "src/server/Services/OpeningService.luau").read_text()
-		self.assertIn("if not Arena.enabled() and player.Character == character then", opening)
-
 	def test_beam_cascade_is_bounded_server_dispatched_and_testbed_unlocked(self):
 		beam = block(self.schema, "Beam = {", "\n\tWave = {")
 		self.assertIn('Pattern = "Single"', beam)
@@ -250,12 +256,10 @@ class MagicRegistryParity(unittest.TestCase):
 		self.assertIn('local hit = sweep(start, delta, spell.Caster, nil, beam.Width / 2)', service)
 		self.assertIn('"OnImpact"', service)
 		lab_config = (ROOT / "src/shared/Configuration/MagicLab.luau").read_text()
-		locus_config = (ROOT / "src/shared/Configuration/MagicLocus.luau").read_text()
-		self.assertIn("ProgressionEnabled = false", lab_config)
-		self.assertIn("Enabled = false", locus_config)
-		self.assertIn("if Limits.ProgressionEnabled then", service)
+		# Discovery and Locus stat progression were removed; nothing may gate on them.
+		self.assertNotIn("ProgressionEnabled", lab_config)
+		self.assertNotIn("ProgressionEnabled", service)
 		lab = (ROOT / "src/client/Controllers/MagicLabController.luau").read_text()
-		self.assertNotIn("Config.ProgressionEnabled", lab, "The authoring UI must not expose deferred Locus progression controls")
 		self.assertNotIn("LocusRequirementSpec", lab)
 		summons = (ROOT / "src/server/Services/SummonService.luau").read_text()
 		self.assertIn("group.Color = color", summons)
@@ -278,7 +282,7 @@ class MagicRegistryParity(unittest.TestCase):
 		self.assertIn('schema.supportsBehavior("Explode", "Projectile", "OnSpawn")', self.lab_test)
 		self.assertIn('emit(definition, "OnSpawn"', (ROOT / "src/server/Services/MagicService.luau").read_text())
 		service = (ROOT / "src/server/Services/MagicService.luau").read_text()
-		channel_spawn = block(service, "local function spawnChannelProjectile(channel)", "\nlocal function constructPlacement")
+		channel_spawn = block(service, "local function spawnChannelProjectile(channel)", "\nend\n")
 		self.assertNotIn('emit(definition, "OnCast"', channel_spawn)
 		self.assertIn('emit(definition, "OnSpawn"', channel_spawn)
 		self.assertIn('emit(d, "OnCast", state.Character, start', service)
@@ -299,7 +303,7 @@ class MagicRegistryParity(unittest.TestCase):
 
 	def test_channeled_beam_and_wave_expiry_resolve_final_validated_targets(self):
 		service = (ROOT / "src/server/Services/MagicService.luau").read_text()
-		expiry = block(service, "local function finalChannelTargets(", "\nfinishBeamChannel = function")
+		expiry = block((ROOT / "src/server/Services/MagicWorldQuery.luau").read_text(), "local function finalChannelTargets(", "\nend\n")
 		self.assertIn('channel.Kind == "BeamChannel"', expiry)
 		self.assertIn('channel.Kind == "WaveChannel"', expiry)
 		self.assertIn("sweep(origin, channel.Direction * range", expiry)
@@ -318,7 +322,7 @@ class MagicRegistryParity(unittest.TestCase):
 
 	def test_reset_runs_construct_expiry_and_finishes_its_visual(self):
 		service = (ROOT / "src/server/Services/MagicService.luau").read_text()
-		cleanup = block(service, "local function clearActive(player)", "\nlocal function locusProfileKey")
+		cleanup = block(service, "local function clearActive(player)", "\n-- Mana, Strain and special resources")
 		construct_expiry = block(cleanup, 'elseif active[i].Kind == "Construct" then', "\n\t\t\telseif active[i].Visual")
 		expire_helper = block(service, "local function expireConstruct(", "\nfinishBeamChannel = function")
 		self.assertIn("emitExpiry(spell,", expire_helper)
@@ -332,7 +336,7 @@ class MagicRegistryParity(unittest.TestCase):
 
 	def test_reset_expires_traveling_projectiles_and_linger_hazards(self):
 		service = (ROOT / "src/server/Services/MagicService.luau").read_text()
-		cleanup = block(service, "local function clearActive(player)", "\nlocal function locusProfileKey")
+		cleanup = block(service, "local function clearActive(player)", "\n-- Mana, Strain and special resources")
 		for kind in ("ProjectileLinger", "Projectile"):
 			branch = block(
 				cleanup,
@@ -372,7 +376,7 @@ class MagicRegistryParity(unittest.TestCase):
 	def test_construct_casts_without_a_target_and_attaches_only_when_the_ray_hits(self):
 		service = (ROOT / "src/server/Services/MagicService.luau").read_text()
 		validation = block(service, "local function validate(", "\nlocal function updateEnhancement")
-		placement = block(service, "local function constructPlacement(", "\nlocal function execute(")
+		placement = block((ROOT / "src/server/Services/MagicWorldQuery.luau").read_text(), "local function constructPlacement(", "\nend\n")
 		self.assertIn(
 			'local targeting = if definition.Form == "Construct" then "AimDirection" else definition.Targeting',
 			validation,
@@ -426,60 +430,45 @@ class MagicRegistryParity(unittest.TestCase):
 		ui = (ROOT / "src/client/Controllers/MagicLabController.luau").read_text()
 		self.assertIn("VisualSpec.autoMaterial(definition.Source.Principle, definition.Source.Expression, definition.Form)", ui)
 
-	def test_discovery_is_preserved_but_does_not_gate_the_testing_lab(self):
-		discovery = (ROOT / "src/server/Services/MagicDiscoveryService.luau").read_text()
-		self.assertIn("Spec.recordCast(profiles[player], principle, form, expression)", discovery)
-		self.assertIn("Spec.recordCast(sessionProgress[player], principle, form, expression)", discovery)
-		self.assertIn("previousSource.Expression == expression", discovery)
+	def test_discovery_and_locus_persistence_are_removed(self):
+		for path in (
+			"src/server/Services/MagicDiscoveryService.luau",
+			"src/shared/Modules/MagicDiscoverySpec.luau",
+			"src/shared/Modules/MagicLocusProfile.luau",
+			"src/shared/Modules/MagicLocusProgressionSpec.luau",
+		):
+			self.assertFalse((ROOT / path).exists(), path + " was removed")
+		service = (ROOT / "src/server/Services/MagicService.luau").read_text()
+		self.assertNotIn("DataStoreService", service, "Locus resources are no longer persisted")
+		self.assertNotIn("Discovery", (ROOT / "src/server/Networking/ActionRouter.luau").read_text())
+		locus_config = (ROOT / "src/shared/Configuration/MagicLocus.luau").read_text()
+		self.assertNotIn("Persistence", locus_config)
+		self.assertNotIn("PracticeCastsPerRank", locus_config)
 		lab = (ROOT / "src/server/Services/MagicLabService.luau").read_text()
 		apply = block(lab, 'if action == "Apply" then', '\n\t\telseif action == "Cast" then')
-		self.assertNotIn("Discovery.validateExpression", apply)
-		self.assertNotIn("Discovery.validateVisual", apply)
 		self.assertLess(apply.index("Spec.validate(data)"), apply.index("definitions[player][slot] = definition"))
 		self.assertIn("scheduleSave(player)", apply)
 		ui = (ROOT / "src/client/Controllers/MagicLabController.luau").read_text()
 		for kind in ("Expression", "Palette", "Shape"):
 			self.assertNotIn('GetAttribute("MagicUnlock' + kind, ui)
-		setup = block(ui, 'if activeSection == "Setup" then', 'elseif activeSection == "Targeting" then')
-		self.assertLess(setup.index('select("Spell Form"'), setup.index('row("Spell name")'))
-		self.assertIn('forms.Name = "SpellFormChoices"', setup)
-		self.assertIn('for i, formName in Schema.FormOrder do', setup)
+		forge = (ROOT / "src/client/UI/GuidedSpellForge.luau").read_text()
+		self.assertIn("for _, formName in schema.FormOrder or {} do", forge)
+		self.assertIn("schema.supportsPrincipleForm(principle(), formName)", forge)
 
-	def test_magic_focus_profiles_are_unlocked_saved_and_resolved_server_side(self):
-		profiles = (ROOT / "src/shared/Configuration/MagicProfiles.luau").read_text()
+	def test_magic_focus_casts_its_own_registered_spells_server_side(self):
+		items = (ROOT / "src/shared/Configuration/Items.luau").read_text()
 		spells = (ROOT / "src/shared/Configuration/Spells.luau").read_text()
 		registered = set(re.findall(r'^\t([A-Za-z0-9_]+) = \{\n\t\tSpellId = "([A-Za-z0-9_]+)"', spells, re.MULTILINE))
 		registered_ids = {spell_id for _, spell_id in registered}
-		profile_ids = re.findall(r'(?:PrimarySpellId|AreaSpellId) = "([A-Za-z0-9_]+)"', profiles)
-		self.assertTrue(profile_ids)
-		self.assertTrue(set(profile_ids) <= registered_ids, "focus profiles must only route to registered spells")
-		self.assertIn('MagicAwakeningSelect = "MagicAwakeningSelect"', (ROOT / "src/shared/Networking/Protocol.luau").read_text())
-		router = (ROOT / "src/server/Networking/ActionRouter.luau").read_text()
-		self.assertIn("Discovery.selectAwakeningProfile(player, payload.AwakeningProfileId)", router)
+		focus_ids = re.findall(r'(?:PrimarySpellId|AreaSpellId) = "([A-Za-z0-9_]+)"', items)
+		self.assertTrue(focus_ids)
+		self.assertTrue(set(focus_ids) <= registered_ids, "the Magic Focus must only route to registered spells")
+		self.assertFalse((ROOT / "src/shared/Configuration/MagicProfiles.luau").exists(), "Focus profiles were removed")
+		self.assertFalse((ROOT / "src/client/Controllers/AwakeningController.luau").exists(), "profile picker was removed")
+		self.assertNotIn("MagicAwakeningSelect", (ROOT / "src/shared/Networking/Protocol.luau").read_text())
 		equipment = (ROOT / "src/server/Services/EquipmentService.luau").read_text()
-		self.assertIn("MagicDiscoveryService).awakeningProfileId(player)", equipment)
-		self.assertNotIn("payload.AwakeningProfileId", equipment, "equipment cast resolution must not trust the client selection")
-		discovery = (ROOT / "src/server/Services/MagicDiscoveryService.luau").read_text()
-		self.assertIn(
-			"Spec.selectAwakeningProfile(profiles[player], profileId, MagicProfiles, Config.ProgressionEnabled == true)",
-			discovery,
-		)
-		discovery_spec = (ROOT / "src/shared/Modules/MagicDiscoverySpec.luau").read_text()
-		self.assertIn("Spec.awakeningProfileUnlocked", discovery_spec)
-		self.assertIn("Spec.selectAwakeningProfile", discovery_spec)
-		self.assertIn('AwakeningProfileId = "RecruitGeneric"', discovery_spec)
-		self.assertIn("Version = 3", (ROOT / "src/shared/Modules/MagicDiscoverySpec.luau").read_text())
-
-	def test_unrestricted_testbed_has_no_active_cast_count_gates(self):
-		lab_config = (ROOT / "src/shared/Configuration/MagicLab.luau").read_text()
-		locus_config = (ROOT / "src/shared/Configuration/MagicLocus.luau").read_text()
-		profiles = (ROOT / "src/shared/Configuration/MagicProfiles.luau").read_text()
-		discovery = (ROOT / "src/server/Services/MagicDiscoveryService.luau").read_text()
-		self.assertIn("ProgressionEnabled = false", lab_config)
-		self.assertIn("Enabled = false", block(locus_config, "Progression = {", "\n\t},"))
-		self.assertNotIn("Unlock =", profiles, "Active Focus profiles should contain no progression requirements")
-		self.assertIn("if Config.ProgressionEnabled ~= true then\n\t\treturn\n\tend", discovery)
-		self.assertIn("Config.ProgressionEnabled ~= true or player:GetAttribute", discovery)
+		self.assertIn("item.PrimarySpellId", equipment)
+		self.assertNotIn("payload.", block(equipment, "function Equipment.magicCast", "\nend"), "focus casts must not trust client data")
 
 	def test_status_expiry_is_shared_and_time_dilation_is_removed_before_rate_calculation(self):
 		service = (ROOT / "src/server/Services/MagicStatusEffectService.luau").read_text()
@@ -534,7 +523,8 @@ class MagicRegistryParity(unittest.TestCase):
 		self.assertIn("function Spec.claim(runtime, target)", target_death)
 
 	def test_beam_damage_uses_the_server_raycast_hit_part_for_region_scaling(self):
-		service = (ROOT / "src/server/Services/MagicService.luau").read_text()
+		# MagicWorldQuery holds the channel end-target sweep extracted from MagicService.
+		service = (ROOT / "src/server/Services/MagicService.luau").read_text() + (ROOT / "src/server/Services/MagicWorldQuery.luau").read_text()
 		payloads = (ROOT / "src/server/Services/MagicPayloadExecutors.luau").read_text()
 		self.assertIn("HitPart = if not objectTarget and hit then hit.Instance else nil", service)
 		self.assertIn("channel.HitPart = if not channel.ObjectTarget and hit then hit.Instance else nil", service)
@@ -569,13 +559,14 @@ class MagicRegistryParity(unittest.TestCase):
 
 	def test_object_target_physics_rules_use_the_shared_pure_eligibility_spec(self):
 		service = (ROOT / "src/server/Services/MagicService.luau").read_text()
-		validator = block(service, "local function isValidObjectInteractionTarget(", "\nlocal function isLiveHomingTarget")
-		self.assertIn("MagicObjectTargetSpec", service)
+		world = (ROOT / "src/server/Services/MagicWorldQuery.luau").read_text()
+		validator = block(world, "local function isValidObjectInteractionTarget(", "\nend\n")
+		self.assertIn("MagicObjectTargetSpec", world)
 		self.assertIn("ObjectTargetSpec.isValidInteractionTarget", validator)
 		self.assertIn('Tagged = CollectionService:HasTag(target, "MagicManipulable")', validator)
 		self.assertIn('RaiseAuthorized = target:GetAttribute("MagicRaise") == true', validator)
 		self.assertIn("MaterialMatches = definition.Material ~= nil", validator)
-		surface_validator = block(service, "local function isSolidWorldSurfaceTarget(", "\nlocal function isValidObjectInteractionTarget")
+		surface_validator = block(service, "local function isSolidWorldSurfaceTarget(", "\nend\n")
 		self.assertIn("ObjectTargetSpec.isSolidWorldSurfaceTarget", surface_validator)
 		self.assertIn("not isSolidWorldSurfaceTarget(targetInstance)", service)
 		self.assertIn("ObjectTargetSpec.isValidManipulationTarget", service)

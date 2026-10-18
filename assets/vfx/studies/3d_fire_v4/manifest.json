@@ -1,0 +1,22 @@
+{
+  "status": "Blender appearance approved by user; 24 textures uploaded; manual FBX import and Studio playback pending",
+  "meshes": 1,
+  "deform_bones": 72,
+  "frames": 48,
+  "fps": 24,
+  "texture_frames": 24,
+  "texture_fps": 12,
+  "texture_dimensions": [
+    1024,
+    512
+  ],
+  "appearance": "Approved four RGB colors, one filled rounded head, moving surface contours and rear deformation",
+  "implementation": "Rigid bone translations plus complete UV texture frames; no custom Roblox shader assumed",
+  "limitations": [
+    "Runtime surface-frame switching must be tested; direct ColorMap writes are plugin-restricted",
+    "Alpha tail erosion needs SurfaceAppearance transparency in Studio",
+    "No detached fragments yet",
+    "No Studio or performance verification"
+  ],
+  "blender_playback": "Native 24-image sequence at 12 FPS synchronized to the 24 FPS bone loop"
+}

@@ -1,0 +1,9 @@
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "{\"Clone\":\"CoreGui.FireSkinProbeReview.ViewportFrame.WorldModel.FireRigDeformationProbe\",\"Scope\":\"Isolated cloned import; source unchanged; per-bone scale omitted\",\"TextureID\":\"rbxassetid://81127106843904\",\"MeshId\":\"rbxassetid://116032385577570\",\"Frame\":13,\"Size\":[1.5450282096862794,0.4399999976158142,6]}"
+    }
+  ],
+  "isError": false
+}

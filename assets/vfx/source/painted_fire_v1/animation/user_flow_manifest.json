@@ -1,0 +1,26 @@
+{
+  "version": 1,
+  "provenance": "User supplied eight-frame sheet; original bytes preserved",
+  "file": "assets/vfx/source/painted_fire_v1/animation/core_flow_user_v1.png",
+  "sha256": "129cf48bbfc91a007daaf702945e3930cfa9304d58d76a2fe08826af167f8603",
+  "size": [
+    1774,
+    887
+  ],
+  "grid": [
+    4,
+    2
+  ],
+  "frames": 8,
+  "order": "row-major",
+  "alpha_extrema": [
+    0,
+    255
+  ],
+  "preview_fps": 8,
+  "integer_cell_boundaries": false,
+  "user_motion_approval": "approved",
+  "roblox_id": null,
+  "studio_verified": false,
+  "approval_text": "Looks good. But how will it look from different angles?"
+}

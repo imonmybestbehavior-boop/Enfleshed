@@ -4,8 +4,12 @@ local Behaviors = require(script.Parent.MagicBehaviorExecutors)
 local Commands = require(script.Parent.MagicCommandSpec)
 local TargetDeath = require(game:GetService("ReplicatedStorage").Shared.Modules.MagicTargetDeathSpec)
 local Dispatch = require(script.Parent.MagicTriggerDispatch)
+local Conditions = require(script.Parent.MagicConditions)
+local StepConditions = {
+	filter = Conditions.stepTargets,
+}
 local Triggers = {}
 function Triggers.execute(definition: any, event: string, context: any)
-	Dispatch.execute(definition, event, context, Payloads, Behaviors, Commands, TargetDeath)
+	Dispatch.execute(definition, event, context, Payloads, Behaviors, Commands, TargetDeath, StepConditions)
 end
 return Triggers

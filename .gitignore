@@ -17,3 +17,7 @@ __pycache__/
 /Enfleshed-Defend-The-Walls.rbxlx
 /.mcp.json
 /.codex/
+
+# Generated VFX review pages (large, rebuildable)
+/assets/vfx/studies/*/review.html
+/assets/vfx/previews/*.html

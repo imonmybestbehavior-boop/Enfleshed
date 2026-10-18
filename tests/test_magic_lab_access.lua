@@ -18,9 +18,32 @@ local env = setmetatable({
 	catalogs = {},
 	LabCost = assert(loadfile("src/shared/Modules/MagicLabCost.luau"))(),
 	writable = {},
-	Library = assert(loadfile("src/shared/Modules/GrimoireLibrary.luau"))(),
+	Library = assert(loadfile(
+		"src/shared/Modules/GrimoireLibrary.luau",
+		"t",
+		setmetatable({
+			script = { Parent = { MagicSpellIdentitySpec = "identitySpec" } },
+			require = function()
+				return assert(loadfile("src/shared/Modules/MagicSpellIdentitySpec.luau"))()
+			end,
+		}, { __index = getfenv() })
+	))(),
 	Slots = assert(loadfile("src/shared/Modules/MagicSlots.luau"))(),
 	publish = function() end,
+	-- Progression gate; the unrestricted Studio sandbox always allows (see usable()).
+	usable = function()
+		return true, ""
+	end,
+	unrestricted = function()
+		return true
+	end,
+	-- Server-side repricing: cost always comes from the server estimate.
+	reprice = function(definition)
+		definition.Cost = { ManaDemand = 12 }
+	end,
+	syncCompanion = function(_, _, definition)
+		equipped = definition
+	end,
 	getState = function()
 		return {}
 	end,

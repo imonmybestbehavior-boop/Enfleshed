@@ -3,7 +3,9 @@
 -- duplicating the production dispatch rules in a test harness.
 local Dispatch = {}
 
-function Dispatch.execute(definition, event, context, payloads, behaviors, commands, targetDeath)
+-- `conditions` (optional) filters event targets for steps with a Condition;
+-- without it, conditional steps never run (fail closed).
+function Dispatch.execute(definition, event, context, payloads, behaviors, commands, targetDeath, conditions)
 	for _, step in ipairs((definition.Triggers and definition.Triggers[event]) or {}) do
 		local matches = true
 		if event == "OnThreshold" and step.HealthPercent ~= context.HealthThreshold then
@@ -14,11 +16,22 @@ function Dispatch.execute(definition, event, context, payloads, behaviors, comma
 			matches = false
 		end
 
+		local stepContext = context
+		if matches and step.Condition ~= nil then
+			local passing = conditions and conditions.filter(step.Condition, context)
+			if passing then
+				stepContext = table.clone(context)
+				stepContext.Targets = passing
+			else
+				matches = false
+			end
+		end
+
 		if matches then
 			if step.Behavior then
-				behaviors.execute(step.Behavior, context, step)
+				behaviors.execute(step.Behavior, stepContext, step)
 			else
-				payloads.execute(step.Payloads or {}, context)
+				payloads.execute(step.Payloads or {}, stepContext)
 			end
 		end
 	end

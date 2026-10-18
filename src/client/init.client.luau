@@ -1,6 +1,9 @@
 --!strict
 
 local Players = game:GetService("Players")
+local player = Players.LocalPlayer
+local launcher = require(script.Controllers.GrimoireLauncher).start()
+local camera = require(script.Controllers.CameraController).start()
 local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
 local Protocol = require(Shared:WaitForChild("Networking"):WaitForChild("Protocol"))
 local Types = require(Shared:WaitForChild("Types"):WaitForChild("CombatTypes"))
@@ -8,14 +11,15 @@ local remotes = Shared:WaitForChild(Protocol.Folder)
 local request = remotes:WaitForChild(Protocol.Request) :: RemoteEvent
 local feedback = remotes:WaitForChild(Protocol.Feedback) :: RemoteEvent
 local aerialControl = remotes:WaitForChild(Protocol.AerialControl) :: RemoteEvent
-local player = Players.LocalPlayer
+local studioSandbox = game:GetService("RunService"):IsStudio()
+	and require(Shared.Configuration.DevelopmentSandbox).Enabled
 local sequence = 0
 
 local function send(action: string, extra: Types.ActionOptions?): number
 	sequence += 1
 	local character = player.Character
-	if not character or not player:GetAttribute("OpeningComplete") then
-		return sequence
+	if not character or (not studioSandbox and not player:GetAttribute("CharacterReady")) then
+		return 0 -- Nothing was sent, so callers must not wait for a reply.
 	end
 	local payload: Types.ActionRequest = {
 		Action = action,
@@ -31,7 +35,6 @@ local function send(action: string, extra: Types.ActionOptions?): number
 		CastOrigin = if extra then extra.CastOrigin else nil,
 		EquipmentSlot = if extra then extra.EquipmentSlot else nil,
 		EquipmentAction = if extra then extra.EquipmentAction else nil,
-		AwakeningProfileId = if extra then extra.AwakeningProfileId else nil,
 		SummonMode = if extra then extra.SummonMode else nil,
 		SummonId = if extra then extra.SummonId else nil,
 	}
@@ -39,27 +42,49 @@ local function send(action: string, extra: Types.ActionOptions?): number
 	return sequence
 end
 
-require(script.Controllers.OpeningController).start(remotes)
-local practice = game:GetService("RunService"):IsStudio() and require(Shared.Configuration.DevelopmentSandbox).Enabled
-if not practice then
-	require(script.Controllers.WorldEventController).start()
+local function startController(name: string, ...: any): ...any
+	local ok, result = pcall(function(...)
+		local controller = require(script.Controllers:WaitForChild(name))
+		return controller.start(...)
+	end, ...)
+	if not ok then
+		warn(string.format("Enfleshed client controller %s failed to start: %s", name, tostring(result)))
+		if name == "MagicController" then
+			launcher:SetError(tostring(result))
+		end
+		return nil
+	end
+	return result
 end
 
-local debug = require(script.Controllers.DebugController).start()
-require(script.Controllers.MagicRevealController).start()
-if not practice then
-	require(script.Controllers.AssignmentController).start()
-	require(script.Controllers.NavigationController).start()
+local hud = startController("UIController", launcher)
+local debug = startController("DebugController")
+startController("MagicRevealController")
+startController("SpellVFXController", remotes)
+startController("SpellVFXShowcase")
+startController("LanternController")
+local aerial = startController("MagicAerialController", aerialControl)
+local movement = startController("MovementController", send)
+local inventory = startController("InventoryController")
+if hud and inventory then
+	hud.BindInventory(inventory)
 end
-require(script.Controllers.LanternController).start()
-local aerial = require(script.Controllers.MagicAerialController).start(aerialControl)
-local movement = require(script.Controllers.MovementController).start(send)
-local combat = require(script.Controllers.CombatController).start(send, movement, debug)
-local camera = require(script.Controllers.CameraController).start()
-local magic = require(script.Controllers.MagicController).start(send, camera.GetAim)
-local equipment = require(script.Controllers.EquipmentController).start(send, combat.Attack, magic.WeaponAction)
-local awakening = require(script.Controllers.AwakeningController).start(send)
-local generated = require(script.Controllers.GeneratedSpellController).start(magic, debug)
+local combat =
+	startController("CombatController", send, movement, debug, hud, if inventory then inventory.MeleeLoadout else nil)
+local magic = startController(
+	"MagicController",
+	send,
+	if camera
+		then camera.GetAim
+		else function()
+			return Vector3.zAxis, Vector3.zero, nil, nil
+		end,
+	launcher
+)
+local equipment = if combat and magic
+	then startController("EquipmentController", send, combat, magic.WeaponAction)
+	else nil
+local generated = if magic then startController("GeneratedSpellController", magic, debug) else nil
 local selectedSummonId: number? = nil
 local function cycleSummonSelection()
 	local summons = workspace:FindFirstChild("MagicSummons")
@@ -95,7 +120,7 @@ local function cycleSummonSelection()
 end
 
 local function summonCommand(mode: string)
-	local _, point, target = camera.GetAim()
+	local _, point, target = if camera then camera.GetAim() else Vector3.zAxis, Vector3.zero, nil
 	send(Protocol.SummonCommand, {
 		SummonMode = mode,
 		TargetModel = if mode == "Attack" then target else nil,
@@ -104,34 +129,48 @@ local function summonCommand(mode: string)
 	})
 end
 
-local summonCommands = require(script.Controllers.SummonCommandController).start(summonCommand, cycleSummonSelection)
-require(script.Controllers.InputController).start(
-	movement.Sprint,
-	function()
-		if combat.CanDash() then
-			movement.Dash()
-		end
-	end,
-	magic.Cast,
-	magic.Release,
-	equipment.Use,
-	equipment.Switch,
-	generated.Cycle,
-	generated.Begin,
-	generated.Release,
-	cycleSummonSelection,
-	summonCommand
-)
+local summonCommands = startController("SummonCommandController", summonCommand, cycleSummonSelection)
+if movement and combat and magic and equipment and generated then
+	startController(
+		"InputController",
+		movement.Sprint,
+		function()
+			if combat.CanDash() then
+				movement.Dash()
+			end
+		end,
+		magic.Cast,
+		magic.Release,
+		equipment.Use,
+		equipment.Switch,
+		generated.Cycle,
+		generated.Begin,
+		generated.Release,
+		cycleSummonSelection,
+		summonCommand
+	)
+else
+	warn("Enfleshed input is disabled because a required combat or magic controller did not start")
+end
 
 local function reset()
 	selectedSummonId = nil
 	player:SetAttribute("MagicSelectedSummonId", nil)
-	movement.Reset()
-	aerial.Reset()
-	combat.Reset()
-	magic.Reset()
-	equipment.Reset()
-	awakening.Reset()
+	if movement then
+		movement.Reset()
+	end
+	if aerial then
+		aerial.Reset()
+	end
+	if combat then
+		combat.Reset()
+	end
+	if magic then
+		magic.Reset()
+	end
+	if equipment then
+		equipment.Reset()
+	end
 end
 player.CharacterRemoving:Connect(reset)
 local deathConnection: RBXScriptConnection? = nil
@@ -152,23 +191,39 @@ if player.Character then
 end
 feedback.OnClientEvent:Connect(function(message)
 	if message.Kind == "Equipment" then
-		equipment.Feedback(message)
-	elseif message.Kind == "MagicAwakening" then
-		awakening.Feedback(message)
+		if equipment then
+			equipment.Feedback(message)
+		end
 	elseif message.Kind == "ImpactNumber" then
 		local target = if typeof(message.Target) == "Instance" and message.Target:IsA("Model")
 			then message.Target
 			else nil
 		if typeof(message.Amount) == "number" and typeof(message.Effect) == "string" then
-			debug.Number(message.Effect, message.Amount, target)
+			if debug then
+				debug.Number(message.Effect, message.Amount, target)
+			end
 		end
 	elseif message.Kind == "Magic" then
-		debug.Magic(message)
+		if debug then
+			debug.Magic(message)
+		end
 	elseif message.Kind == "SummonCommand" then
-		debug.SummonCommand(message)
-		summonCommands.Feedback(message)
-	elseif message.Kind == "Swing" or (player.Character ~= nil and message.Character == player.Character) then
-		movement.Feedback(message)
-		combat.Feedback(message)
+		if debug then
+			debug.SummonCommand(message)
+		end
+		if summonCommands then
+			summonCommands.Feedback(message)
+		end
+	elseif
+		message.Kind == "Swing"
+		or message.Kind == "Guard"
+		or (player.Character ~= nil and message.Character == player.Character)
+	then
+		if movement then
+			movement.Feedback(message)
+		end
+		if combat then
+			combat.Feedback(message)
+		end
 	end
 end)

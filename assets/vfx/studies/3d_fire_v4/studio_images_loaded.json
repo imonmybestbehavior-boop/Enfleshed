@@ -1,0 +1,9 @@
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "{\"Loaded\":24,\"Frames\":[{\"Id\":\"rbxassetid://86919925936984\",\"Frame\":1,\"Loaded\":true},{\"Id\":\"rbxassetid://126350447146341\",\"Frame\":2,\"Loaded\":true},{\"Id\":\"rbxassetid://116449719617566\",\"Frame\":3,\"Loaded\":true},{\"Id\":\"rbxassetid://125896010345257\",\"Frame\":4,\"Loaded\":true},{\"Id\":\"rbxassetid://70474943111810\",\"Frame\":5,\"Loaded\":true},{\"Id\":\"rbxassetid://114606059894640\",\"Frame\":6,\"Loaded\":true},{\"Id\":\"rbxassetid://111817040702677\",\"Frame\":7,\"Loaded\":true},{\"Id\":\"rbxassetid://93106702508065\",\"Frame\":8,\"Loaded\":true},{\"Id\":\"rbxassetid://84326234505465\",\"Frame\":9,\"Loaded\":true},{\"Id\":\"rbxassetid://80695034184756\",\"Frame\":10,\"Loaded\":true},{\"Id\":\"rbxassetid://95076690170847\",\"Frame\":11,\"Loaded\":true},{\"Id\":\"rbxassetid://104361458711225\",\"Frame\":12,\"Loaded\":true},{\"Id\":\"rbxassetid://103706615899184\",\"Frame\":13,\"Loaded\":true},{\"Id\":\"rbxassetid://82416400377612\",\"Frame\":14,\"Loaded\":true},{\"Id\":\"rbxassetid://93970472335462\",\"Frame\":15,\"Loaded\":true},{\"Id\":\"rbxassetid://109039328659609\",\"Frame\":16,\"Loaded\":true},{\"Id\":\"rbxassetid://81899287344776\",\"Frame\":17,\"Loaded\":true},{\"Id\":\"rbxassetid://114491517326705\",\"Frame\":18,\"Loaded\":true},{\"Id\":\"rbxassetid://131694853984077\",\"Frame\":19,\"Loaded\":true},{\"Id\":\"rbxassetid://96894639170312\",\"Frame\":20,\"Loaded\":true},{\"Id\":\"rbxassetid://106111274610525\",\"Frame\":21,\"Loaded\":true},{\"Id\":\"rbxassetid://107148062871913\",\"Frame\":22,\"Loaded\":true},{\"Id\":\"rbxassetid://116423773889873\",\"Frame\":23,\"Loaded\":true},{\"Id\":\"rbxassetid://88447397847891\",\"Frame\":24,\"Loaded\":true}]}"
+    }
+  ],
+  "isError": false
+}

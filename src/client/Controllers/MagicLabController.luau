@@ -22,20 +22,34 @@ local SpecialResourceSpec = require(Shared.Modules.MagicSpecialResourceSpec)
 local SpecialResourceDefinitions = require(Shared.Configuration.MagicLocus).SpecialResources
 local EnvironmentRequirementSpec = require(Shared.Modules.MagicEnvironmentRequirementSpec)
 local SpellIdentitySpec = require(Shared.Modules.MagicSpellIdentitySpec)
+local GamepadNav = require(script.Parent.Parent.UI.Kit.GamepadNav)
+local InputMode = require(script.Parent.Parent.UI.Kit.InputMode)
+local Responsive = require(script.Parent.Parent.UI.Kit.Responsive)
+local Tokens = require(script.Parent.Parent.UI.Kit.Tokens)
+local GeometryPreview = require(script.Parent.GrimoireGeometryPreview)
+local ConditionTreeEditor = require(script.Parent.GrimoireConditionTreeEditor)
 local VisualSpec = require(Shared.Modules.MagicVisualSpec)
 local CompanionSpellPolicy = require(Shared.Modules.MagicCompanionSpellPolicy)
 local Protocol = require(Shared.Networking.Protocol)
 local Elements = require(Shared.Configuration.MagicElements)
 local Slots = require(Shared.Modules.MagicSlots)
+local ProgressionRules = require(Shared.Modules.SpellProgressionRules)
+local DevelopmentSandbox = require(Shared.Configuration.DevelopmentSandbox)
 local Camera = require(script.Parent.CameraController)
 ConditionSpec.configureSpecialResources(SpecialResourceDefinitions)
-local Theme = require(script.Parent.Parent.UI.GrimoireTheme)
+-- Every spell screen uses the Spell Forge palette and components.
+local Theme = require(script.Parent.Parent.UI.SpellForgeTheme).Book
+local K = require(script.Parent.Parent.UI.SpellForgeComponents)
+local Hub = require(script.Parent.Parent.UI.SpellHub)
+-- True while Advanced section editors draw into the forge inspector.
+local forgeHosted = false
 local SpellVisual = require(script.Parent.Parent.UI.GrimoireSpellVisual)
-local HomeLayout = require(script.Parent.Parent.UI.GrimoireHomeLayout)
-local Grimoire = require(script.Parent.Parent.UI.Grimoire)
+local VFXAnalyzer = require(Shared.SpellVFXSystem.Core.SpellVFXAnalyzer)
+local VFXComposer = require(Shared.SpellVFXSystem.Core.SpellVFXComposer)
 local LibraryView = require(script.Parent.Parent.UI.GrimoireLibraryView)
 local Summary = require(Shared.Modules.GrimoireSummary)
-local AuthoringGuide = require(Shared.Modules.MagicAuthoringGuide)
+local ActionFlow = require(Shared.Modules.MagicActionFlow)
+local GuidedForge = require(script.Parent.Parent.UI.GuidedSpellForge)
 local Lab = {}
 local function ensureVisualDefaults(definition)
 	definition.Visual = definition.Visual or {}
@@ -52,16 +66,35 @@ local function visualMaterial(definition)
 	end
 	return Enum.Material[name] or Enum.Material.Neon
 end
-function Lab.start(send, aim)
+function Lab.start(send, aim, launcher)
 	if not Config.Enabled or not (RunService:IsStudio() or (not Config.StudioOnly and Config.AllowLive)) then
 		return
 	end
+	launcher = launcher or require(script.Parent.GrimoireLauncher).start()
 	local player = Players.LocalPlayer
-	local remotes = Shared:WaitForChild(Protocol.Folder)
-	local request = remotes:WaitForChild("MagicLabRequest")
-	local response = remotes:WaitForChild("MagicLabResponse")
-	local trainingRequest = remotes:WaitForChild("TrainingDummyRequest") :: RemoteEvent
-	local trainingResponse = remotes:WaitForChild("TrainingDummyResponse") :: RemoteEvent
+	local remotes = Shared:WaitForChild(Protocol.Folder, 15)
+	assert(remotes, "Action remotes did not start within 15 seconds")
+	local request = remotes:WaitForChild("MagicLabRequest", 15)
+	assert(request, "Grimoire editor remote did not start within 15 seconds")
+	local response = remotes:WaitForChild("MagicLabResponse", 15)
+	assert(response, "Grimoire response remote did not start within 15 seconds")
+	local trainingRequest = remotes:WaitForChild("TrainingDummyRequest", 15) :: RemoteEvent?
+	assert(trainingRequest, "Training dummy remote did not start within 15 seconds")
+	local trainingResponse = remotes:WaitForChild("TrainingDummyResponse", 15) :: RemoteEvent?
+	assert(trainingResponse, "Training response remote did not start within 15 seconds")
+	-- Validate every response event before building the editor. Waiting for these
+	-- events later in the 5,000-line UI setup could leave the launcher stuck in
+	-- its connecting state forever if a server bootstrap regresses.
+	local grimoireResponse = remotes:WaitForChild("GrimoireResponse", 15)
+	assert(
+		grimoireResponse and grimoireResponse:IsA("RemoteEvent"),
+		"Grimoire library response remote did not start within 15 seconds"
+	)
+	local actionFeedback = remotes:WaitForChild(Protocol.Feedback, 15)
+	assert(
+		actionFeedback and actionFeedback:IsA("RemoteEvent"),
+		"Action feedback remote did not start within 15 seconds"
+	)
 	local consentAttribute = "MagicAcceptsTargetedSpells"
 	local consentEnabled = player:GetAttribute(consentAttribute) == true
 	player:GetAttributeChangedSignal(consentAttribute):Connect(function()
@@ -76,6 +109,34 @@ function Lab.start(send, aim)
 	gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 	gui.ScreenInsets = Enum.ScreenInsets.CoreUISafeInsets
 	gui.Parent = player:WaitForChild("PlayerGui")
+	-- Roblox switches to its pointing-hand cursor over GuiButtons. Keep the
+	-- grimoire's pointer visually steady by drawing one cursor above the UI.
+	local cursorGui = Instance.new("ScreenGui")
+	cursorGui.Name = "GrimoireStableCursor"
+	cursorGui.ResetOnSpawn = false
+	cursorGui.IgnoreGuiInset = true
+	cursorGui.DisplayOrder = 200
+	cursorGui.Parent = player.PlayerGui
+	local cursor = Instance.new("TextLabel")
+	cursor.Name = "Pointer"
+	cursor.AnchorPoint = Vector2.new(0.15, 0.12)
+	cursor.Size = UDim2.fromOffset(24, 24)
+	cursor.BackgroundTransparency = 1
+	cursor.Font = Enum.Font.GothamBold
+	cursor.Text = "↖"
+	cursor.TextSize = 21
+	cursor.TextColor3 = Theme.Gold
+	cursor.TextStrokeColor3 = Theme.Ink
+	cursor.TextStrokeTransparency = 0.1
+	cursor.ZIndex = 100
+	cursor.Visible = false
+	cursor.Parent = cursorGui
+	RunService.RenderStepped:Connect(function()
+		if cursor.Visible then
+			local mouse = UIS:GetMouseLocation()
+			cursor.Position = UDim2.fromOffset(mouse.X, mouse.Y)
+		end
+	end)
 	local panel = Instance.new("Frame")
 	panel.AnchorPoint = Vector2.new(0.5, 0.5)
 	panel.Size = UDim2.new(0.96, 0, 0.96, 0)
@@ -205,17 +266,17 @@ function Lab.start(send, aim)
 	local libraryLoaded = false
 	local libraryLoading = false
 	local pageMode = "Slots"
-	local creationStep = "Intent"
-	local creationIntent: string? = nil
-	local creationForm: string? = nil
-	local creationEffects = {}
-	local creationForLibrary = false
 	local standaloneDraft = false
 	local editingLibraryRecord = false
 	local editingLibraryId: string? = nil
 	local authoringMode = "Guided"
+	local selectedStepByEvent = {}
 	local expertSearch = ""
 	local activeSection = "Setup"
+	local visualSubpage = "Composer"
+	local visualPage = 1
+	local visualStudioFrame: Frame? = nil
+	local visualLayoutConnection: RBXScriptConnection? = nil
 	local EffectCategoryOrder = { "Damage", "Healing", "Defense", "Control", "Movement", "Summoning", "Utility" }
 	local function effectCategory(kind: string): string
 		if kind == "Damage" or kind == "DamageOverTime" then
@@ -234,26 +295,8 @@ function Lab.start(send, aim)
 		return "Control"
 	end
 	local applyingDraft, applyingSlot
-	local bar = Instance.new("TextButton")
-	bar.Name = "EquippedSpells"
-	bar.AnchorPoint = Vector2.new(0.5, 1)
-	bar.Position = UDim2.fromScale(0.5, 0.86)
-	bar.Size = UDim2.new(0.86, 0, 0, 48)
-	bar.BackgroundColor3 = Theme.Surface
-	bar.BackgroundTransparency = 0
-	bar.TextColor3 = Theme.Ink
-	bar.TextSize = 14
-	bar.TextWrapped = true
-	bar.Parent = gui
-	local barStroke = Instance.new("UIStroke")
-	barStroke.Color, barStroke.Thickness = Theme.Border, 1
-	barStroke.Parent = bar
 	local function refreshBar()
-		local names = { "OPEN GRIMOIRE · P" }
-		for i = 1, Slots.Count do
-			table.insert(names, i .. ": " .. (equipped[i] and equipped[i].Name or "—"))
-		end
-		bar.Text = table.concat(names, "  |  ")
+		-- The persistent launcher owns its own label and lives outside this panel.
 	end
 	refreshBar()
 	local pendingCast = false
@@ -270,23 +313,28 @@ function Lab.start(send, aim)
 	toast.AnchorPoint = Vector2.new(0.5, 0)
 	toast.Position = UDim2.fromScale(0.5, 0.15)
 	toast.Size = UDim2.new(0.7, 0, 0, 44)
-	toast.BackgroundColor3 = Theme.Surface
-	toast.BackgroundTransparency = 0
+	toast.BackgroundColor3 = K.C.Panel
+	toast.BackgroundTransparency = 0.05
 	toast.TextColor3 = Theme.Ink
-	toast.TextSize = 16
+	toast.Font = Enum.Font.GothamBold
+	toast.TextSize = 14
 	toast.TextWrapped = true
+	K.corner(toast, 10)
+	K.pad(toast, 14, 6)
 	toast.ZIndex = 90
 	toast.Visible = false
 	toast.Parent = gui
 	local toastEdge = Instance.new("UIStroke")
-	toastEdge.Color = Theme.TileEdge
-	toastEdge.Thickness = 2
+	toastEdge.Color = K.C.Gold
+	toastEdge.Thickness = 1
+	toastEdge.Transparency = 0.4
 	toastEdge.Parent = toast
 	local toastUntil = 0
+	local toastToken = 0
 	local feedbackVisible = true
-	RunService.Heartbeat:Connect(function()
+	local function refreshToast()
 		toast.Visible = feedbackVisible and os.clock() < toastUntil
-	end)
+	end
 	local function creatorFacingText(text)
 		local value = tostring(text)
 		local lowered = string.lower(value)
@@ -304,16 +352,36 @@ function Lab.start(send, aim)
 		status.Text = text
 		toast.Text = text
 		toastUntil = os.clock() + 3
+		toastToken += 1
+		local token = toastToken
+		refreshToast()
+		task.delay(3, function()
+			if token == toastToken then
+				toast.Visible = false
+			end
+		end)
 		status.TextColor3 = if warning then Theme.Warning elseif ok then Theme.Success else Theme.Error
 		toast.TextColor3 = status.TextColor3
 	end
 	local updateHeader
+	local forgeApi = nil
 	local editorPreview
 	local mobileEditorPreview
+	local liveIconPreview
 	local function estimate()
+		if forgeApi and not forgeHosted then
+			task.defer(forgeApi.refresh)
+		end
 		panel:SetAttribute("SpellSummary", draft.Name .. "\n" .. draft.Form .. "  ·  " .. draft.Element)
-		if editorPreview then SpellVisual.render(editorPreview, draft, false) end
-		if mobileEditorPreview then SpellVisual.render(mobileEditorPreview, draft, false) end
+		if editorPreview then
+			SpellVisual.render(editorPreview, draft, false)
+		end
+		if mobileEditorPreview then
+			SpellVisual.render(mobileEditorPreview, draft, false)
+		end
+		if liveIconPreview and liveIconPreview.Parent then
+			SpellVisual.render(liveIconPreview, draft, true)
+		end
 		revision += 1
 		dirty = true
 		if pageMode == "Editor" and standaloneDraft then
@@ -339,7 +407,15 @@ function Lab.start(send, aim)
 			message(reason, false)
 			return
 		end
-		local cost = Spec.estimate(draft)
+		local priced = Spec.copy(draft)
+		local publicCombat = not (RunService:IsStudio() and DevelopmentSandbox.Enabled)
+		local cost = if publicCombat
+			then ProgressionRules.reprice(priced, Spec.estimate, Spec.copy)
+			else Spec.estimate(draft)
+		if publicCombat then
+			cost.ManaUpkeepPerSecond = priced.Casting.ManaUpkeepPerSecond or 0
+			cost.StrainPerSecond = priced.Casting.StrainPerSecond or 0
+		end
 		local specialCostLabels = {}
 		for _, resourceId in ipairs(SpecialResourceSpec.order(SpecialResourceDefinitions)) do
 			local amount = draft.Cost.SpecialResources and draft.Cost.SpecialResources[resourceId]
@@ -350,10 +426,11 @@ function Lab.start(send, aim)
 		local specialCostText = if #specialCostLabels > 0 then " · " .. table.concat(specialCostLabels, ", ") else ""
 		message(
 			string.format(
-				"ESTIMATE · mana demand %d · strain %d · complexity %d · while active: %g mana/s, %g strain/s%s\nSave slot equips these edits. Save + cast equips and casts them.",
+				"ESTIMATE · mana %d · strain %d · complexity %d · cooldown %.2fs · while active: %g mana/s, %g strain/s%s\nServer checks unlocks and spell rank before equipping.",
 				cost.ManaDemand,
 				cost.Strain,
 				cost.Complexity,
+				priced.Casting.Cooldown,
 				cost.ManaUpkeepPerSecond,
 				cost.StrainPerSecond,
 				specialCostText
@@ -363,9 +440,20 @@ function Lab.start(send, aim)
 	end
 	local function visibility(open)
 		panel.Visible = open
-		bar.Visible = not open
+		if open then
+			GamepadNav.open(panel, function()
+				visibility(false)
+			end)
+		else
+			GamepadNav.close(panel)
+		end
+		launcher:SetOpen(open)
 		player:SetAttribute("MagicLabOpen", open)
 		Camera:SetGameplayMouseLookEnabled(not open)
+		cursor.Visible = open and UIS.MouseEnabled
+		if open then
+			UIS.MouseIconEnabled = false
+		end
 		if open then
 			send("Sprint", { Sprinting = false })
 			if not libraryLoaded and not libraryLoading then
@@ -378,6 +466,22 @@ function Lab.start(send, aim)
 		visibility(false)
 	end)
 	local rebuild
+	-- Server responses can arrive in bursts or while the lab is closed. Opening
+	-- the lab always rebuilds, so hidden updates are skipped and visible ones
+	-- are coalesced into a single rebuild on the next resumption point.
+	local rebuildQueued = false
+	local function requestRebuild()
+		if rebuildQueued then
+			return
+		end
+		rebuildQueued = true
+		task.defer(function()
+			rebuildQueued = false
+			if panel.Visible then
+				rebuild()
+			end
+		end)
+	end
 	local apply
 	local cast
 	local actions
@@ -443,31 +547,63 @@ function Lab.start(send, aim)
 	local libraryView
 	local pendingLibraryEdit
 	local helpSeen = false
+	-- Section helpers. Every screen (Library, Training, Help, and the Advanced
+	-- editors hosted in the forge inspector) is drawn with these, so they build
+	-- Spell Forge components rather than their own styling.
 	local function confirm(text, accept)
 		if panel:FindFirstChild("Confirmation") then
 			return
 		end
-		local shade = Instance.new("TextButton")
-		shade.Name, shade.Size, shade.Text = "Confirmation", UDim2.fromScale(1, 1), ""
-		shade.BackgroundColor3, shade.BackgroundTransparency, shade.AutoButtonColor = Color3.new(0, 0, 0), 0.15, false
-		shade.ZIndex, shade.Parent = 40, panel
-		local prompt = Instance.new("TextLabel")
-		prompt.Position, prompt.Size = UDim2.fromScale(0.08, 0.2), UDim2.fromScale(0.84, 0.36)
-		prompt.BackgroundTransparency, prompt.TextColor3, prompt.TextWrapped, prompt.TextSize =
-			1, Theme.OnAccent, true, 19
-		prompt.Text, prompt.ZIndex, prompt.Parent = text, 41, shade
+		local shade = K.new("TextButton", {
+			Name = "Confirmation",
+			Size = UDim2.fromScale(1, 1),
+			Text = "",
+			AutoButtonColor = false,
+			BackgroundColor3 = Color3.new(0, 0, 0),
+			BackgroundTransparency = 0.35,
+			ZIndex = 60,
+		}, panel)
+		local sheet = K.new("Frame", {
+			AnchorPoint = Vector2.new(0.5, 0.5),
+			Position = UDim2.fromScale(0.5, 0.5),
+			Size = UDim2.new(0.9, 0, 0, 200),
+			BackgroundColor3 = K.C.Panel,
+			Active = true,
+			ZIndex = 61,
+		}, shade)
+		K.new("UISizeConstraint", { MaxSize = Vector2.new(480, 260) }, sheet)
+		K.corner(sheet, 14)
+		K.stroke(sheet, K.C.Gold, 1, 0.4)
+		K.text(sheet, "CONFIRM", 12, K.C.Gold, Enum.Font.GothamBlack, {
+			Position = UDim2.fromOffset(20, 14),
+			Size = UDim2.new(1, -40, 0, 18),
+			ZIndex = 62,
+		})
+		K.text(sheet, text, 15, K.C.Ink, Enum.Font.GothamMedium, {
+			Position = UDim2.fromOffset(20, 38),
+			Size = UDim2.new(1, -40, 1, -110),
+			TextYAlignment = Enum.TextYAlignment.Top,
+			ZIndex = 62,
+		})
 		for i, caption in { "CANCEL", "CONFIRM" } do
-			local b = Instance.new("TextButton")
-			b.Size, b.Position = UDim2.new(0.38, 0, 0, 48), UDim2.fromScale(0.1 + (i - 1) * 0.42, 0.65)
-			b.Text, b.TextSize, b.TextColor3, b.BackgroundColor3 = caption, 16, Theme.OnAccent, Theme.Accent
-			b.ZIndex, b.Parent = 41, shade
-			b.Activated:Connect(function()
+			local b = K.pill(sheet, caption, function()
 				shade:Destroy()
 				if i == 2 then
 					accept()
 				end
-			end)
+			end, if i == 2 then "accent" else nil)
+			b.Size, b.Position = UDim2.new(0.5, -26, 0, 42), UDim2.new((i - 1) * 0.5, if i == 1 then 20 else 6, 1, -58)
+			b.ZIndex = 62
 		end
+	end
+	local function visibleNow(label)
+		local groupVisible = not currentGroup
+			or expandedGroups[currentGroup] == true
+			or (authoringMode == "Expert" and expertSearch ~= "")
+		local searchVisible = authoringMode ~= "Expert"
+			or expertSearch == ""
+			or string.find(string.lower(label), string.lower(expertSearch), 1, true) ~= nil
+		return groupVisible and searchVisible
 	end
 	local function row(label)
 		cardPairHolder, cardPairCount, cardPairCards, cardPairLayout = nil, 0, {}, nil
@@ -476,23 +612,16 @@ function Lab.start(send, aim)
 		frame.Size = UDim2.new(1, -8, 0, 44)
 		frame.BackgroundTransparency = 1
 		frame.LayoutOrder = order
-		local groupVisible = not currentGroup
-			or expandedGroups[currentGroup] == true
-			or (authoringMode == "Expert" and expertSearch ~= "")
-		local searchVisible = authoringMode ~= "Expert"
-			or expertSearch == ""
-			or label == "AUTHORING MODE"
-			or label == "SEARCH THIS CHAPTER"
-			or string.find(string.lower(label), string.lower(expertSearch), 1, true) ~= nil
-		frame.Visible = groupVisible and searchVisible
+		frame.Visible = visibleNow(label)
 		frame.Parent = scroll
 		local title = Instance.new("TextLabel")
-		title.Size = UDim2.new(0.58, 0, 1, 0)
+		title.Size = UDim2.new(0.56, 0, 1, 0)
 		title.BackgroundTransparency = 1
 		title.TextWrapped = true
 		title.Text = label
-		title.TextColor3 = Theme.Ink
-		title.TextSize = 14
+		title.TextColor3 = K.C.Ink
+		title.Font = Enum.Font.GothamMedium
+		title.TextSize = 13
 		title.TextXAlignment = Enum.TextXAlignment.Left
 		title.Parent = frame
 		return frame
@@ -508,156 +637,88 @@ function Lab.start(send, aim)
 		return frame
 	end
 	local function creationChoiceGrid(options)
-		local holder = canvasBlock(scroll.AbsoluteSize.Y)
+		local gridHost = scroll
+		local holder = canvasBlock(gridHost.AbsoluteSize.Y)
 		holder.Name = "SpellChoiceGrid"
 		local tiles = {}
 		for index, option in ipairs(options) do
-			local tile = Instance.new("TextButton")
-			tile.Name = "Choice_" .. tostring(option.Id or index)
-			tile.BackgroundColor3 = Color3.fromRGB(104, 72, 42)
-			tile.BorderSizePixel = 0
-			tile.Text = ""
-			tile.AutoButtonColor = true
-			tile.Parent = holder
-			local corner = Instance.new("UICorner")
-			corner.CornerRadius = UDim.new(0, 5)
-			corner.Parent = tile
-			local lip = Instance.new("Frame")
-			lip.Name = "RaisedEdge"
-			lip.Position = UDim2.fromOffset(2, 2)
-			lip.Size = UDim2.new(1, -4, 1, -4)
-			lip.BackgroundColor3 = Color3.fromRGB(176, 133, 76)
-			lip.BorderSizePixel = 0
-			lip.Parent = tile
-			local lipCorner = Instance.new("UICorner")
-			lipCorner.CornerRadius = UDim.new(0, 4)
-			lipCorner.Parent = lip
-			local face = Instance.new("Frame")
-			face.Name = "ParchmentFace"
-			face.Position = UDim2.fromOffset(3, 2)
-			face.Size = UDim2.new(1, -6, 1, -8)
-			face.BackgroundColor3 = Color3.fromRGB(237, 215, 173)
-			face.BorderSizePixel = 0
-			face.Parent = tile
-			local faceCorner = Instance.new("UICorner")
-			faceCorner.CornerRadius = UDim.new(0, 3)
-			faceCorner.Parent = face
-			local faceGradient = Instance.new("UIGradient")
-			faceGradient.Rotation = 90
-			faceGradient.Color = ColorSequence.new(Color3.fromRGB(255, 239, 207), Color3.fromRGB(213, 177, 123))
-			faceGradient.Parent = face
-			local edge = Instance.new("UIStroke")
-			edge.Color = if option.Selected then Theme.Accent else Color3.fromRGB(105, 73, 38)
-			edge.Thickness = if option.Selected then 3 else 2
-			edge.Parent = tile
-			tile.SelectionGained:Connect(function() edge.Color, edge.Thickness = Theme.Gold, 3 end)
-			tile.SelectionLost:Connect(function()
-				edge.Color = if option.Selected then Theme.Accent else Color3.fromRGB(105, 73, 38)
-				edge.Thickness = if option.Selected then 3 else 2
+			local tile = K.new("TextButton", {
+				Name = "Choice_" .. tostring(option.Id or index),
+				BackgroundColor3 = K.C.Card,
+				Text = "",
+				AutoButtonColor = false,
+			}, holder)
+			K.corner(tile, 12)
+			local edge =
+				K.stroke(tile, if option.Selected then K.C.Gold else K.C.PanelEdge, if option.Selected then 2 else 1)
+			K.hover(tile, K.C.Card, K.C.CardHover)
+			tile.SelectionGained:Connect(function()
+				edge.Color = K.C.Gold
 			end)
-			local icon = Instance.new("Frame")
-			icon.Name = "ChoiceIcon"
-			icon.Position = UDim2.fromScale(0.29, 0.14)
-			icon.Size = UDim2.fromScale(0.42, 0.43)
-			icon.BackgroundColor3 = Color3.fromRGB(218, 191, 148)
-			icon.BorderSizePixel = 0
-			icon.Parent = tile
+			tile.SelectionLost:Connect(function()
+				edge.Color = if option.Selected then K.C.Gold else K.C.PanelEdge
+			end)
+			local icon = K.new("Frame", {
+				Name = "ChoiceIcon",
+				Position = UDim2.fromScale(0.29, 0.14),
+				Size = UDim2.fromScale(0.42, 0.43),
+				BackgroundColor3 = K.C.Input,
+			}, tile)
+			K.corner(icon, 10)
 			if option.Preview then
 				SpellVisual.render(icon, option.Preview, true)
 			else
-				local mark = Instance.new("TextLabel")
-				mark.Size = UDim2.fromScale(1, 1)
-				mark.BackgroundTransparency = 1
-				mark.Font = Enum.Font.Garamond
-				mark.TextScaled = true
-				mark.TextColor3 = Theme.Accent
-				mark.Text = option.Symbol or "✧"
-				mark.Parent = icon
+				K.text(icon, option.Symbol or "◆", 26, K.C.Gold, Enum.Font.GothamBold, {
+					Size = UDim2.fromScale(1, 1),
+					TextXAlignment = Enum.TextXAlignment.Center,
+				})
 			end
-			local iconEdge = Instance.new("UIStroke")
-			iconEdge.Color = Color3.fromRGB(120, 86, 46)
-			iconEdge.Thickness = 1
-			iconEdge.Parent = icon
-			local name = Instance.new("TextLabel")
-			name.Name = "ChoiceName"
-			name.Position = UDim2.fromScale(0.06, 0.59)
-			name.Size = UDim2.fromScale(0.88, 0.17)
-			name.BackgroundTransparency = 1
-			name.Text = option.Label
-			name.Font = Enum.Font.GothamBold
-			name.TextScaled = true
-			name.TextWrapped = true
-			name.TextColor3 = Theme.Ink
-			name.Parent = tile
-			local nameLimit = Instance.new("UITextSizeConstraint")
-			nameLimit.MinTextSize = 11
-			nameLimit.MaxTextSize = 20
-			nameLimit.Parent = name
-			local detail = Instance.new("TextLabel")
-			detail.Name = "ChoiceDetail"
-			detail.Position = UDim2.fromScale(0.06, 0.76)
-			detail.Size = UDim2.fromScale(0.88, 0.18)
-			detail.BackgroundTransparency = 1
-			detail.Text = option.Hint or ""
-			detail.Font = Enum.Font.Gotham
-			detail.TextScaled = true
-			detail.TextWrapped = true
-			detail.TextColor3 = Theme.MutedInk
-			detail.Parent = tile
-			local detailLimit = Instance.new("UITextSizeConstraint")
-			detailLimit.MinTextSize = 9
-			detailLimit.MaxTextSize = 13
-			detailLimit.Parent = detail
+			K.text(tile, option.Label, 14, K.C.Ink, Enum.Font.GothamBold, {
+				Name = "ChoiceName",
+				Position = UDim2.fromScale(0.06, 0.6),
+				Size = UDim2.fromScale(0.88, 0.16),
+				TextXAlignment = Enum.TextXAlignment.Center,
+				TextTruncate = Enum.TextTruncate.AtEnd,
+			})
+			K.text(tile, option.Hint or "", 11, K.C.Muted, Enum.Font.Gotham, {
+				Name = "ChoiceDetail",
+				Position = UDim2.fromScale(0.06, 0.77),
+				Size = UDim2.fromScale(0.88, 0.18),
+				TextXAlignment = Enum.TextXAlignment.Center,
+				TextYAlignment = Enum.TextYAlignment.Top,
+				TextTruncate = Enum.TextTruncate.AtEnd,
+			})
 			if option.Badge then
-				local badge = Instance.new("TextLabel")
-				badge.Name = "ChoiceBadge"
-				badge.Position = UDim2.fromScale(0.07, 0.04)
-				badge.Size = UDim2.fromScale(0.86, 0.1)
-				badge.BackgroundTransparency = 1
-				badge.Text = option.Badge
-				badge.Font = Enum.Font.GothamBold
-				badge.TextSize = 10
-				badge.TextColor3 = option.Selected and Theme.Accent or Theme.Gold
-				badge.Parent = tile
+				K.text(tile, option.Badge, 10, if option.Selected then K.C.Gold else K.C.Faint, Enum.Font.GothamBlack, {
+					Name = "ChoiceBadge",
+					Position = UDim2.fromScale(0.07, 0.03),
+					Size = UDim2.fromScale(0.86, 0.1),
+					TextXAlignment = Enum.TextXAlignment.Center,
+				})
 			end
 			tile.Activated:Connect(option.Action)
 			table.insert(tiles, tile)
 		end
 		local function layoutGrid()
-			local width, height = holder.AbsoluteSize.X, scroll.AbsoluteSize.Y
+			local width = holder.AbsoluteSize.X
 			local gap = 10
-			local twoPages = width >= 620
-			local cell = if twoPages
-				then math.max(72, math.floor(math.min((width / 2 - 72) / 2, (height - 34) / 2)))
-				else math.max(72, math.floor(math.min((width - 30) / 2, 180)))
-			local pairWidth, pairHeight = cell * 2 + gap, cell * 2 + gap
-			local top = if twoPages then math.max(4, math.floor((height - pairHeight) / 2)) else 6
+			local columns = math.max(2, math.min(4, math.floor((width + gap) / 150)))
+			local cell = math.max(72, math.floor((width - gap * (columns - 1)) / columns))
+			cell = math.min(cell, 190)
+			local left = math.floor((width - (cell * columns + gap * (columns - 1))) / 2)
 			for index, tile in ipairs(tiles) do
-				local x, y
-				if twoPages then
-					local spread = math.floor((index - 1) / 8)
-					local within = (index - 1) % 8
-					local side = math.floor(within / 4)
-					local onPage = within % 4
-					local pageWidth = width / 2
-					x = math.floor(side * pageWidth + (pageWidth - pairWidth) / 2)
-						+ (onPage % 2) * (cell + gap)
-					y = top + spread * (pairHeight + 24) + math.floor(onPage / 2) * (cell + gap)
-				else
-					x = math.floor((width - pairWidth) / 2) + ((index - 1) % 2) * (cell + gap)
-					y = top + math.floor((index - 1) / 2) * (cell + gap)
-				end
-				tile.Position = UDim2.fromOffset(x, y)
+				local column = (index - 1) % columns
+				local rowIndex = math.floor((index - 1) / columns)
+				tile.Position = UDim2.fromOffset(left + column * (cell + gap), rowIndex * (cell + gap))
 				tile.Size = UDim2.fromOffset(cell, cell)
 			end
-			local canvasHeight = if twoPages
-				then top + math.max(1, math.ceil(#tiles / 8)) * (pairHeight + 24)
-				else top + math.ceil(#tiles / 2) * (cell + gap) + 8
-			holder.Size = UDim2.new(1, -8, 0, math.max(height, canvasHeight))
+			holder.Size = UDim2.new(1, -8, 0, math.ceil(#tiles / columns) * (cell + gap))
 		end
 		holder:GetPropertyChangedSignal("AbsoluteSize"):Connect(layoutGrid)
-		local resizeConnection = scroll:GetPropertyChangedSignal("AbsoluteSize"):Connect(layoutGrid)
-		holder.Destroying:Connect(function() resizeConnection:Disconnect() end)
+		local resizeConnection = gridHost:GetPropertyChangedSignal("AbsoluteSize"):Connect(layoutGrid)
+		holder.Destroying:Connect(function()
+			resizeConnection:Disconnect()
+		end)
 		layoutGrid()
 	end
 	local function heading(text)
@@ -665,75 +726,64 @@ function Lab.start(send, aim)
 			currentGroup = nil
 		end
 		local frame = row(text)
-		frame.Size = UDim2.new(1, -8, 0, 42)
+		frame.Size = UDim2.new(1, -8, 0, 34)
 		local label = frame:FindFirstChildOfClass("TextLabel")
 		label.Size = UDim2.fromScale(1, 1)
-		label.Font = Enum.Font.Garamond
-		label.TextSize = 21
+		label.Font = Enum.Font.GothamBlack
+		label.TextSize = 12
+		label.TextColor3 = K.C.Gold
+		label.TextYAlignment = Enum.TextYAlignment.Bottom
 		if advancedGroups[text] then
-			label.Text = "ADVANCED · " .. text
+			label.Text = (if expandedGroups[text] then "▼   " else "▶   ") .. text
 			currentGroup = text
-			label.Size = UDim2.new(1, -105, 1, 0)
-			local reveal = Instance.new("TextButton")
-			reveal.Position, reveal.Size = UDim2.new(1, -100, 0, 0), UDim2.new(0, 100, 1, 0)
-			reveal.Text = if expandedGroups[text] then "HIDE −" else "SHOW +"
-			reveal.TextColor3, reveal.BackgroundColor3, reveal.TextSize = Theme.OnAccent, Theme.Accent, 14
-			reveal.Parent = frame
+			frame.Size = UDim2.new(1, -8, 0, 40)
+			label.Position = UDim2.fromOffset(14, 0)
+			label.Size = UDim2.new(1, -28, 1, 0)
+			label.Font = Enum.Font.GothamBold
+			label.TextColor3 = K.C.Ink
+			label.TextYAlignment = Enum.TextYAlignment.Center
+			frame.BackgroundColor3 = K.C.Card
+			frame.BackgroundTransparency = 0
+			K.stroke(frame, K.C.PanelEdge)
+			K.corner(frame, 8)
+			local reveal = K.new("TextButton", {
+				Name = "AdvancedTriggerBar",
+				Size = UDim2.fromScale(1, 1),
+				BackgroundTransparency = 1,
+				Text = "",
+			}, frame)
 			reveal.Activated:Connect(function()
 				expandedGroups[text] = not expandedGroups[text]
 				rebuildPreservingScroll()
 			end)
 		end
 	end
-	local function info(text, height)
+	local function info(text, _height)
 		cardPairHolder, cardPairCount, cardPairCards, cardPairLayout = nil, 0, {}, nil
 		order += 1
-		local label = Instance.new("TextLabel")
-		label.Size = UDim2.new(1, -8, 0, height or 42)
-		label.AutomaticSize = Enum.AutomaticSize.Y
-		label.BackgroundColor3 = Theme.SurfaceMuted
-		label.BackgroundTransparency = 0
-		label.Font = Enum.Font.Gotham
-		label.TextSize = 14
-		label.TextWrapped = true
-		label.TextColor3 = Theme.MutedInk
-		label.TextXAlignment = Enum.TextXAlignment.Left
-		label.TextYAlignment = Enum.TextYAlignment.Center
-		label.Text = "  " .. text
-		label.LayoutOrder = order
-		local groupVisible = not currentGroup
-			or expandedGroups[currentGroup] == true
-			or (authoringMode == "Expert" and expertSearch ~= "")
-		local searchVisible = authoringMode ~= "Expert"
-			or expertSearch == ""
-			or string.find(string.lower(text), string.lower(expertSearch), 1, true) ~= nil
-		label.Visible = groupVisible and searchVisible
-		label.Parent = scroll
-		local corner = Instance.new("UICorner")
-		corner.CornerRadius = UDim.new(0, 5)
-		corner.Parent = label
-		local inkRule = Instance.new("UIStroke")
-		inkRule.Color = Theme.TileEdge
-		inkRule.Thickness = 1
-		inkRule.Transparency = 0.35
-		inkRule.Parent = label
+		local label = K.text(scroll, text, 12, K.C.Muted, Enum.Font.Gotham, {
+			Size = UDim2.new(1, -8, 0, 0),
+			AutomaticSize = Enum.AutomaticSize.Y,
+			BackgroundTransparency = 0,
+			BackgroundColor3 = Color3.fromRGB(27, 23, 30),
+			TextYAlignment = Enum.TextYAlignment.Top,
+			LayoutOrder = order,
+		})
+		K.pad(label, 12, 9)
+		K.corner(label, 8)
+		label.Visible = visibleNow(text)
 		return label
 	end
 	local function card(title, description, enabled, onChange, canEdit, unavailableReason)
 		canEdit = if canEdit == nil then true else canEdit
-		local groupVisible = not currentGroup
-			or expandedGroups[currentGroup] == true
-			or (authoringMode == "Expert" and expertSearch ~= "")
-		local searchText = string.lower(title .. " " .. description)
-		local searchVisible = authoringMode ~= "Expert"
-			or expertSearch == ""
-			or string.find(searchText, string.lower(expertSearch), 1, true) ~= nil
-		if not (groupVisible and searchVisible) then return nil end
+		if not visibleNow(title .. " " .. description) then
+			return nil
+		end
 		if not cardPairHolder or cardPairCount >= 2 then
 			order += 1
 			cardPairHolder = Instance.new("Frame")
-			cardPairHolder.Name = "ParchmentChoicePair"
-			cardPairHolder.Size = UDim2.new(1, -8, 0, 150)
+			cardPairHolder.Name = "EffectChoicePair"
+			cardPairHolder.Size = UDim2.new(1, -8, 0, 128)
 			cardPairHolder.BackgroundTransparency = 1
 			cardPairHolder.LayoutOrder = order
 			cardPairHolder.Parent = scroll
@@ -744,78 +794,64 @@ function Lab.start(send, aim)
 				local width = holder.AbsoluteSize.X
 				local columns = if width >= 295 then 2 else 1
 				local gap = 10
-				local cell = if columns == 2 then math.floor((width - gap) / 2) else math.min(width, 220)
+				local cellWidth = if columns == 2 then math.floor((width - gap) / 2) else width
 				for index, choice in ipairs(cards) do
-					choice.Size = UDim2.fromOffset(cell, cell)
+					choice.Size = UDim2.fromOffset(cellWidth, 120)
 					choice.Position = if columns == 2
-						then UDim2.fromOffset((index - 1) * (cell + gap), 0)
-						else UDim2.fromOffset(math.floor((width - cell) / 2), (index - 1) * (cell + gap))
+						then UDim2.fromOffset((index - 1) * (cellWidth + gap), 0)
+						else UDim2.fromOffset(0, (index - 1) * (120 + gap))
 				end
-				holder.Size = UDim2.new(1, -8, 0, (if columns == 2 then cell else #cards * (cell + gap) - gap))
+				holder.Size = UDim2.new(1, -8, 0, if columns == 2 then 120 else #cards * (120 + gap) - gap)
 			end
 			holder:GetPropertyChangedSignal("AbsoluteSize"):Connect(layoutPair)
 			local resizeConnection = scroll:GetPropertyChangedSignal("AbsoluteSize"):Connect(layoutPair)
-			holder.Destroying:Connect(function() resizeConnection:Disconnect() end)
+			holder.Destroying:Connect(function()
+				resizeConnection:Disconnect()
+			end)
 			cardPairLayout = layoutPair
 		end
-		local frame = Instance.new("TextButton")
-		frame.Name = "ParchmentChoice"
-		frame.BackgroundColor3 = Theme.Surface
-		frame.BorderSizePixel = 0
-		frame.Text = ""
-		frame.AutoButtonColor = canEdit
-		frame.Parent = cardPairHolder
+		local base = if canEdit then K.C.Card else Color3.fromRGB(24, 21, 26)
+		local frame = K.new("TextButton", {
+			Name = "EffectChoice",
+			BackgroundColor3 = base,
+			Text = "",
+			AutoButtonColor = false,
+		}, cardPairHolder)
 		cardPairCount += 1
 		table.insert(cardPairCards, frame)
-		local corner = Instance.new("UICorner")
-		corner.CornerRadius = UDim.new(0, 5)
-		corner.Parent = frame
-		local stroke = Instance.new("UIStroke")
-		stroke.Color, stroke.Thickness = if enabled then Theme.Accent else Theme.TileEdge, 3
-		stroke.Parent = frame
-		local glaze = Instance.new("UIGradient")
-		glaze.Rotation = 90
-		glaze.Color = ColorSequence.new(Color3.fromRGB(255, 239, 207), Theme.Surface)
-		glaze.Parent = frame
-		local name = Instance.new("TextLabel")
-		name.Position = UDim2.fromScale(0.07, 0.06)
-		name.Size = UDim2.fromScale(0.86, 0.2)
-		name.BackgroundTransparency = 1
-		name.Font = Enum.Font.GothamBold
-		name.TextSize = 14
-		name.TextWrapped = true
-		name.TextColor3 = Theme.Ink
-		name.TextXAlignment = Enum.TextXAlignment.Center
-		name.Text = title
-		name.Parent = frame
-		local detail = Instance.new("TextLabel")
-		detail.Position = UDim2.fromScale(0.08, 0.3)
-		detail.Size = UDim2.fromScale(0.84, 0.38)
-		detail.BackgroundTransparency = 1
-		detail.Font = Enum.Font.Gotham
-		detail.TextSize = 11
-		detail.TextWrapped = true
-		detail.TextColor3 = Theme.MutedInk
-		detail.TextXAlignment = Enum.TextXAlignment.Center
-		detail.TextYAlignment = Enum.TextYAlignment.Center
-		detail.Text = if canEdit then description else tostring(unavailableReason or "Unavailable")
-		detail.Parent = frame
-		local add = Instance.new("TextButton")
-		add.Size = UDim2.fromScale(0.84, 0.19)
-		add.Position = UDim2.fromScale(0.08, 0.76)
-		add.BackgroundColor3 = if not canEdit
-			then Theme.SurfaceDisabled
-			elseif enabled then Theme.Accent
-			else Theme.AccentSoft
-		add.TextColor3 = if not canEdit then Theme.DisabledInk elseif enabled then Theme.OnAccent else Theme.Accent
-		add.Font = Enum.Font.GothamBold
-		add.TextSize = 13
-		add.Text = if not canEdit then "UNAVAILABLE" elseif enabled then "ADDED" else "ADD"
-		add.AutoButtonColor = canEdit
-		add.Parent = frame
-		local addCorner = Instance.new("UICorner")
-		addCorner.CornerRadius = UDim.new(0, 4)
-		addCorner.Parent = add
+		K.corner(frame, 12)
+		K.stroke(frame, if enabled then K.C.Gold else K.C.PanelEdge, if enabled then 2 else 1)
+		if canEdit then
+			K.hover(frame, base, K.C.CardHover)
+		end
+		K.text(frame, title, 13, if canEdit then K.C.Ink else K.C.Faint, Enum.Font.GothamBold, {
+			Position = UDim2.fromOffset(12, 10),
+			Size = UDim2.new(1, -24, 0, 18),
+			TextTruncate = Enum.TextTruncate.AtEnd,
+		})
+		K.text(
+			frame,
+			if canEdit then description else tostring(unavailableReason or "Unavailable"),
+			11,
+			K.C.Muted,
+			Enum.Font.Gotham,
+			{
+				Position = UDim2.fromOffset(12, 30),
+				Size = UDim2.new(1, -24, 1, -76),
+				TextYAlignment = Enum.TextYAlignment.Top,
+				TextTruncate = Enum.TextTruncate.AtEnd,
+			}
+		)
+		local add = K.pill(
+			frame,
+			if not canEdit then "UNAVAILABLE" elseif enabled then "ADDED" else "+ ADD",
+			function() end,
+			if enabled and canEdit then "accent" else nil
+		)
+		add.Size, add.Position = UDim2.new(1, -24, 0, 32), UDim2.new(0, 12, 1, -42)
+		if not canEdit then
+			add.TextColor3 = K.C.Faint
+		end
 		if canEdit then
 			local function choose()
 				onChange(not enabled)
@@ -825,94 +861,106 @@ function Lab.start(send, aim)
 			frame.Activated:Connect(choose)
 			add.Activated:Connect(choose)
 		end
-		if cardPairLayout then cardPairLayout() end
+		if cardPairLayout then
+			cardPairLayout()
+		end
 		return frame
 	end
 	local function button(parent, text, callback)
-		local b = Instance.new("TextButton")
-		b.Size = UDim2.new(0.4, 0, 1, 0)
-		b.Position = UDim2.new(0.59, 0, 0, 0)
-		b.BackgroundColor3 = Theme.Surface
-		b.TextColor3 = Theme.Ink
-		b.TextSize = 14
+		local b = K.pill(parent, text, callback)
+		b.Size = UDim2.new(0.42, 0, 0, 36)
+		b.Position = UDim2.new(0.58, 0, 0.5, -18)
+		b.TextSize = 12
 		b.TextWrapped = true
-		b.Text = text
-		b.Parent = parent
-		local corner = Instance.new("UICorner")
-		corner.CornerRadius = UDim.new(0, 5)
-		corner.Parent = b
-		local stroke = Instance.new("UIStroke")
-		stroke.Color, stroke.Thickness, stroke.Transparency = Theme.TileEdge, 2, 0
-		stroke.Parent = b
-		local glaze = Instance.new("UIGradient")
-		glaze.Rotation = 90
-		glaze.Color = ColorSequence.new(Color3.fromRGB(255, 239, 207), Theme.Surface)
-		glaze.Parent = b
-		b.SelectionGained:Connect(function()
-			stroke.Color, stroke.Thickness = Theme.Gold, 3
-		end)
-		b.SelectionLost:Connect(function()
-			stroke.Color, stroke.Thickness = Theme.TileEdge, 2
-		end)
-		b.Activated:Connect(callback)
 		return b
+	end
+	local function inputBox(r, value, placeholder)
+		local box = K.new("TextBox", {
+			Size = UDim2.new(0.42, 0, 0, 36),
+			Position = UDim2.new(0.58, 0, 0.5, -18),
+			BackgroundColor3 = K.C.Input,
+			TextColor3 = K.C.Ink,
+			PlaceholderColor3 = K.C.Faint,
+			PlaceholderText = placeholder or "",
+			Font = Enum.Font.GothamBold,
+			TextSize = 13,
+			ClearTextOnFocus = false,
+			Text = value,
+		}, r)
+		K.corner(box, 8)
+		K.stroke(box, K.C.PanelEdge)
+		return box
 	end
 	local function select(label, value, options, change, labelFor, help, isAvailable, lockedReason, presentationOnly)
 		local r = row(label)
 		local function display(option)
 			return if labelFor then labelFor(option) else tostring(option)
 		end
-		button(r, display(value) .. " ▾", function()
-			expandedChoiceKey = if expandedChoiceKey == label then nil else label
+		local function pick(option)
+			expandedChoiceKey = nil
+			change(option)
 			rebuildPreservingScroll()
-		end)
-		if expandedChoiceKey == label then
-			local title = r:FindFirstChildOfClass("TextLabel")
-			if title then
-				title.Size = UDim2.new(0.58, 0, 0, 42)
+			if not presentationOnly then
+				estimate()
 			end
-			local menuHeight = math.min(220, (#options + 1) * 34)
-			r.Size = UDim2.new(1, -8, 0, 46 + menuHeight)
-			local choices = Instance.new("ScrollingFrame")
-			choices.Name = "Choices"
-			choices.Position = UDim2.fromOffset(0, 46)
-			choices.Size = UDim2.new(1, -8, 0, menuHeight)
-			choices.BackgroundColor3 = Theme.Surface
-			choices.BorderSizePixel = 0
-			choices.ScrollBarThickness = 4
-			choices.ScrollBarImageColor3 = Theme.SubtleInk
-			choices.CanvasSize = UDim2.fromOffset(0, (#options + 1) * 34)
-			choices.Parent = r
-			local menuLayout = Instance.new("UIListLayout")
-			menuLayout.Padding = UDim.new(0, 2)
-			menuLayout.SortOrder = Enum.SortOrder.LayoutOrder
-			menuLayout.Parent = choices
-			local cancelChoice = button(choices, "CLOSE · KEEP CURRENT", function()
-				expandedChoiceKey = nil
+		end
+		local title = r:FindFirstChildOfClass("TextLabel")
+		if #options <= 8 then
+			-- Few choices: show them all as chips under the label.
+			r.AutomaticSize = Enum.AutomaticSize.Y
+			r.Size = UDim2.new(1, -8, 0, 0)
+			title.Size = UDim2.new(1, 0, 0, 22)
+			local holder = K.new("Frame", {
+				Position = UDim2.fromOffset(0, 26),
+				Size = UDim2.new(1, 0, 0, 0),
+				AutomaticSize = Enum.AutomaticSize.Y,
+				BackgroundTransparency = 1,
+			}, r)
+			K.new("UIPadding", { PaddingBottom = UDim.new(0, 6) }, holder)
+			K.chips(holder, options, value, pick, display, isAvailable)
+		else
+			button(r, display(value) .. "  ▼", function()
+				expandedChoiceKey = if expandedChoiceKey == label then nil else label
 				rebuildPreservingScroll()
 			end)
-			cancelChoice.Size = UDim2.new(1, -6, 0, 32)
-			cancelChoice.Position = UDim2.fromOffset(0, 0)
-			cancelChoice.LayoutOrder = 1
-			for index, option in ipairs(options) do
-				local available = not isAvailable or isAvailable(option)
-				local b = button(choices, display(option) .. (if available then "" else " · UNAVAILABLE"), function()
-					if not available then
-						return
+			if expandedChoiceKey == label then
+				title.Size = UDim2.new(0.56, 0, 0, 44)
+				local menuHeight = math.min(240, #options * 38 + 4)
+				r.Size = UDim2.new(1, -8, 0, 48 + menuHeight)
+				local choices = K.new("ScrollingFrame", {
+					Name = "Choices",
+					Position = UDim2.fromOffset(0, 48),
+					Size = UDim2.new(1, 0, 0, menuHeight),
+					BackgroundColor3 = K.C.Input,
+					BorderSizePixel = 0,
+					ScrollBarThickness = 4,
+					ScrollBarImageColor3 = K.C.Rail,
+					AutomaticCanvasSize = Enum.AutomaticSize.Y,
+					CanvasSize = UDim2.new(),
+				}, r)
+				K.corner(choices, 8)
+				K.pad(choices, 4, 4)
+				K.list(choices, 4)
+				for index, option in ipairs(options) do
+					local available = not isAvailable or isAvailable(option)
+					local b = K.pill(
+						choices,
+						display(option) .. (if available then "" else "  ·  UNAVAILABLE"),
+						function()
+							if available then
+								pick(option)
+							end
+						end
+					)
+					b.Size = UDim2.new(1, -4, 0, 34)
+					b.LayoutOrder = index
+					b.TextXAlignment = Enum.TextXAlignment.Left
+					K.pad(b, 12, 0)
+					if option == value then
+						b.BackgroundColor3, b.TextColor3 = K.C.Gold, K.C.Backdrop
+					elseif not available then
+						b.TextColor3 = K.C.Faint
 					end
-					expandedChoiceKey = nil
-					change(option)
-					rebuildPreservingScroll()
-					if not presentationOnly then
-						estimate()
-					end
-				end)
-				b.Size = UDim2.new(1, -6, 0, 32)
-				b.LayoutOrder = index + 1
-				b.Active = available
-				b.AutoButtonColor = available
-				if not available then
-					b.TextColor3 = Theme.DisabledInk
 				end
 			end
 		end
@@ -925,16 +973,7 @@ function Lab.start(send, aim)
 	end
 	local function numeric(label, object, key, help)
 		local r = row(label)
-		local box = Instance.new("TextBox")
-		box.Size = UDim2.new(0.4, 0, 1, 0)
-		box.Position = UDim2.new(0.59, 0, 0, 0)
-		box.BackgroundColor3 = Theme.Surface
-		box.TextColor3 = Theme.Ink
-		box.BorderColor3, box.BorderSizePixel = Theme.Border, 1
-		box.TextSize = 14
-		box.ClearTextOnFocus = false
-		box.Text = tostring(object[key] or 0)
-		box.Parent = r
+		local box = inputBox(r, tostring(object[key] or 0))
 		box.FocusLost:Connect(function()
 			local value = tonumber(box.Text)
 			if not value then
@@ -953,17 +992,8 @@ function Lab.start(send, aim)
 	end
 	local function tagList(label, object, key, help)
 		local r = row(label)
-		local box = Instance.new("TextBox")
-		box.Size = UDim2.new(0.4, 0, 1, 0)
-		box.Position = UDim2.new(0.59, 0, 0, 0)
-		box.BackgroundColor3 = Theme.Surface
-		box.TextColor3 = Theme.Ink
-		box.BorderColor3, box.BorderSizePixel = Theme.Border, 1
-		box.TextSize = 13
-		box.ClearTextOnFocus = false
-		box.PlaceholderText = "comma-separated tags"
-		box.Text = table.concat(object[key] or {}, ", ")
-		box.Parent = r
+		local box = inputBox(r, table.concat(object[key] or {}, ", "), "comma-separated tags")
+		box.TextSize = 12
 		box.FocusLost:Connect(function()
 			if object == draft and key == "Tags" then
 				local tags, reason = SpellIdentitySpec.parse(box.Text)
@@ -999,17 +1029,7 @@ function Lab.start(send, aim)
 	end
 	local function assetId(label, object, key, help)
 		local r = row(label)
-		local box = Instance.new("TextBox")
-		box.Size = UDim2.new(0.4, 0, 1, 0)
-		box.Position = UDim2.new(0.59, 0, 0, 0)
-		box.BackgroundColor3 = Theme.Surface
-		box.TextColor3 = Theme.Ink
-		box.BorderColor3, box.BorderSizePixel = Theme.Border, 1
-		box.TextSize = 14
-		box.ClearTextOnFocus = false
-		box.PlaceholderText = "blank = silent"
-		box.Text = object[key] or ""
-		box.Parent = r
+		local box = inputBox(r, object[key] or "", "blank = silent")
 		box.FocusLost:Connect(function()
 			local value = string.gsub(box.Text, "^%s*(.-)%s*$", "%1")
 			if value ~= "" and (#value > 20 or not string.match(value, "^%d+$")) then
@@ -1028,54 +1048,45 @@ function Lab.start(send, aim)
 	end
 	local function toggle(label, value, change, help)
 		local r = row(label)
-		local b
-		b = button(r, value and "ON" or "OFF", function()
-			value = not value
-			change(value)
-			b.Text = value and "ON" or "OFF"
-			b.BackgroundColor3 = if value then Theme.AccentSoft else Theme.Surface
-			b.TextColor3 = if value then Theme.Accent else Theme.Ink
+		local b = K.switch(r, value, function(nextValue)
+			change(nextValue)
 			rebuild()
 			estimate()
 		end)
-		b.BackgroundColor3 = if value then Theme.AccentSoft else Theme.Surface
-		b.TextColor3 = if value then Theme.Accent else Theme.Ink
+		b.Size = UDim2.new(0, 72, 0, 32)
+		b.Position = UDim2.new(1, -72, 0.5, -16)
 		if help then
 			info(help, 34)
 		end
 	end
 	local function slider(label, object, key, minimum, maximum, help, canEdit)
 		local r = row(label)
-		local valueLabel = Instance.new("TextLabel")
-		valueLabel.Size = UDim2.new(0.12, 0, 1, 0)
-		valueLabel.Position = UDim2.new(0.88, 0, 0, 0)
-		valueLabel.BackgroundTransparency = 1
-		valueLabel.Font = Enum.Font.GothamSemibold
-		valueLabel.TextSize = 13
-		valueLabel.TextColor3 = Theme.Ink
-		valueLabel.TextXAlignment = Enum.TextXAlignment.Right
-		valueLabel.Parent = r
-		local track = Instance.new("TextButton")
-		track.Size = UDim2.new(0.25, 0, 0, 10)
-		track.Position = UDim2.new(0.61, 0, 0.5, -5)
-		track.BackgroundColor3 = Theme.Border
-		track.BorderSizePixel = 0
-		track.Text = ""
-		track.AutoButtonColor = canEdit
-		track.Active = canEdit
-		track.Parent = r
-		local fill = Instance.new("Frame")
-		fill.BackgroundColor3 = if canEdit then Theme.Accent else Theme.DisabledInk
-		fill.BorderSizePixel = 0
-		fill.Size = UDim2.fromScale(0, 1)
-		fill.Parent = track
-		local knob = Instance.new("Frame")
-		knob.AnchorPoint = Vector2.new(0.5, 0.5)
-		knob.Size = UDim2.fromOffset(14, 14)
-		knob.Position = UDim2.new(0, 0, 0.5, 0)
-		knob.BackgroundColor3 = Theme.Surface
-		knob.BorderSizePixel = 0
-		knob.Parent = track
+		local valueLabel = K.text(r, "", 13, K.C.Ink, Enum.Font.GothamBold, {
+			Size = UDim2.new(0.12, 0, 1, 0),
+			Position = UDim2.new(0.88, 0, 0, 0),
+			TextXAlignment = Enum.TextXAlignment.Right,
+		})
+		local track = K.new("TextButton", {
+			Size = UDim2.new(0.27, 0, 0, 8),
+			Position = UDim2.new(0.58, 0, 0.5, -4),
+			BackgroundColor3 = K.C.Input,
+			Text = "",
+			AutoButtonColor = false,
+			Active = canEdit,
+		}, r)
+		K.corner(track, 4)
+		local fill = K.new("Frame", {
+			BackgroundColor3 = if canEdit then K.C.Ember else K.C.Faint,
+			Size = UDim2.fromScale(0, 1),
+		}, track)
+		K.corner(fill, 4)
+		local knob = K.new("Frame", {
+			AnchorPoint = Vector2.new(0.5, 0.5),
+			Size = UDim2.fromOffset(16, 16),
+			Position = UDim2.new(0, 0, 0.5, 0),
+			BackgroundColor3 = K.C.Gold,
+		}, track)
+		K.corner(knob, 8)
 		local function refresh()
 			local alpha = math.clamp((object[key] - minimum) / (maximum - minimum), 0, 1)
 			fill.Size = UDim2.new(alpha, 0, 1, 0)
@@ -1217,6 +1228,11 @@ function Lab.start(send, aim)
 	end
 	local function primary()
 		draft.Triggers[event] = draft.Triggers[event] or {}
+		local selectedIndex = selectedStepByEvent[event]
+		local selected = selectedIndex and draft.Triggers[event][selectedIndex]
+		if selected and not selected.Behavior then
+			return selected
+		end
 		for _, step in draft.Triggers[event] do
 			if not step.Behavior then
 				return step
@@ -1334,7 +1350,7 @@ function Lab.start(send, aim)
 			return
 		end
 		local payloads = {}
-		for _, payloadKind in definition.PayloadKinds or {} do
+		for _, payloadKind in definition.DefaultPayloadKinds or definition.PayloadKinds or {} do
 			local payloadDefinition = Schema.Payloads[payloadKind]
 			local payloadValue = Spec.copy(payloadDefinition.Defaults)
 			payloadValue.Kind = payloadKind
@@ -1344,8 +1360,13 @@ function Lab.start(send, aim)
 		for key, value in definition.Defaults do
 			step[key] = value
 		end
+		if kind == "SpawnEffect" then
+			step.Effect = Spec.defaultSpawnEffect("Field", draft.Source.Principle)
+		end
 		table.insert(steps, step)
 	end
+	-- Which timing of a spawned effect the editor is showing, per SpawnEffect step.
+	local spawnedEventFor = setmetatable({}, { __mode = "k" })
 	local function projectileBehavior(kind)
 		if not draft.Projectile then
 			return nil
@@ -1380,7 +1401,6 @@ function Lab.start(send, aim)
 		-- newly incompatible entry so it can be repaired without losing its work.
 		target.Triggers = Spec.copy(previous.Triggers)
 	end
-	local navButtons = {}
 	local backButton = button(navigation, "‹  SLOTS", function()
 		if standaloneDraft or editingLibraryRecord then
 			pageMode = "Library"
@@ -1394,8 +1414,18 @@ function Lab.start(send, aim)
 	backButton.Size = UDim2.new(0.16, -4, 1, 0)
 	backButton.Position = UDim2.new(0, 0, 0, 0)
 	backButton.Font = Enum.Font.GothamBold
-	local layoutBook = Grimoire.mount(panel, navigation, scroll, status, headerTitle, headerSummary, Schema.Sections)
-	local pageTurnButton: TextButton? = nil
+	local navigateTab
+	local layoutBook = Hub.mountShell(panel, {
+		scroll = scroll,
+		title = headerTitle,
+		summary = headerSummary,
+		status = status,
+		navigation = navigation,
+		closeButton = closeButton,
+		homeButton = homeButton,
+	}, function(tab)
+		navigateTab(tab)
+	end)
 	local overview = panel:FindFirstChild("LiveSpellSummary")
 	if overview then
 		editorPreview = Instance.new("Frame")
@@ -1406,128 +1436,35 @@ function Lab.start(send, aim)
 		SpellVisual.render(editorPreview, draft, false)
 	end
 	updateHeader = function()
-		homeButton.Visible = pageMode ~= "Slots"
-		if pageMode ~= "Editor" then
-			headerTitle.Text = if pageMode == "Slots" then "Grimoire" else "Grimoire  /  "
-				.. (
-					if pageMode == "Library"
-						then "Library"
-						elseif pageMode == "Help" then "How to create magic"
-						elseif pageMode == "Create" then "Create a spell"
-						else "Spell slots"
-				)
-			if pageMode == "Library" and libraryView.ChoosingSlot then
-				headerTitle.Text = "Grimoire  /  Choose for slot " .. libraryView.ChoosingSlot
-			end
-			headerSummary.Text = if pageMode == "Create"
-				then (if creationStep == "Intent" then "STEP 1 OF 3 · CHOOSE A PURPOSE"
-					elseif creationStep == "Shape" then "STEP 2 OF 3 · CHOOSE A FORM"
-					else "STEP 3 OF 3 · CHOOSE EFFECTS")
-				elseif pageMode == "Slots" then ""
-				else persistenceState .. " · The library stores spells; numbered slots equip a test loadout."
-			headerSummary.Visible = pageMode == "Create"
-			status.Text = if pageMode == "Slots" then "" elseif pageMode == "Create"
-				then "Guided creation · choose an intent, shape, and supported effect."
-				else "Your library spells and equipped slots are separate. Select an empty slot to start authoring."
-			status.TextColor3 = Theme.MutedInk
-			status.Visible = pageMode ~= "Slots" and pageMode ~= "Create"
-			navigation.Visible = false
-			backButton.Visible = false
-			if actions then
-				actions.Visible = false
-			end
-			if pageTurnButton then
-				pageTurnButton.Visible = pageMode == "Slots" or pageMode == "Library" or pageMode == "Create"
-				pageTurnButton.Text = if pageMode == "Slots" then "SPELL LIBRARY  ›"
-					elseif pageMode == "Library" then "‹  EQUIPPED SPELLS"
-					elseif creationStep == "Intent" then (if creationForLibrary then "‹  LIBRARY" else "‹  EQUIPPED SPELLS")
-					elseif creationStep == "Shape" then "‹  PURPOSE"
-					else "‹  FORM"
-				local catalog = pageMode == "Library" and libraryView.Selected == nil
-				pageTurnButton.AnchorPoint = if catalog then Vector2.new(0.5, 1) else Vector2.new(1, 1)
-				pageTurnButton.Position = if catalog then UDim2.new(0.5, 0, 1, -18) else UDim2.new(1, -24, 1, -22)
-				pageTurnButton.Size = if catalog then UDim2.fromOffset(170, 32) else UDim2.fromOffset(196, 38)
-			end
-			layoutBook(if pageMode == "Library" and libraryView.Selected then "LibraryDetail" else pageMode, activeSection, actions)
-			scroll.ScrollingEnabled = pageMode ~= "Library" or libraryView.Selected ~= nil
+		homeButton.Visible = false
+		navigation.Visible = false
+		backButton.Visible = false
+		if actions then
+			actions.Visible = false
+		end
+		if pageMode == "Editor" then
+			layoutBook("Editor")
 			return
 		end
-		if pageTurnButton then pageTurnButton.Visible = false end
-		status.Visible = panel.AbsoluteSize.X < 680
+		closeButton.Visible = true
+		headerTitle.Visible = true
+		headerTitle.Text = if pageMode == "Slots"
+			then "Home"
+			elseif pageMode == "Library" then (if libraryView.ChoosingSlot
+				then "Choose a spell for slot " .. libraryView.ChoosingSlot
+				else "Spell library")
+			elseif pageMode == "Help" then "How spell creation works"
+			elseif pageMode == "Training" then "Training & targets"
+			else "Spellcraft"
+		headerSummary.Text = if pageMode == "Slots"
+			then "Your nine equipped spells and quick actions."
+			elseif pageMode == "Training" then "Spawn targets and manage your practice session."
+			elseif pageMode == "Help" then "Build spells from actions, triggers, and effects."
+			else persistenceState .. "  ·  Library spells are separate from your equipped slots."
 		headerSummary.Visible = true
-		if saveLibraryButton then
-			saveLibraryButton.Text = if editingLibraryRecord then "SAVE SPELL CHANGES" else "SAVE SPELL"
-		end
-		if backButton then
-			backButton.Text = if standaloneDraft or editingLibraryRecord then "‹  LIBRARY" else "‹  SLOTS"
-		end
-		if saveSlotButton then
-			saveSlotButton.Visible = not standaloneDraft and not editingLibraryRecord
-		end
-		-- The chapter's BACK tile and the cover's close button provide these actions.
-		if footerButtons[1] then footerButtons[1].Visible = false end
-		if footerButtons[5] then footerButtons[5].Visible = false end
-		layoutFooterButtons()
-		navigation.Visible = true
-		backButton.Visible = true
-		if actions then
-			actions.Visible = true
-		end
-		local activeDefinition
-		for _, section in Schema.Sections do
-			if section.Id == activeSection then
-				activeDefinition = section
-			end
-		end
-		headerTitle.Text = "Grimoire  /  " .. (activeDefinition and activeDefinition.Label or "Form")
-		if editingLibraryRecord then
-			headerTitle.Text = "Grimoire  /  " .. (activeDefinition and activeDefinition.Label or "Form")
-		elseif standaloneDraft then
-			headerTitle.Text = "Grimoire  /  " .. (activeDefinition and activeDefinition.Label or "Form")
-		end
-		local form = Schema.Forms[draft.Form]
-		local costOk, currentCost = pcall(Spec.estimate, draft)
-		currentCost = if costOk then currentCost else { ManaDemand = "—" }
-		local duration = if draft.Lifetime.Duration
-			then tostring(draft.Lifetime.Duration) .. "s"
-			else draft.Lifetime.Mode
-		headerSummary.Text = string.format(
-			"%s · %s · %s mana · %s studs · %s%s",
-			draft.Name,
-			form and form.Label or draft.Form,
-			tostring(currentCost.ManaDemand),
-			tostring(draft.TargetRules.Range or "—"),
-			duration,
-			(dirtySlots[selectedSlot] or (dirty and (standaloneDraft or editingLibraryRecord))) and " · UNSAVED" or ""
-		)
-		for _, section in Schema.Sections do
-			local tab = navButtons[section.Id]
-			if tab then
-				tab.Visible = true
-			end
-		end
-		for i, section in Schema.Sections do
-			local tab = navButtons[section.Id]
-			if tab then
-				tab.Size = UDim2.new(0.84 / #Schema.Sections, -6, 1, 0)
-				tab.Position = UDim2.new(0.16 + (i - 1) * 0.84 / #Schema.Sections, 3, 0, 0)
-				tab.BackgroundColor3 = if tab.Name == activeSection then Theme.Accent else Theme.SurfaceMuted
-				tab.TextColor3 = if tab.Name == activeSection then Theme.OnAccent else Theme.Ink
-			end
-		end
-		layoutBook(pageMode, activeSection, actions)
-	end
-	for _, section in Schema.Sections do
-		local tab = button(navigation, section.Label, function()
-			activeSection = section.Id
-			scroll.CanvasPosition = Vector2.zero
-			rebuild()
-		end)
-		tab.Name = section.Id
-		tab.Font = Enum.Font.GothamSemibold
-		tab.Size = UDim2.new(1 / #Schema.Sections, -6, 1, 0)
-		tab.Position = UDim2.new(#navButtons / #Schema.Sections, 3, 0, 0)
-		navButtons[section.Id] = tab
+		status.Visible = false
+		layoutBook(if pageMode == "Library" and libraryView.Selected then "LibraryDetail" else pageMode)
+		scroll.ScrollingEnabled = pageMode ~= "Library" or libraryView.Selected ~= nil
 	end
 	local function renderField(object, field)
 		local options = field.Options
@@ -1551,6 +1488,22 @@ function Lab.start(send, aim)
 					.. string.format("Allowed: %s to %s", tostring(field.Min), tostring(field.Max))
 			)
 		end
+	end
+	-- Editor for a whitelisted ALL/ANY/NOT condition tree stored at holder[key].
+	-- Used for spell-level conditions and per-step trigger conditions.
+	local function renderConditionTree(holder, key, label)
+		-- Widgets are read at call time: `rebuild` is assigned after this point.
+		return ConditionTreeEditor.render({
+			button = button,
+			card = card,
+			estimate = estimate,
+			info = info,
+			numeric = numeric,
+			rebuild = rebuild,
+			row = row,
+			select = select,
+			toggle = toggle,
+		}, holder, key, label)
 	end
 	local function internalDefaultForForm(formName: string): string
 		if Schema.supportsPrincipleForm("Energy", formName) then
@@ -1667,52 +1620,47 @@ function Lab.start(send, aim)
 		scroll.CanvasPosition = Vector2.zero
 		rebuild()
 	end
-	pageTurnButton = Instance.new("TextButton")
-	pageTurnButton.Name = "TurnPage"
-	pageTurnButton.AnchorPoint = Vector2.new(1, 1)
-	pageTurnButton.Position = UDim2.new(1, -24, 1, -22)
-	pageTurnButton.Size = UDim2.fromOffset(196, 38)
-	pageTurnButton.BackgroundColor3 = Theme.Accent
-	pageTurnButton.TextColor3 = Theme.OnAccent
-	pageTurnButton.Font = Enum.Font.GothamBold
-	pageTurnButton.TextSize = 12
-	pageTurnButton.ZIndex = 3
-	pageTurnButton.Parent = panel
-	local turnCorner = Instance.new("UICorner")
-	turnCorner.CornerRadius = UDim.new(0, 6)
-	turnCorner.Parent = pageTurnButton
-	pageTurnButton.Activated:Connect(function()
-		if pageMode == "Create" then
-			if creationStep == "Effects" then
-				creationStep = "Shape"
-			elseif creationStep == "Shape" then
-				creationStep = "Intent"
-			else
-				pageMode = if creationForLibrary then "Library" else "Slots"
-			end
-			scroll.CanvasPosition = Vector2.zero
+	local function beginCreation(forLibrary, fresh)
+		if forLibrary and standaloneWorkingDraft and not fresh then
+			draft = Spec.copy(standaloneWorkingDraft)
+			ensureVisualDefaults(draft)
+			standaloneDraft = true
+			editingLibraryRecord, editingLibraryId = false, nil
+			event = mainEvent(draft.Form)
+			authoringMode = "Guided"
+			pageMode, activeSection = "Editor", "Setup"
+			dirty = true
+			revision += 1
+			appliedRevision = -1
 			rebuild()
-		else
-			libraryView.ChoosingSlot = nil
-			libraryView.Selected = nil
-			libraryPage(if pageMode == "Slots" then "Library" else "Slots")
-		end
-	end)
-	local function beginCreation(forLibrary)
-		if forLibrary and standaloneWorkingDraft then
-			message("Resume or save your current unslotted draft before starting another one.", false)
+			message("Resumed your unsaved spell draft.", true)
 			return
 		end
-		creationStep, creationIntent, creationForm = "Intent", nil, nil
-		creationEffects = {}
-		creationForLibrary = forLibrary
 		standaloneDraft = forLibrary
 		editingLibraryRecord, editingLibraryId = false, nil
 		authoringMode = "Guided"
-		pageMode = "Create"
+		local principle = internalDefaultForForm("Projectile")
+		draft = Spec.createDraft("Projectile", principle)
+		ensureVisualDefaults(draft)
+		-- Starter: a projectile that deals damage on impact, ready to test.
+		local starterDamage = Spec.copy(Schema.Payloads.Damage.Defaults or {})
+		starterDamage.Kind = "Damage"
+		draft.Triggers.OnImpact = { { Payloads = { starterDamage } } }
+		draft.Name = "New Spell"
+		event = mainEvent(draft.Form)
+		if standaloneDraft then
+			standaloneWorkingDraft = Spec.copy(draft)
+			lastWorkingDraftKind = "Standalone"
+		else
+			draftsBySlot[selectedSlot], dirtySlots[selectedSlot] = draft, true
+		end
+		pageMode, activeSection = "Editor", "Setup"
+		revision += 1
+		appliedRevision = -1
 		scroll.CanvasPosition = Vector2.zero
 		rebuild()
 	end
+
 	local function editLibraryRecord(id, definition)
 		if standaloneDraft and dirty then
 			standaloneWorkingDraft = Spec.copy(draft)
@@ -1734,6 +1682,47 @@ function Lab.start(send, aim)
 		scroll.CanvasPosition = Vector2.zero
 		rebuild()
 	end
+	-- "New spell" always starts fresh; a kept draft is resumed separately.
+	local function startNewSpell()
+		if standaloneWorkingDraft then
+			confirm(
+				"Start a new spell? Your unsaved draft “"
+					.. tostring(standaloneWorkingDraft.Name)
+					.. "” will be discarded. Use Resume draft to keep working on it.",
+				function()
+					standaloneWorkingDraft = nil
+					if lastWorkingDraftKind == "Standalone" then
+						lastWorkingDraftKind = nil
+					end
+					beginCreation(true, true)
+				end
+			)
+		else
+			beginCreation(true, true)
+		end
+	end
+	local function hasWorkingDraft()
+		return standaloneWorkingDraft ~= nil or (lastLibraryDraftId ~= nil and libraryDrafts[lastLibraryDraftId] ~= nil)
+	end
+	local function resumeWorkingDraft()
+		local record = lastLibraryDraftId and libraryView.Catalog.Records[lastLibraryDraftId]
+		if lastWorkingDraftKind == "Standalone" and standaloneWorkingDraft then
+			draft = Spec.copy(standaloneWorkingDraft)
+			standaloneDraft = true
+			editingLibraryRecord, editingLibraryId = false, nil
+			dirty = true
+			event = mainEvent(draft.Form)
+			revision += 1
+			appliedRevision = -1
+			pageMode, activeSection = "Editor", "Setup"
+			rebuild()
+		elseif record and lastLibraryDraftId and libraryDrafts[lastLibraryDraftId] then
+			editLibraryRecord(lastLibraryDraftId, record.Definition)
+		else
+			pageMode, activeSection = "Library", "Setup"
+			rebuild()
+		end
+	end
 	libraryView = LibraryView.new({
 		row = row,
 		block = canvasBlock,
@@ -1748,11 +1737,17 @@ function Lab.start(send, aim)
 		select = select,
 		info = info,
 		showPreview = function(definition)
-			if editorPreview then SpellVisual.render(editorPreview, definition, false) end
-			panel:SetAttribute("SpellSummary", definition.Name .. "\n" .. definition.Form .. "  ·  " .. definition.Element)
+			if editorPreview then
+				SpellVisual.render(editorPreview, definition, false)
+			end
+			panel:SetAttribute(
+				"SpellSummary",
+				definition.Name .. "\n" .. definition.Form .. "  ·  " .. definition.Element
+			)
 		end,
+		-- The library draws its own preview; the old book side panel is gone.
 		hasSidePreview = function()
-			return panel.AbsoluteSize.X >= 680
+			return false
 		end,
 		confirm = confirm,
 		schema = Schema,
@@ -1761,30 +1756,14 @@ function Lab.start(send, aim)
 		message = message,
 		createNew = function()
 			libraryView.ChoosingSlot = nil
-			beginCreation(true)
+			startNewSpell()
 		end,
 		editRecord = editLibraryRecord,
 		hasWorkingDraft = function()
 			return standaloneWorkingDraft ~= nil or next(libraryDrafts) ~= nil
 		end,
 		resumeDraft = function()
-			local record = lastLibraryDraftId and libraryView.Catalog.Records[lastLibraryDraftId]
-			if lastWorkingDraftKind == "Standalone" and standaloneWorkingDraft then
-				draft = Spec.copy(standaloneWorkingDraft)
-				standaloneDraft = true
-				editingLibraryRecord, editingLibraryId = false, nil
-				dirty = true
-				event = mainEvent(draft.Form)
-				revision += 1
-				appliedRevision = -1
-				pageMode, activeSection = "Editor", "Setup"
-				rebuild()
-			elseif record and lastLibraryDraftId and libraryDrafts[lastLibraryDraftId] then
-				editLibraryRecord(lastLibraryDraftId, record.Definition)
-			else
-				pageMode, activeSection = "Library", "Setup"
-				rebuild()
-			end
+			resumeWorkingDraft()
 		end,
 		isDirtyRecord = function(id)
 			return libraryDrafts[id] ~= nil
@@ -1805,6 +1784,28 @@ function Lab.start(send, aim)
 			pendingLibraryEdit = slot
 		end,
 	})
+	navigateTab = function(tab)
+		if tab == "Forge" then
+			if pageMode == "Editor" then
+				return
+			end
+			if hasWorkingDraft() then
+				resumeWorkingDraft()
+			else
+				beginCreation(true, true)
+			end
+			return
+		end
+		libraryView.Selected = nil
+		libraryView.ChoosingSlot = nil
+		pageMode = if tab == "Home"
+			then "Slots"
+			elseif tab == "Library" then "Library"
+			elseif tab == "Training" then "Training"
+			else "Help"
+		scroll.CanvasPosition = Vector2.zero
+		rebuild()
+	end
 	homeButton.Activated:Connect(function()
 		libraryView.Selected = nil
 		libraryView.ChoosingSlot = nil
@@ -1812,7 +1813,7 @@ function Lab.start(send, aim)
 		scroll.CanvasPosition = Vector2.zero
 		rebuild()
 	end)
-	remotes:WaitForChild("GrimoireResponse").OnClientEvent:Connect(function(ok, text, catalog, slots, changedSlot)
+	grimoireResponse.OnClientEvent:Connect(function(ok, text, catalog, slots, changedSlot)
 		libraryView.receive(ok, text, catalog)
 		local completedSlotChoice = ok and changedSlot ~= nil and changedSlot == libraryView.ChoosingSlot
 		if completedSlotChoice then
@@ -1839,6 +1840,22 @@ function Lab.start(send, aim)
 			end
 			dirty, appliedRevision = false, revision
 		end
+		-- A saved spell is finished: close the forge and drop its working draft
+		-- so the next "New spell" starts fresh. Slot work returns Home (the slot
+		-- keeps its own draft until equipped); library work returns to My spells.
+		local closeAfterSave = ok and saveMode ~= nil and pageMode == "Editor"
+		local savedFromSlot = saveMode == "SaveNew" and not pendingStandaloneSave
+		if closeAfterSave then
+			if lastWorkingDraftKind == "Library" and lastLibraryDraftId == editingLibraryId then
+				lastWorkingDraftKind = nil
+			end
+			editingLibraryRecord, editingLibraryId, standaloneDraft = false, nil, false
+			libraryView.Selected = nil
+			libraryView.ChoosingSlot = nil
+			libraryView.Shelf = "Mine"
+			pageMode = if savedFromSlot then "Slots" else "Library"
+			scroll.CanvasPosition = Vector2.zero
+		end
 		pendingStandaloneSave = false
 		persistenceState = catalog.SaveState or persistenceState
 		for slot = 1, Slots.Count do
@@ -1860,7 +1877,7 @@ function Lab.start(send, aim)
 		if completedSlotChoice then
 			pageMode = "Slots"
 			scroll.CanvasPosition = Vector2.zero
-			rebuild()
+			requestRebuild()
 		elseif pendingLibraryEdit then
 			local slot = pendingLibraryEdit
 			pendingLibraryEdit = nil
@@ -1868,7 +1885,7 @@ function Lab.start(send, aim)
 				openSlot(slot)
 			end
 		elseif pageMode ~= "Editor" then
-			rebuild()
+			requestRebuild()
 		end
 		updateHeader()
 		message(text, ok)
@@ -1876,205 +1893,89 @@ function Lab.start(send, aim)
 
 	rebuild = function()
 		mobileEditorPreview = nil
-		for _, child in scroll:GetChildren() do
-			if child:IsA("Frame") or child:IsA("TextLabel") or child:IsA("TextButton") then
-				child:Destroy()
+		if not forgeHosted then
+			forgeApi = nil
+			-- The forge hides the book page; every other page needs it back.
+			scroll.Visible = true
+			local existingForge = panel:FindFirstChild("GuidedSpellForge")
+			if existingForge then
+				existingForge:Destroy()
+			end
+			for _, child in scroll:GetChildren() do
+				if child:IsA("Frame") or child:IsA("TextLabel") or child:IsA("TextButton") then
+					child:Destroy()
+				end
 			end
 		end
-		order = 0
+		visualStudioFrame = nil
+		if visualLayoutConnection then
+			visualLayoutConnection:Disconnect()
+			visualLayoutConnection = nil
+		end
+		if not forgeHosted then
+			order = 0
+		end
 		currentGroup = nil
 		cardPairHolder, cardPairCount, cardPairCards, cardPairLayout = nil, 0, {}, nil
-		if pageMode == "Create" then
-			updateHeader()
-			if creationStep == "Intent" then
-				local symbols = {
-					Attack = "✦", Defense = "◇", Healing = "+", Movement = "↗",
-					Control = "◎", Summoning = "◆", Utility = "✧", Area = "◉",
-				}
-				local hints = {
-					Attack = "Damage a target", Defense = "Protect an ally", Healing = "Restore health",
-					Movement = "Move or fly", Control = "Slow, bind, push", Summoning = "Call a companion",
-					Utility = "Reveal or alter", Area = "Affect a zone",
-				}
-				local options = {}
-				for _, intentDefinition in ipairs(AuthoringGuide.intents()) do
-					local intent = intentDefinition
-					if #AuthoringGuide.shapes(intent.Id, Schema, Spec) > 0 then
-						table.insert(options, {
-							Id = intent.Id, Label = intent.Label, Hint = hints[intent.Id], Symbol = symbols[intent.Id],
-							Action = function()
-								creationIntent = intent.Id
-								creationForm = nil
-								creationEffects = {}
-								creationStep = "Shape"
-								scroll.CanvasPosition = Vector2.zero
-								rebuild()
-							end,
-						})
-					end
-				end
-				table.insert(options, {
-					Id = "Workshop", Label = "SPELL WORKSHOP", Hint = "All advanced settings", Symbol = "✧",
-					Badge = "ADVANCED",
-					Action = function()
-						draft = Spec.createDraft("Projectile", internalDefaultForForm("Projectile"))
-						ensureVisualDefaults(draft)
-						event = mainEvent(draft.Form)
-						standaloneDraft = creationForLibrary
-						editingLibraryRecord, editingLibraryId = false, nil
-						if not standaloneDraft then
-							draftsBySlot[selectedSlot], dirtySlots[selectedSlot] = draft, true
-						else
-							standaloneWorkingDraft = Spec.copy(draft)
-							lastWorkingDraftKind = "Standalone"
-						end
-						authoringMode = "Expert"
-						pageMode, activeSection = "Editor", "Setup"
-						revision += 1
-						appliedRevision = -1
-						scroll.CanvasPosition = Vector2.zero
-						rebuild()
-					end,
-				})
-				creationChoiceGrid(options)
-			elseif creationStep == "Shape" then
-				local hints = {
-					Projectile = "Launch a spell", Beam = "Channel a ray", Wave = "Send a pulse",
-					Field = "Fill an area", Aura = "Around the caster", SelfEnhancement = "Empower yourself",
-					Construct = "Shape a structure", Manipulation = "Alter a target",
-				}
-				local shapes = if creationIntent then AuthoringGuide.shapes(creationIntent, Schema, Spec) else {}
-				local options = {}
-				for _, formName in ipairs(shapes) do
-					local form = Schema.Forms[formName]
-					local preview = Spec.createDraft(formName, internalDefaultForForm(formName))
-					if preview then ensureVisualDefaults(preview) end
-					table.insert(options, {
-						Id = formName, Label = form.Label, Hint = hints[formName] or "Shape your spell",
-						Preview = preview,
-						Badge = if AuthoringGuide.isRecommended(creationIntent, formName)
-							then "SUGGESTED · FORM" else "ALSO COMPATIBLE · FORM",
-						Action = function()
-							creationForm = formName
-							creationStep = "Effects"
-							creationEffects = {}
-							scroll.CanvasPosition = Vector2.zero
-							rebuild()
-						end,
-					})
-				end
-				if #options == 0 then
-					table.insert(options, {
-						Id = "BackToPurpose", Label = "CHOOSE A PURPOSE", Hint = "Select a spell goal first",
-						Symbol = "‹", Action = function()
-							creationStep = "Intent"
-							rebuild()
-						end,
-					})
-				end
-				creationChoiceGrid(options)
-			else
-				local intent = creationIntent and AuthoringGuide.definition(creationIntent)
-				local choices = if creationIntent and creationForm
-					then AuthoringGuide.forShape(creationIntent, creationForm, Schema, Spec)
-					else {}
-				local options = {}
-				for _, category in ipairs(EffectCategoryOrder) do
-					for _, choice in ipairs(choices) do
-						if effectCategory(choice.Payload) == category then
-							local selected = choice
-							local alreadySelected = creationEffects[selected.Payload] ~= nil
-							local formName = creationForm or "Projectile"
-							local preview = Spec.createDraft(formName, internalDefaultForForm(formName))
-							if preview then
-								local payload = Spec.copy((Schema.Payloads[selected.Payload] or {}).Defaults or {})
-								payload.Kind = selected.Payload
-								preview.Triggers[selected.Event] = { { Payloads = { payload } } }
-								ensureVisualDefaults(preview)
-							end
-							local hint = selected.Description or ""
-							if #hint > 44 then hint = string.sub(hint, 1, 43) .. "…" end
-							table.insert(options, {
-								Id = selected.Payload, Label = selected.PayloadLabel, Hint = hint,
-								Preview = preview, Selected = alreadySelected,
-								Badge = if alreadySelected then "✓ SELECTED" else string.upper(category),
-								Action = function()
-									if alreadySelected then creationEffects[selected.Payload] = nil
-									else creationEffects[selected.Payload] = selected end
-									rebuildPreservingScroll()
-								end,
-							})
-						end
-					end
-				end
-				local selectedCount = 0
-				for _ in pairs(creationEffects) do selectedCount += 1 end
-				table.insert(options, {
-					Id = "Continue", Label = "CONFIGURE EFFECTS", Hint = "Tune your choices", Symbol = "›",
-					Badge = string.format("%d EFFECT%s SELECTED", selectedCount, if selectedCount == 1 then "" else "S"),
-					Action = function()
-						if next(creationEffects) == nil then
-							message("Choose at least one effect before continuing.", false)
-							return
-						end
-						local principle = nil
-						for _, kind in ipairs(Schema.PayloadOrder) do
-							local selected = creationEffects[kind]
-							local definition = Schema.Payloads[kind]
-							if selected and definition and definition.Principle then
-								principle = definition.Principle
-								break
-							end
-						end
-						principle = principle or internalDefaultForForm(creationForm or "Projectile")
-						local nextDraft = Spec.createDraft(creationForm or "Projectile", principle)
-						if not nextDraft then
-							message("That Form is no longer available. Choose another Form.", false)
-							return
-						end
-						nextDraft.Name = "Untitled " .. (intent and intent.Label or "Spell")
-						for kind, selected in pairs(creationEffects) do
-							local payloadDefinition = Schema.Payloads[kind]
-							if
-								not payloadDefinition
-								or not Schema.supportsPayloadCapability(kind, nextDraft.Form, selected.Event)
-							then
-								message(
-									"One selected effect no longer fits this spell. Remove it or choose a compatible effect.",
-									false
-								)
-								return
-							end
-							local payloadValue = Spec.copy(payloadDefinition.Defaults or {})
-							payloadValue.Kind = kind
-							local steps = nextDraft.Triggers[selected.Event] or {}
-							nextDraft.Triggers[selected.Event] = steps
-							local step = steps[1] or { Payloads = {} }
-							if #steps == 0 then table.insert(steps, step) end
-							table.insert(step.Payloads, payloadValue)
-						end
-						draft = nextDraft
-						standaloneDraft = creationForLibrary
-						editingLibraryRecord, editingLibraryId = false, nil
-						if not standaloneDraft then
-							draftsBySlot[selectedSlot] = draft
-							dirtySlots[selectedSlot] = true
-						else
-							standaloneWorkingDraft = Spec.copy(draft)
-							lastWorkingDraftKind = "Standalone"
-						end
-						dirty, appliedRevision = true, -1
-						local firstSelected = next(creationEffects)
-						event = firstSelected and creationEffects[firstSelected].Event or mainEvent(draft.Form)
-						pageMode, activeSection = "Editor", "ConfigureEffects"
-						revision += 1
-						scroll.CanvasPosition = Vector2.zero
-						rebuild()
-						estimate()
-					end,
-				})
-				creationChoiceGrid(options)
+		local function renderTraining()
+			heading("TRAINING TARGETS")
+			if not RunService:IsStudio() then
+				info("Training targets and resource reset controls are available in Studio practice sessions.", 60)
+				return
 			end
+			info(
+				"Spawn stationary Humanoid targets on nearby clear ground. Target relationship and other target rules determine which targets your spell can affect.",
+				48
+			)
+			for _, option in
+				{
+					{ Label = "Spawn ally dummy", Action = "SpawnAlly" },
+					{ Label = "Spawn enemy dummy", Action = "SpawnEnemy" },
+					{ Label = "Restore my dummies", Action = "ResetMine" },
+					{ Label = "Remove my dummies", Action = "ClearMine" },
+					{ Label = "Restore health and magic resources", Action = "RestorePlayer" },
+					{ Label = "Clear my spells and reset cooldowns", Action = "ClearEffects" },
+					{ Label = "Respawn my character", Action = "ResetPlayer" },
+					{ Label = "Return to practice start", Action = "ReturnToStart" },
+				}
+			do
+				if option.Action ~= "ReturnToStart" or require(Shared.Configuration.DevelopmentSandbox).Enabled then
+					local control = row(option.Label)
+					local controlButton = button(control, "RUN", function()
+						if option.Action == "ResetPlayer" or option.Action == "ClearEffects" then
+							confirm(
+								"Run “"
+									.. option.Label
+									.. "”? Active spells may end through their normal expiry behavior.",
+								function()
+									trainingRequest:FireServer(option.Action)
+								end
+							)
+						else
+							trainingRequest:FireServer(option.Action)
+						end
+					end)
+					controlButton.Font = Enum.Font.GothamBold
+				end
+			end
+			heading("SANDBOX CONTROLS")
+			toggle(
+				"Show combat feedback messages",
+				feedbackVisible,
+				function(value)
+					feedbackVisible = value
+					refreshToast()
+				end,
+				"Shows damage and invalid-cast feedback briefly during combat. Health bars stay visible on training dummies."
+			)
+			info(
+				"Training dummies are stationary targets. Their health bars show damage and healing; test movement on a movable object or another player. Ending active spells may trigger their On expire effects. Testing continues while this screen is open.",
+				96
+			)
+		end
+		if pageMode == "Training" then
+			updateHeader()
+			renderTraining()
 			return
 		end
 		if pageMode == "Library" then
@@ -2085,20 +1986,18 @@ function Lab.start(send, aim)
 			updateHeader()
 			heading("HOW SPELL CREATION WORKS")
 			info(
-				[[1. Start from an intent, then choose a shape and one or more compatible effects.
-2. Form: adjust how the spell reaches the world, its element, and its shape settings.
-3. Targeting: choose where to aim and who can be affected.
-4. Conditions: add optional rules for casting or staying active.
-5. Choose Effects, then configure only the effects you selected.
-6. Casting and Costs tune activation, duration, cooldowns, and estimates.
-7. Appearance sets the look and sound; Review & Test validates, saves, equips, and tests.]],
+				[[1. NEW SPELL opens the Spell Forge with a starter projectile.
+2. The left panel is your spell: what it creates, its triggers (WHEN IT HITS...), and the effects each trigger runs.
+3. Select any card to edit only its properties on the right. Use + to attach triggers and effects.
+4. ADVANCED adds casting, targeting, condition and appearance cards and shows every setting, with search.
+5. TEST SPELL casts it for real; SAVE SPELL stores it in your library; EQUIP puts it in a slot.]],
 				180
 			)
 			info(
-				"Quick Create keeps the common choices close. Spell Workshop opens every chapter and lets you search advanced settings. Both edit the same spell and use the same validation. Save Draft keeps a session copy; Save Spell stores a valid library record. Equip and Test are separate actions. P returns you to play; open P again to continue.",
+				"Guided and Advanced edit the same spell and use the same validation. Keep Draft keeps a session copy; Save Spell stores a valid library record. P returns you to play; open P again to continue.",
 				100
 			)
-			button(row("Start or skip this guide"), "OPEN SPELL SLOTS", function()
+			button(row("Start or skip this guide"), "OPEN HOME", function()
 				libraryView.dismissHelp()
 				libraryPage("Slots")
 			end)
@@ -2118,7 +2017,7 @@ function Lab.start(send, aim)
 			do
 				button(row(example[5]), "CREATE EXAMPLE", function()
 					local slot
-					for i = 1, Slots.Count do
+					for i = 1, libraryView.slotLimit() do
 						if not equipped[i] and not draftsBySlot[i] then
 							slot = i
 							break
@@ -2142,221 +2041,177 @@ function Lab.start(send, aim)
 		end
 		if pageMode == "Slots" then
 			updateHeader()
-			local home = canvasBlock(500)
-			home.Name = "EquippedSpellHome"
-			local slotsPage = Instance.new("Frame")
-			slotsPage.Name = "NineEquippedSlots"
-			slotsPage.BackgroundTransparency = 1
-			slotsPage.Parent = home
-			local createPage = Instance.new("Frame")
-			createPage.Name = "CreateSpellPage"
-			createPage.BackgroundTransparency = 1
-			createPage.Parent = home
-			local grid = Instance.new("UIGridLayout")
-			grid.CellPadding = UDim2.fromOffset(8, 8)
-			grid.SortOrder = Enum.SortOrder.LayoutOrder
-			grid.Parent = slotsPage
-			local function tile(parent, name, orderNumber, callback)
-				local item = Instance.new("TextButton")
-				item.Name = name
-				item.LayoutOrder = orderNumber
-				item.BackgroundColor3 = Color3.fromRGB(104, 72, 42)
-				item.BorderSizePixel = 0
-				item.Text = ""
-				item.AutoButtonColor = true
-				item.Parent = parent
-				local corner = Instance.new("UICorner")
-				corner.CornerRadius = UDim.new(0, 5)
-				corner.Parent = item
-				local lip = Instance.new("Frame")
-				lip.Name = "RaisedEdge"
-				lip.Position = UDim2.fromOffset(2, 2)
-				lip.Size = UDim2.new(1, -4, 1, -4)
-				lip.BackgroundColor3 = Color3.fromRGB(176, 133, 76)
-				lip.BorderSizePixel = 0
-				lip.Parent = item
-				local lipCorner = Instance.new("UICorner")
-				lipCorner.CornerRadius = UDim.new(0, 4)
-				lipCorner.Parent = lip
-				local face = Instance.new("Frame")
-				face.Name = "ParchmentFace"
-				face.Position = UDim2.fromOffset(3, 2)
-				face.Size = UDim2.new(1, -6, 1, -8)
-				face.BackgroundColor3 = Color3.fromRGB(237, 215, 173)
-				face.BorderSizePixel = 0
-				face.Parent = item
-				local faceCorner = Instance.new("UICorner")
-				faceCorner.CornerRadius = UDim.new(0, 3)
-				faceCorner.Parent = face
-				local faceGradient = Instance.new("UIGradient")
-				faceGradient.Rotation = 90
-				faceGradient.Color = ColorSequence.new(Color3.fromRGB(255, 239, 207), Color3.fromRGB(213, 177, 123))
-				faceGradient.Parent = face
-				local highlight = Instance.new("UIStroke")
-				highlight.Color = Color3.fromRGB(255, 243, 213)
-				highlight.Thickness = 1
-				highlight.Transparency = 0.2
-				highlight.Parent = face
-				local edge = Instance.new("UIStroke")
-				edge.Color = Color3.fromRGB(105, 73, 38)
-				edge.Thickness = 2
-				edge.Parent = item
-				item.SelectionGained:Connect(function() edge.Color, edge.Thickness = Theme.Gold, 3 end)
-				item.SelectionLost:Connect(function() edge.Color, edge.Thickness = Color3.fromRGB(105, 73, 38), 2 end)
-				item.Activated:Connect(callback)
-				return item
-			end
-			local createTile = tile(createPage, "CreateNewSpellTile", 1, function()
-				beginCreation(true)
-			end)
-			local createSeal = Instance.new("Frame")
-			createSeal.Name = "CreateSeal"
-			createSeal.Position = UDim2.fromScale(0.24, 0.13)
-			createSeal.Size = UDim2.fromScale(0.52, 0.48)
-			createSeal.BackgroundColor3 = Color3.fromRGB(220, 187, 133)
-			createSeal.BorderSizePixel = 0
-			createSeal.Parent = createTile
-			local sealCorner = Instance.new("UICorner")
-			sealCorner.CornerRadius = UDim.new(1, 0)
-			sealCorner.Parent = createSeal
-			local sealEdge = Instance.new("UIStroke")
-			sealEdge.Color = Color3.fromRGB(105, 73, 38)
-			sealEdge.Thickness = 2
-			sealEdge.Parent = createSeal
-			local createIcon = Instance.new("TextLabel")
-			createIcon.Name = "CreateIcon"
-			createIcon.Size = UDim2.fromScale(1, 1)
-			createIcon.BackgroundTransparency = 1
-			createIcon.Text = "+"
-			createIcon.Font = Enum.Font.Garamond
-			createIcon.TextScaled = true
-			createIcon.TextColor3 = Theme.Accent
-			createIcon.Parent = createSeal
-			local createCaption = Instance.new("TextLabel")
-			createCaption.Position = UDim2.fromScale(0.06, 0.67)
-			createCaption.Size = UDim2.fromScale(0.88, 0.22)
-			createCaption.BackgroundTransparency = 1
-			createCaption.Text = "CREATE A\nNEW SPELL"
-			createCaption.Font = Enum.Font.GothamBold
-			createCaption.TextScaled = true
-			createCaption.TextWrapped = true
-			createCaption.TextColor3 = Theme.Ink
-			createCaption.Parent = createTile
-			local createTextLimit = Instance.new("UITextSizeConstraint")
-			createTextLimit.MinTextSize = 14
-			createTextLimit.MaxTextSize = 25
-			createTextLimit.Parent = createCaption
+			local slotData = {}
 			for slot = 1, Slots.Count do
-				local slotId = slot
-				local saved = equipped[slot]
-				local spell = draftsBySlot[slot] or saved
-				local slotButton = tile(slotsPage, "EquippedSlot_" .. slot, slot, function()
-					selectedSlot = slotId
-					local previousDraft = draftsBySlot[slotId]
-					if previousDraft then
-						draft = previousDraft
-					elseif saved then
-						draft = Spec.copy(saved)
-						ensureVisualDefaults(draft)
-						draftsBySlot[slotId] = draft
+				table.insert(slotData, {
+					Number = slot,
+					Spell = draftsBySlot[slot] or equipped[slot],
+					Locked = slot > libraryView.slotLimit(),
+					Draft = equipped[slot] == nil and draftsBySlot[slot] ~= nil,
+					Selected = slot == selectedSlot and (draftsBySlot[slot] or equipped[slot]) ~= nil,
+				})
+			end
+			order += 1
+			Hub.home(scroll, {
+				Slots = slotData,
+				ResumeDraft = hasWorkingDraft(),
+			}, {
+				create = startNewSpell,
+				resume = resumeWorkingDraft,
+				library = function()
+					navigateTab("Library")
+				end,
+				training = function()
+					navigateTab("Training")
+				end,
+				openSlot = function(slotId)
+					if slotId > libraryView.slotLimit() then
+						message("This loadout slot unlocks with more mission XP.", false)
+						return
+					end
+					if draftsBySlot[slotId] or equipped[slotId] then
+						openSlot(slotId)
 					else
 						selectedSlot = slotId
 						libraryView.chooseForSlot(slotId)
 						pageMode = "Library"
 						scroll.CanvasPosition = Vector2.zero
 						rebuild()
-						return
 					end
-					event = mainEvent(draft.Form)
-					pageMode = "Editor"
-					activeSection = "Setup"
-					revision += 1
-					dirty = dirtySlots[slotId] == true
-					appliedRevision = if dirty then -1 else revision
-					scroll.CanvasPosition = Vector2.zero
+				end,
+			}, Schema, Spec)
+			return
+		end
+		if pageMode == "Editor" and not forgeHosted then
+			updateHeader()
+			navigation.Visible = false
+			backButton.Visible = false
+			if actions then
+				actions.Visible = false
+			end
+			status.Visible = false
+			headerTitle.Visible = false
+			headerSummary.Visible = false
+			homeButton.Visible = false
+			closeButton.Visible = false
+			scroll.Visible = false
+			local _, api = GuidedForge.mount(panel, draft, Schema, Spec, {
+				mode = authoringMode,
+				-- Draws the real Advanced section editors into a forge inspector
+				-- host. Section helpers append to `scroll`, so it points at the
+				-- host for one pass and the page state is restored afterwards.
+				renderSections = function(host, sections, sectionEvent, search, startOrder)
+					local savedScroll, savedSection, savedEvent, savedSearch =
+						scroll, activeSection, event, expertSearch
+					local savedOrder, savedGroup = order, currentGroup
+					local savedMode = authoringMode
+					forgeHosted = true
+					authoringMode = "Expert"
+					scroll = host
+					expertSearch = search or ""
+					order = startOrder or 0
+					local finalOrder = order
+					local ok, failure = pcall(function()
+						for _, sectionId in sections do
+							activeSection = sectionId
+							if sectionEvent then
+								event = sectionEvent
+							end
+							currentGroup = nil
+							cardPairHolder, cardPairCount, cardPairCards, cardPairLayout = nil, 0, {}, nil
+							rebuild()
+						end
+						finalOrder = order
+					end)
+					scroll, activeSection, expertSearch = savedScroll, savedSection, savedSearch
+					if not sectionEvent then
+						event = savedEvent
+					end
+					order, currentGroup = savedOrder, savedGroup
+					authoringMode = savedMode
+					forgeHosted = false
+					if not ok then
+						warn("Spell Forge advanced section failed: " .. tostring(failure))
+					end
+					return finalOrder
+				end,
+				change = function()
+					estimate()
+					updateHeader()
+				end,
+				changeForm = function(formName, principle)
+					local previousDraft = draft
+					resetForForm(formName, principle, true)
+					if draft ~= previousDraft then
+						local replacement = draft
+						table.clear(previousDraft)
+						for key, value in pairs(replacement) do
+							previousDraft[key] = value
+						end
+						draft = previousDraft
+					end
+					estimate()
+				end,
+				save = function()
+					if saveLibraryButton then
+						saveLibraryButton:Activate()
+					end
+				end,
+				keep = function()
+					if standaloneDraft then
+						standaloneWorkingDraft = Spec.copy(draft)
+						lastWorkingDraftKind = "Standalone"
+					elseif editingLibraryRecord and editingLibraryId then
+						libraryDrafts[editingLibraryId] = Spec.copy(draft)
+						lastLibraryDraftId = editingLibraryId
+						lastWorkingDraftKind = "Library"
+					else
+						draftsBySlot[selectedSlot] = Spec.copy(draft)
+						dirtySlots[selectedSlot] = true
+					end
+					dirty = true
+					message("Draft kept for this session. Resume it from Home or the Forge tab.", true)
+				end,
+				load = function()
+					libraryView.Selected = nil
+					libraryPage("Library")
+				end,
+				advanced = function()
+					authoringMode = if authoringMode == "Expert" then "Guided" else "Expert"
+					expertSearch = ""
 					rebuild()
-				end)
-				local number = Instance.new("TextLabel")
-				number.Name = "SlotNumber"
-				number.Position = UDim2.fromScale(0.08, 0.04)
-				number.Size = UDim2.fromScale(0.22, 0.14)
-				number.BackgroundTransparency = 1
-				number.Text = tostring(slot)
-				number.Font = Enum.Font.GothamBold
-				number.TextSize = 13
-				number.TextColor3 = Color3.fromRGB(94, 63, 34)
-				number.Parent = slotButton
-				if not saved and draftsBySlot[slot] then
-					local draftBadge = Instance.new("TextLabel")
-					draftBadge.Name = "UnsavedDraftBadge"
-					draftBadge.Position = UDim2.fromScale(0.58, 0.04)
-					draftBadge.Size = UDim2.fromScale(0.34, 0.14)
-					draftBadge.BackgroundTransparency = 1
-					draftBadge.Text = "DRAFT"
-					draftBadge.Font = Enum.Font.GothamBold
-					draftBadge.TextSize = 11
-					draftBadge.TextColor3 = Theme.Gold
-					draftBadge.Parent = slotButton
-				end
-				local icon = Instance.new("Frame")
-				icon.Name = "SpellIconPreview"
-				icon.Position = UDim2.fromScale(0.17, 0.17)
-				icon.Size = UDim2.fromScale(0.66, 0.48)
-				icon.BackgroundColor3 = Color3.fromRGB(210, 182, 132)
-				icon.BorderSizePixel = 0
-				icon.Parent = slotButton
-				if spell then
-					SpellVisual.render(icon, spell, true)
-				else
-					local iconGradient = Instance.new("UIGradient")
-					iconGradient.Rotation = 90
-					iconGradient.Color = ColorSequence.new(Color3.fromRGB(230, 206, 164), Color3.fromRGB(184, 147, 98))
-					iconGradient.Parent = icon
-					local empty = Instance.new("TextLabel")
-					empty.Size = UDim2.fromScale(1, 1)
-					empty.BackgroundTransparency = 1
-					empty.Text = "◇"
-					empty.Font = Enum.Font.Garamond
-					empty.TextScaled = true
-					empty.TextColor3 = Color3.fromRGB(92, 63, 34)
-					empty.Parent = icon
-				end
-				local iconEdge = Instance.new("UIStroke")
-				iconEdge.Color = Color3.fromRGB(120, 86, 46)
-				iconEdge.Thickness = 1
-				iconEdge.Parent = icon
-				local caption = Instance.new("TextLabel")
-				caption.Name = "SpellName"
-				caption.Position = UDim2.fromScale(0.06, 0.7)
-				caption.Size = UDim2.fromScale(0.88, 0.23)
-				caption.BackgroundTransparency = 1
-				caption.Text = if spell then spell.Name else "EMPTY SLOT"
-				caption.Font = Enum.Font.GothamBold
-				caption.TextScaled = true
-				caption.TextWrapped = true
-				caption.TextColor3 = Theme.Ink
-				caption.Parent = slotButton
-				local captionLimit = Instance.new("UITextSizeConstraint")
-				captionLimit.MinTextSize = 10
-				captionLimit.MaxTextSize = 17
-				captionLimit.Parent = caption
-			end
-			local function layoutHome()
-				local geometry = HomeLayout.compute(home.AbsoluteSize.X, scroll.AbsoluteSize.Y)
-				grid.CellSize = UDim2.fromOffset(geometry.Cell, geometry.Cell)
-				slotsPage.Position = UDim2.fromOffset(geometry.SlotsX, geometry.SlotsY)
-				slotsPage.Size = UDim2.fromOffset(geometry.GridSize, geometry.GridSize)
-				createPage.Position = UDim2.fromOffset(geometry.CreateX, geometry.CreateY)
-				createPage.Size = UDim2.fromOffset(geometry.CreateSize, geometry.CreateSize)
-				createTile.Size = UDim2.fromScale(1, 1)
-				home.Size = UDim2.new(1, -8, 0, geometry.CanvasHeight)
-			end
-			home:GetPropertyChangedSignal("AbsoluteSize"):Connect(layoutHome)
-			local resizeConnection = scroll:GetPropertyChangedSignal("AbsoluteSize"):Connect(layoutHome)
-			home.Destroying:Connect(function()
-				resizeConnection:Disconnect()
-			end)
-			layoutHome()
+				end,
+				test = function()
+					apply(true)
+				end,
+				equip = if not standaloneDraft and not editingLibraryRecord
+					then function()
+						apply(false)
+					end
+					else nil,
+				equipLabel = "EQUIP · SLOT " .. tostring(selectedSlot),
+				close = function()
+					visibility(false)
+				end,
+				spawnTarget = if trainingRequest and RunService:IsStudio()
+					then function()
+						trainingRequest:FireServer("SpawnEnemy")
+					end
+					else nil,
+				back = function()
+					if standaloneDraft then
+						standaloneWorkingDraft = Spec.copy(draft)
+						lastWorkingDraftKind = "Standalone"
+					elseif editingLibraryRecord and editingLibraryId then
+						libraryDrafts[editingLibraryId] = Spec.copy(draft)
+					end
+					libraryView.Selected = nil
+					libraryView.ChoosingSlot = nil
+					pageMode = "Slots"
+					rebuild()
+				end,
+			})
+			forgeApi = api
 			return
 		end
 		local form = Schema.Forms[draft.Form]
@@ -2372,42 +2227,11 @@ function Lab.start(send, aim)
 		end
 		updateHeader()
 		panel:SetAttribute("SpellSummary", draft.Name .. "\n" .. draft.Form .. "  ·  " .. draft.Element)
-		if editorPreview then SpellVisual.render(editorPreview, draft, false) end
-		if panel.AbsoluteSize.X < 680 then
-			local previewHolder = canvasBlock(170)
-			mobileEditorPreview = Instance.new("Frame")
-			mobileEditorPreview.Name = "LiveSpellVisualPreview"
-			mobileEditorPreview.Size = UDim2.new(1, 0, 1, 0)
-			mobileEditorPreview.Parent = previewHolder
-			SpellVisual.render(mobileEditorPreview, draft, false)
+		if editorPreview then
+			SpellVisual.render(editorPreview, draft, false)
 		end
-		if activeSection == "Setup" then
-			local modeRow = row("EDITING MODE")
-			button(modeRow, if authoringMode == "Expert" then "WORKSHOP" else "GUIDED", function()
-				authoringMode = if authoringMode == "Expert" then "Guided" else "Expert"
-				expertSearch = ""
-				rebuildPreservingScroll()
-			end)
-		end
-		if authoringMode == "Expert" then
-			local searchRow = row("SEARCH THIS CHAPTER")
-			local search = Instance.new("TextBox")
-			search.Position, search.Size = UDim2.new(0.42, 0, 0, 4), UDim2.new(0.57, -4, 1, -8)
-			search.BackgroundColor3, search.TextColor3 = Theme.Surface, Theme.Ink
-			search.BorderColor3, search.BorderSizePixel = Theme.Border, 1
-			search.PlaceholderText, search.PlaceholderColor3 = "Find a control by name or label", Theme.SubtleInk
-			search.Text, search.TextSize = expertSearch, 14
-			search.ClearTextOnFocus, search.Parent = false, searchRow
-			search.FocusLost:Connect(function()
-				expertSearch = search.Text
-				rebuildPreservingScroll()
-			end)
-		end
-		local draftValid, draftIssue = Spec.validate(draft)
-		if not draftValid then
-			info("Validation needs attention · " .. creatorFacingText(draftIssue), 48)
-		end
-		-- Page choices are the square buttons above the chapter controls.
+		-- Editor sections run only hosted inside the Spell Forge inspector
+		-- (see renderSections); the forge owns Form choice, search and validation.
 
 		local function showFields(object, fields)
 			for _, field in fields do
@@ -2416,31 +2240,7 @@ function Lab.start(send, aim)
 		end
 		if activeSection == "Setup" or activeSection == "Casting" then
 			if activeSection == "Setup" then
-				heading("1 · CHOOSE A SPELL FORM")
-				local formOptions = {}
-				for _, formName in Schema.FormOrder do
-					local candidate = Spec.createDraft(formName, internalDefaultForForm(formName))
-					if candidate then ensureVisualDefaults(candidate) end
-					table.insert(formOptions, {
-						Id = formName,
-						Label = Schema.Forms[formName].Label,
-						Hint = if draft.Form == formName then "CURRENT FORM" else "CHOOSE FORM",
-						Selected = draft.Form == formName,
-						Preview = candidate,
-						Action = function()
-							resetForForm(formName)
-							rebuild()
-							estimate()
-						end,
-					})
-				end
-				creationChoiceGrid(formOptions)
-				info(form.Description, 80)
-				info(
-					"Form controls how a spell reaches the world. Effects define what happens. Changing Form resets shape settings while keeping existing effects and their timing for review.",
-					54
-				)
-				heading("2 · NAME & ORGANIZATION")
+				heading("NAME & ORGANIZATION")
 				local nameRow = row("Spell name")
 				local nameBox = Instance.new("TextBox")
 				nameBox.Size = UDim2.new(0.4, 0, 1, 0)
@@ -2453,7 +2253,8 @@ function Lab.start(send, aim)
 				nameBox.BorderColor3, nameBox.BorderSizePixel = Theme.Border, 1
 				nameBox.Parent = nameRow
 				nameBox.FocusLost:Connect(function()
-					draft.Name = nameBox.Text
+					draft.Name = SpellIdentitySpec.normalizeName(nameBox.Text) or draft.Name
+					nameBox.Text = draft.Name
 					estimate()
 					updateHeader()
 				end)
@@ -3499,219 +3300,7 @@ function Lab.start(send, aim)
 						"Environment.ZoneTags reads the selected MagicEnvironmentZone part's MagicZoneTags attribute (comma/semicolon separated). Status rules include shield, slow, bind, reveal, and MagicArmor.",
 						44
 					)
-					local propertyChoices = {}
-					for family, properties in ConditionSpec.Properties do
-						for property in properties do
-							table.insert(propertyChoices, family .. "." .. property)
-						end
-					end
-					table.sort(propertyChoices)
-					local function replaceNode(parent, index, replacement)
-						local ok, root = ConditionTree.replace(draft.Conditions, parent, index, replacement)
-						if ok and not parent then
-							draft.Conditions = root
-						end
-					end
-					local function defaultFor(descriptor)
-						return if descriptor.Kind == "Boolean"
-							then true
-							elseif descriptor.Kind == "Number" then descriptor.Min
-							else ""
-					end
-					local function renderNode(node, parent, index, depth)
-						local path = if parent then "Nested " .. tostring(index) else "Root"
-						if ConditionTree.isGroup(node) then
-							if node.Operator == "NOT" then
-								info(path .. " group · NOT (the child result must fail)", 34)
-								local unwrapRow = row("Remove NOT wrapper")
-								button(unwrapRow, "UNWRAP", function()
-									replaceNode(parent, index, ConditionTree.unwrapNot(node))
-									rebuild()
-									estimate()
-								end)
-							else
-								select("Group logic · " .. path, node.Operator, { "ALL", "ANY" }, function(value)
-									node.Operator = value
-								end, function(value)
-									return if value == "ALL" then "Require all children" else "Allow any child"
-								end, "ALL requires every child. ANY passes when at least one child passes.")
-								card(
-									"Invert group · " .. path,
-									"Wrap this group in NOT.",
-									false,
-									function()
-										local wrapped = ConditionTree.wrapNot(node)
-										if wrapped then
-											replaceNode(parent, index, wrapped)
-										end
-									end,
-									depth + ConditionTree.maxDepth(node) <= ConditionSpec.MaxDepth
-										and ConditionTree.countNodes(draft.Conditions) < ConditionSpec.MaxNodes
-								)
-							end
-							for childIndex, child in ipairs(node.Conditions or {}) do
-								renderNode(child, node, childIndex, depth + 1)
-							end
-							if node.Operator ~= "NOT" then
-								local nodeCount = ConditionTree.countNodes(draft.Conditions)
-								local canAddRule = #node.Conditions < ConditionSpec.MaxChildren
-									and nodeCount + 1 <= ConditionSpec.MaxNodes
-									and depth < ConditionSpec.MaxDepth
-								local canAddGroup = #node.Conditions < ConditionSpec.MaxChildren
-									and nodeCount + 2 <= ConditionSpec.MaxNodes
-									and depth + 1 < ConditionSpec.MaxDepth
-								card(
-									"Add rule · " .. path,
-									"Add one explicitly exposed server value.",
-									false,
-									function()
-										ConditionTree.addRule(
-											node,
-											ConditionSpec.MaxChildren,
-											ConditionSpec.MaxNodes,
-											draft.Conditions
-										)
-									end,
-									canAddRule,
-									"This group, depth, or tree has reached its safe limit."
-								)
-								card(
-									"Add nested ALL group · " .. path,
-									"Create a subgroup whose every rule must pass.",
-									false,
-									function()
-										ConditionTree.addGroup(
-											node,
-											"ALL",
-											ConditionSpec.MaxChildren,
-											ConditionSpec.MaxNodes,
-											draft.Conditions
-										)
-									end,
-									canAddGroup,
-									"This group, depth, or tree has reached its safe limit."
-								)
-								card(
-									"Add nested ANY group · " .. path,
-									"Create a subgroup where any one rule may pass.",
-									false,
-									function()
-										ConditionTree.addGroup(
-											node,
-											"ANY",
-											ConditionSpec.MaxChildren,
-											ConditionSpec.MaxNodes,
-											draft.Conditions
-										)
-									end,
-									canAddGroup,
-									"This group, depth, or tree has reached its safe limit."
-								)
-							end
-							if parent and parent.Operator ~= "NOT" then
-								card(
-									"Remove group · " .. path,
-									"Remove this nested condition and its children.",
-									false,
-									function()
-										ConditionTree.remove(parent, index)
-									end,
-									#parent.Conditions > 1,
-									"Condition groups must keep at least one child."
-								)
-							end
-							return
-						end
-
-						local descriptor = ConditionSpec.Properties[node.Family]
-							and ConditionSpec.Properties[node.Family][node.Property]
-						if not descriptor then
-							info(path .. " has an unsupported saved rule; remove it and add a valid one.", 42)
-							if parent and parent.Operator ~= "NOT" then
-								local removeInvalidRow = row("Remove invalid rule · " .. path)
-								button(removeInvalidRow, "REMOVE", function()
-									ConditionTree.remove(parent, index)
-									rebuild()
-								end)
-							end
-							return
-						end
-						info("Rule · " .. path, 26)
-						select(
-							"Runtime property · " .. path,
-							node.Family .. "." .. node.Property,
-							propertyChoices,
-							function(value)
-								local family, property = string.match(value, "^([^%.]+)%.(.+)$")
-								local nextDescriptor = ConditionSpec.Properties[family][property]
-								node.Family, node.Property = family, property
-								node.Operator = nextDescriptor.Operators[1]
-								node.Value = defaultFor(nextDescriptor)
-							end,
-							nil,
-							"Only whitelisted server-resolved values are available."
-						)
-						select("Comparison · " .. path, node.Operator, descriptor.Operators, function(value)
-							node.Operator = value
-						end)
-						if descriptor.Kind == "Number" then
-							numeric(
-								"Number value · " .. path,
-								node,
-								"Value",
-								"Compare against this bounded runtime value."
-							)
-						elseif descriptor.Kind == "Boolean" then
-							toggle("Value is true · " .. path, node.Value, function(value)
-								node.Value = value
-							end)
-						else
-							local valueRow = row("Text value · " .. path)
-							local box = Instance.new("TextBox")
-							box.Size = UDim2.new(0.4, 0, 1, 0)
-							box.Position = UDim2.new(0.59, 0, 0, 0)
-							box.BackgroundColor3 = Theme.Surface
-							box.TextColor3 = Theme.Ink
-							box.BorderColor3, box.BorderSizePixel = Theme.Border, 1
-							box.TextSize = 14
-							box.ClearTextOnFocus = false
-							box.Text = tostring(node.Value or "")
-							box.Parent = valueRow
-							box.FocusLost:Connect(function()
-								node.Value = string.sub(box.Text, 1, descriptor.MaxLength)
-								estimate()
-							end)
-						end
-						if parent and parent.Operator ~= "NOT" then
-							card("Remove rule · " .. path, "Remove this condition rule.", false, function()
-								ConditionTree.remove(parent, index)
-							end, #parent.Conditions > 1, "Condition groups must keep at least one child.")
-						end
-						if depth < ConditionSpec.MaxDepth then
-							local canWrap = depth + 1 <= ConditionSpec.MaxDepth
-								and ConditionTree.countNodes(draft.Conditions) < ConditionSpec.MaxNodes
-							card("Invert rule · " .. path, "Wrap this rule in NOT.", false, function()
-								local wrapped = ConditionTree.wrapNot(node)
-								if wrapped then
-									replaceNode(parent, index, wrapped)
-								end
-							end, canWrap)
-							card(
-								"Nest rule in ALL · " .. path,
-								"Place this rule inside a new ALL group.",
-								false,
-								function()
-									local nested = ConditionTree.newGroup("ALL")
-									if nested then
-										nested.Conditions[1] = node
-										replaceNode(parent, index, nested)
-									end
-								end,
-								canWrap
-							)
-						end
-					end
-					renderNode(draft.Conditions, nil, nil, 1)
+					renderConditionTree(draft, "Conditions")
 					card(
 						"Return to simple cast rules",
 						"Discard this advanced condition tree and return to the simple cast rules.",
@@ -3724,7 +3313,87 @@ function Lab.start(send, aim)
 			end
 		elseif activeSection == "ChooseEffects" or activeSection == "ConfigureEffects" then
 			local configuring = activeSection == "ConfigureEffects"
-			heading(if configuring then "CONFIGURE THE SELECTED EFFECTS" else "CHOOSE COMPATIBLE EFFECTS")
+			heading(if configuring then "SPELL EFFECT COMPOSER" else "CHOOSE COMPATIBLE EFFECTS")
+			if configuring then
+				info(
+					"Read the spell from top to bottom. WHEN starts a timing; ALSO means another independent step runs at that same timing. IF marks a conditional branch. The server validates and executes these exact saved steps.",
+					56
+				)
+				heading("ACTION MAP")
+				local actionBlocks = ActionFlow.build(draft, Schema, effectEventsForDraft())
+				for _, block in ipairs(actionBlocks) do
+					local selected = event == block.Event and selectedStepByEvent[block.Event] == block.StepIndex
+					local label = string.format(
+						"%s · %s  ›  %s%s",
+						block.Relation,
+						string.upper(block.EventLabel),
+						block.Title,
+						if block.HasCondition then "  ·  " .. block.ConditionLabel else ""
+					)
+					local actionNode = row(label)
+					actionNode.Name = "ActionBlock_" .. block.Event .. "_" .. tostring(block.StepIndex)
+					local editAction = button(actionNode, if selected then "SELECTED" else "EDIT", function()
+						event = block.Event
+						selectedStepByEvent[block.Event] = block.StepIndex
+						rebuildPreservingScroll()
+					end)
+					editAction.Size = UDim2.fromOffset(92, 30)
+				end
+				if #actionBlocks == 0 then
+					info("No actions yet. Choose a timing and add an effect to create the first action block.", 36)
+				end
+				local compositionCount = 0
+				local orderedEvents = effectEventsForDraft()
+				for _, eventName in ipairs(orderedEvents) do
+					local steps = draft.Triggers[eventName] or {}
+					local eventPayloadCount = 0
+					for _, step in ipairs(steps) do
+						for _, selectedPayload in ipairs(step.Payloads or {}) do
+							eventPayloadCount += 1
+						end
+					end
+					if eventPayloadCount > 0 then
+						compositionCount += eventPayloadCount
+						local eventLabel = Schema.EventLabels[eventName] or eventName
+						local node = row(
+							"WHEN · "
+								.. string.upper(eventLabel)
+								.. "   ›   "
+								.. tostring(eventPayloadCount)
+								.. " effect(s)"
+						)
+						node.Size = UDim2.new(1, -8, 0, 42)
+						local jump = button(node, if event == eventName then "SELECTED" else "EDIT NODE", function()
+							event = eventName
+							rebuildPreservingScroll()
+						end)
+						jump.Size = UDim2.fromOffset(106, 30)
+						for _, step in ipairs(steps) do
+							for _, selectedPayload in ipairs(step.Payloads or {}) do
+								local definition = Schema.Payloads[selectedPayload.Kind]
+								local title = definition and definition.Label or selectedPayload.Kind or "Effect"
+								local effectNode = row("      └  " .. tostring(title))
+								effectNode.Size = UDim2.new(1, -8, 0, 34)
+								local edit = button(effectNode, "EDIT", function()
+									event = eventName
+									activeSection = "ConfigureEffects"
+									rebuildPreservingScroll()
+								end)
+								edit.Size = UDim2.fromOffset(70, 28)
+							end
+						end
+					end
+				end
+				if compositionCount == 0 then
+					info(
+						"No gameplay effects yet. Choose an event below, then switch to Choose Effects to add compatible outcomes.",
+						40
+					)
+				end
+			end
+			if configuring then
+				heading("SELECTED EVENT NODE")
+			end
 			local supportedEvents = supportedEffectEventsForDraft()
 			local availableEvents = effectEventsForDraft()
 			select(
@@ -3750,6 +3419,97 @@ function Lab.start(send, aim)
 			end
 			if configuring then
 				info(Schema.EventDescriptions[event] or "Effects run when this Form resolves its target.", 40)
+				local steps = draft.Triggers[event] or {}
+				local selectedIndex = selectedStepByEvent[event]
+				if not selectedIndex or not steps[selectedIndex] then
+					for index, step in ipairs(steps) do
+						if not step.Behavior then
+							selectedStepByEvent[event] = index
+							selectedIndex = index
+							break
+						end
+					end
+				end
+				local selectedStep = selectedIndex and steps[selectedIndex]
+				if selectedStep and not selectedStep.Behavior then
+					local stepTools = row("EDITING ACTION " .. tostring(selectedIndex) .. " OF " .. tostring(#steps))
+					if selectedIndex > 1 then
+						local moveUp = button(stepTools, "MOVE UP", function()
+							steps[selectedIndex], steps[selectedIndex - 1] =
+								steps[selectedIndex - 1], steps[selectedIndex]
+							selectedStepByEvent[event] = selectedIndex - 1
+							estimate()
+							rebuildPreservingScroll()
+						end)
+						moveUp.Size = UDim2.fromOffset(86, 30)
+					end
+					local removeStep = button(stepTools, "REMOVE", function()
+						table.remove(steps, selectedIndex)
+						selectedStepByEvent[event] = math.max(1, selectedIndex - 1)
+						estimate()
+						rebuildPreservingScroll()
+					end)
+					removeStep.Size = UDim2.fromOffset(78, 30)
+				end
+				local canAdd, addReason = ActionFlow.canAddStep(draft, event, Config.MaxSteps)
+				local addRow = row("Add another independent action at this same timing")
+				local addStep = button(addRow, if canAdd then "+ ADD ALSO" else "STEP LIMIT", function()
+					if not canAdd then
+						message(addReason or "No more actions can be added here.", false)
+						return
+					end
+					local sourceStep = primary()
+					local added = if sourceStep then Spec.copy(sourceStep) else { Payloads = {} }
+					added.Condition = nil
+					table.insert(steps, added)
+					selectedStepByEvent[event] = #steps
+					estimate()
+					rebuildPreservingScroll()
+				end)
+				addStep.Size = UDim2.fromOffset(124, 32)
+				-- Branches are ordinary steps with a Condition: the IF branch
+				-- starts as a copy of the selected step; OTHERWISE copies it with
+				-- the exact inverse condition, so exactly one of the pair runs.
+				local branchSource = (selectedIndex and steps[selectedIndex]) or primary()
+				local branchRow = row("Add a conditional branch at this timing")
+				local addBranch = button(branchRow, if canAdd then "+ ADD IF" else "STEP LIMIT", function()
+					if not canAdd then
+						message(addReason or "No more actions can be added here.", false)
+						return
+					end
+					local added = if branchSource then Spec.copy(branchSource) else { Payloads = {} }
+					added.Condition = ActionFlow.branchCondition()
+					table.insert(steps, added)
+					selectedStepByEvent[event] = #steps
+					estimate()
+					rebuildPreservingScroll()
+				end)
+				addBranch.Size = UDim2.fromOffset(110, 32)
+				if branchSource and branchSource.Condition then
+					local otherwiseCondition, otherwiseReason =
+						ActionFlow.otherwise(branchSource.Condition, ConditionSpec.MaxDepth)
+					local otherwiseRow = row("Add the opposite branch: runs when this step's condition fails")
+					local addOtherwise = button(
+						otherwiseRow,
+						if canAdd and otherwiseCondition then "+ OTHERWISE" else "UNAVAILABLE",
+						function()
+							if not canAdd or not otherwiseCondition then
+								message(otherwiseReason or addReason or "No more actions can be added here.", false)
+								return
+							end
+							local added = Spec.copy(branchSource)
+							added.Condition = otherwiseCondition
+							table.insert(steps, added)
+							selectedStepByEvent[event] = #steps
+							estimate()
+							rebuildPreservingScroll()
+						end
+					)
+					addOtherwise.Size = UDim2.fromOffset(124, 32)
+				end
+				if not canAdd then
+					info(addReason or "This timing cannot accept another action.", 34)
+				end
 			end
 			if configuring and event == "OnThreshold" then
 				local thresholdStep = primary()
@@ -4014,6 +3774,47 @@ function Lab.start(send, aim)
 					end
 				end
 			end
+			if configuring then
+				local conditionSteps = draft.Triggers[event] or {}
+				local conditionIndex = selectedStepByEvent[event]
+				if not conditionIndex or not conditionSteps[conditionIndex] then
+					conditionIndex = if #conditionSteps > 0 then 1 else nil
+				end
+				local selectedConditionStep = conditionIndex and conditionSteps[conditionIndex]
+				if selectedConditionStep then
+					local step = selectedConditionStep
+					local stepIndex = conditionIndex :: number
+					local behaviorDefinition = step.Behavior and Schema.Behaviors[step.Behavior]
+					local stepLabel = (if behaviorDefinition then behaviorDefinition.Label else "Effects")
+						.. " step "
+						.. tostring(stepIndex)
+					heading("STEP CONDITION · " .. string.upper(stepLabel))
+					if step.Condition then
+						info(
+							"This step only runs for event targets that pass. Target rules check each target; caster and spell rules apply to the whole step.",
+							40
+						)
+						renderConditionTree(step, "Condition", stepLabel)
+						card(
+							"Remove step condition · " .. stepLabel,
+							"Run this step unconditionally again.",
+							false,
+							function()
+								step.Condition = nil
+							end
+						)
+					else
+						card(
+							"Only when a condition passes · " .. stepLabel,
+							"Branch this step on target health, relationship, status, resources, or spell state.",
+							false,
+							function()
+								step.Condition = ConditionTree.newGroup("ALL")
+							end
+						)
+					end
+				end
+			end
 			local behaviorKinds = {}
 			for kind in Schema.Behaviors do
 				table.insert(behaviorKinds, kind)
@@ -4041,13 +3842,158 @@ function Lab.start(send, aim)
 					heading(definition.Label)
 					info(definition.Description, 38)
 					showFields(current, definition.Fields)
+					current.Payloads = current.Payloads or {}
+					if kind == "SpawnEffect" then
+						current.Effect = current.Effect or Spec.defaultSpawnEffect("Field", draft.Source.Principle)
+						local spawnForms = {}
+						for _, formName in Spec.SpawnForms do
+							if Schema.supportsPrincipleForm(draft.Source.Principle, formName) then
+								table.insert(spawnForms, formName)
+							end
+						end
+						select("Spawned Form", current.Effect.Form, spawnForms, function(value)
+							if value ~= current.Effect.Form then
+								current.Effect = Spec.defaultSpawnEffect(value, draft.Source.Principle)
+								spawnedEventFor[current] = nil
+							end
+						end, function(value)
+							return Schema.Forms[value].Label
+						end, "A Projectile travels on its own, a Field stays and pulses, and a Wave sweeps once.")
+						local effect = current.Effect
+						local childForm = Schema.Forms[effect.Form]
+						heading("SPAWNED " .. string.upper(childForm.Label) .. " SETTINGS")
+						for _, field in childForm.Mechanics or {} do
+							if
+								field.Object == effect.Form
+								and effect[effect.Form]
+								and effect[effect.Form][field.Key] ~= nil
+							then
+								renderField(effect[effect.Form], field)
+							end
+						end
+						if effect.Lifetime.Mode == "FixedDuration" then
+							numeric(
+								"Spawned duration",
+								effect.Lifetime,
+								"Duration",
+								string.format(
+									"Seconds the spawned effect lasts. Allowed: 0.1 to %s",
+									tostring(Config.MaxDuration)
+								)
+							)
+						end
+						local childEvents = Schema.eventsForEffects(effect.Form, "Instant")
+						local childEvent = spawnedEventFor[current]
+						if not table.find(childEvents, childEvent) then
+							childEvent = if table.find(childEvents, childForm.DefaultEvent)
+								then childForm.DefaultEvent
+								else childEvents[1]
+						end
+						spawnedEventFor[current] = childEvent
+						select("Spawned effect timing", childEvent, childEvents, function(value)
+							spawnedEventFor[current] = value
+						end, function(value)
+							return Schema.EventLabels[value] or value
+						end, "The spawned effect has its own timings and effects, separate from this spell.")
+						if childEvent then
+							effect.Triggers = effect.Triggers or {}
+							local function childPayload(payloadKind)
+								for _, step in ipairs(effect.Triggers[childEvent] or {}) do
+									if not step.Behavior then
+										for index, value in ipairs(step.Payloads or {}) do
+											if value.Kind == payloadKind then
+												return value, step, index
+											end
+										end
+									end
+								end
+								return nil, nil, nil
+							end
+							for _, payloadKind in Schema.payloadsFor(effect.Form, childEvent) do
+								local payloadDefinition = Schema.Payloads[payloadKind]
+								local fits = payloadKind ~= "Summon"
+									and (
+										payloadDefinition.Principle == nil
+										or payloadDefinition.Principle == draft.Source.Principle
+									)
+								local value = childPayload(payloadKind)
+								if fits or value then
+									toggle(payloadDefinition.Label .. " · spawned", value ~= nil, function(on)
+										local existing, owner, at = childPayload(payloadKind)
+										if on and not existing then
+											local steps = effect.Triggers[childEvent] or {}
+											effect.Triggers[childEvent] = steps
+											local target = nil
+											for _, candidate in ipairs(steps) do
+												if not candidate.Behavior then
+													target = candidate
+													break
+												end
+											end
+											if not target then
+												target = { Payloads = {} }
+												table.insert(steps, 1, target)
+											end
+											if #target.Payloads < Config.MaxPayloads then
+												local added = Spec.copy(payloadDefinition.Defaults or {})
+												added.Kind = payloadKind
+												table.insert(target.Payloads, added)
+											end
+										elseif not on and existing and owner and at then
+											table.remove(owner.Payloads, at)
+											if #owner.Payloads == 0 then
+												local steps = effect.Triggers[childEvent]
+												table.remove(steps, table.find(steps, owner))
+												if #steps == 0 then
+													effect.Triggers[childEvent] = nil
+												end
+											end
+										end
+										dirty = true
+										revision += 1
+									end)
+									if value then
+										showFields(value, payloadDefinition.Fields)
+									end
+								end
+							end
+						end
+					end
+					local function blastPayload(payloadKind)
+						for index, value in current.Payloads do
+							if value.Kind == payloadKind then
+								return value, index
+							end
+						end
+						return nil, nil
+					end
 					for _, payloadKind in definition.PayloadKinds or {} do
 						local payloadDefinition = Schema.Payloads[payloadKind]
-						for _, value in current.Payloads or {} do
-							if value.Kind == payloadKind then
-								heading(payloadDefinition.Label .. " in blast")
-								showFields(value, payloadDefinition.Fields)
-							end
+						local value, index = blastPayload(payloadKind)
+						local fitsSpell = payloadDefinition
+							and payloadDefinition.Forms[draft.Form] == true
+							and (
+								payloadDefinition.Principle == nil
+								or payloadDefinition.Principle == draft.Source.Principle
+							)
+						local full = #current.Payloads >= Config.MaxPayloads
+						local last = #current.Payloads <= (definition.MinimumPayloads or 0)
+						if value or (fitsSpell and not full) then
+							toggle(payloadDefinition.Label .. " in blast", value ~= nil, function(on)
+								local existing, at = blastPayload(payloadKind)
+								if on and not existing and #current.Payloads < Config.MaxPayloads then
+									local added = Spec.copy(payloadDefinition.Defaults or {})
+									added.Kind = payloadKind
+									table.insert(current.Payloads, added)
+								elseif not on and at and not last then
+									table.remove(current.Payloads, at)
+								end
+								dirty = true
+								revision += 1
+							end)
+						end
+						if value and index then
+							showFields(value, payloadDefinition.Fields)
 						end
 					end
 				end
@@ -4299,7 +4245,180 @@ function Lab.start(send, aim)
 				"Optional caster, environment, and lifetime rules are available in Casting and specialist controls. They remain server-validated.",
 				52
 			)
+		elseif activeSection == "Presentation" and visualSubpage == "Composer" then
+			heading("SPELL VISUAL STUDIO")
+			info(
+				"Automatic composes element, form, shape and behavior. Presets override the motif; Advanced tunes colors, core, opacity and trails. Preview, then save.",
+				48
+			)
+			local options = {}
+			local visualCards = {
+				{ Id = "None", Label = "Automatic", Hint = "Infer from element, form and behavior", Symbol = "◇" },
+				{ Id = "FireProjectile", Label = "Fire", Hint = "Rotating ember core", Symbol = "✦" },
+				{ Id = "FrostProjectile", Label = "Frost", Hint = "Spinning ice crystal", Symbol = "❄" },
+				{ Id = "ArcaneProjectile", Label = "Arcane", Hint = "Violet arcane core", Symbol = "✧" },
+				{ Id = "FireBurst", Label = "Fire Burst", Hint = "Impact flash and ring", Symbol = "☼" },
+				{ Id = "FrostCharge", Label = "Frost Charge", Hint = "Shrinking crystal charge", Symbol = "❅" },
+				{ Id = "ArcaneTrail", Label = "Arcane Trail", Hint = "Purple trail and motes", Symbol = "〰" },
+			}
+			local pageSize = 6
+			local pageCount = math.ceil(#visualCards / pageSize)
+			visualPage = math.clamp(visualPage, 1, pageCount)
+			local firstCard = (visualPage - 1) * pageSize + 1
+			local lastCard = math.min(#visualCards, firstCard + pageSize - 1)
+			for index = firstCard, lastCard do
+				local visualCard = visualCards[index]
+				local card = table.clone(visualCard)
+				card.Selected = (draft.Visual.VFXDefinition or "None") == card.Id
+				card.Action = function()
+					draft.Visual.VFXDefinition = card.Id
+					estimate()
+					rebuildPreservingScroll()
+				end
+				table.insert(options, card)
+			end
+			table.insert(options, {
+				Id = "AdvancedAppearance",
+				Label = "Advanced",
+				Hint = "Legacy color, audio and component controls",
+				Symbol = "⚙",
+				Action = function()
+					visualSubpage = "Advanced"
+					rebuild()
+				end,
+			})
+			creationChoiceGrid(options)
+			visualStudioFrame = scroll:FindFirstChild("SpellChoiceGrid") :: Frame?
+			local previewBlock = canvasBlock(112)
+			local previewFrame = Instance.new("Frame")
+			previewFrame.Name = "VisualPreviewTile"
+			previewFrame.Position = UDim2.fromOffset(0, 0)
+			previewFrame.Size = UDim2.new(1, -8, 1, -8)
+			previewFrame.BackgroundColor3 = Theme.Surface
+			previewFrame.BorderSizePixel = 0
+			previewFrame.Parent = previewBlock
+			local iconPreview = Instance.new("Frame")
+			iconPreview.Name = "LiveSpellIconPreview"
+			iconPreview.Position = UDim2.fromOffset(12, 12)
+			iconPreview.Size = UDim2.fromOffset(72, 72)
+			iconPreview.Parent = previewFrame
+			liveIconPreview = iconPreview
+			SpellVisual.render(iconPreview, draft, true)
+			local previewEdge = Instance.new("UIStroke")
+			previewEdge.Color = Theme.TileEdge
+			previewEdge.Thickness = 2
+			previewEdge.Parent = previewFrame
+			local previewTitle = Instance.new("TextLabel")
+			previewTitle.BackgroundTransparency = 1
+			previewTitle.Position = UDim2.fromOffset(96, 9)
+			previewTitle.Size = UDim2.new(1, -258, 0, 26)
+			previewTitle.Font = Enum.Font.Garamond
+			previewTitle.TextSize = 14
+			previewTitle.TextTruncate = Enum.TextTruncate.AtEnd
+			previewTitle.TextColor3 = Theme.Ink
+			previewTitle.TextXAlignment = Enum.TextXAlignment.Left
+			previewTitle.Text = VFXAnalyzer.resolve(draft).Label
+			previewTitle.Parent = previewFrame
+			local previewHint = Instance.new("TextLabel")
+			previewHint.BackgroundTransparency = 1
+			previewHint.Position = UDim2.fromOffset(96, 38)
+			previewHint.Size = UDim2.new(1, -258, 0, 44)
+			previewHint.Font = Enum.Font.Gotham
+			previewHint.TextSize = 14
+			previewHint.TextWrapped = true
+			previewHint.TextColor3 = Theme.MutedInk
+			previewHint.TextXAlignment = Enum.TextXAlignment.Left
+			previewHint.Text = VFXAnalyzer.resolve(draft).Source
+				.. " · "
+				.. VFXAnalyzer.resolve(draft).Accents
+				.. ". Advanced overrides palette, core, opacity, emission and trails."
+			previewHint.Parent = previewFrame
+			local previewButton = Instance.new("TextButton")
+			previewButton.AnchorPoint = Vector2.new(1, 0.5)
+			previewButton.Position = UDim2.new(1, -12, 0.5, 0)
+			previewButton.Size = UDim2.fromOffset(128, 44)
+			previewButton.BackgroundColor3 = Theme.Accent
+			previewButton.TextColor3 = Theme.OnAccent
+			previewButton.Text = "PLAY PREVIEW"
+			previewButton.TextSize = 14
+			previewButton.Font = Enum.Font.GothamBold
+			previewButton.Parent = previewFrame
+			previewButton.Activated:Connect(function()
+				local character = player.Character
+				local root = character and character:FindFirstChild("HumanoidRootPart")
+				if not root then
+					message("Character is not ready for preview.", false)
+					return
+				end
+				VFXComposer.preview(draft, root.CFrame * CFrame.new(0, 0, -12))
+				message("Previewing " .. VFXAnalyzer.resolve(draft).Label .. ".", true)
+			end)
+			if pageCount > 1 then
+				local pager = row("VISUAL PAGE")
+				pager.Name = "VISUAL PAGE"
+				local pageLabel = pager:FindFirstChildOfClass("TextLabel")
+				if pageLabel then
+					pageLabel.Text = "VISUAL PAGE " .. tostring(visualPage) .. " / " .. tostring(pageCount)
+				end
+				pager.Size = UDim2.new(1, -8, 0, 42)
+				local previous = button(pager, "‹ PREVIOUS", function()
+					visualPage = math.max(1, visualPage - 1)
+					rebuild()
+				end)
+				previous.Position = UDim2.new(0.08, 0, 0, 0)
+				previous.Size = UDim2.new(0.36, 0, 1, 0)
+				local nextPage = button(pager, "NEXT ›", function()
+					visualPage = math.min(pageCount, visualPage + 1)
+					rebuild()
+				end)
+				nextPage.Position = UDim2.new(0.56, 0, 0, 0)
+				nextPage.Size = UDim2.new(0.36, 0, 1, 0)
+			end
+			-- Captured: inside the Spell Forge this lays out the inspector host.
+			local studioHost, studioHosted = scroll, forgeHosted
+			local function layoutVisualStudio()
+				if not visualStudioFrame or not visualStudioFrame.Parent then
+					return
+				end
+				local width, height = studioHost.AbsoluteSize.X, studioHost.AbsoluteSize.Y
+				local gap = 10
+				local cell = math.floor(math.clamp(math.min((width - 24) / 3, (height - 160) / 2), 78, 148))
+				local gridWidth = cell * 3 + gap * 2
+				visualStudioFrame.Position = UDim2.fromOffset(math.max(0, (width - gridWidth) / 2), 0)
+				visualStudioFrame.Size = UDim2.fromOffset(gridWidth, cell * 2 + gap)
+				local tileIndex = 0
+				for _, tile in visualStudioFrame:GetChildren() do
+					if tile:IsA("TextButton") then
+						tile.Position =
+							UDim2.fromOffset((tileIndex % 3) * (cell + gap), math.floor(tileIndex / 3) * (cell + gap))
+						tile.Size = UDim2.fromOffset(cell, cell)
+						tileIndex += 1
+					end
+				end
+				local preview = studioHost:FindFirstChild("VisualPreviewTile", true)
+				if preview and preview:IsA("Frame") then
+					preview.Position = UDim2.fromOffset(0, cell * 2 + gap + 6)
+					preview.Size = UDim2.new(1, -8, 0, 100)
+				end
+				local pagerFrame = studioHost:FindFirstChild("VISUAL PAGE", true)
+				if pagerFrame and pagerFrame:IsA("Frame") then
+					pagerFrame.Position = UDim2.fromOffset(0, cell * 2 + gap + 112)
+					pagerFrame.Size = UDim2.new(1, -8, 0, 38)
+				end
+				if not studioHosted then
+					visualStudioFrame.Parent.Size = UDim2.new(1, -8, 0, cell * 2 + gap + 118)
+				end
+			end
+			layoutVisualStudio()
+			visualLayoutConnection = studioHost:GetPropertyChangedSignal("AbsoluteSize"):Connect(layoutVisualStudio)
+			task.defer(layoutVisualStudio)
 		elseif activeSection == "Presentation" then
+			heading("ADVANCED APPEARANCE")
+			local back = row("Return to the visual composition editor")
+			button(back, "‹ VISUAL STUDIO", function()
+				visualSubpage = "Composer"
+				rebuild()
+			end)
 			heading("CAST PRESENTATION")
 			info(
 				"Change how the spell looks and sounds. Colors and particles do not add damage, and a larger visual does not make the spell hit a larger area.",
@@ -4548,408 +4667,13 @@ function Lab.start(send, aim)
 				),
 				48
 			)
-			heading("SANDBOX CONTROLS")
-			toggle(
-				"Show combat feedback messages",
-				feedbackVisible,
-				function(value)
-					feedbackVisible = value
-				end,
-				"Shows damage and invalid-cast feedback briefly during combat. Health bars stay visible on training dummies."
-			)
-			info(
-				"Training dummies are stationary targets. Their health bars show damage and healing; test movement on a movable object or another player. Ending active spells may trigger their On expire effects. Testing continues while this book is open.",
-				96
-			)
-			heading("TRAINING TARGETS")
-			info(
-				"Spawn stationary Humanoid targets on nearby clear ground. Target relationship and other target rules determine which targets your spell can affect.",
-				48
-			)
-			for _, option in
-				{
-					{ Label = "Spawn ally dummy", Action = "SpawnAlly" },
-					{ Label = "Spawn enemy dummy", Action = "SpawnEnemy" },
-					{ Label = "Restore my dummies", Action = "ResetMine" },
-					{ Label = "Remove my dummies", Action = "ClearMine" },
-					{ Label = "Restore health and magic resources", Action = "RestorePlayer" },
-					{ Label = "Clear my spells and reset cooldowns", Action = "ClearEffects" },
-					{ Label = "Respawn my character", Action = "ResetPlayer" },
-					{ Label = "Return to practice start", Action = "ReturnToStart" },
-				}
-			do
-				if option.Action ~= "ReturnToStart" or require(Shared.Configuration.DevelopmentSandbox).Enabled then
-					local control = row(option.Label)
-					local controlButton = button(control, "RUN", function()
-						if option.Action == "ResetPlayer" or option.Action == "ClearEffects" then
-							confirm(
-								"Run “"
-									.. option.Label
-									.. "”? Active spells may end through their normal expiry behavior.",
-								function()
-									trainingRequest:FireServer(option.Action)
-								end
-							)
-						else
-							trainingRequest:FireServer(option.Action)
-						end
-					end)
-					controlButton.Font = Enum.Font.GothamBold
-				end
-			end
+			renderTraining()
 		end
 	end
 	local function preview(direction, point, target)
 		drawFolder:ClearAllChildren()
-		if not debugGeometry then
-			return
-		end
-		local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
-		if not root then
-			return
-		end
-		local function anchor(name, position)
-			local part = Instance.new("Part")
-			part.Name = name
-			part.Size = Vector3.one * 0.05
-			part.CFrame = CFrame.new(position)
-			part.Anchored = true
-			part.CanCollide, part.CanTouch, part.CanQuery = false, false, false
-			part.Transparency = 1
-			part.Parent = drawFolder
-			Debris:AddItem(part, 1.5)
-			return part
-		end
-		local function sphere(name, center, radius, color, transparency)
-			if radius <= 0 then
-				return
-			end
-			local adornee = anchor(name .. "Anchor", center)
-			local adornment = Instance.new("SphereHandleAdornment")
-			adornment.Name = name
-			adornment.Adornee = adornee
-			adornment.Radius = radius
-			adornment.Color3 = color
-			adornment.Transparency = transparency
-			adornment.AlwaysOnTop = false
-			adornment.ZIndex = 1
-			adornment.Parent = adornee
-		end
-		local function areaShape(name, center, shape, area, color)
-			if shape == "Sphere" then
-				sphere(name, center, area.Radius, color, 0.72)
-				return
-			end
-			if shape == "Capsule" then
-				local radius = area.Radius
-				local stemHeight = math.max(area.Height - radius * 2, 0.05)
-				local function capsulePart(partName, partShape, size, cframe)
-					local part = Instance.new("Part")
-					part.Name = partName
-					part.Shape = partShape
-					part.Size = size
-					part.CFrame = cframe
-					part.Anchored = true
-					part.CanCollide, part.CanTouch, part.CanQuery = false, false, false
-					part.Material, part.Color, part.Transparency = Enum.Material.Neon, color, 0.78
-					part.Parent = drawFolder
-					Debris:AddItem(part, 1.5)
-				end
-				local frame = CFrame.new(center) * CFrame.Angles(0, math.rad(area.Yaw or 0), 0)
-				capsulePart(
-					name .. "CapsuleBody",
-					Enum.PartType.Cylinder,
-					Vector3.new(stemHeight, radius * 2, radius * 2),
-					frame * CFrame.Angles(0, 0, math.rad(90))
-				)
-				for _, sign in { -1, 1 } do
-					capsulePart(
-						name .. "CapsuleCap",
-						Enum.PartType.Ball,
-						Vector3.one * radius * 2,
-						frame * CFrame.new(0, sign * stemHeight / 2, 0)
-					)
-				end
-				return
-			end
-			if shape == "Ring" then
-				local anchor = Instance.new("Part")
-				anchor.Name = name .. "RingAnchor"
-				anchor.Size = Vector3.one * 0.1
-				anchor.CFrame = CFrame.new(center)
-				anchor.Anchored = true
-				anchor.Transparency = 1
-				anchor.CanCollide, anchor.CanTouch, anchor.CanQuery = false, false, false
-				anchor.Parent = drawFolder
-				local function edge(first: Vector3, second: Vector3)
-					local a, b = Instance.new("Attachment"), Instance.new("Attachment")
-					a.Position, b.Position = first, second
-					a.Parent, b.Parent = anchor, anchor
-					local beam = Instance.new("Beam")
-					beam.Name = name .. "RingBoundary"
-					beam.Attachment0, beam.Attachment1 = a, b
-					beam.Color = ColorSequence.new(color)
-					beam.Transparency = NumberSequence.new(0.2)
-					beam.Width0, beam.Width1 = 0.06, 0.06
-					beam.FaceCamera = false
-					beam.Parent = anchor
-				end
-				local function circle(radius: number, y: number)
-					local segments = 24
-					for index = 0, segments - 1 do
-						local firstAngle = index / segments * math.pi * 2
-						local secondAngle = (index + 1) / segments * math.pi * 2
-						edge(
-							Vector3.new(math.cos(firstAngle) * radius, y, math.sin(firstAngle) * radius),
-							Vector3.new(math.cos(secondAngle) * radius, y, math.sin(secondAngle) * radius)
-						)
-					end
-				end
-				local halfHeight = area.Height / 2
-				for _, y in { -halfHeight, halfHeight } do
-					circle(area.InnerRadius, y)
-					circle(area.OuterRadius, y)
-				end
-				for _, angle in { 0, math.pi / 2, math.pi, math.pi * 1.5 } do
-					local x, z = math.cos(angle), math.sin(angle)
-					for _, y in { -halfHeight, halfHeight } do
-						edge(
-							Vector3.new(x * area.InnerRadius, y, z * area.InnerRadius),
-							Vector3.new(x * area.OuterRadius, y, z * area.OuterRadius)
-						)
-					end
-					edge(
-						Vector3.new(x * area.InnerRadius, -halfHeight, z * area.InnerRadius),
-						Vector3.new(x * area.InnerRadius, halfHeight, z * area.InnerRadius)
-					)
-					edge(
-						Vector3.new(x * area.OuterRadius, -halfHeight, z * area.OuterRadius),
-						Vector3.new(x * area.OuterRadius, halfHeight, z * area.OuterRadius)
-					)
-				end
-				Debris:AddItem(anchor, 1.5)
-				return
-			end
-			if shape == "Cone" then
-				local frame = CFrame.new(center) * CFrame.Angles(0, math.rad(area.Yaw or 0), 0)
-				local anchor = Instance.new("Part")
-				anchor.Name = name .. "ConeAnchor"
-				anchor.Size = Vector3.one * 0.1
-				anchor.CFrame = frame
-				anchor.Anchored = true
-				anchor.Transparency = 1
-				anchor.CanCollide, anchor.CanTouch, anchor.CanQuery = false, false, false
-				anchor.Parent = drawFolder
-				local halfHeight = area.Height / 2
-				local halfWidth = area.Range * math.tan(math.rad(area.Angle / 2))
-				local function edge(first: Vector3, second: Vector3)
-					local a, b = Instance.new("Attachment"), Instance.new("Attachment")
-					a.Position, b.Position = first, second
-					a.Parent, b.Parent = anchor, anchor
-					local beam = Instance.new("Beam")
-					beam.Name = name .. "ConeEdge"
-					beam.Attachment0, beam.Attachment1 = a, b
-					beam.Color = ColorSequence.new(color)
-					beam.Transparency = NumberSequence.new(0.2)
-					beam.Width0, beam.Width1 = 0.06, 0.06
-					beam.FaceCamera = false
-					beam.Parent = anchor
-				end
-				for _, y in { -halfHeight, halfHeight } do
-					local apex = Vector3.new(0, y, 0)
-					local left = Vector3.new(-halfWidth, y, -area.Range)
-					local right = Vector3.new(halfWidth, y, -area.Range)
-					edge(apex, left)
-					edge(apex, right)
-					edge(left, right)
-				end
-				edge(Vector3.new(0, -halfHeight, 0), Vector3.new(0, halfHeight, 0))
-				edge(
-					Vector3.new(-halfWidth, -halfHeight, -area.Range),
-					Vector3.new(-halfWidth, halfHeight, -area.Range)
-				)
-				edge(Vector3.new(halfWidth, -halfHeight, -area.Range), Vector3.new(halfWidth, halfHeight, -area.Range))
-				Debris:AddItem(anchor, 1.5)
-				return
-			end
-			local size = Geometry.areaSize(shape, area)
-			local part = Instance.new("Part")
-			part.Name = name
-			part.Size = if shape == "Cylinder" then Vector3.new(size.Y, size.X, size.Z) else size
-			part.CFrame = CFrame.new(center)
-				* CFrame.Angles(0, math.rad(area.Yaw or 0), 0)
-				* (if shape == "Line" then CFrame.new(0, 0, -area.Range / 2) else CFrame.identity)
-				* (if shape == "Cylinder" then CFrame.Angles(0, 0, math.rad(90)) else CFrame.identity)
-			part.Shape = if shape == "Cylinder" then Enum.PartType.Cylinder else Enum.PartType.Block
-			part.Anchored = true
-			part.CanCollide, part.CanTouch, part.CanQuery = false, false, false
-			part.Material, part.Color, part.Transparency = Enum.Material.Neon, color, 0.82
-			part.Parent = drawFolder
-			Debris:AddItem(part, 1.5)
-		end
-		local function beamBetween(first, second, name)
-			local a = Instance.new("Attachment")
-			a.Parent = first
-			local b = Instance.new("Attachment")
-			b.Parent = second
-			local beam = Instance.new("Beam")
-			beam.Name = name
-			beam.Attachment0, beam.Attachment1 = a, b
-			beam.Width0, beam.Width1 = 0.08, 0.08
-			beam.Color = ColorSequence.new(draft.Visual.Color)
-			beam.Transparency = NumberSequence.new(0.2)
-			beam.LightEmission = 0.55
-			beam.FaceCamera = true
-			beam.Parent = drawFolder
-			Debris:AddItem(beam, 1.5)
-		end
-		local castOrigin = root.Position + Vector3.new(0, 1.5, 0)
-		local targetRoot = if target and target:IsA("Model") then target:FindFirstChild("HumanoidRootPart") else nil
-		local previewPoint = if targetRoot and targetRoot:IsA("BasePart") then targetRoot.Position else point
-		local unitDirection = if direction.Magnitude > 0.001 then direction.Unit else root.CFrame.LookVector
-		local aimFrame = CFrame.lookAt(castOrigin, castOrigin + unitDirection)
-		if draft.Projectile then
-			local position = castOrigin + unitDirection * 3
-			-- The green sphere is the server hit radius; the colored core is appearance-only.
-			sphere("ProjectileCollisionRadius", position, draft.Projectile.Radius, Color3.fromRGB(105, 230, 185), 0.45)
-			local shape = draft.Visual.CoreShape or "Sphere"
-			local appearanceScale = draft.Visual.ProjectileScale or 1
-			local radius = draft.Projectile.Radius * appearanceScale
-			local appearance = Instance.new(if shape == "Wedge" then "WedgePart" else "Part")
-			appearance.Name = "ProjectileAppearance"
-			if appearance:IsA("Part") then
-				appearance.Shape =
-					Enum.PartType[if shape == "Sphere" then "Ball" elseif shape == "Crystal" then "Block" else shape]
-			end
-			appearance.Size = Vector3.one * radius * 2
-			appearance.CFrame = CFrame.new(position)
-				* (
-					if shape == "Crystal"
-						then CFrame.Angles(math.rad(45), math.rad(45), math.rad(45))
-						else CFrame.identity
-				)
-			appearance.Anchored = true
-			appearance.CanCollide, appearance.CanTouch, appearance.CanQuery = false, false, false
-			appearance.Material = visualMaterial(draft)
-			appearance.Color = draft.Visual.Color
-			appearance.Transparency = 1 - (draft.Visual.Opacity or 0.85)
-			appearance.Parent = drawFolder
-			Debris:AddItem(appearance, 1.5)
-		elseif draft.Beam then
-			local maximumScale = math.max(draft.Beam.GrowthStartScale or 1, draft.Beam.GrowthEndScale or 1)
-			local range = math.min(draft.Beam.Range * maximumScale, draft.TargetRules.Range)
-			local width = math.max(0.12, draft.Beam.Width * maximumScale)
-			local part = Instance.new("Part")
-			part.Name = "BeamHitVolumePreview"
-			part.Size = Vector3.new(width, width, range)
-			part.CFrame = CFrame.lookAt(castOrigin + unitDirection * range / 2, castOrigin + unitDirection * range)
-			part.Anchored = true
-			part.CanCollide, part.CanTouch, part.CanQuery = false, false, false
-			part.Material = visualMaterial(draft)
-			part.Color = draft.Visual.Color
-			part.Transparency = 1 - (draft.Visual.Opacity or 0.85)
-			part.Parent = drawFolder
-			Debris:AddItem(part, 1.5)
-		elseif draft.Field then
-			areaShape("FieldHitVolume", previewPoint, draft.Geometry, draft.Field, draft.Visual.Color)
-		elseif draft.Aura then
-			local center = if draft.Targeting == "EntityTarget" or draft.Targeting == "ObjectTarget"
-				then previewPoint
-				else root.Position
-			areaShape("AuraHitVolume", center, draft.Geometry, draft.Aura, draft.Visual.Color)
-		elseif draft.Wave then
-			local maximumScale = math.max(draft.Wave.GrowthStartScale or 1, draft.Wave.GrowthEndScale or 1)
-			local previewRange = draft.Wave.Range * maximumScale
-			if draft.Geometry == "Sphere" then
-				sphere("WaveSphere", root.Position, previewRange, draft.Visual.Color, 0.82)
-			else
-				local count = 10
-				local halfAngle = math.acos(math.clamp(draft.Wave.Dot, -1, 1))
-				local ring = {}
-				local originAnchor = anchor("WaveConeOrigin", castOrigin)
-				local originAttachment = Instance.new("Attachment")
-				originAttachment.Parent = originAnchor
-				for index = 1, count do
-					local angle = (index - 1) / count * math.pi * 2
-					local radial = aimFrame.RightVector * math.cos(angle) + aimFrame.UpVector * math.sin(angle)
-					local edgeDirection = unitDirection * math.cos(halfAngle) + radial * math.sin(halfAngle)
-					local edgeAnchor = anchor("WaveConeEdge", castOrigin + edgeDirection * previewRange)
-					local edgeAttachment = Instance.new("Attachment")
-					edgeAttachment.Parent = edgeAnchor
-					local spoke = Instance.new("Beam")
-					spoke.Name = "WaveConeBoundary"
-					spoke.Attachment0, spoke.Attachment1 = originAttachment, edgeAttachment
-					spoke.Width0, spoke.Width1 = 0.08, 0.08
-					spoke.Color = ColorSequence.new(draft.Visual.Color)
-					spoke.Transparency = NumberSequence.new(0.2)
-					spoke.FaceCamera = true
-					spoke.Parent = drawFolder
-					Debris:AddItem(spoke, 1.5)
-					ring[index] = edgeAnchor
-				end
-				for index = 1, count do
-					beamBetween(ring[index], ring[index % count + 1], "WaveConeRim")
-				end
-			end
-		elseif draft.Construct then
-			local center = if draft.Targeting == "WorldPoint"
-				then point
-				else castOrigin + unitDirection * draft.Construct.Distance
-			local flatDirection = Vector3.new(unitDirection.X, 0, unitDirection.Z)
-			if flatDirection.Magnitude < 0.001 then
-				flatDirection = Vector3.new(0, 0, -1)
-			end
-			local frame = CFrame.lookAt(center, center + flatDirection.Unit)
-			local components = ConstructGeometrySpec.components(
-				draft.Geometry,
-				draft.Construct.Width,
-				draft.Construct.Height,
-				draft.Construct.Depth,
-				draft.Construct.Components
-			)
-			local previewScale = if draft.Construct.GrowthDuration and draft.Construct.GrowthDuration > 0
-				then draft.Construct.GrowthStartScale or 1
-				else 1
-			for index, component in ipairs(components or {}) do
-				local part = Instance.new(if component.Shape == "Wedge" then "WedgePart" else "Part")
-				part.Name = string.format("ConstructGeometryPreview%02d", index)
-				part.Size = Vector3.new(component.Size[1], component.Size[2], component.Size[3]) * previewScale
-				if part:IsA("Part") then
-					part.Shape = Enum.PartType[component.Shape]
-				end
-				local rotation = component.RotationDegrees
-				part.CFrame = frame
-					* CFrame.new(
-						component.Offset[1] * previewScale,
-						component.Offset[2] * previewScale,
-						component.Offset[3] * previewScale
-					)
-					* CFrame.Angles(math.rad(rotation[1]), math.rad(rotation[2]), math.rad(rotation[3]))
-				part.Anchored = true
-				part.CanCollide, part.CanTouch, part.CanQuery = false, false, false
-				part.Material, part.Color, part.Transparency = Enum.Material.Neon, draft.Visual.Color, 0.84
-				part.Parent = drawFolder
-				Debris:AddItem(part, 1.5)
-			end
-		end
-		for triggerEvent, steps in pairs(draft.Triggers or {}) do
-			for _, step in ipairs(steps or {}) do
-				if step.Behavior == "Explode" then
-					local explosionCenter = if triggerEvent == "OnCast" and draft.Form == "Wave"
-						then root.Position
-						else previewPoint
-					sphere(
-						"ExplosionRadiusAt" .. triggerEvent,
-						explosionCenter,
-						step.Radius,
-						Color3.fromRGB(255, 167, 89),
-						0.78
-					)
-				end
-			end
-		end
-		if draft.TargetRules then
-			sphere("TargetingRange", root.Position, draft.TargetRules.Range, Color3.fromRGB(255, 221, 105), 0.94)
+		if debugGeometry then
+			GeometryPreview.draw(drawFolder, player, draft, direction, point, target)
 		end
 	end
 	local function releaseSlot(slot)
@@ -5119,7 +4843,7 @@ function Lab.start(send, aim)
 				draftsBySlot, dirtySlots = {}, {}
 				libraryLoaded = true
 				refreshBar()
-				rebuild()
+				requestRebuild()
 			end
 			message(text, ok)
 			return
@@ -5163,13 +4887,13 @@ function Lab.start(send, aim)
 			pendingCast = false
 		end
 		if ok then
-			rebuild()
+			requestRebuild()
 		end
 	end)
 	trainingResponse.OnClientEvent:Connect(function(ok, text, count, limit)
 		message(string.format("%s  (%d / %d owned)", text, count or 0, limit or 0), ok)
 	end)
-	remotes:WaitForChild("ActionFeedback").OnClientEvent:Connect(function(data)
+	actionFeedback.OnClientEvent:Connect(function(data)
 		if data.Kind == "Magic" then
 			message(
 				(data.Result or "")
@@ -5183,28 +4907,12 @@ function Lab.start(send, aim)
 			)
 		end
 	end)
-	bar.Activated:Connect(function()
-		rebuild()
-		visibility(true)
-	end)
-	ContextActionService:BindAction("ToggleGrimoireGamepad", function(_, state)
-		if state == Enum.UserInputState.Begin then
+	launcher:Bind(function()
+		if panel.Visible then
+			visibility(false)
+		else
 			rebuild()
-			visibility(not panel.Visible)
-			if panel.Visible then
-				game:GetService("GuiService").SelectedObject = closeButton
-			end
-		end
-		return Enum.ContextActionResult.Sink
-	end, false, Enum.KeyCode.ButtonSelect)
-	UIS.InputBegan:Connect(function(input, processed)
-		if input.KeyCode == Enum.KeyCode.P and not UIS:GetFocusedTextBox() then
-			if panel.Visible then
-				visibility(false)
-			else
-				rebuild()
-				visibility(true)
-			end
+			visibility(true)
 		end
 	end)
 	local slotKeys = {
@@ -5222,15 +4930,16 @@ function Lab.start(send, aim)
 		if not spell or not CastingSpec.supportsAimUpdate(spell.Form, spell.Casting.Mode) then
 			return
 		end
-		local direction = aim()
+		local direction, point = aim()
 		if direction.Magnitude < 0.9 then
 			return
 		end
-		send(Protocol.MagicAimUpdate, { SpellId = spell.SpellId, AimDirection = direction.Unit })
+		send(Protocol.MagicAimUpdate, { SpellId = spell.SpellId, AimDirection = direction.Unit, WorldPoint = point })
 	end
-	for slot, key in slotKeys do
+	-- One handler per slot; keyboard keys 1–9 and the gamepad RB route through it.
+	local function slotAction(slot: number)
 		local held = false
-		ContextActionService:BindActionAtPriority("MagicLabSlot" .. slot, function(_, state)
+		return function(_, state)
 			if (state == Enum.UserInputState.End or state == Enum.UserInputState.Cancel) and held then
 				held = false
 				releaseSlot(slot)
@@ -5245,7 +4954,13 @@ function Lab.start(send, aim)
 			if panel.Visible then
 				return Enum.ContextActionResult.Sink
 			end
-			if state == Enum.UserInputState.Begin and player:GetAttribute("OpeningComplete") then
+			if
+				state == Enum.UserInputState.Begin
+				and (
+					player:GetAttribute("CharacterReady")
+					or (RunService:IsStudio() and require(Shared.Configuration.DevelopmentSandbox).Enabled)
+				)
+			then
 				cast(slot, true)
 				held = equipped[slot] ~= nil
 				if
@@ -5261,8 +4976,53 @@ function Lab.start(send, aim)
 				end
 			end
 			return Enum.ContextActionResult.Sink
-		end, false, Enum.ContextActionPriority.High.Value + 1, key)
+		end
 	end
+	local slotHandlers = {}
+	for slot, key in slotKeys do
+		slotHandlers[slot] = slotAction(slot)
+		ContextActionService:BindActionAtPriority(
+			"MagicLabSlot" .. slot,
+			slotHandlers[slot],
+			false,
+			Enum.ContextActionPriority.High.Value + 1,
+			key
+		)
+	end
+	-- Gamepad: D-pad left/right chooses an equipped slot, RB casts (hold for held spells).
+	local gamepadSlot = 1
+	local gamepadCastSlot: number? = nil
+	player:SetAttribute("GamepadSpellSlot", gamepadSlot)
+	-- The HUD spell bar (UI/HUD/SpellBar) highlights the slot RB will cast.
+	local function updateSlotLabel() end
+	local function cycleGamepadSlot(step: number)
+		for offset = 1, #slotKeys do
+			local candidate = (gamepadSlot - 1 + step * offset) % #slotKeys + 1
+			if equipped[candidate] then
+				gamepadSlot = candidate
+				break
+			end
+		end
+		player:SetAttribute("GamepadSpellSlot", gamepadSlot)
+		updateSlotLabel()
+	end
+	ContextActionService:BindActionAtPriority("MagicLabGamepadCast", function(action, state, input)
+		if state == Enum.UserInputState.Begin then
+			gamepadCastSlot = gamepadSlot
+		end
+		local slot = gamepadCastSlot or gamepadSlot
+		if state == Enum.UserInputState.End or state == Enum.UserInputState.Cancel then
+			gamepadCastSlot = nil
+		end
+		return slotHandlers[slot](action, state, input)
+	end, false, Enum.ContextActionPriority.High.Value + 1, Enum.KeyCode.ButtonR1)
+	ContextActionService:BindAction("MagicLabGamepadSlot", function(_, state, input)
+		if state ~= Enum.UserInputState.Begin or panel.Visible or player:GetAttribute("InventoryOpen") then
+			return Enum.ContextActionResult.Pass
+		end
+		cycleGamepadSlot(if input.KeyCode == Enum.KeyCode.DPadLeft then -1 else 1)
+		return Enum.ContextActionResult.Sink
+	end, false, Enum.KeyCode.DPadLeft, Enum.KeyCode.DPadRight)
 	RunService.RenderStepped:Connect(function(delta)
 		local slot = heldAimSlot
 		local spell = slot and equipped[slot]

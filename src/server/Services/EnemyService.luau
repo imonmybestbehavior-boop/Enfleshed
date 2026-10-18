@@ -3,8 +3,10 @@
 local Collection = game:GetService("CollectionService")
 local Players = game:GetService("Players")
 local PathfindingService = game:GetService("PathfindingService")
+local ServerStorage = game:GetService("ServerStorage")
 local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
 local Sandbox = require(Shared:WaitForChild("Configuration"):WaitForChild("Sandbox"))
+local EnemyVisuals = require(Shared:WaitForChild("Configuration"):WaitForChild("EnemyVisuals"))
 local Config = Sandbox.Enemy
 local Damage = require(script.Parent.DamageService)
 local HitDetection = require(script.Parent.HitDetectionService)
@@ -29,12 +31,35 @@ end
 
 type State = "Idle" | "Chase" | "Telegraph" | "Attack" | "Recover" | "Vulnerable" | "Flinch" | "Dead"
 
--- One local placeholder rig, with no asset request, animation package, or spawn manager.
+local visualNames = { "Torso", "Head", "Left Arm", "Right Arm", "Left Leg", "Right Leg" }
+
+local function importedParts(kind: string): { [string]: MeshPart }?
+	local library = ServerStorage:FindFirstChild("EnfleshedModels")
+	local template = if library then library:FindFirstChild(kind) else nil
+	if not template or not template:IsA("Model") then
+		return nil
+	end
+	local found: { [string]: MeshPart } = {}
+	for _, name in visualNames do
+		local mesh = template:FindFirstChild(name, true)
+		if not mesh or not mesh:IsA("MeshPart") then
+			warn("Enfleshed model " .. kind .. " is missing MeshPart " .. name)
+			return nil
+		end
+		found[name] = mesh
+	end
+	return found
+end
+
 local function createRig(
 	position: Vector3,
 	container: Folder,
-	collisionGroup: string
+	collisionGroup: string,
+	kind: string?
 ): (Model, Humanoid, BasePart, TextLabel, (string, number) -> ())
+	local visualKind = kind or "Basic"
+	local layout = EnemyVisuals[visualKind]
+	local meshes = if layout then importedParts(visualKind) else nil
 	local model = Instance.new("Model")
 	model.Name = "Stage1Enfleshed"
 	Collection:AddTag(model, "Enfleshed")
@@ -54,15 +79,41 @@ local function createRig(
 	end
 	local root = part("HumanoidRootPart", Vector3.new(2, 2, 1), Vector3.zero)
 	root.Transparency = 1
-	local torso = part("Torso", Vector3.new(3.2, 3.7, 1.75), Vector3.new(0, 0.3, 0), Color3.fromRGB(94, 42, 52))
-	local head = part("Head", Vector3.new(1.9, 2.15, 1.8), Vector3.new(-0.18, 2.75, -0.35), Color3.fromRGB(145, 72, 76))
-	head.Shape = Enum.PartType.Ball
+	local function visual(name: string, size: Vector3, offset: Vector3, color: Color3): BasePart
+		if meshes then
+			local mesh = meshes[name]:Clone()
+			local placement = layout.Parts[name]
+			mesh.Size = placement.Size
+			mesh.CFrame = CFrame.new(position + placement.Center)
+			mesh.Anchored = false
+			mesh.CanCollide = false
+			mesh.CanTouch = false
+			mesh.Massless = true
+			mesh.RenderFidelity = Enum.RenderFidelity.Performance
+			mesh.CollisionGroup = Config.VisualCollisionGroup
+			mesh.Parent = model
+			return mesh
+		end
+		return part(name, size, offset, color)
+	end
+	local torso = visual("Torso", Vector3.new(3.2, 3.7, 1.75), Vector3.new(0, 0.3, 0), Color3.fromRGB(94, 42, 52))
+	local head =
+		visual("Head", Vector3.new(1.9, 2.15, 1.8), Vector3.new(-0.18, 2.75, -0.35), Color3.fromRGB(145, 72, 76))
+	if head:IsA("Part") then
+		head.Shape = Enum.PartType.Ball
+	end
 	local function joint(name: string, parent: BasePart, limb: BasePart): Motor6D
 		local motor = Instance.new("Motor6D")
 		motor.Name = name
 		motor.Part0 = parent
 		motor.Part1 = limb
-		motor.C0 = parent.CFrame:ToObjectSpace(limb.CFrame)
+		if meshes and name ~= "RootJoint" then
+			local pivot = CFrame.new(position + layout.Pivots[name])
+			motor.C0 = parent.CFrame:ToObjectSpace(pivot)
+			motor.C1 = limb.CFrame:ToObjectSpace(pivot)
+		else
+			motor.C0 = parent.CFrame:ToObjectSpace(limb.CFrame)
+		end
 		motor.Parent = parent
 		return motor
 	end
@@ -71,22 +122,22 @@ local function createRig(
 	local leftShoulder = joint(
 		"Left Shoulder",
 		torso,
-		part("Left Arm", Vector3.new(1.45, 3.7, 1.3), Vector3.new(-2.25, 0.05, -0.15), Color3.fromRGB(121, 55, 71))
+		visual("Left Arm", Vector3.new(1.45, 3.7, 1.3), Vector3.new(-2.25, 0.05, -0.15), Color3.fromRGB(121, 55, 71))
 	)
 	local rightShoulder = joint(
 		"Right Shoulder",
 		torso,
-		part("Right Arm", Vector3.new(1.8, 4.5, 1.55), Vector3.new(2.4, -0.25, -0.5), Color3.fromRGB(151, 61, 67))
+		visual("Right Arm", Vector3.new(1.8, 4.5, 1.55), Vector3.new(2.4, -0.25, -0.5), Color3.fromRGB(151, 61, 67))
 	)
 	local leftHip = joint(
 		"Left Hip",
 		torso,
-		part("Left Leg", Vector3.new(1.2, 3, 1.2), Vector3.new(-0.65, -2.9, 0), Color3.fromRGB(90, 42, 55))
+		visual("Left Leg", Vector3.new(1.2, 3, 1.2), Vector3.new(-0.65, -2.9, 0), Color3.fromRGB(90, 42, 55))
 	)
 	local rightHip = joint(
 		"Right Hip",
 		torso,
-		part("Right Leg", Vector3.new(1.2, 3, 1.2), Vector3.new(0.65, -2.9, 0), Color3.fromRGB(90, 42, 55))
+		visual("Right Leg", Vector3.new(1.2, 3, 1.2), Vector3.new(0.65, -2.9, 0), Color3.fromRGB(90, 42, 55))
 	)
 	-- The humanoid joints remain the animatable foundation. These welded growths
 	-- only distort the silhouette into an asymmetrical, once-human Nascent.
@@ -99,33 +150,35 @@ local function createRig(
 		weld.Part1 = piece
 		weld.Parent = piece
 	end
-	growth(
-		"ShoulderGrowth",
-		Vector3.new(2.25, 1.45, 2.1),
-		CFrame.new(-1.35, 1.05, 0.15),
-		Color3.fromRGB(112, 49, 62),
-		Enum.PartType.Ball
-	)
-	growth(
-		"RibGrowth",
-		Vector3.new(1.15, 2.4, 0.75),
-		CFrame.new(1.5, -0.2, -0.6) * CFrame.Angles(0, 0, -0.35),
-		Color3.fromRGB(128, 57, 62)
-	)
-	growth(
-		"BackMass",
-		Vector3.new(2.4, 2.7, 1.25),
-		CFrame.new(0.5, 0.1, 1.1) * CFrame.Angles(0.2, 0.25, 0),
-		Color3.fromRGB(69, 31, 42),
-		Enum.PartType.Ball
-	)
-	growth(
-		"JawGrowth",
-		Vector3.new(1.4, 0.65, 1.1),
-		CFrame.new(-0.1, 1.45, -0.85),
-		Color3.fromRGB(173, 83, 83),
-		Enum.PartType.Ball
-	)
+	if not meshes then
+		growth(
+			"ShoulderGrowth",
+			Vector3.new(2.25, 1.45, 2.1),
+			CFrame.new(-1.35, 1.05, 0.15),
+			Color3.fromRGB(112, 49, 62),
+			Enum.PartType.Ball
+		)
+		growth(
+			"RibGrowth",
+			Vector3.new(1.15, 2.4, 0.75),
+			CFrame.new(1.5, -0.2, -0.6) * CFrame.Angles(0, 0, -0.35),
+			Color3.fromRGB(128, 57, 62)
+		)
+		growth(
+			"BackMass",
+			Vector3.new(2.4, 2.7, 1.25),
+			CFrame.new(0.5, 0.1, 1.1) * CFrame.Angles(0.2, 0.25, 0),
+			Color3.fromRGB(69, 31, 42),
+			Enum.PartType.Ball
+		)
+		growth(
+			"JawGrowth",
+			Vector3.new(1.4, 0.65, 1.1),
+			CFrame.new(-0.1, 1.45, -0.85),
+			Color3.fromRGB(173, 83, 83),
+			Enum.PartType.Ball
+		)
+	end
 	local hull = Instance.new("Part")
 	hull.Name = "CollisionHull"
 	hull.Shape = Enum.PartType.Cylinder
@@ -154,6 +207,8 @@ local function createRig(
 	humanoid.Parent = model
 	model.PrimaryPart = root
 	local gui = Instance.new("BillboardGui")
+	gui.Name = "LegacyTargetNameplate"
+	gui.Enabled = false
 	gui.Size = UDim2.fromOffset(240, 48)
 	gui.StudsOffset = Vector3.new(0, 2, 0)
 	gui.AlwaysOnTop = false
@@ -178,6 +233,11 @@ local function createRig(
 	fill.Size = UDim2.fromScale(1, 1)
 	fill.BorderSizePixel, fill.BackgroundColor3 = 0, Color3.fromRGB(155, 58, 68)
 	fill.Parent = bar
+	model:SetAttribute("SandboxAlignment", "Enemy")
+	model:SetAttribute("SandboxLabel", "Nascent")
+	model:SetAttribute("VisualKind", visualKind)
+	model:SetAttribute("ImportedVisual", meshes ~= nil)
+	Collection:AddTag(model, "MagicHostileTarget")
 	model.Parent = container
 	root:SetNetworkOwner(nil)
 	local function pose(
@@ -275,9 +335,10 @@ function Enemy.create(
 	container: Folder,
 	collisionGroup: string,
 	thinkOffset: number,
-	hitInterval: number
+	hitInterval: number,
+	kind: string?
 ): Handle
-	local model, humanoid, root, label, pose = createRig(position, container, collisionGroup)
+	local model, humanoid, root, label, pose = createRig(position, container, collisionGroup, kind)
 	local state: State = "Idle"
 	local target: Instance? = nil
 	local nextThink = os.clock() + thinkOffset
@@ -414,7 +475,7 @@ function Enemy.create(
 			then subject.Character
 			elseif subject and subject:IsA("Model") then subject
 			else nil
-		if subject and subject:IsA("Player") and not subject:GetAttribute("OpeningComplete") then
+		if subject and subject:IsA("Player") and not subject:GetAttribute("CharacterReady") then
 			return nil
 		end
 		local health = if character then character:FindFirstChildOfClass("Humanoid") else nil
@@ -831,7 +892,11 @@ function Enemy.create(
 					if not hitTargets[victim] then
 						hitTargets[victim] = true
 						local damage = activeAttack.Damage
-						Damage.apply(model, victim, if typeof(damage) == "table" then damage[attackStep] else damage)
+						Damage.applyMelee(
+							model,
+							victim,
+							if typeof(damage) == "table" then damage[attackStep] else damage
+						)
 						attackHit = true
 					end
 				end

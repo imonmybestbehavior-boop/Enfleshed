@@ -1,0 +1,87 @@
+{
+  "kind": "Basic",
+  "units": "studs",
+  "facing": "-Z (Roblox LookVector)",
+  "root": "HumanoidRootPart at origin (0,0,0)",
+  "parts": {
+    "Torso": {
+      "center": [
+        -0.2627,
+        0.3128,
+        0.3773
+      ],
+      "size": [
+        4.113,
+        4.832,
+        3.032
+      ],
+      "triangles": 14000
+    },
+    "Head": {
+      "center": [
+        0.0442,
+        2.7511,
+        -0.0468
+      ],
+      "size": [
+        1.808,
+        2.153,
+        1.923
+      ],
+      "triangles": 9000
+    },
+    "Left Arm": {
+      "center": [
+        -2.038,
+        -0.0883,
+        0.0642
+      ],
+      "size": [
+        1.085,
+        4.112,
+        0.984
+      ],
+      "triangles": 7000
+    },
+    "Right Arm": {
+      "center": [
+        2.2024,
+        -0.297,
+        0.0566
+      ],
+      "size": [
+        1.924,
+        4.725,
+        2.149
+      ],
+      "triangles": 7000
+    },
+    "Left Leg": {
+      "center": [
+        -0.71,
+        -2.6294,
+        -0.161
+      ],
+      "size": [
+        0.992,
+        3.634,
+        1.376
+      ],
+      "triangles": 5000
+    },
+    "Right Leg": {
+      "center": [
+        0.7186,
+        -2.5951,
+        -0.2345
+      ],
+      "size": [
+        1.06,
+        3.64,
+        1.258
+      ],
+      "triangles": 5000
+    }
+  },
+  "total_triangles": 47000
+}

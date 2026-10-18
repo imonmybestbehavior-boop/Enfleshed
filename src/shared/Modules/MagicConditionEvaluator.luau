@@ -29,6 +29,8 @@ local function compare(actual, operator, expected)
 		return type(actual) == "number" and actual < expected
 	elseif operator == "<=" then
 		return type(actual) == "number" and actual <= expected
+	elseif operator == "MultipleOf" then
+		return type(actual) == "number" and type(expected) == "number" and expected >= 1 and actual % expected == 0
 	elseif operator == "Within" then
 		return type(actual) == "number" and actual <= expected
 	elseif operator == "Outside" then

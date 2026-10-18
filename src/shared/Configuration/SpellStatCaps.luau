@@ -1,0 +1,43 @@
+--!strict
+-- Stat-cap profiles applied when a spell resolves against a target. The profile
+-- depends on who is hit (see Modules/SpellStatCaps): NPCs/world → PvE, players in
+-- an open zone or duel → PvPOpen, players in a ranked zone → PvPRanked.
+-- Caps limit the *final* value after potency. Omitted caps are unlimited.
+-- Starting values; tune from PvP playtests and SpellUsage analytics.
+return {
+	PvE = {}, -- identity: PvE balance is governed by rank budgets and MagicLab limits
+	PvPOpen = {
+		DamageMultiplier = 0.6, -- every damage source (spells, DoT, melee, summons) vs players
+		MaxDamagePerHit = 35,
+		MaxDotPerTick = 4,
+		MaxHealPerHit = 30,
+		MaxShield = 40,
+		MinSlowMultiplier = 0.5, -- at most a 50% slow
+		MaxEffectDuration = 4, -- slow, bind, control, reveal, time dilation, transformation, marks, stat changes
+		MaxBindDuration = 1,
+		MaxControlAcceleration = 16,
+		MaxDisplacement = 8,
+		MaxForce = 40,
+		MinTimeRate = 0.6,
+		MaxTransformScale = 1.2,
+		MinTransformScale = 0.85,
+		MaxAttributeChange = 25,
+	},
+	PvPRanked = {
+		DamageMultiplier = 0.5,
+		MaxDamagePerHit = 30,
+		MaxDotPerTick = 3,
+		MaxHealPerHit = 25,
+		MaxShield = 30,
+		MinSlowMultiplier = 0.6,
+		MaxEffectDuration = 3,
+		MaxBindDuration = 0.75,
+		MaxControlAcceleration = 12,
+		MaxDisplacement = 6,
+		MaxForce = 30,
+		MinTimeRate = 0.7,
+		MaxTransformScale = 1.15,
+		MinTransformScale = 0.9,
+		MaxAttributeChange = 20,
+	},
+}

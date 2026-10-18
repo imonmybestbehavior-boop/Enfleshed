@@ -1,15 +1,11 @@
 --!strict
--- Development limits, never final Locus balance. Live servers are opted OUT.
+-- Spell Lab limits. The Lab is enabled on live servers; Forge features are gated by SpellProgression.
 return {
 	Enabled = true,
-	StudioOnly = true,
-	AllowLive = false,
-	-- This place is an unrestricted mechanics testbed; player progression is out of scope.
-	ProgressionEnabled = false,
+	StudioOnly = false,
+	AllowLive = true,
 	LibraryDataStoreName = "EnfleshedMagicLabLibraryV1",
 	LibrarySaveDebounce = 2,
-	DiscoveryDataStoreName = "EnfleshedMagicDiscoveryV1",
-	DiscoverySaveDebounce = 3,
 	PersistentConstructDataStoreName = "EnfleshedPersistentConstructsV1",
 	MaxDamage = 100,
 	MaxHeal = 100,
@@ -158,4 +154,11 @@ return {
 	MaxActivePerPlayer = 8,
 	MaxActiveGlobal = 64,
 	MaxMagicEventDepth = 8,
+	-- Cost units one root event may cascade into: each dispatched event or area
+	-- query costs 1 plus its target count. See MagicOperationBudget.
+	MaxOperationsPerCascade = 256,
+	-- SpawnEffect: a trigger step that starts another Form at the event.
+	MaxSpawnNesting = 2, -- spawned effects may themselves spawn, this many levels deep
+	MaxSpawnCount = 3, -- Projectiles started by one SpawnEffect step
+	MaxSpawnSpreadAngle = 90, -- total fan angle for spawned Projectiles
 }

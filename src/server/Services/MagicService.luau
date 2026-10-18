@@ -4,20 +4,22 @@
 local CollectionService = game:GetService("CollectionService")
 local RunService = game:GetService("RunService")
 local Players = game:GetService("Players")
-local DataStoreService = game:GetService("DataStoreService")
 local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
 local Sandbox = require(Shared.Configuration.Sandbox)
+local DevelopmentSandbox = require(Shared.Configuration.DevelopmentSandbox)
+local ResourceBalance = if RunService:IsStudio() and DevelopmentSandbox.Enabled
+	then Sandbox.Magic.SandboxResources
+	else Sandbox.Magic.CombatResources
 local LocusConfiguration = require(Shared.Configuration.MagicLocus)
-local LocusProfile = LocusConfiguration.Default
-local LocusPersistence = LocusConfiguration.Persistence
+local LocusProfile = if RunService:IsStudio() and DevelopmentSandbox.Enabled
+	then LocusConfiguration.Default
+	else LocusConfiguration.Combat
 local LocusModel = require(Shared.Modules.MagicLocusModel)
-local LocusProfileCodec = require(Shared.Modules.MagicLocusProfile)
 local SpecialResourceSpec = require(Shared.Modules.MagicSpecialResourceSpec)
 local SpecialResourceDefinitions = LocusConfiguration.SpecialResources
 local specialResourcesValid, specialResourcesReason =
 	SpecialResourceSpec.validateDefinitions(SpecialResourceDefinitions)
 assert(specialResourcesValid, specialResourcesReason)
-local LocusProgression = require(Shared.Modules.MagicLocusProgressionSpec)
 local Definitions = require(Shared.Configuration.Spells)
 local Generated = require(Shared.Configuration.GeneratedSpellStress)
 local Validator = require(Shared.Modules.SpellDefinitionValidator)
@@ -28,6 +30,7 @@ local Movement = require(script.Parent.MovementService)
 local Spec = require(Shared.Modules.SpellSpec)
 local Geometry = require(Shared.Modules.MagicGeometry)
 local AreaGrowth = require(Shared.Modules.MagicAreaGrowth)
+local BeamAim = require(Shared.Modules.MagicBeamAim)
 local Limits = require(Shared.Configuration.MagicLab)
 local Triggers = require(script.Parent.MagicTriggerExecutors)
 local ProjectileBehaviors = require(script.Parent.MagicProjectileBehaviorExecutors)
@@ -49,12 +52,35 @@ local CastInterruption = require(Shared.Modules.MagicCastInterruption)
 local TargetingSpec = require(Shared.Modules.MagicTargetingSpec)
 local ObjectTargetSpec = require(Shared.Modules.MagicObjectTargetSpec)
 local TargetDeathSpec = require(Shared.Modules.MagicTargetDeathSpec)
+local OperationBudget = require(Shared.Modules.MagicOperationBudget)
+local RuntimeCounters = require(Shared.Modules.MagicRuntimeCounters)
 local ProjectileMotion = require(Shared.Modules.MagicProjectileMotion)
 local TemporalRate = require(Shared.Modules.MagicTemporalRate)
-local LocusRequirementSpec = require(Shared.Modules.MagicLocusRequirementSpec)
 local StatusEffects = require(script.Parent.MagicStatusEffectService)
-local Discovery = require(script.Parent.MagicDiscoveryService)
 local Equipment = require(script.Parent.EquipmentService)
+local FeatureFlags = require(script.Parent.FeatureFlagService)
+local LoadBudget = require(Shared.Modules.MagicLoadBudget)
+local Telemetry = require(script.Parent.TelemetryService)
+local MagicWorldQuery = require(script.Parent.MagicWorldQuery)
+local MagicConstructBuilder = require(script.Parent.MagicConstructBuilder)
+local buildConstructModel, watchPersistentConstruct, persistentConstructRecord, restorePersistentConstruct =
+	MagicConstructBuilder.buildConstructModel,
+	MagicConstructBuilder.watchPersistentConstruct,
+	MagicConstructBuilder.persistentConstructRecord,
+	MagicConstructBuilder.restorePersistentConstruct
+local validVector, hasHumanoidAncestor, isValidObjectInteractionTarget, findMaterial, findManipulable, acquireEntityTarget, sweep, targetFrom, objectTargetHit, objectTargetRange, constructPlacement, finalChannelTargets =
+	MagicWorldQuery.validVector,
+	MagicWorldQuery.hasHumanoidAncestor,
+	MagicWorldQuery.isValidObjectInteractionTarget,
+	MagicWorldQuery.findMaterial,
+	MagicWorldQuery.findManipulable,
+	MagicWorldQuery.acquireEntityTarget,
+	MagicWorldQuery.sweep,
+	MagicWorldQuery.targetFrom,
+	MagicWorldQuery.objectTargetHit,
+	MagicWorldQuery.objectTargetRange,
+	MagicWorldQuery.constructPlacement,
+	MagicWorldQuery.finalChannelTargets
 local Magic = {}
 
 type State = { Character: Model, Humanoid: Humanoid, Root: BasePart }
@@ -87,12 +113,6 @@ type Active = {
 }
 
 local playerData: { [Player]: any } = {}
-local resourceWritable: { [Player]: boolean } = {}
-local resourceDirty: { [Player]: boolean } = {}
-local resourceSaveScheduled: { [Player]: boolean } = {}
-local resourceProfileLoaded: { [Player]: boolean } = {}
-local progressionConnections: { [Player]: RBXScriptConnection } = {}
-local queueResourceSave: (Player) -> ()
 local companionSpells: { [Player]: { [number]: any } } = {}
 local active: { any } = {}
 local nextCommandCastId = 0
@@ -118,17 +138,6 @@ local enhancements: {
 } =
 	{}
 
-local locusStore
-local locusStoreAvailable = false
-if LocusPersistence.Enabled then
-	locusStoreAvailable, locusStore = pcall(function()
-		return DataStoreService:GetDataStore(LocusPersistence.DataStoreName)
-	end)
-	if not locusStoreAvailable then
-		locusStore = nil
-	end
-end
-
 local function feedback(remote: RemoteEvent, player: Player, result: string, spell: any?, data: { [string]: any }?)
 	remote:FireClient(player, {
 		Kind = "Magic",
@@ -153,62 +162,12 @@ local function feedback(remote: RemoteEvent, player: Player, result: string, spe
 	})
 end
 
-local function validVector(value: any): boolean
-	return typeof(value) == "Vector3"
-		and value.X == value.X
-		and value.Y == value.Y
-		and value.Z == value.Z
-		and math.abs(value.X) < 1e7
-		and math.abs(value.Y) < 1e7
-		and math.abs(value.Z) < 1e7
-end
-
-local function hasHumanoidAncestor(instance: Instance): boolean
-	local ancestor = instance.Parent
-	while ancestor and ancestor ~= workspace do
-		if ancestor:IsA("Model") and ancestor:FindFirstChildOfClass("Humanoid") then
-			return true
-		end
-		ancestor = ancestor.Parent
-	end
-	return false
-end
-
 local function isSolidWorldSurfaceTarget(target: BasePart): boolean
 	return ObjectTargetSpec.isSolidWorldSurfaceTarget({
 		InWorkspace = target:IsDescendantOf(workspace),
 		CanCollide = target.CanCollide,
 		HasHumanoidAncestor = hasHumanoidAncestor(target),
 	})
-end
-
-local function isValidObjectInteractionTarget(definition, target: BasePart): boolean
-	local hasPhysics = false
-	local hasManipulation = false
-	for _, steps in definition.Triggers or {} do
-		for _, step in steps do
-			for _, payload in step.Payloads or {} do
-				hasPhysics = hasPhysics or payload.Kind == "Force" or payload.Kind == "Control"
-				hasManipulation = hasManipulation or payload.Kind == "Manipulation"
-			end
-		end
-	end
-	if
-		not ObjectTargetSpec.isValidInteractionTarget({
-			InWorkspace = target:IsDescendantOf(workspace),
-			CanCollide = target.CanCollide,
-			HasHumanoidAncestor = hasHumanoidAncestor(target),
-			Tagged = CollectionService:HasTag(target, "MagicManipulable"),
-			Anchored = target.Anchored,
-			AssemblyMass = target.AssemblyMass,
-			MaterialMatches = definition.Material ~= nil
-				and target:GetAttribute("MagicMaterial") == definition.Material.Material,
-			RaiseAuthorized = target:GetAttribute("MagicRaise") == true,
-		}, hasPhysics, hasManipulation)
-	then
-		return false
-	end
-	return true
 end
 
 local function isLiveHomingTarget(root: BasePart?): boolean
@@ -232,90 +191,6 @@ local function getDefinition(id: any): any?
 		return nil
 	end
 	return Spec.normalize(definition)
-end
-
-local function findMaterial(definition: any, point: Vector3): Instance?
-	local requirement = definition.Material
-	if not requirement then
-		return nil
-	end
-	local closest: Instance? = nil
-	local closestDistance = math.huge
-	for _, source in CollectionService:GetTagged("MagicMaterialSource") do
-		local position = if source:IsA("BasePart")
-			then source.Position
-			elseif source:IsA("Model") then source:GetPivot().Position
-			else nil
-		local available = source:GetAttribute("AvailableAmount")
-		if
-			position
-			and source:IsDescendantOf(workspace)
-			and source:GetAttribute("MagicMaterial") == requirement.Material
-			and type(available) == "number"
-			and available == available
-			and available > -math.huge
-			and available < math.huge
-			and available >= requirement.Amount
-			and (position - point).Magnitude <= requirement.SearchRadius
-			and (position - point).Magnitude < closestDistance
-		then
-			closest, closestDistance = source, (position - point).Magnitude
-		end
-	end
-	return closest
-end
-
-local function findManipulable(definition: any, point: Vector3): BasePart?
-	local closest: BasePart? = nil
-	local closestDistance = math.huge
-	for _, source in CollectionService:GetTagged("MagicManipulable") do
-		if
-			source:IsA("BasePart")
-			and source:GetAttribute("MagicMaterial") == definition.Material.Material
-			and source:GetAttribute("MagicRaise") == true
-			and (source.Position - point).Magnitude <= definition.Material.SearchRadius
-			and (source.Position - point).Magnitude < closestDistance
-		then
-			closest, closestDistance = source, (source.Position - point).Magnitude
-		end
-	end
-	return closest
-end
-
-local function acquireEntityTarget(state: State, direction: Vector3, definition: any): Model?
-	local origin = state.Root.Position + Vector3.new(0, 1.5, 0)
-	local range = math.min(TargetingSpec.entityRange(definition), Sandbox.Magic.LockOnAcquireRange)
-	local candidates = HitDetection.findSphere(state.Character, CFrame.new(origin), range, {
-		OverlapCollisionGroup = Sandbox.Combat.OverlapCollisionGroup,
-		MaxDistance = range,
-		RequireLineOfSight = definition.TargetRules.RequiresLineOfSight,
-	})
-	local selected: Model? = nil
-	local bestDot = Sandbox.Magic.MinimumEntityAimDot
-	local bestDistance = math.huge
-	for _, humanoid in ipairs(candidates) do
-		local model = humanoid.Parent
-		local root = model and model:FindFirstChild("HumanoidRootPart")
-		if
-			model
-			and model:IsA("Model")
-			and root
-			and root:IsA("BasePart")
-			and Conditions.relationshipMatches(state.Character, model, definition.TargetRules.Relationship)
-			and Conditions.hasConsent(definition, model)
-		then
-			local delta = root.Position - origin
-			if delta.Magnitude > 0.001 then
-				local dot = direction:Dot(delta.Unit)
-				if dot > bestDot or (dot == bestDot and delta.Magnitude < bestDistance) then
-					selected = model
-					bestDot = dot
-					bestDistance = delta.Magnitude
-				end
-			end
-		end
-	end
-	return selected
 end
 
 local function costs(definition: any, charge: number, resources: any): (number, number, number)
@@ -358,25 +233,22 @@ local function syncSpecialResourceAttributes(player: Player)
 	end
 end
 
-local function locusProfileFor(player: Player)
-	local progress = Discovery.progress(player)
-	return LocusProgression.profile(LocusProfile, LocusConfiguration.Progression, progress.TotalCasts)
-end
-
-local function syncLocusProgression(player: Player)
-	local stats = playerData[player]
-	if not stats or player:GetAttribute("MagicDiscoveryLoaded") ~= true then
+local function syncHUDResourceAttributes(player: Player, stats: any)
+	if not player.Parent then
 		return
 	end
-	local progression = locusProfileFor(player)
-	local metrics = progression.Metrics
-	stats.Capacity = metrics.Capacity
-	stats.Efficiency = metrics.Efficiency
-	stats.Potency = metrics.Potency
-	stats.StrainTolerance = metrics.StrainTolerance
-	stats.ComplexityCapacity = metrics.ComplexityCapacity
-	stats.Mana = math.min(stats.Mana, stats.Capacity)
-	stats.ProgressionRank = progression.Rank
+	for attribute, value in
+		{
+			MagicMana = stats.Mana,
+			MagicCapacity = stats.Capacity,
+			MagicStrain = stats.Strain,
+			MagicStrainTolerance = stats.StrainTolerance,
+		}
+	do
+		if player:GetAttribute(attribute) ~= value then
+			player:SetAttribute(attribute, value)
+		end
+	end
 end
 
 local function locusPotency(player: Player): number
@@ -417,6 +289,10 @@ local function validate(
 ): (string, string?, Instance?, Vector3?, Model?, Vector3?)
 	if not definition or not validVector(intent.AimDirection) then
 		return "IMPOSSIBLE", "Invalid spell or aim"
+	end
+	local spellAllowed, disabledReason = FeatureFlags.spellAllowed(definition)
+	if not spellAllowed then
+		return "IMPOSSIBLE", disabledReason
 	end
 	if not CastingSpec.hasFreeHand(definition.Casting, Equipment.freeHandCount(player)) then
 		return "IMPOSSIBLE", "This spell requires at least one free hand"
@@ -685,14 +561,6 @@ local function validate(
 	if not stats then
 		return "IMPOSSIBLE", "Locus state unavailable"
 	end
-	local meetsLocusRequirements, locusRequirementReason = true, nil
-	if Limits.ProgressionEnabled then
-		meetsLocusRequirements, locusRequirementReason =
-			LocusRequirementSpec.check(definition.LocusRequirements, resourceSnapshot(stats))
-	end
-	if not meetsLocusRequirements then
-		return "IMPOSSIBLE", locusRequirementReason
-	end
 	local specialAffordable, missingSpecial = SpecialResourceSpec.canAfford(
 		stats.SpecialResources,
 		definition.Cost.SpecialResources,
@@ -706,7 +574,7 @@ local function validate(
 		return "VALID", nil, material, direction, selectedTarget, objectPosition
 	end
 	local mana, strain, complexity = costs(definition, charge, stats)
-	local result, reason = LocusModel.evaluate(stats, mana, strain, complexity, Sandbox.Magic.SandboxResources)
+	local result, reason = LocusModel.evaluate(stats, mana, strain, complexity, ResourceBalance)
 	return result, reason, material, direction, selectedTarget, objectPosition
 end
 
@@ -735,6 +603,20 @@ end
 
 local emit: any
 local finishBeamChannel: any
+local spawnEffect: any
+-- Spends from the cascade budget carried by runtimeState; reports exhaustion once.
+local function spendOperations(runtimeState, cost: number, definition, remote, player): boolean
+	local budget = runtimeState and runtimeState.OperationBudget
+	if not budget or OperationBudget.spend(budget, cost) then
+		return true
+	end
+	if OperationBudget.takeReport(budget) and remote and player then
+		feedback(remote, player, "IMPOSSIBLE", definition, {
+			Reason = "Spell reactions stopped: this chain reached its per-cast operation budget",
+		})
+	end
+	return false
+end
 local function context(definition, caster, position, targets, direction, remote, player, potency, runtimeState)
 	local stats = playerData[player]
 	local eventDepth = runtimeState and runtimeState.EventDepth or 0
@@ -770,6 +652,10 @@ local function context(definition, caster, position, targets, direction, remote,
 		Potency = resolvedPotency,
 		Origin = position,
 		EventDepth = eventDepth,
+		-- Read by per-step conditions (MagicConditions.stepTargets).
+		Resources = resourceSnapshot(stats),
+		SpellState = runtimeState,
+		SpellTags = definition.Tags,
 		HealthThreshold = runtimeState and runtimeState.HealthThreshold or nil,
 		Command = runtimeState and runtimeState.Command or nil,
 		DeathCause = runtimeState and runtimeState.DeathCause or nil,
@@ -880,6 +766,7 @@ local function context(definition, caster, position, targets, direction, remote,
 				StartedAt = runtimeState and runtimeState.StartedAt or os.clock(),
 				EventDepth = eventDepth + 1,
 				EventName = eventName,
+				OperationBudget = runtimeState and runtimeState.OperationBudget or nil,
 				DeathCause = if eventName == "OnTargetDeath"
 					then (eventData and eventData.DeathCause or "KilledByThisSpell")
 					else nil,
@@ -911,6 +798,9 @@ local function context(definition, caster, position, targets, direction, remote,
 			)
 		end,
 	}
+	ctx.SpawnEffect = function(step, eventTargets)
+		spawnEffect(definition, step, caster, position, direction, remote, player, potency, runtimeState, eventTargets)
+	end
 	ctx.TargetDeathCallback = function(targetHumanoid)
 		if not definition.Triggers or not definition.Triggers.OnTargetDeath then
 			return nil
@@ -937,6 +827,9 @@ local function context(definition, caster, position, targets, direction, remote,
 			Resources = resourceSnapshot(stats),
 			SpellState = runtimeState,
 		})
+		if not spendOperations(runtimeState, 1 + #targets, definition, remote, player) then
+			return
+		end
 		local validatedState = table.clone(runtimeState or {})
 		validatedState.UsePreviousTargetSet = true
 		Payloads.execute(
@@ -947,9 +840,18 @@ local function context(definition, caster, position, targets, direction, remote,
 	return ctx
 end
 emit = function(definition, event, caster, position, targets, direction, remote, player, potency, runtimeState)
+	definition._VFXCaster = caster
 	local eventState = table.clone(runtimeState or {})
 	eventState.EventName = event
 	eventState.RuntimeOrigin = if runtimeState then runtimeState.RuntimeOrigin or runtimeState else nil
+	-- Runtime counters for conditions: how many times this event has fired on
+	-- this effect (kept on the persistent record) and how many targets it has.
+	eventState.TriggerCount, eventState.EventTargets =
+		RuntimeCounters.record(eventState.RuntimeOrigin or eventState, event, targets)
+	eventState.OperationBudget = OperationBudget.resolve(runtimeState, Limits.MaxOperationsPerCascade)
+	if not spendOperations(eventState, 1 + #(targets or {}), definition, remote, player) then
+		return
+	end
 	local audioCue = if event == "OnImpact"
 		then "ImpactSoundId"
 		elseif event == "OnExpire" then "EndSoundId"
@@ -1312,13 +1214,14 @@ local function updateAreaMembership(spell, targets)
 		end
 	end
 	local current, entered, exited = AreaMembership.diff(previous, validTargets)
+	-- Update occupancy first so OnEnter/OnExit conditions see the new count.
+	spell.PresentTargets = current
 	for _, humanoid in ipairs(entered) do
 		emitAreaTransition(spell, "OnEnter", humanoid)
 	end
 	for _, humanoid in ipairs(exited) do
 		emitAreaTransition(spell, "OnExit", humanoid)
 	end
-	spell.PresentTargets = current
 end
 
 emitAreaTransition = function(spell, event, humanoid)
@@ -1327,6 +1230,8 @@ emitAreaTransition = function(spell, event, humanoid)
 	end
 	local eventState = table.clone(spell)
 	eventState.UsePreviousTargetSet = event == "OnExit"
+	-- Keep the area record as the origin so per-effect counters persist.
+	eventState.RuntimeOrigin = spell.RuntimeOrigin or spell
 	emit(
 		spell.Definition,
 		event,
@@ -1343,10 +1248,10 @@ end
 
 local function closeAreaMembership(spell)
 	local exited = AreaMembership.clear(spell.PresentTargets or {})
+	spell.PresentTargets = {}
 	for _, humanoid in ipairs(exited) do
 		emitAreaTransition(spell, "OnExit", humanoid)
 	end
-	spell.PresentTargets = {}
 end
 
 local function finishInterruptedArea(spell)
@@ -1395,6 +1300,9 @@ local function expireSelfEnhancement(player: Player, effect: any)
 			lifecycleState(effect, "OnCasterDeath", 0)
 		)
 	end
+	if effect.ComposedVisual then
+		Presentation.finish(effect.ComposedVisual)
+	end
 	dispatchClaimedExpiry(effect, position, { humanoid }, nil, character, player)
 end
 
@@ -1439,107 +1347,6 @@ local function configuredLifetime(definition: any): number
 	return LifetimeSpec.effectiveDuration(definition.Lifetime.Mode, definition.Lifetime.Duration)
 end
 
-local function watchPersistentConstruct(model: Model, id: string)
-	local removed = false
-	local function removeRecord()
-		if removed then
-			return
-		end
-		removed = true
-		task.spawn(function()
-			local reason
-			for attempt = 1, 3 do
-				local ok
-				ok, reason = PersistentConstructStore.remove(id)
-				if ok then
-					return
-				end
-				task.wait(attempt)
-			end
-			warn("Persistent Construct removal was not saved: " .. tostring(reason))
-		end)
-	end
-	model.Destroying:Connect(removeRecord)
-	model.AncestryChanged:Connect(function(_, parent)
-		if parent == nil then
-			removeRecord()
-		end
-	end)
-end
-
-local function persistentConstructRecord(player: Player, frame: CFrame, components: { any }, definition: any)
-	local rx, ry, rz = frame:ToOrientation()
-	local serializedComponents = {}
-	for index, component in ipairs(components) do
-		local rotation = component.RotationDegrees
-		serializedComponents[index] = {
-			Shape = component.Shape,
-			Size = { component.Size[1], component.Size[2], component.Size[3] },
-			Offset = { component.Offset[1], component.Offset[2], component.Offset[3] },
-			RotationDegrees = { rotation[1], rotation[2], rotation[3] },
-		}
-	end
-	local function colorArray(color)
-		return { color.R, color.G, color.B }
-	end
-	local visual = definition.Visual
-	return {
-		OwnerUserId = player.UserId,
-		Position = { frame.Position.X, frame.Position.Y, frame.Position.Z },
-		RotationDegrees = { math.deg(rx), math.deg(ry), math.deg(rz) },
-		Components = serializedComponents,
-		Visual = {
-			Color = colorArray(visual.Color),
-			SecondaryColor = visual.SecondaryColor and colorArray(visual.SecondaryColor) or nil,
-			AccentColor = visual.AccentColor and colorArray(visual.AccentColor) or nil,
-			MaterialAppearance = visual.MaterialAppearance or "Auto",
-			Opacity = visual.Opacity or 0.85,
-			Emission = visual.Emission or 0,
-			ParticleStyle = visual.ParticleStyle or "None",
-		},
-	}
-end
-
--- A single bounded sweep includes world solids and character limbs. Query-only
--- cosmetic parts are excluded through reassignment (FilterDescendantsInstances is a copy).
-local function sweep(start, delta, caster, visualPart, radius, additionalIgnored)
-	if delta.Magnitude < 0.0001 then
-		return nil
-	end
-	local params = RaycastParams.new()
-	params.FilterType = Enum.RaycastFilterType.Exclude
-	local ignored = { caster }
-	if visualPart then
-		table.insert(ignored, visualPart)
-	end
-	for _, instance in ipairs(additionalIgnored or {}) do
-		table.insert(ignored, instance)
-	end
-	params.RespectCanCollide = false
-	for _ = 1, 16 do
-		params.FilterDescendantsInstances = ignored
-		local hit = if radius > 0
-			then workspace:Spherecast(start, radius, delta, params)
-			else workspace:Raycast(start, delta, params)
-		if not hit then
-			return nil
-		end
-		local model = hit.Instance:FindFirstAncestorOfClass("Model")
-		if
-			(model and model:FindFirstChildOfClass("Humanoid"))
-			or hit.Instance:IsA("Terrain")
-			or (hit.Instance:IsA("BasePart") and hit.Instance.CanCollide)
-		then
-			return hit
-		end
-		table.insert(ignored, hit.Instance)
-	end
-	-- Fail closed at the final obstruction, never tunnel through excessive decorations.
-	params.RespectCanCollide = true
-	return if radius > 0
-		then workspace:Spherecast(start, radius, delta, params)
-		else workspace:Raycast(start, delta, params)
-end
 local function isSpawnFloorClip(part, start, direction, caster, visualPart, radius)
 	-- Large visuals may begin with their lower surface slightly inside the floor.
 	-- Treat only the supporting surface directly beneath a mostly level/upward cast
@@ -1553,14 +1360,6 @@ local function isSpawnFloorClip(part, start, direction, caster, visualPart, radi
 	params.RespectCanCollide = true
 	local support = workspace:Raycast(start + Vector3.yAxis * 0.05, -Vector3.yAxis * (radius + 0.1), params)
 	return support ~= nil and support.Instance == part and support.Position.Y <= start.Y
-end
-local function targetFrom(hit)
-	local model = hit and hit.Instance:FindFirstAncestorOfClass("Model")
-	while model and not model:FindFirstChildOfClass("Humanoid") do
-		model = model:FindFirstAncestorOfClass("Model")
-	end
-	local humanoid = model and model:FindFirstChildOfClass("Humanoid")
-	return if humanoid then { humanoid } else {}
 end
 
 local function resolveBeamCascadeStrike(spell, strikeIndex: number)
@@ -1579,7 +1378,8 @@ local function resolveBeamCascadeStrike(spell, strikeIndex: number)
 	local endpoint = if hit then start + delta.Unit * hit.Distance else start + delta
 	Presentation.beam(start, endpoint, beam.Width, definition.Visual.Color, definition.Beam.DebugDuration, definition)
 	if hit then
-		local runtimeState = { HitPart = hit.Instance }
+		-- RuntimeOrigin keeps this beam's per-effect counters across strikes.
+		local runtimeState = { HitPart = hit.Instance, RuntimeOrigin = spell }
 		emit(
 			definition,
 			"OnImpact",
@@ -1595,42 +1395,6 @@ local function resolveBeamCascadeStrike(spell, strikeIndex: number)
 	end
 end
 
-local function objectTargetHit(
-	caster: Model,
-	origin: Vector3,
-	direction: Vector3,
-	range: number,
-	target: BasePart?,
-	definition
-)
-	if not target or not isValidObjectInteractionTarget(definition, target) then
-		return nil
-	end
-	local params = RaycastParams.new()
-	params.FilterType = Enum.RaycastFilterType.Exclude
-	params.FilterDescendantsInstances = { caster }
-	params.RespectCanCollide = true
-	local hit = workspace:Raycast(origin, direction * range, params)
-	return if hit and hit.Instance == target then hit else nil
-end
-
-local function objectTargetRange(definition): number
-	local formRange = if definition.Form == "Projectile"
-		then definition.Projectile.MaxDistance
-		elseif definition.Form == "Beam" then definition.Beam.Range * math.max(
-			definition.Beam.GrowthStartScale or 1,
-			definition.Beam.GrowthEndScale or 1
-		)
-		else definition.Wave.Range * math.max(
-			definition.Wave.GrowthStartScale or 1,
-			definition.Wave.GrowthEndScale or 1
-		)
-	return math.min(
-		definition.TargetRules.Range,
-		formRange,
-		if definition.Material then definition.Material.SearchRadius else definition.TargetRules.Range
-	)
-end
 local hasCapacity: (Player) -> boolean
 
 local function initializeProjectileMotion(projectile, definition)
@@ -1640,6 +1404,9 @@ local function initializeProjectileMotion(projectile, definition)
 	projectile.MotionPhaseElapsed = 0
 	projectile.InitialVisualSize = projectile.Visual.Size
 	projectile.Velocity = projectile.Direction * ProjectileMotion.initialSpeed(definition.Projectile.Speed, phases)
+	if projectile.Velocity.Magnitude > 0.001 then
+		projectile.Visual.CFrame = CFrame.lookAt(projectile.Position, projectile.Position + projectile.Velocity.Unit)
+	end
 end
 
 local function projectileHasBehavior(projectile, kind: string): boolean
@@ -1863,7 +1630,9 @@ local function projectileBehaviorContext(spell)
 				projectile.Direction,
 				spell.Remote,
 				spell.Player,
-				locusPotency(spell.Player) * (projectile.PotencyMultiplier or 1) * falloff
+				locusPotency(spell.Player) * (projectile.PotencyMultiplier or 1) * falloff,
+				-- Shares the projectile's per-effect counters.
+				{ RuntimeOrigin = projectile }
 			)
 		end,
 		SpawnSplit = function(projectile, hit, behavior, directions, ignoredTargets)
@@ -1954,6 +1723,16 @@ local function projectileBehaviorContext(spell)
 		end,
 	}
 end
+-- Smoothed server frame time (ms) for the load budget; updated every Heartbeat.
+local serverFrameMs = 1000 / 60
+local function activeLoad(): number
+	local load = 0
+	for _, effect in active do
+		load += LoadBudget.weight(effect.Definition)
+	end
+	return load
+end
+
 hasCapacity = function(player, additional: number?)
 	local required = additional or 1
 	if #active + required > Limits.MaxActiveGlobal then
@@ -1966,6 +1745,302 @@ hasCapacity = function(player, additional: number?)
 		end
 	end
 	return count + required <= Limits.MaxActivePerPlayer
+end
+
+-- Applies a SelfEnhancement to the caster's combat state: runs its OnCast
+-- payloads, records the enhancement, and refreshes movement. Shared by the
+-- cast path (formContext.ApplySelf) and spawned effects.
+local function startSelfEnhancement(d, state, direction, remote, player)
+	local ctx = context(d, state.Character, state.Root.Position, { state.Humanoid }, direction, remote, player)
+	local combined = { WalkSpeedBonus = 0, JumpPowerBonus = 0, SpeedMultiplier = 1, AerialSpeed = 0 }
+	ctx.ApplyEnhancement = function(payload)
+		combined.WalkSpeedBonus += payload.WalkSpeedBonus or 0
+		combined.JumpPowerBonus += payload.JumpPowerBonus or 0
+		combined.SpeedMultiplier = math.max(combined.SpeedMultiplier, payload.SpeedMultiplier or 1)
+	end
+	ctx.ApplyAerialMovement = function(payload)
+		combined.AerialSpeed = math.max(combined.AerialSpeed, payload.Speed or 0)
+	end
+	Triggers.execute(d, "OnCast", ctx)
+	enhancements[player] = enhancements[player] or {}
+	local previousVisual = enhancements[player][d.SpellId] and enhancements[player][d.SpellId].ComposedVisual
+	if previousVisual then
+		Presentation.finish(previousVisual)
+	end
+	enhancements[player][d.SpellId] = {
+		State = state,
+		Definition = d,
+		Remote = remote,
+		Direction = direction,
+		Age = 0,
+		CurrentPhase = "Active",
+		TargetsHit = {},
+		StartedAt = os.clock(),
+		ExpiresAt = if d.Lifetime.Mode == "UntilToggledOff"
+				or d.Lifetime.Mode == "UntilResourceDepleted"
+				or d.Lifetime.Mode == "UntilConditionFails"
+			then math.huge
+			else workspace:GetServerTimeNow() + d.Lifetime.Duration,
+		WalkSpeedBonus = combined.WalkSpeedBonus,
+		JumpPowerBonus = combined.JumpPowerBonus,
+		SpeedMultiplier = combined.SpeedMultiplier,
+		AerialSpeed = combined.AerialSpeed,
+		ProximityState = if d.Proximity then ProximitySpec.newState(workspace:GetServerTimeNow()) else nil,
+		IsChannel = d.Casting.Mode == "Channeled",
+		AmbientSound = Presentation.attachLoop(d, "AmbientLoopSoundId", state.Root),
+		ComposedVisual = Presentation.follow(d, state.Root, Vector3.new(5, 6, 5)),
+	}
+	updateEnhancement(player)
+end
+
+-- Latest combat state per player, so a spawned SelfEnhancement can reach the
+-- caster's movement state (only used while state.Character is the caster).
+local castStates = setmetatable({}, { __mode = "k" })
+
+-- SpawnEffect: start a validated child effect (any Form but Manipulation) at an event.
+-- The child definition is expanded from the step's compact Effect once and
+-- cached; its own triggers run through the ordinary emit path. Spawning is
+-- bounded by the active-effect caps, the cascade operation budget, and the
+-- validator's static nesting limit (Limits.MaxSpawnNesting).
+local spawnedDefinitions = setmetatable({}, { __mode = "k" })
+spawnEffect = function(parent, step, caster, position, direction, remote, player, potency, runtimeState, eventTargets)
+	local child = spawnedDefinitions[step.Effect]
+	if child == nil then
+		child = Spec.expandSpawnEffect(parent, step.Effect) or false
+		spawnedDefinitions[step.Effect] = child
+	end
+	if not child or not caster or not caster.Parent or typeof(position) ~= "Vector3" then
+		return
+	end
+	local count = if child.Form == "Projectile" then math.clamp(step.Count or 1, 1, Limits.MaxSpawnCount) else 1
+	if not hasCapacity(player, count) then
+		return
+	end
+	if not spendOperations(runtimeState, count, parent, remote, player) then
+		return
+	end
+	local forward = if typeof(direction) == "Vector3" and direction.Magnitude > 0.001 then direction.Unit else nil
+	if not forward then
+		local casterRoot = caster:FindFirstChild("HumanoidRootPart")
+		forward = if casterRoot and casterRoot:IsA("BasePart") then casterRoot.CFrame.LookVector else Vector3.zAxis
+	end
+
+	if child.Form == "Projectile" then
+		local spread = math.rad(math.clamp(step.SpreadAngle or 0, 0, Limits.MaxSpawnSpreadAngle))
+		local axis = if math.abs(forward:Dot(Vector3.yAxis)) > 0.95 then Vector3.xAxis else Vector3.yAxis
+		-- Start just behind the event point so a child spawned on a wall
+		-- impact does not begin inside that wall.
+		local start = position - forward * (child.Projectile.Radius + 0.5)
+		for index = 1, count do
+			local alpha = if count > 1 then (index - 1) / (count - 1) - 0.5 else 0
+			local childDirection = CFrame.fromAxisAngle(axis, spread * alpha):VectorToWorldSpace(forward).Unit
+			emit(child, "OnCast", caster, start, {}, childDirection, remote, player, potency)
+			emit(child, "OnSpawn", caster, start, {}, childDirection, remote, player, potency)
+			local projectile = {
+				Kind = "Projectile",
+				SpellId = child.SpellId,
+				Caster = caster,
+				Age = 0,
+				CurrentPhase = "Traveling",
+				TargetsHit = {},
+				StartedAt = os.clock(),
+				RemainingLifetime = configuredLifetime(child),
+				Definition = child,
+				Position = start,
+				Direction = childDirection,
+				Velocity = childDirection * child.Projectile.Speed,
+				Distance = 0,
+				Visual = Presentation.projectile(child, start),
+				Player = player,
+				Remote = remote,
+			}
+			initializeProjectileMotion(projectile, child)
+			table.insert(active, projectile)
+		end
+	elseif child.Form == "Field" then
+		local initialField = AreaGrowth.area(child.Field, AreaGrowth.scale(child.Field, 0))
+		local marker = Presentation.areaMarker(
+			"MagicFieldDebug",
+			CFrame.new(position) * CFrame.Angles(0, math.rad(child.Field.Yaw or 0), 0),
+			child.Geometry,
+			Geometry.areaSize(child.Geometry, initialField),
+			child.Visual.Color,
+			child.Field.DebugHeight,
+			child
+		)
+		Presentation.attachLoop(child, "AmbientLoopSoundId", marker)
+		local targets = formAreaCandidates(child, caster, position, 0)
+		local field = {
+			Kind = "Field",
+			Caster = caster,
+			Player = player,
+			Remote = remote,
+			Definition = child,
+			FollowTarget = false,
+			Age = 0,
+			CurrentPhase = "Active",
+			TargetsHit = {},
+			PresentTargets = {},
+			StartedAt = os.clock(),
+			Position = position,
+			Direction = forward,
+			RemainingLifetime = configuredLifetime(child),
+			NextInterval = 0,
+			Visual = marker,
+		}
+		table.insert(active, field)
+		emit(child, "OnCast", caster, position, targets, forward, remote, player, potency, field)
+		emit(child, "OnSpawn", caster, position, targets, forward, remote, player, potency, field)
+	elseif child.Form == "Wave" then
+		local wave = AreaGrowth.area(child.Wave, AreaGrowth.scale(child.Wave, 0))
+		local waveRange = math.min(wave.Range, child.TargetRules.Range)
+		local frame = CFrame.lookAt(position, position + forward)
+		local targetRules = {
+			OverlapCollisionGroup = Sandbox.Combat.OverlapCollisionGroup,
+			RequireLineOfSight = child.TargetRules.RequiresLineOfSight,
+			IncludeAttacker = child.TargetRules.IncludeCaster,
+		}
+		local targets = if child.Geometry == "Sphere"
+			then HitDetection.findSphere(caster, frame, waveRange, targetRules)
+			else HitDetection.findCone(caster, frame, waveRange, child.Wave.Dot, targetRules)
+		emit(child, "OnCast", caster, position, targets, forward, remote, player, potency)
+		Presentation.wave(child, frame, waveRange, child.Wave.DebugDuration)
+	elseif child.Form == "Beam" then
+		-- Fired from the event point along the event direction.
+		local beam = AreaGrowth.area(child.Beam, AreaGrowth.scale(child.Beam, 0))
+		local beamRange = math.min(beam.Range, child.TargetRules.Range)
+		local hit = sweep(position, forward * beamRange, caster, nil, beam.Width / 2)
+		local endpoint = if hit then position + forward * hit.Distance else position + forward * beamRange
+		local eventState = { HitPart = if hit then hit.Instance else nil }
+		if child.Beam.Pattern == "Cascade" then
+			emit(child, "OnCast", caster, position, targetFrom(hit), forward, remote, player, potency, eventState)
+			local cascade = {
+				Kind = "BeamCascade",
+				SpellId = child.SpellId,
+				Caster = caster,
+				Definition = child,
+				Player = player,
+				Remote = remote,
+				Center = endpoint,
+				Position = endpoint,
+				Direction = forward,
+				Age = 0,
+				StrikeIndex = 1,
+				NextInterval = workspace:GetServerTimeNow() + child.Beam.StrikeInterval,
+				RemainingLifetime = child.Beam.StrikeInterval * (child.Beam.StrikeCount - 1) + 0.25,
+				StartedAt = workspace:GetServerTimeNow(),
+				TargetsHit = {},
+			}
+			resolveBeamCascadeStrike(cascade, 1)
+			table.insert(active, cascade)
+		else
+			Presentation.beam(position, endpoint, beam.Width, child.Visual.Color, child.Beam.DebugDuration, child)
+			emit(child, "OnCast", caster, position, targetFrom(hit), forward, remote, player, potency, eventState)
+			emit(child, "OnImpact", caster, endpoint, targetFrom(hit), forward, remote, player, potency, eventState)
+		end
+	elseif child.Form == "Aura" then
+		-- An Aura follows something: the event's first target if it has one
+		-- (a curse that travels with the enemy hit), otherwise the caster.
+		local followTarget = caster
+		for _, target in eventTargets or {} do
+			if typeof(target) == "Instance" and target:IsA("Humanoid") and target.Parent then
+				followTarget = target.Parent
+				break
+			end
+		end
+		local followRoot = followTarget:FindFirstChild("HumanoidRootPart")
+		if not followRoot or not followRoot:IsA("BasePart") then
+			return
+		end
+		local point = followRoot.Position
+		local initialAura = AreaGrowth.area(child.Aura, AreaGrowth.scale(child.Aura, 0))
+		local marker = Presentation.areaMarker(
+			"MagicAuraDebug",
+			CFrame.new(point) * CFrame.Angles(0, math.rad(child.Aura.Yaw or 0), 0),
+			child.Geometry,
+			Geometry.areaSize(child.Geometry, initialAura),
+			child.Visual.Color,
+			nil,
+			child
+		)
+		Presentation.attachLoop(child, "AmbientLoopSoundId", marker)
+		local targets = formAreaCandidates(child, caster, point, 0)
+		local aura = {
+			Kind = "Aura",
+			Caster = caster,
+			Player = player,
+			Remote = remote,
+			Definition = child,
+			FollowTarget = followTarget,
+			Age = 0,
+			CurrentPhase = "Active",
+			TargetsHit = {},
+			PresentTargets = {},
+			StartedAt = os.clock(),
+			Position = point,
+			Direction = Vector3.zero,
+			RemainingLifetime = configuredLifetime(child),
+			NextInterval = 0,
+			Visual = marker,
+		}
+		table.insert(active, aura)
+		emit(child, "OnCast", caster, point, targets, Vector3.zero, remote, player, potency, aura)
+		emit(child, "OnSpawn", caster, point, targets, Vector3.zero, remote, player, potency, aura)
+	elseif child.Form == "Construct" then
+		-- Built at the event point, upright, facing along the event direction.
+		local components = ConstructGeometry.components(
+			child.Geometry,
+			child.Construct.Width,
+			child.Construct.Height,
+			child.Construct.Depth,
+			child.Construct.Components
+		)
+		if not components then
+			return
+		end
+		local flat = Vector3.new(forward.X, 0, forward.Z)
+		flat = if flat.Magnitude > 0.001 then flat.Unit else Vector3.zAxis
+		local frame = CFrame.lookAt(position, position + flat)
+		local model, pivot, componentLifetimes, startScale = buildConstructModel(child, components, frame, true)
+		Presentation.attachLoop(child, "AmbientLoopSoundId", pivot)
+		emit(child, "OnCast", caster, position, {}, flat, remote, player, potency)
+		table.insert(active, {
+			Kind = "Construct",
+			AnchorPoint = position,
+			AnchorNormal = Vector3.yAxis,
+			BaseSize = Vector3.new(child.Construct.Width, child.Construct.Height, child.Construct.Depth),
+			CurrentScale = startScale,
+			GrowthEnabled = child.Construct.GrowthDuration ~= nil and child.Construct.GrowthDuration > 0,
+			GrowthCheckAccumulator = 0.1,
+			Caster = caster,
+			Position = position,
+			Direction = flat,
+			Player = player,
+			Remote = remote,
+			Definition = child,
+			Age = 0,
+			CurrentPhase = "Active",
+			TargetsHit = {},
+			ProximityState = if child.Proximity then ProximitySpec.newState(workspace:GetServerTimeNow()) else nil,
+			StartedAt = os.clock(),
+			RemainingLifetime = configuredLifetime(child),
+			Visual = model,
+			ComponentLifetimes = componentLifetimes,
+		})
+	elseif child.Form == "SelfEnhancement" then
+		-- Applies to the caster, using the combat state of their latest cast.
+		local state = player and castStates[player]
+		if
+			not state
+			or state.Character ~= caster
+			or not state.Root
+			or not state.Root:IsDescendantOf(workspace)
+			or state.Humanoid.Health <= 0
+		then
+			return
+		end
+		startSelfEnhancement(child, state, forward, remote, player)
+	end
 end
 
 local function spawnChannelProjectile(channel): boolean
@@ -2019,47 +2094,6 @@ local function spawnChannelProjectile(channel): boolean
 	return true
 end
 
-local function constructPlacement(state, d, direction, intent)
-	local origin = state.Root.Position + Vector3.new(0, 1.5, 0)
-	local placementDistance = d.Construct.Distance
-	-- Use a nearby camera aim point when available, but always preserve a valid
-	-- direction-based free-air placement when the ray has no target.
-	if validVector(intent.WorldPoint) then
-		local delta = intent.WorldPoint - origin
-		if
-			delta.Magnitude > 0.001
-			and delta.Magnitude <= placementDistance
-			and direction:Dot(delta.Unit) >= Sandbox.Magic.MinimumWorldAimDot
-		then
-			direction = delta.Unit
-			placementDistance = math.min(delta.Magnitude, placementDistance)
-		end
-	end
-	local center = origin + direction * placementDistance
-	local flat = Vector3.new(direction.X, 0, direction.Z)
-	if flat.Magnitude < 0.001 then
-		flat = Vector3.new(0, 0, -1)
-	end
-	local frame = CFrame.lookAt(center, center + flat.Unit)
-	local startScale = AreaGrowth.scale(d.Construct, 0)
-	local size = Vector3.new(d.Construct.Width, d.Construct.Height, d.Construct.Depth) * startScale
-	local hit = sweep(origin, direction * placementDistance, state.Character, nil, 0)
-	local attachment, attachedHumanoid
-	if hit then
-		-- Project this upright box onto the surface normal, keeping its nearest face flush.
-		local normal = hit.Normal
-		local offset = Geometry.surfaceOffset(normal, frame.RightVector, frame.UpVector, frame.LookVector, size)
-		frame = frame.Rotation + hit.Position + normal * (offset + 0.03)
-		if hit.Instance:IsA("BasePart") then
-			attachment = hit.Instance
-			attachedHumanoid = targetFrom(hit)[1]
-		end
-	end
-	-- Placement is intentionally not gated on free volume. A Construct can be
-	-- formed in open air or intersect existing world geometry; a ray hit only
-	-- improves placement by attaching it to the nearby surface/character.
-	return frame, size, attachment, attachedHumanoid, if hit then hit.Position else nil, if hit then hit.Normal else nil
-end
 local function execute(
 	player,
 	state,
@@ -2080,6 +2114,18 @@ local function execute(
 	local persistentConstruct = definition.Form == "Construct" and definition.Lifetime.Mode == "Persistent"
 	if not stats or (not persistentConstruct and not hasCapacity(player, if channelProjectile then 2 else 1)) then
 		feedback(remote, player, "IMPOSSIBLE", definition, { Reason = "Active spell safety limit" })
+		return
+	end
+	if
+		not persistentConstruct and not LoadBudget.canAdd(activeLoad(), LoadBudget.weight(definition), serverFrameMs)
+	then
+		feedback(
+			remote,
+			player,
+			"IMPOSSIBLE",
+			definition,
+			{ Reason = "Too much magic is active here; try again shortly" }
+		)
 		return
 	end
 	local constructFrame, constructSize, constructAttachment, constructHumanoid, constructAnchorPoint, constructAnchorNormal
@@ -2207,9 +2253,6 @@ local function execute(
 		paidSpecialResources = true
 		syncSpecialResourceAttributes(player)
 	end
-	if not definition.Development or CastingSpec.isHeldMode(definition.Casting.Mode) or paidSpecialResources then
-		queueResourceSave(player)
-	end
 	Summons.clearDismissal(player, definition.SpellId)
 	stats.Ready[definition.SpellId] = {
 		Remaining = math.max(definition.Casting.Cooldown, definition.Casting.RecoveryTime),
@@ -2271,47 +2314,8 @@ local function execute(
 		if not components then
 			return
 		end
-		local componentLifetimes = {}
-		local model = Instance.new("Model")
-		model.Name = "MagicTemporaryConstruct"
-		local pivot = Instance.new("Part")
-		pivot.Name = "ConstructPivot"
-		pivot.Size = Vector3.one * 0.1
-		pivot.Transparency = 1
-		pivot.Anchored = true
-		pivot.CanCollide, pivot.CanTouch, pivot.CanQuery = false, false, false
-		pivot.CFrame = constructFrame
-		pivot.Parent = model
-		model.PrimaryPart = pivot
-		-- The bounded registry is shared with the preview; only server-authored
-		-- components become collidable, and character attachments remain harmless.
-		for index, component in ipairs(components) do
-			local part: BasePart = Instance.new(if component.Shape == "Wedge" then "WedgePart" else "Part")
-			part.Name = string.format("ConstructPart%02d", index)
-			part.Size = Vector3.new(component.Size[1], component.Size[2], component.Size[3])
-			if part:IsA("Part") then
-				part.Shape = Enum.PartType[component.Shape]
-			end
-			local rotation = component.RotationDegrees
-			part.CFrame = constructFrame
-				* CFrame.new(component.Offset[1], component.Offset[2], component.Offset[3])
-				* CFrame.Angles(math.rad(rotation[1]), math.rad(rotation[2]), math.rad(rotation[3]))
-			-- Anchored pieces are moved together with the Model and cannot tunnel.
-			part.Anchored = true
-			part.CanCollide, part.CanTouch, part.CanQuery = constructHumanoid == nil, false, true
-			part.Material, part.Color, part.Transparency =
-				Presentation.material(d), d.Visual.Color, 1 - (d.Visual.Opacity or 0.85)
-			part.Parent = model
-			if component.Duration then
-				componentLifetimes[part] = component.Duration
-			end
-			Presentation.construct(part, if index == 1 then 20 else 4, d)
-		end
-		local constructStartScale = AreaGrowth.scale(d.Construct, 0)
-		if constructStartScale ~= 1 then
-			model:ScaleTo(constructStartScale)
-		end
-		model.Parent = workspace
+		local model, pivot, componentLifetimes, constructStartScale =
+			buildConstructModel(d, components, constructFrame, constructHumanoid == nil)
 		if d.Lifetime.Mode == "Persistent" and persistentRecordId then
 			model.Name = "MagicPersistentConstruct"
 			model:SetAttribute("MagicPersistentConstruct", true)
@@ -2423,6 +2427,11 @@ local function execute(
 		emit(d, "OnSpawn", state.Character, point, targets, Vector3.zero, remote, player, nil, aura)
 	end
 	formContext.ExecuteBeam = function(d)
+		local targetRoot = selectedTarget and selectedTarget:FindFirstChild("HumanoidRootPart")
+		local beamAimPoint = if targetRoot and targetRoot:IsA("BasePart")
+			then targetRoot.Position
+			else if validVector(intent.WorldPoint) then intent.WorldPoint else nil
+		direction = BeamAim.direction(origin, direction, beamAimPoint)
 		local objectTarget = if d.Targeting == "ObjectTarget"
 				and material
 				and material:IsA("BasePart")
@@ -2443,6 +2452,7 @@ local function execute(
 				NextInterval = 0,
 				Definition = d,
 				ObjectTarget = objectTarget,
+				AimPoint = beamAimPoint,
 				Position = origin,
 				Direction = direction,
 				Player = player,
@@ -2453,7 +2463,8 @@ local function execute(
 			channel.AmbientSound = Presentation.attachLoop(d, "AmbientLoopSoundId", state.Root)
 			local hit = sweep(origin, direction * beamRange, state.Character, nil, beam.Width / 2)
 			local endpoint = hit and (origin + direction * hit.Distance) or origin + direction * beamRange
-			Presentation.beam(origin, endpoint, beam.Width, d.Visual.Color, d.Beam.DebugDuration, d)
+			channel.Visual =
+				Presentation.beam(origin, endpoint, beam.Width, d.Visual.Color, d.Beam.DebugDuration, d, nil, true)
 			local targetHit = if hit and hit.Instance == objectTarget
 				then objectTargetHit(
 					state.Character,
@@ -2612,16 +2623,7 @@ local function execute(
 				then { AllowObjectTarget = objectHit ~= nil, ObjectTarget = objectTarget }
 				else nil
 			emit(d, eventName, state.Character, point, targets, waveDirection, remote, player, nil, eventState)
-			Presentation.marker(
-				"MagicWaveDebug",
-				if d.Geometry == "Sphere" then point else point - Vector3.new(0, 2.7, 0),
-				if d.Geometry == "Sphere"
-					then Vector3.one * waveRange * 2
-					else Vector3.new(0.15, waveRange * 2, waveRange * 2),
-				d.Visual.Color,
-				d.Wave.DebugDuration,
-				if d.Geometry == "Sphere" then Enum.PartType.Ball else Enum.PartType.Cylinder
-			)
+			Presentation.wave(d, frame, waveRange, d.Wave.DebugDuration)
 			return targets, point
 		end
 		local _, point = pulse("OnCast", 0)
@@ -2725,41 +2727,7 @@ local function execute(
 		end
 	end
 	formContext.ApplySelf = function(d)
-		local ctx = context(d, state.Character, state.Root.Position, { state.Humanoid }, direction, remote, player)
-		local combined = { WalkSpeedBonus = 0, JumpPowerBonus = 0, SpeedMultiplier = 1, AerialSpeed = 0 }
-		ctx.ApplyEnhancement = function(payload)
-			combined.WalkSpeedBonus += payload.WalkSpeedBonus or 0
-			combined.JumpPowerBonus += payload.JumpPowerBonus or 0
-			combined.SpeedMultiplier = math.max(combined.SpeedMultiplier, payload.SpeedMultiplier or 1)
-		end
-		ctx.ApplyAerialMovement = function(payload)
-			combined.AerialSpeed = math.max(combined.AerialSpeed, payload.Speed or 0)
-		end
-		Triggers.execute(d, "OnCast", ctx)
-		enhancements[player] = enhancements[player] or {}
-		enhancements[player][d.SpellId] = {
-			State = state,
-			Definition = d,
-			Remote = remote,
-			Direction = direction,
-			Age = 0,
-			CurrentPhase = "Active",
-			TargetsHit = {},
-			StartedAt = os.clock(),
-			ExpiresAt = if d.Lifetime.Mode == "UntilToggledOff"
-					or d.Lifetime.Mode == "UntilResourceDepleted"
-					or d.Lifetime.Mode == "UntilConditionFails"
-				then math.huge
-				else workspace:GetServerTimeNow() + d.Lifetime.Duration,
-			WalkSpeedBonus = combined.WalkSpeedBonus,
-			JumpPowerBonus = combined.JumpPowerBonus,
-			SpeedMultiplier = combined.SpeedMultiplier,
-			AerialSpeed = combined.AerialSpeed,
-			ProximityState = if d.Proximity then ProximitySpec.newState(workspace:GetServerTimeNow()) else nil,
-			IsChannel = d.Casting.Mode == "Channeled",
-			AmbientSound = Presentation.attachLoop(d, "AmbientLoopSoundId", state.Root),
-		}
-		updateEnhancement(player)
+		startSelfEnhancement(d, state, direction, remote, player)
 		if d.Casting.Mode == "Channeled" then
 			local channel = {
 				Kind = "SelfEnhancementChannel",
@@ -2798,6 +2766,9 @@ local function execute(
 			{ AllowObjectTarget = target ~= nil, ObjectTarget = target }
 		)
 		Triggers.execute(d, "OnCast", ctx)
+		if target then
+			Presentation.follow(d, target, target.Size, 2)
+		end
 	end
 	formContext.CreateProjectile = function(d)
 		-- Begin at the server-known origin so a large projectile cannot skip a nearby wall.
@@ -2875,14 +2846,13 @@ local function execute(
 		ProjectileBehaviors.spawn(projectile, projectileBehaviorContext(projectile))
 	end
 	Forms.execute(definition.Form, definition, formContext)
+	Telemetry.spellCast(player, definition)
 	if CastingSpec.isHeldMode(definition.Casting.Mode) then
 		local channel = stats.Channel
 		if channel and channel.Caster == state.Character and channel.SpellId == definition.SpellId then
 			Presentation.sustain(state.Character, definition)
 		end
 	end
-	Discovery.recordCast(player, definition)
-	syncLocusProgression(player)
 end
 local function castNow(player, state, intent, remote, definition, charge, castContext)
 	local result, reason, material, direction, selectedTarget, objectPosition =
@@ -2969,6 +2939,7 @@ local function movementInterrupted(windup): boolean
 end
 
 function Magic.start(player, state, intent, remote, castContext, temporaryDefinition): (boolean, string?)
+	castStates[player] = state
 	local definition = temporaryDefinition or getDefinition(intent.SpellId)
 	local stats = playerData[player]
 	if not definition or not stats then
@@ -3055,73 +3026,6 @@ local function expireConstruct(spell)
 	local target = spell.AttachedHumanoid
 	local targets = if target and target.Health > 0 and target.Parent then { target } else {}
 	emitExpiry(spell, spell.Position or spell.Caster:GetPivot().Position, targets, nil)
-end
-
-local function finalChannelTargets(channel)
-	local definition = channel.Definition
-	channel.HitPart = nil
-	local humanoid = channel.Caster:FindFirstChildOfClass("Humanoid")
-	local root = channel.Caster:FindFirstChild("HumanoidRootPart")
-	if
-		not humanoid
-		or humanoid.Health <= 0
-		or not root
-		or not root:IsA("BasePart")
-		or not root:IsDescendantOf(workspace)
-	then
-		return channel.Position, {}
-	end
-	channel.AllowObjectTarget = false
-	if channel.Kind == "BeamChannel" then
-		local beam = AreaGrowth.area(definition.Beam, AreaGrowth.scale(definition.Beam, channel.Age))
-		local range = math.min(beam.Range, definition.TargetRules.Range)
-		local origin = Presentation.handOrigin(channel.Caster, root.Position + Vector3.new(0, 1.5, 0))
-		local hit = sweep(origin, channel.Direction * range, channel.Caster, nil, beam.Width / 2)
-		local objectHit = if hit and hit.Instance == channel.ObjectTarget
-			then objectTargetHit(
-				channel.Caster,
-				origin,
-				channel.Direction,
-				math.min(objectTargetRange(definition), range),
-				channel.ObjectTarget,
-				definition
-			)
-			else nil
-		channel.AllowObjectTarget = objectHit ~= nil
-		channel.HitPart = if not channel.ObjectTarget and hit then hit.Instance else nil
-		channel.Position = origin
-		return origin,
-			if channel.ObjectTarget then if objectHit then { channel.ObjectTarget } else {} else targetFrom(hit)
-	elseif channel.Kind == "WaveChannel" then
-		local wave = AreaGrowth.area(definition.Wave, AreaGrowth.scale(definition.Wave, channel.Age))
-		local range = math.min(wave.Range, definition.TargetRules.Range)
-		local position = root.Position
-		local objectHit = objectTargetHit(
-			channel.Caster,
-			position + Vector3.new(0, 1.5, 0),
-			channel.Direction,
-			math.min(objectTargetRange(definition), range),
-			channel.ObjectTarget,
-			definition
-		)
-		if channel.ObjectTarget then
-			channel.AllowObjectTarget = objectHit ~= nil
-			channel.Position = position
-			return position, if objectHit then { channel.ObjectTarget } else {}
-		end
-		local frame = CFrame.lookAt(position, position + channel.Direction)
-		local targetRules = {
-			OverlapCollisionGroup = Sandbox.Combat.OverlapCollisionGroup,
-			RequireLineOfSight = definition.TargetRules.RequiresLineOfSight,
-			IncludeAttacker = definition.TargetRules.IncludeCaster,
-		}
-		local targets = if definition.Geometry == "Sphere"
-			then HitDetection.findSphere(channel.Caster, frame, range, targetRules)
-			else HitDetection.findCone(channel.Caster, frame, range, wave.Dot, targetRules)
-		channel.Position = position
-		return position, targets
-	end
-	return channel.Position, {}
 end
 
 finishBeamChannel = function(channel)
@@ -3245,6 +3149,13 @@ function Magic.updateAim(player, state, intent): boolean
 		return false
 	end
 	channel.Direction = direction.Unit
+	channel.AimPoint = nil
+	if channel.Kind == "BeamChannel" and validVector(intent.WorldPoint) then
+		local delta = intent.WorldPoint - (state.Root.Position + Vector3.new(0, 1.5, 0))
+		if delta.Magnitude > 0.001 and direction.Unit:Dot(delta.Unit) >= Sandbox.Magic.MinimumWorldAimDot then
+			channel.AimPoint = intent.WorldPoint
+		end
+	end
 	return true
 end
 
@@ -3399,6 +3310,10 @@ function Magic.castSummonSpell(
 	if not definition or not profile then
 		return false, 0, false, profileReason or "Assigned spell is not valid for companions"
 	end
+	local spellAllowed, disabledReason = FeatureFlags.spellAllowed(definition)
+	if not spellAllowed then
+		return false, 0, false, disabledReason
+	end
 	if caster:GetAttribute("MagicSummonOwnerUserId") ~= player.UserId then
 		return false, 0, false, "Summon belongs to another player"
 	end
@@ -3509,163 +3424,20 @@ local function clearActive(player)
 	end
 end
 
-local function locusProfileKey(player: Player): string
-	return "u:" .. tostring(player.UserId)
-end
-
-local function saveLocusProfile(player: Player): boolean
-	local state = playerData[player]
-	if not state or not resourceDirty[player] then
-		return true
-	end
-	if not LocusPersistence.Enabled or not locusStoreAvailable or not locusStore or not resourceWritable[player] then
-		return false
-	end
-	local snapshot = LocusProfileCodec.encode(state, LocusPersistence.MaxPersistedStrain, SpecialResourceDefinitions)
-	if not snapshot then
-		resourceWritable[player] = false
-		warn("Magic: invalid Locus state was not persisted")
-		return false
-	end
-	local manaSnapshot, strainSnapshot = snapshot.Mana, snapshot.Strain
-	local rejectedExistingProfile = false
-	local ok, result = pcall(function()
-		return locusStore:UpdateAsync(locusProfileKey(player), function(existing)
-			rejectedExistingProfile = false
-			if existing ~= nil then
-				local _, safe = LocusProfileCodec.decode(
-					existing,
-					Sandbox.Magic.SandboxResources.StartingMana,
-					LocusProfile.Capacity,
-					LocusPersistence.MaxPersistedStrain,
-					SpecialResourceDefinitions
-				)
-				if not safe then
-					rejectedExistingProfile = true
-					return nil
-				end
-			end
-			return snapshot
-		end)
-	end)
-	if not ok then
-		warn("Magic: Locus profile save failed; server session remains active")
-		return false
-	end
-	if rejectedExistingProfile or result == nil then
-		resourceWritable[player] = false
-		warn("Magic: unsafe existing Locus profile was left untouched")
-		return false
-	end
-	local specialValuesMatch = true
-	for id, value in pairs(snapshot.SpecialResources) do
-		if state.SpecialResources[id] ~= value then
-			specialValuesMatch = false
-			break
-		end
-	end
-	if state.Mana == manaSnapshot and state.Strain == strainSnapshot and specialValuesMatch then
-		resourceDirty[player] = nil
-	end
-	return true
-end
-
-queueResourceSave = function(player: Player)
-	if not LocusPersistence.Enabled or not locusStoreAvailable or not locusStore or not resourceWritable[player] then
-		return
-	end
-	resourceDirty[player] = true
-	if resourceSaveScheduled[player] then
-		return
-	end
-	resourceSaveScheduled[player] = true
-	task.delay(LocusPersistence.SaveInterval, function()
-		resourceSaveScheduled[player] = nil
-		if player.Parent ~= Players or not resourceDirty[player] then
-			return
-		end
-		saveLocusProfile(player)
-		if resourceDirty[player] and resourceWritable[player] then
-			queueResourceSave(player)
-		end
-	end)
-end
-
-local function loadLocusProfile(player: Player)
-	local startingMana = Sandbox.Magic.SandboxResources.StartingMana
-	if not LocusPersistence.Enabled or not locusStoreAvailable or not locusStore then
-		resourceWritable[player] = false
-		return {
-			Mana = startingMana,
-			Strain = 0,
-			SpecialResources = SpecialResourceSpec.defaults(SpecialResourceDefinitions),
-		}
-	end
-	local ok, raw = pcall(function()
-		return locusStore:GetAsync(locusProfileKey(player))
-	end)
-	if not ok then
-		resourceWritable[player] = false
-		warn("Magic: Locus profile could not load; using canonical starting resources for this session")
-		return {
-			Mana = startingMana,
-			Strain = 0,
-			SpecialResources = SpecialResourceSpec.defaults(SpecialResourceDefinitions),
-		}
-	end
-	local maximumProfile = LocusProgression.maximumProfile(LocusProfile, LocusConfiguration.Progression)
-	local resources, safe = LocusProfileCodec.decode(
-		raw,
-		startingMana,
-		maximumProfile.Capacity,
-		LocusPersistence.MaxPersistedStrain,
-		SpecialResourceDefinitions
-	)
-	resourceWritable[player] = safe
-	if not safe then
-		warn("Magic: unsafe Locus profile was left untouched; using canonical starting resources for this session")
-	end
-	return resources
-end
-
+-- Mana, Strain and special resources live only for this server session and start from
+-- the fixed Locus profile. (Cross-session Locus persistence was removed.)
 function Magic.bind(player)
 	if playerData[player] then
 		return
 	end
-	local canLoad = LocusPersistence.Enabled and locusStoreAvailable and locusStore ~= nil
-	resourceWritable[player] = false
-	resourceProfileLoaded[player] = not canLoad
-	local startingMana = Sandbox.Magic.SandboxResources.StartingMana
-	local state = LocusModel.newState(LocusProfile, startingMana)
+	local state = LocusModel.newState(LocusProfile, ResourceBalance.StartingMana)
 	state.SpecialResources = SpecialResourceSpec.defaults(SpecialResourceDefinitions)
 	state.Strain = 0
-	state.ResourceProfileReady = not canLoad
+	state.ResourceProfileReady = true
 	state.Ready = {}
 	playerData[player] = state
 	syncSpecialResourceAttributes(player)
-	progressionConnections[player] = player:GetAttributeChangedSignal("MagicDiscoveryLoaded"):Connect(function()
-		syncLocusProgression(player)
-	end)
-	syncLocusProgression(player)
-	if canLoad then
-		task.spawn(function()
-			local resources = loadLocusProfile(player)
-			local current = playerData[player]
-			if not current or player.Parent ~= Players or resourceProfileLoaded[player] then
-				resourceWritable[player] = nil
-				resourceProfileLoaded[player] = nil
-				return
-			end
-			current.Mana = resources.Mana
-			current.Strain = resources.Strain
-			current.SpecialResources =
-				SpecialResourceSpec.mergeCurrent(resources.SpecialResources, SpecialResourceDefinitions)
-			current.ResourceProfileReady = true
-			syncSpecialResourceAttributes(player)
-			syncLocusProgression(player)
-			resourceProfileLoaded[player] = true
-		end)
-	end
+	syncHUDResourceAttributes(player, state)
 end
 function Magic.reset(player)
 	clearActive(player)
@@ -3703,7 +3475,6 @@ function Magic.reset(player)
 		state.SpecialResources = SpecialResourceSpec.mergeCurrent(old.SpecialResources, SpecialResourceDefinitions)
 		state.ResourceProfileReady = old.ResourceProfileReady
 		state.Ready = {}
-		state.ProgressionRank = old.ProgressionRank or 0
 		playerData[player] = state
 		syncSpecialResourceAttributes(player)
 	end
@@ -3728,31 +3499,28 @@ function Magic.restoreTestingResources(player)
 end
 function Magic.remove(player)
 	Magic.reset(player)
-	if resourceDirty[player] then
-		saveLocusProfile(player)
-	end
 	playerData[player] = nil
-	if progressionConnections[player] then
-		progressionConnections[player]:Disconnect()
-		progressionConnections[player] = nil
-	end
-	resourceWritable[player] = nil
-	resourceDirty[player] = nil
-	resourceSaveScheduled[player] = nil
-	resourceProfileLoaded[player] = nil
 	companionSpells[player] = nil
 end
 
-game:BindToClose(function()
-	for player in pairs(playerData) do
-		if resourceDirty[player] then
-			saveLocusProfile(player)
-		end
-	end
-end)
+local loadPublishedAt = 0
 RunService.Heartbeat:Connect(function(delta)
+	serverFrameMs = LoadBudget.smooth(serverFrameMs, delta)
+	if os.clock() - loadPublishedAt >= 0.25 then
+		-- Profiling aid: watch these on Workspace in a server view or the Developer Console.
+		loadPublishedAt = os.clock()
+		workspace:SetAttribute("MagicLoad", math.floor(activeLoad() * 10) / 10)
+		workspace:SetAttribute("MagicLoadLimit", math.floor(LoadBudget.allowed(serverFrameMs)))
+		workspace:SetAttribute("ServerFrameMs", math.floor(serverFrameMs * 10) / 10)
+		workspace:SetAttribute("MagicActiveCount", #active)
+	end
 	local now = workspace:GetServerTimeNow()
 	for player, stats in playerData do
+		local hudSyncAt = stats.HUDSyncAt or 0
+		if now - hudSyncAt >= 0.25 then
+			stats.HUDSyncAt = now
+			syncHUDResourceAttributes(player, stats)
+		end
 		for spellId, cooldown in stats.Ready do
 			if type(cooldown) == "number" then
 				stats.Ready[spellId] = { Remaining = math.max(0, cooldown - now), Caster = nil }
@@ -3773,16 +3541,13 @@ RunService.Heartbeat:Connect(function(delta)
 		LocusModel.advance(
 			stats,
 			delta,
-			Sandbox.Magic.SandboxResources.ManaRegenerationPerSecond,
-			Sandbox.Magic.SandboxResources.StrainRecoveryPerSecond
+			ResourceBalance.ManaRegenerationPerSecond,
+			ResourceBalance.StrainRecoveryPerSecond
 		)
 		local specialResourcesChanged =
 			SpecialResourceSpec.advance(stats.SpecialResources, SpecialResourceDefinitions, delta)
 		if specialResourcesChanged then
 			syncSpecialResourceAttributes(player)
-		end
-		if stats.Mana ~= manaBefore or stats.Strain ~= strainBefore or specialResourcesChanged then
-			queueResourceSave(player)
 		end
 		local charge = stats.Charge
 		if charge and movementInterrupted(charge) then
@@ -3943,9 +3708,6 @@ RunService.Heartbeat:Connect(function(delta)
 		local paid = true
 		if manaRate > 0 or strainRate > 0 then
 			paid = stats ~= nil and LocusModel.upkeep(stats, manaRate, strainRate, step)
-			if stats then
-				queueResourceSave(spell.Player)
-			end
 		end
 		-- Exact depletion is also exhaustion even when the final payment was fully covered.
 		if not paid or (stats and manaRate > 0 and stats.Mana <= 0) then
@@ -4000,16 +3762,19 @@ RunService.Heartbeat:Connect(function(delta)
 					local beam = AreaGrowth.area(d.Beam, AreaGrowth.scale(d.Beam, spell.Age))
 					local beamRange = math.min(beam.Range, d.TargetRules.Range)
 					spell.Position = Presentation.handOrigin(spell.Caster, root.Position + Vector3.new(0, 1.5, 0))
+					spell.Direction = BeamAim.direction(spell.Position, spell.Direction, spell.AimPoint)
 					local hit = sweep(spell.Position, spell.Direction * beamRange, spell.Caster, nil, beam.Width / 2)
 					local endpoint = hit and (spell.Position + spell.Direction * hit.Distance)
 						or spell.Position + spell.Direction * beamRange
-					Presentation.beam(
+					spell.Visual = Presentation.beam(
 						spell.Position,
 						endpoint,
 						beam.Width,
 						d.Visual.Color,
 						math.max(d.Beam.DebugDuration, d.Beam.Interval * 1.5),
-						d
+						d,
+						spell.Visual,
+						true
 					)
 					local targetHit = if hit and hit.Instance == spell.ObjectTarget
 						then objectTargetHit(
@@ -4117,16 +3882,7 @@ RunService.Heartbeat:Connect(function(delta)
 							targetRules
 						)
 						else HitDetection.findCone(spell.Caster, frame, waveRange, d.Wave.Dot, targetRules)
-					Presentation.marker(
-						"MagicWaveDebug",
-						if d.Geometry == "Sphere" then spell.Position else spell.Position - Vector3.new(0, 2.7, 0),
-						if d.Geometry == "Sphere"
-							then Vector3.one * waveRange * 2
-							else Vector3.new(0.15, waveRange * 2, waveRange * 2),
-						d.Visual.Color,
-						d.Wave.DebugDuration,
-						if d.Geometry == "Sphere" then Enum.PartType.Ball else Enum.PartType.Cylinder
-					)
+					Presentation.wave(d, frame, waveRange, d.Wave.DebugDuration)
 					spell.AllowObjectTarget = objectHit ~= nil
 					emit(
 						d,
@@ -4650,7 +4406,10 @@ RunService.Heartbeat:Connect(function(delta)
 				then previous + (if movement.Magnitude > 0 then movement.Unit else Vector3.zero) * hit.Distance
 				else previous + movement
 			spell.Distance += if hit then hit.Distance else movement.Magnitude
-			spell.Visual.Position = spell.Position
+			spell.Visual.CFrame = CFrame.lookAt(
+				spell.Position,
+				spell.Position + (if movement.Magnitude > 0.001 then movement.Unit else spell.Direction)
+			)
 			if hit then
 				Presentation.impact(hit.Position, d.Visual.Color, d, hit)
 				local hitObjectTarget = spell.ObjectTarget
@@ -4698,7 +4457,7 @@ RunService.Heartbeat:Connect(function(delta)
 				end
 				if continue then
 					spell.Position = hit.Position + spell.Direction * (d.Projectile.Radius + 0.05)
-					spell.Visual.Position = spell.Position
+					spell.Visual.CFrame = CFrame.lookAt(spell.Position, spell.Position + spell.Direction)
 				elseif spell.Kind == "ProjectileLinger" then
 					Presentation.stopLoop(spell.Visual, "TravelSoundId")
 					Presentation.attachLoop(d, "AmbientLoopSoundId", spell.Visual)
@@ -4754,9 +4513,6 @@ RunService.Heartbeat:Connect(function(delta)
 			then
 				local stats = playerData[player]
 				local paid = stats ~= nil and LocusModel.upkeep(stats, manaRate, strainRate, delta)
-				if stats then
-					queueResourceSave(player)
-				end
 				if not paid or (stats and manaRate > 0 and stats.Mana <= 0) then
 					effect.ResourceEnded = true
 					effect.ExpiresAt = now
@@ -4798,62 +4554,6 @@ RunService.Heartbeat:Connect(function(delta)
 		end
 	end
 end)
-
-local function restorePersistentConstruct(record)
-	local savedVisual = record.Visual
-	local visual = {
-		Color = Color3.new(savedVisual.Color[1], savedVisual.Color[2], savedVisual.Color[3]),
-		MaterialAppearance = savedVisual.MaterialAppearance,
-		Opacity = savedVisual.Opacity,
-		Emission = savedVisual.Emission,
-		ParticleStyle = savedVisual.ParticleStyle,
-	}
-	if savedVisual.SecondaryColor then
-		visual.SecondaryColor =
-			Color3.new(savedVisual.SecondaryColor[1], savedVisual.SecondaryColor[2], savedVisual.SecondaryColor[3])
-	end
-	local frame = CFrame.new(record.Position[1], record.Position[2], record.Position[3])
-		* CFrame.Angles(
-			math.rad(record.RotationDegrees[1]),
-			math.rad(record.RotationDegrees[2]),
-			math.rad(record.RotationDegrees[3])
-		)
-	local definition = { Form = "Construct", Visual = visual }
-	local model = Instance.new("Model")
-	model.Name = "MagicPersistentConstruct"
-	local pivot = Instance.new("Part")
-	pivot.Name = "ConstructPivot"
-	pivot.Size = Vector3.one * 0.1
-	pivot.Transparency = 1
-	pivot.Anchored = true
-	pivot.CanCollide, pivot.CanTouch, pivot.CanQuery = false, false, false
-	pivot.CFrame = frame
-	pivot.Parent = model
-	model.PrimaryPart = pivot
-	for index, component in ipairs(record.Components) do
-		local part: BasePart = Instance.new(if component.Shape == "Wedge" then "WedgePart" else "Part")
-		part.Name = string.format("ConstructPart%02d", index)
-		part.Size = Vector3.new(component.Size[1], component.Size[2], component.Size[3])
-		if part:IsA("Part") then
-			part.Shape = Enum.PartType[component.Shape]
-		end
-		local rotation = component.RotationDegrees
-		part.CFrame = frame
-			* CFrame.new(component.Offset[1], component.Offset[2], component.Offset[3])
-			* CFrame.Angles(math.rad(rotation[1]), math.rad(rotation[2]), math.rad(rotation[3]))
-		part.Anchored = true
-		part.CanCollide, part.CanTouch, part.CanQuery = true, false, true
-		part.Material = Presentation.material(definition)
-		part.Color = definition.Visual.Color
-		part.Transparency = 1 - (definition.Visual.Opacity or 0.85)
-		part.Parent = model
-	end
-	model:SetAttribute("MagicPersistentConstruct", true)
-	model:SetAttribute("MagicPersistentConstructId", record.Id)
-	model:SetAttribute("MagicPersistentConstructOwner", record.OwnerUserId)
-	model.Parent = workspace
-	watchPersistentConstruct(model, record.Id)
-end
 
 task.spawn(function()
 	local ready, reason = PersistentConstructStore.start(restorePersistentConstruct)

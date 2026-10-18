@@ -9,6 +9,8 @@ Spec.ImpactStyles = { "Burst", "Ring", "Pulse", "Cross", "None" }
 Spec.CastingStyles = { "HandGlow", "GroundSigil", "None" }
 Spec.SurfaceBehaviors = { "None", "Pulse" }
 Spec.EnvironmentalVisuals = { "None", "Motes", "GroundMist" }
+Spec.VFXDefinitions =
+	{ "None", "FireBurst", "FireProjectile", "FrostCharge", "FrostProjectile", "ArcaneTrail", "ArcaneProjectile" }
 Spec.Palettes = { "Origin", "Ember", "Tide", "Verdant", "Soulfire", "Rift", "Chronal", "LegacyCustom" }
 -- Palette presentation is cosmetic metadata. Keep it separate from the dormant
 -- discovery rules so the authoring UI does not depend on progression state.
@@ -78,6 +80,7 @@ Spec.Defaults = {
 	SurfaceBehavior = "None",
 	EnvironmentalVisual = "None",
 	Distortion = 0,
+	VFXDefinition = "None",
 }
 
 local allowed = {}
@@ -141,6 +144,7 @@ function Spec.validate(visual)
 		CastingStyle = Spec.CastingStyles,
 		SurfaceBehavior = Spec.SurfaceBehaviors,
 		EnvironmentalVisual = Spec.EnvironmentalVisuals,
+		VFXDefinition = Spec.VFXDefinitions,
 		Palette = Spec.Palettes,
 	}
 	for key, values in pairs(options) do

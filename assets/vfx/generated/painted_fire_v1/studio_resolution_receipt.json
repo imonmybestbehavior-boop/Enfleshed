@@ -1,0 +1,9 @@
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "[{\"AssetTypeId\":1,\"Name\":\"front\",\"AssetName\":\"##############################################\",\"Creator\":{\"Name\":\"enfleshedgame\",\"CreatorTargetId\":11710760568,\"Id\":11710760568,\"HasVerifiedBadge\":false,\"CreatorType\":\"User\"},\"Children\":[],\"ReturnedId\":81011468551955},{\"AssetTypeId\":1,\"Name\":\"three_quarter\",\"AssetName\":\"Assistant_1a561901399eed143ba2a5763cdafa03.png\",\"Creator\":{\"Name\":\"enfleshedgame\",\"CreatorTargetId\":11710760568,\"Id\":11710760568,\"HasVerifiedBadge\":false,\"CreatorType\":\"User\"},\"Children\":[],\"ReturnedId\":81316819745490},{\"AssetTypeId\":1,\"Name\":\"side\",\"AssetName\":\"Assistant_9231de1c073d623bf589cd4e13491a36.png\",\"Creator\":{\"Name\":\"enfleshedgame\",\"CreatorTargetId\":11710760568,\"Id\":11710760568,\"HasVerifiedBadge\":false,\"CreatorType\":\"User\"},\"Children\":[],\"ReturnedId\":97561699384624},{\"AssetTypeId\":1,\"Name\":\"rear\",\"AssetName\":\"Assistant_910adf7c86219cb6d883be38f1090863.png\",\"Creator\":{\"Name\":\"enfleshedgame\",\"CreatorTargetId\":11710760568,\"Id\":11710760568,\"HasVerifiedBadge\":false,\"CreatorType\":\"User\"},\"Children\":[],\"ReturnedId\":92127109486544}]"
+    }
+  ],
+  "isError": false
+}

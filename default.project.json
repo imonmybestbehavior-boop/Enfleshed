@@ -4,7 +4,22 @@
     "$className": "DataModel",
     "ReplicatedStorage": {
       "Shared": {
-        "$path": "src/shared"
+        "$path": "src/shared",
+        "SandboxRemotes": {
+          "$className": "Folder",
+          "ActionRequest": { "$className": "RemoteEvent" },
+          "ActionFeedback": { "$className": "RemoteEvent" },
+          "AerialControl": { "$className": "RemoteEvent" },
+          "MagicLabRequest": { "$className": "RemoteEvent" },
+          "MagicLabResponse": { "$className": "RemoteEvent" },
+          "GrimoireResponse": { "$className": "RemoteEvent" },
+          "TrainingDummyRequest": { "$className": "RemoteEvent" },
+          "TrainingDummyResponse": { "$className": "RemoteEvent" },
+          "MagicPresentation": { "$className": "RemoteEvent" },
+          "SpellVFX": { "$className": "RemoteEvent" },
+          "MissionRemote": { "$className": "RemoteEvent" },
+          "InventoryRemote": { "$className": "RemoteEvent" }
+        }
       }
     },
     "ServerScriptService": {
@@ -24,7 +39,8 @@
         "FilteringEnabled": true,
         "StreamingEnabled": true,
         "StreamingMinRadius": 256,
-        "StreamingTargetRadius": 768
+        "StreamingTargetRadius": 768,
+        "FallenPartsDestroyHeight": -100
       },
       "Baseplate": {
         "$className": "Part",
@@ -59,24 +75,12 @@
         "Brightness": 2,
         "GlobalShadows": true,
         "Outlines": false,
-        "Technology": "Voxel"
+        "Technology": "Future"
       }
     },
     "SoundService": {
       "$properties": {
         "RespectFilteringEnabled": true
-      }
-    },
-    "ServerStorage": {
-      "$className": "ServerStorage",
-      "CompressionPilotAssets": {
-        "$className": "Folder",
-        "Commercial": {
-          "$path": "prototypes/FacadeStudy/Facade.rbxmx"
-        },
-        "Tenement": {
-          "$path": "prototypes/TenementStudy/Tenement.rbxmx"
-        }
       }
     }
   }

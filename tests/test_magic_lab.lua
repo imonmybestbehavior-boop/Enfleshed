@@ -337,6 +337,7 @@ do
 	legacyBeam.Beam.SpreadRadius = nil
 	legacyBeam.Beam.DropHeight = nil
 	legacyBeam.Beam.StrikeInterval = nil
+	legacyBeam.Triggers.OnImpact = { { Payloads = { { Kind = "Damage", Amount = 8 } } } }
 	assert(spec.validate(legacyBeam), "Older version-3 Beam data should retain the Single default")
 	local channeledCascade = spec.copy(cascadeBeam)
 	channeledCascade.Casting.Mode = "Channeled"
@@ -371,6 +372,7 @@ do
 	assert(not spec.validate(activePersistentConstruct), "Persistent Constructs must reject held casting")
 	local specialResourceDraft = spec.createDraft("Projectile", "Energy")
 	specialResourceDraft.Cost.SpecialResources.Focus = 12
+	specialResourceDraft.Triggers.OnImpact = { { Payloads = { { Kind = "Damage", Amount = 8 } } } }
 	assert(spec.validate(specialResourceDraft), "Configured named-resource costs should validate")
 	local unknownResourceDraft = spec.copy(specialResourceDraft)
 	unknownResourceDraft.Cost.SpecialResources.UnknownPool = 1
@@ -389,7 +391,11 @@ do
 	)
 	local objectControl = spec.copy(objectForce)
 	objectControl.Triggers.OnCast = {
-		{ Payloads = { { Kind = "Control", Mode = "Pull", Acceleration = 24, Duration = 2, MaxSpeed = 32 } } },
+		{
+			Payloads = {
+				{ Kind = "Control", Mode = "Pull", Acceleration = 24, Duration = 2, MaxSpeed = 32, MaxMass = 500 },
+			},
+		},
 	}
 	local objectControlValid, objectControlReason = spec.validate(objectControl)
 	assert(
@@ -410,6 +416,7 @@ do
 	local audioDraft = spec.createDraft("Projectile", "Energy")
 	audioDraft.Audio.CastSoundId = "1234567890"
 	audioDraft.Audio.TravelSoundId = "9876543210"
+	audioDraft.Triggers.OnImpact = { { Payloads = { { Kind = "Damage", Amount = 8 } } } }
 	assert(spec.validate(audioDraft), "Numeric audio asset IDs should validate on new spell drafts")
 	local legacyAudio = spec.normalize(spells.Fireball)
 	assert(legacyAudio.Audio.CastSoundId == "", "Legacy spells should receive silent audio defaults")
@@ -469,6 +476,7 @@ do
 	assert(not spec.validate(conditionBoundWithoutRule), "Condition-bound Fields must include a keep-alive predicate")
 	local conditionBoundProjectile = spec.createDraft("Projectile", "Energy")
 	conditionBoundProjectile.Projectile.MaxDistance = 80
+	conditionBoundProjectile.Triggers.OnImpact = { { Payloads = { { Kind = "Damage", Amount = 8 } } } }
 	conditionBoundProjectile.Lifetime = {
 		Mode = "UntilConditionFails",
 		Duration = 4,
@@ -498,7 +506,8 @@ do
 	freeResourceBoundField.Lifetime = { Mode = "UntilResourceDepleted" }
 	freeResourceBoundField.Casting.ManaUpkeepPerSecond = 0
 	assert(not spec.validate(freeResourceBoundField), "Resource-bound effects must have positive mana upkeep")
-	local instantUpkeep = spec.normalize(spells.Fireball)
+	local instantUpkeep = spec.normalize(spells.LightningLance)
+	assert(instantUpkeep.Lifetime.Mode == "Instantaneous", "Upkeep fixture must use an Instantaneous lifetime")
 	instantUpkeep.Casting.ManaUpkeepPerSecond = 1
 	assert(not spec.validate(instantUpkeep), "Instantaneous spells cannot declare ongoing resource costs")
 	local earthInteraction = spec.normalize(spells.StoneRaise)
@@ -537,7 +546,10 @@ do
 	local nonSoulChannel = spec.normalize(spells.Fireball)
 	nonSoulChannel.Triggers.OnImpact[1].Payloads[1].DamageChannel = "Soul"
 	local nonSoulValid, nonSoulReason = spec.validate(nonSoulChannel)
-	assert(not nonSoulValid and string.find(nonSoulReason, "Invalid payload setting", 1, true))
+	assert(
+		not nonSoulValid and string.find(nonSoulReason, "Soul damage requires the Soul Principle", 1, true),
+		"Soul-channel damage must be rejected on a non-Soul spell: " .. tostring(nonSoulReason)
+	)
 	assert(schema.supportsPayload("Damage", "Projectile", "OnImpact", "Soul"))
 	assert(schema.supportsPayload("Damage", "Projectile", "OnImpact", "Energy"))
 	local displacement = spec.createDraft("Wave", "Space")
@@ -611,7 +623,9 @@ do
 		{ Payloads = { { Kind = "Restoration", Amount = 4, Duration = 5, Interval = 1 } } },
 	}
 	assert(spec.validate(restoration), "Any supported Aura should accept periodic Restoration")
+	-- 100 x floor(6 / 1) = 600 total healing, above the 500 aggregate cap.
 	restoration.Triggers.OnTick[1].Payloads[1].Amount = 100
+	restoration.Triggers.OnTick[1].Payloads[1].Duration = 6
 	assert(not spec.validate(restoration), "Periodic Restoration must respect its aggregate safety budget")
 	assert(schema.supportsPayload("Damage", "Field", "OnEnter"), "Fields should support OnEnter payloads")
 	assert(schema.supportsPayload("Reveal", "Aura", "OnEnter"), "Auras should support Reveal on entry")
@@ -673,7 +687,9 @@ do
 				schema.supportsPayload(kind, formName, eventName),
 				kind .. " should support the target-resolving " .. formName .. " event"
 			)
-			local supportDraft = spec.createDraft(formName, "Energy")
+			-- SelfEnhancement is not an Energy Form; Body is its baseline Principle.
+			local principle = if schema.supportsPrincipleForm("Energy", formName) then "Energy" else "Body"
+			local supportDraft = spec.createDraft(formName, principle)
 			local value = spec.copy(schema.Payloads[kind].Defaults)
 			value.Kind = kind
 			supportDraft.Triggers[eventName] = { { Payloads = { value } } }
@@ -790,7 +806,7 @@ do
 	local objectProjectileSummon = spec.createDraft("Projectile", "Energy")
 	objectProjectileSummon.Targeting = "ObjectTarget"
 	objectProjectileSummon.Triggers.OnCast = {
-		{ Payloads = { { Kind = "Summon", Archetype = "Wisp", SpawnAt = "Caster", Count = 1 } } },
+		{ Payloads = { { Kind = "Summon", Archetype = "Wisp", SpawnAt = "Caster", Count = 1, Duration = 10 } } },
 	}
 	local objectSummonValid, objectSummonReason = spec.validate(objectProjectileSummon)
 	assert(
@@ -824,7 +840,11 @@ do
 	assert(spec.validate(objectIntervalBeam), "Object-targeted Beam OnInterval should alias the validated OnTick path")
 	local mixedBeamIntervals = spec.copy(objectChannelBeam)
 	mixedBeamIntervals.Triggers.OnInterval = {
-		{ Payloads = { { Kind = "Control", Mode = "Pull", Acceleration = 24, Duration = 2, MaxSpeed = 32 } } },
+		{
+			Payloads = {
+				{ Kind = "Control", Mode = "Pull", Acceleration = 24, Duration = 2, MaxSpeed = 32, MaxMass = 500 },
+			},
+		},
 	}
 	local normalizedBeamIntervals = spec.normalize(mixedBeamIntervals)
 	assert(
@@ -938,7 +958,8 @@ do
 		{ Payloads = { { Kind = "Transformation", Mode = "Scale", Multiplier = 0.9, Duration = 5 } } },
 	}
 	assert(not spec.validate(duplicateTransform), "A spell should have one deterministic transformation payload")
-	for _, formName in ipairs({ "Beam", "Wave", "Field", "Aura", "Construct" }) do
+	-- Construct does not offer MaterialTarget; MagicMaterialSpec omits it.
+	for _, formName in ipairs({ "Beam", "Wave", "Field", "Aura" }) do
 		assert(
 			materialSpec.supports("Matter", "Earth", formName, "MaterialTarget", "Metal"),
 			"Metal sources should be usable by Earth-affinity Matter " .. formName
@@ -957,6 +978,7 @@ do
 	assert(spec.validate(earthBeam), "Earth-affinity Matter Beams should validate a consumed Wood source requirement")
 	earthBeam.Material.Material = "Earth"
 	local waterField = spec.createDraft("Field", "Matter")
+	waterField.Source.Expression = "Water"
 	waterField.Targeting = "MaterialTarget"
 	waterField.Material = { Material = "Water", Amount = 1, SearchRadius = 12 }
 	waterField.Triggers.OnEnter = { { Payloads = { { Kind = "Damage", Amount = 2 } } } }
@@ -1062,7 +1084,11 @@ do
 	assert(objectManipulation, "Manipulation draft should be available to Matter")
 	objectManipulation.Targeting = "ObjectTarget"
 	objectManipulation.Material = { Material = "Earth", SearchRadius = 12 }
-	assert(spec.validate(objectManipulation), "Tagged object manipulation should validate")
+	local manipulationPayload = spec.copy(schema.Payloads.Manipulation.Defaults)
+	manipulationPayload.Kind = "Manipulation"
+	objectManipulation.Triggers.OnCast = { { Payloads = { manipulationPayload } } }
+	local manipulationValid, manipulationReason = spec.validate(objectManipulation)
+	assert(manipulationValid, "Tagged object manipulation should validate: " .. tostring(manipulationReason))
 	objectManipulation.Material.Amount = 1
 	assert(not spec.validate(objectManipulation), "Manipulation object target must not consume source material")
 	local count = 0
@@ -1289,7 +1315,7 @@ do
 		objectControl.Triggers[eventName] = {
 			{
 				Payloads = {
-					{ Kind = "Control", Mode = "Pull", Acceleration = 24, Duration = 2, MaxSpeed = 32 },
+					{ Kind = "Control", Mode = "Pull", Acceleration = 24, Duration = 2, MaxSpeed = 32, MaxMass = 500 },
 				},
 			},
 		}
@@ -1431,6 +1457,7 @@ do
 	assert(channelWave.Geometry == "Cone", "Existing Wave drafts should remain cone-shaped by default")
 	local sphereWave = spec.copy(channelWave)
 	sphereWave.Geometry = "Sphere"
+	sphereWave.Triggers.OnCast = { { Payloads = { { Kind = "Damage", Amount = 4 } } } }
 	assert(spec.validate(sphereWave), "Wave should support an omnidirectional spherical hit shape")
 	sphereWave.Geometry = "Ring"
 	assert(not spec.validate(sphereWave), "Wave should reject geometries outside its authored shape choices")
@@ -1529,6 +1556,7 @@ do
 	assert(not spec.validate(excessiveInterrupt), "Movement interruption must obey its safety bound")
 	local freeHandSpell = spec.createDraft("Projectile", "Energy")
 	freeHandSpell.Casting.RequiresFreeHand = true
+	freeHandSpell.Triggers.OnImpact = { { Payloads = { { Kind = "Damage", Amount = 4 } } } }
 	assert(spec.validate(freeHandSpell), "A valid spell may explicitly require a free hand")
 	freeHandSpell.Casting.RequiresFreeHand = "yes"
 	assert(not spec.validate(freeHandSpell), "Free-hand rules must use a validated boolean")
@@ -1582,6 +1610,7 @@ do
 	returningProjectile.Projectile.Behaviors = {
 		{ Kind = "Return", ReturnAtDistance = 90, CatchRadius = 2, TurnRate = 240 },
 	}
+	returningProjectile.Triggers.OnImpact = { { Payloads = { { Kind = "Damage", Amount = 4 } } } }
 	assert(spec.validate(returningProjectile), "A bounded returning Projectile should validate")
 	local invalidReturn = spec.copy(returningProjectile)
 	invalidReturn.Projectile.Behaviors[1].ReturnAtDistance = 121
@@ -1636,7 +1665,9 @@ do
 	for _, formName in schema.FormOrder do
 		local form = schema.Forms[formName]
 		if form.TargetTypes and form.TargetTypes.Humanoid then
-			local effectEvent = form.DefaultEvent
+			-- Constructs start without a default effect timing; their support
+			-- effects resolve on approach.
+			local effectEvent = form.DefaultEvent or "OnProximity"
 			assert(schema.supportsPayload("Heal", formName, effectEvent), formName .. " is missing Healing")
 			assert(schema.supportsPayload("Shield", formName, effectEvent), formName .. " is missing Shield")
 			local principle = schema.supportsPrincipleForm("Body", formName) and "Body" or "Energy"
@@ -1667,6 +1698,9 @@ do
 		toggleDraft.Lifetime = { Mode = "UntilToggledOff" }
 		if formName == "SelfEnhancement" then
 			toggleDraft.Triggers.OnCast = { { Payloads = { { Kind = "Enhancement", SpeedMultiplier = 1.1 } } } }
+		elseif formName == "Construct" then
+			-- Constructs have no pulse timing; their active effects resolve on approach.
+			toggleDraft.Triggers.OnProximity = { { Payloads = { { Kind = "Heal", Amount = 1 } } } }
 		else
 			toggleDraft.Triggers.OnTick = { { Payloads = { { Kind = "Heal", Amount = 1 } } } }
 		end
@@ -1771,8 +1805,11 @@ do
 		{ Payloads = { { Kind = "Summon", Archetype = "Wisp", Count = 3, Duration = 30 } } },
 	}
 	assert(spec.validate(summonDraft), "Field should support an owner-bound summon payload")
+	-- The editor copies Summon Defaults, so new summons start unassigned; a
+	-- payload without SpellSlot is also unassigned at runtime (SummonService).
 	assert(
-		summonDraft.Triggers.OnCast[1].Payloads[1].SpellSlot == "None",
+		schema.Payloads.Summon.Defaults.SpellSlot == "None"
+			and summonDraft.Triggers.OnCast[1].Payloads[1].SpellSlot == nil,
 		"new summons should explicitly start without an arbitrary companion spell assignment"
 	)
 	local assignedSummonSpell = spec.copy(summonDraft)
@@ -1841,7 +1878,7 @@ do
 	assert(schema.supportsPayload("Heal", "Field", "OnCommand"), "Payloads should compose with summon commands")
 	assert(table.find(schema.eventsForEffects("Field"), "OnCommand"), "The Lab should expose OnCommand")
 	local invalidCommand = spec.copy(commandedSummon)
-	invalidCommand.Triggers.OnCommand[1].Command = "Patrol"
+	invalidCommand.Triggers.OnCommand[1].Command = "Dance"
 	assert(not spec.validate(invalidCommand), "OnCommand must reject commands outside the server command list")
 	invalidCommand = spec.copy(commandedSummon)
 	invalidCommand.Triggers.OnCast = nil
