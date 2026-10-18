@@ -1798,10 +1798,12 @@ function Forge.mount(parent, draft, schema, spec, callbacks)
 		end)
 	end
 	local function genericField(target, field)
+		field = schema.resolveField(target, field)
 		local value = target[field.Key]
 		if field.Options then
 			choiceField(field.Label, field.Help, field.Options, value, function(choice)
 				target[field.Key] = choice
+				schema.normalizePayload(target)
 			end)
 		elseif type(value) == "boolean" then
 			choiceField(field.Label, field.Help, { true, false }, value, function(choice)
@@ -1841,7 +1843,7 @@ function Forge.mount(parent, draft, schema, spec, callbacks)
 		fields = fields or {}
 		local primary, extra = {}, {}
 		for _, field in fields or {} do
-			if not matches(field.Label) then
+			if not matches(field.Label) or not schema.fieldVisible(target, field) then
 				continue
 			end
 			if field.Required == false and #fields > 3 and not advanced then

@@ -21,7 +21,9 @@ return {
 		MinTimeRate = 0.6,
 		MaxTransformScale = 1.2,
 		MinTransformScale = 0.85,
-		MaxAttributeChange = 25,
+		MaxAttributeChange = 25, -- armor/strength points and the percent attributes
+		MaxDamageTakenChange = 15, -- DamageTaken percentage points (vulnerability or protection)
+		MaxResistanceChange = 0.25, -- Resistance fraction per element (-1..1 scale)
 	},
 	PvPRanked = {
 		DamageMultiplier = 0.5,
@@ -39,5 +41,7 @@ return {
 		MaxTransformScale = 1.15,
 		MinTransformScale = 0.9,
 		MaxAttributeChange = 20,
+		MaxDamageTakenChange = 10,
+		MaxResistanceChange = 0.2,
 	},
 }

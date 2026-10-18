@@ -271,6 +271,13 @@ local function values(context: any): { [string]: any }
 			SinceCast = castState.Age or math.max(0, now - (castState.StartedAt or now)),
 		},
 	}
+	-- ModifyAttribute bonuses beyond armor/strength (CastSpeedBonus, MagicResistanceFireBonus, ...).
+	for property in pairs(Spec.Properties.Status) do
+		if valuesByFamily.Status[property] == nil and string.sub(property, -5) == "Bonus" then
+			local value = if statusHumanoid then statusHumanoid:GetAttribute(property) else nil
+			valuesByFamily.Status[property] = if type(value) == "number" then value else 0
+		end
+	end
 	for id, definition in pairs(SpecialResourceDefinitions) do
 		local amount = resource.SpecialResources and resource.SpecialResources[id]
 		valuesByFamily.Resource[id] = amount

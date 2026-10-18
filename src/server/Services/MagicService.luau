@@ -16,6 +16,7 @@ local LocusProfile = if RunService:IsStudio() and DevelopmentSandbox.Enabled
 	else LocusConfiguration.Combat
 local LocusModel = require(Shared.Modules.MagicLocusModel)
 local SpecialResourceSpec = require(Shared.Modules.MagicSpecialResourceSpec)
+local AttributeSpec = require(Shared.Modules.MagicAttributeSpec)
 local SpecialResourceDefinitions = LocusConfiguration.SpecialResources
 local specialResourcesValid, specialResourcesReason =
 	SpecialResourceSpec.validateDefinitions(SpecialResourceDefinitions)
@@ -88,6 +89,7 @@ type CastContext = { Origin: Vector3, CommandCast: boolean?, CommandId: number? 
 type Charge = {
 	SpellId: string,
 	BeganAt: number,
+	Rate: number,
 	Definition: any,
 	Character: Model,
 	StartPosition: Vector3,
@@ -2254,8 +2256,10 @@ local function execute(
 		syncSpecialResourceAttributes(player)
 	end
 	Summons.clearDismissal(player, definition.SpellId)
+	-- CooldownRate +50 recovers 1.5x faster; -50 takes twice as long.
+	local cooldownRate = math.max(0.01, AttributeSpec.multiplier(state.Humanoid, "CooldownRate"))
 	stats.Ready[definition.SpellId] = {
-		Remaining = math.max(definition.Casting.Cooldown, definition.Casting.RecoveryTime),
+		Remaining = math.max(definition.Casting.Cooldown, definition.Casting.RecoveryTime) / cooldownRate,
 		Caster = state.Humanoid,
 	}
 	if materialAmount and material then
@@ -2907,7 +2911,9 @@ local function queueCast(player, state, intent, remote, definition, charge, cast
 	end
 	local timing = Presentation.timing(definition)
 	local now = workspace:GetServerTimeNow()
-	local windup = definition.Casting.CastTime + timing.Gather
+	-- CastSpeed +50 casts 1.5x faster; -50 takes twice as long.
+	local castSpeed = math.max(0.01, AttributeSpec.multiplier(state.Humanoid, "CastSpeed"))
+	local windup = definition.Casting.CastTime / castSpeed + timing.Gather
 	local releaseAt = now + windup
 	local impactAt = releaseAt + timing.Release
 	local pendingIntent = Spec.copy(intent)
@@ -2996,11 +3002,14 @@ function Magic.start(player, state, intent, remote, castContext, temporaryDefini
 		end
 		local chargeIntent = Spec.copy(intent)
 		chargeIntent.AimDirection = chargeDirection
+		-- CastSpeed also speeds up charging; the rate is fixed when charging starts.
+		local chargeRate = math.max(0.01, AttributeSpec.multiplier(state.Humanoid, "CastSpeed"))
 		stats.Charge = {
 			SpellId = definition.SpellId,
 			Definition = definition,
 			Character = state.Character,
 			BeganAt = now,
+			Rate = chargeRate,
 			State = state,
 			Intent = chargeIntent,
 			AimDirection = chargeDirection,
@@ -3011,8 +3020,8 @@ function Magic.start(player, state, intent, remote, castContext, temporaryDefini
 		Presentation.gather(
 			state.Character,
 			definition,
-			definition.Casting.MaximumCharge,
-			definition.Casting.MaximumCharge,
+			definition.Casting.MaximumCharge / chargeRate,
+			definition.Casting.MaximumCharge / chargeRate,
 			"Charge"
 		)
 		feedback(remote, player, "CHARGING", definition, nil)
@@ -3107,7 +3116,11 @@ function Magic.release(player, state, intent, remote)
 		setCastingMovement(player, charge.State, nil)
 		return
 	end
-	local elapsed = math.clamp(workspace:GetServerTimeNow() - charge.BeganAt, 0, definition.Casting.MaximumCharge)
+	local elapsed = math.clamp(
+		(workspace:GetServerTimeNow() - charge.BeganAt) * (charge.Rate or 1),
+		0,
+		definition.Casting.MaximumCharge
+	)
 	if elapsed < definition.Casting.MinimumCharge then
 		setCastingMovement(player, state, nil)
 		Presentation.cancel(state.Character, definition)
@@ -3538,14 +3551,16 @@ RunService.Heartbeat:Connect(function(delta)
 			end
 		end
 		local manaBefore, strainBefore = stats.Mana, stats.Strain
+		-- ManaRegen +100 doubles mana and special-resource recovery; -100 stops it.
+		local regen = AttributeSpec.multiplier(player.Character, "ManaRegen")
 		LocusModel.advance(
 			stats,
 			delta,
-			ResourceBalance.ManaRegenerationPerSecond,
+			ResourceBalance.ManaRegenerationPerSecond * regen,
 			ResourceBalance.StrainRecoveryPerSecond
 		)
 		local specialResourcesChanged =
-			SpecialResourceSpec.advance(stats.SpecialResources, SpecialResourceDefinitions, delta)
+			SpecialResourceSpec.advance(stats.SpecialResources, SpecialResourceDefinitions, delta, regen)
 		if specialResourcesChanged then
 			syncSpecialResourceAttributes(player)
 		end
@@ -3565,7 +3580,7 @@ RunService.Heartbeat:Connect(function(delta)
 				charge.Definition,
 				charge.Context and charge.Context.CommandCast == true
 			)
-			and now - charge.BeganAt >= charge.Definition.Casting.MaximumCharge
+			and (now - charge.BeganAt) * (charge.Rate or 1) >= charge.Definition.Casting.MaximumCharge
 		then
 			stats.Charge = nil
 			queueCast(
@@ -3581,7 +3596,8 @@ RunService.Heartbeat:Connect(function(delta)
 		elseif
 			charge
 			and charge.Definition.Casting.Mode == "HoldAndRelease"
-			and now - charge.BeganAt >= charge.Definition.Casting.MaximumCharge + Limits.MaxChargeReadyHoldSeconds
+			and now - charge.BeganAt
+				>= charge.Definition.Casting.MaximumCharge / (charge.Rate or 1) + Limits.MaxChargeReadyHoldSeconds
 		then
 			stats.Charge = nil
 			setCastingMovement(player, charge.State, nil)

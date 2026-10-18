@@ -7,6 +7,7 @@ local Limits = require(script.Parent.MagicLab)
 local SummonLimits = require(script.Parent.MagicSummons)
 local PrincipleSpec = require(script.Parent.Parent.Modules.MagicPrincipleSpec)
 local DamageRules = require(script.Parent.Parent.Modules.MagicDamageRules)
+local AttributeSpec = require(script.Parent.Parent.Modules.MagicAttributeSpec)
 local ConstructGeometrySpec = require(script.Parent.Parent.Modules.MagicConstructGeometrySpec)
 local TargetDeathSpec = require(script.Parent.Parent.Modules.MagicTargetDeathSpec)
 local AudioSpec = require(script.Parent.Parent.Modules.MagicAudioSpec)
@@ -1295,7 +1296,7 @@ Schema.Payloads = {
 		Label = "Modify attribute",
 		Category = "Support",
 		Polarity = "Neutral",
-		Description = "Temporarily changes a whitelisted target attribute. Magic armor modifies incoming magic damage only.",
+		Description = "Temporarily changes a whitelisted target attribute: armor, elemental resistance, damage taken, healing received, cast speed, cooldown rate or mana regeneration.",
 		Forms = HumanoidTargetForms,
 		Events = HumanoidTargetEvents,
 		Defaults = { Attribute = "MagicArmor", Amount = 15, Duration = 8 },
@@ -1303,17 +1304,27 @@ Schema.Payloads = {
 			{
 				Key = "Attribute",
 				Label = "Attribute",
-				Options = { "MagicArmor", "MagicStrength" },
+				Options = table.clone(AttributeSpec.Order),
 				Required = true,
 				Help = "Only explicitly supported numeric attributes can be modified by spells.",
 			},
 			{
+				Key = "Element",
+				Label = "Resistance element",
+				Options = table.clone(AttributeSpec.Elements),
+				Required = false,
+				ShowWhen = { Key = "Attribute", Values = { "Resistance" } },
+				Help = "The element this resistance applies to. Required for Resistance; not used by other attributes.",
+			},
+			{
+				-- Min/Max here are the widest range; each attribute's own range comes
+				-- from MagicAttributeSpec (Schema.resolveField, SpellSpec validation).
 				Key = "Amount",
 				Label = "Modifier amount",
-				Min = -Limits.MaxArmorModifier,
-				Max = Limits.MaxArmorModifier,
+				Min = -100,
+				Max = 100,
 				Required = true,
-				Help = "MagicArmor changes incoming magic mitigation. MagicStrength changes all outgoing damage by percentage points.",
+				Help = "Armor: points of mitigation. Strength: % outgoing damage. Resistance: -1 to 1 (negative = vulnerability). Damage taken, healing received, cast speed, cooldown rate and mana regeneration: percent.",
 			},
 			{
 				Key = "Duration",
@@ -2120,6 +2131,54 @@ function Schema.payloadsFor(form: string, event: string, category: string?): { s
 		end
 	end
 	return result
+end
+
+-- Payload fields can depend on another field (Element only for Resistance) and
+-- on per-attribute ranges. Editors call these instead of reading Fields raw.
+function Schema.fieldVisible(object: any, field: any): boolean
+	local rule = field.ShowWhen
+	if not rule then
+		return true
+	end
+	return type(object) == "table" and table.find(rule.Values, object[rule.Key]) ~= nil
+end
+
+function Schema.resolveField(object: any, field: any): any
+	if
+		type(object) == "table"
+		and object.Kind == "ModifyAttribute"
+		and field.Key == "Amount"
+		and AttributeSpec.supports(object.Attribute)
+	then
+		local definition = AttributeSpec.Definitions[object.Attribute]
+		local resolved = table.clone(field)
+		resolved.Min, resolved.Max = definition.Minimum, definition.Maximum
+		return resolved
+	end
+	return field
+end
+
+-- Keeps a ModifyAttribute payload consistent after its Attribute changes:
+-- Element only for Resistance, Amount inside the attribute's range.
+function Schema.normalizePayload(payload: any)
+	if type(payload) ~= "table" or payload.Kind ~= "ModifyAttribute" then
+		return
+	end
+	local definition = AttributeSpec.Definitions[payload.Attribute]
+	if not definition then
+		return
+	end
+	if AttributeSpec.requiresElement(payload.Attribute) then
+		if not AttributeSpec.validElement(payload.Element) then
+			payload.Element = AttributeSpec.Elements[1]
+		end
+	else
+		payload.Element = nil
+	end
+	local amount = payload.Amount
+	if type(amount) ~= "number" or amount < definition.Minimum or amount > definition.Maximum then
+		payload.Amount = definition.Default
+	end
 end
 
 return Schema

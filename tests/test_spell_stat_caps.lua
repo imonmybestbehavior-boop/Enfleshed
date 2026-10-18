@@ -12,6 +12,13 @@ local Caps = assert(loadfile(
 ))()
 local Profiles = assert(loadfile("src/shared/Configuration/SpellStatCaps.luau"))()
 local open, ranked = Profiles.PvPOpen, Profiles.PvPRanked
+for _, profile in { open, ranked } do
+	assert(profile.MaxAttributeChange and profile.MaxDamageTakenChange and profile.MaxResistanceChange)
+	assert(profile.MaxResistanceChange <= 1, "resistance caps are fractions")
+end
+assert(
+	ranked.MaxDamageTakenChange <= open.MaxDamageTakenChange and ranked.MaxResistanceChange <= open.MaxResistanceChange
+)
 
 -- Profile selection
 local a = { UserId = 1, Zone = nil, DuelOpponent = nil }
@@ -53,6 +60,29 @@ for _, potency in ipairs({ 0.5, 1, 2, 4 }) do
 	assert(1 + (shrink.Multiplier - 1) * potency >= open.MinTransformScale - 1e-9, "shrink capped")
 	local debuff = Caps.payload({ Kind = "ModifyAttribute", Amount = -100, Duration = 8 }, open, potency)
 	assert(math.abs(debuff.Amount * potency) <= open.MaxAttributeChange + 1e-9, "attribute change capped")
+	-- DamageTaken and Resistance have their own PvP caps; other attributes use MaxAttributeChange.
+	local vulnerable =
+		Caps.payload({ Kind = "ModifyAttribute", Attribute = "DamageTaken", Amount = 50, Duration = 8 }, open, potency)
+	assert(math.abs(vulnerable.Amount * potency - open.MaxDamageTakenChange) < 1e-9, "damage taken capped")
+	local exposed = Caps.payload(
+		{ Kind = "ModifyAttribute", Attribute = "Resistance", Element = "Fire", Amount = -1, Duration = 8 },
+		open,
+		potency
+	)
+	assert(math.abs(exposed.Amount * potency + open.MaxResistanceChange) < 1e-9, "resistance change capped")
+	assert(exposed.Element == "Fire", "capping keeps the element")
+	local slowCast =
+		Caps.payload({ Kind = "ModifyAttribute", Attribute = "CastSpeed", Amount = -50, Duration = 8 }, open, potency)
+	assert(
+		math.abs(slowCast.Amount * potency + open.MaxAttributeChange) < 1e-9,
+		"percent attributes use MaxAttributeChange"
+	)
+	local tinyResist = Caps.payload(
+		{ Kind = "ModifyAttribute", Attribute = "Resistance", Element = "Ice", Amount = 0.05, Duration = 8 },
+		open,
+		potency
+	)
+	assert(tinyResist.Amount == 0.05, "values under the cap are untouched")
 end
 assert(Caps.payload({ Kind = "Bind", Duration = 4 }, ranked, 1).Duration == ranked.MaxBindDuration, "bind cap")
 assert(Caps.payload({ Kind = "Force", Magnitude = 100, Upward = 90 }, open, 1).Magnitude == open.MaxForce, "force cap")

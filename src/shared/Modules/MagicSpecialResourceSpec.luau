@@ -128,14 +128,19 @@ function Spec.spend(current, costs, definitions)
 	return true, nil
 end
 
-function Spec.advance(current, definitions, delta)
+-- rateMultiplier (default 1) scales recovery, e.g. from the ManaRegen attribute.
+function Spec.advance(current, definitions, delta, rateMultiplier)
 	if delta <= 0 or not Spec.validateCurrent(current, definitions) then
 		return false
+	end
+	local rate = 1
+	if type(rateMultiplier) == "number" and rateMultiplier == rateMultiplier then
+		rate = math.max(0, rateMultiplier)
 	end
 	local changed = false
 	for id, definition in pairs(definitions or {}) do
 		local before = current[id]
-		current[id] = math.min(definition.Capacity, before + definition.RecoveryPerSecond * delta)
+		current[id] = math.min(definition.Capacity, before + definition.RecoveryPerSecond * delta * rate)
 		changed = changed or current[id] ~= before
 	end
 	return changed

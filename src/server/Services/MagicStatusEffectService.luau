@@ -48,6 +48,23 @@ type TargetState = {
 }
 
 local Status = {}
+
+-- Payload kinds that never become a timed status here, and where they live.
+-- Listed so every Schema.Payloads kind is accounted for (test_magic_registry_parity).
+Status.HandledElsewhere = {
+	Damage = "DamageService",
+	DamageOverTime = "MagicPayloadExecutors periodic effects",
+	ConsumeElementalMark = "Status.consumeElementalMark (removes marks, adds none)",
+	Force = "MagicPayloadExecutors applyForce",
+	Heal = "Status.heal (instant)",
+	Restoration = "MagicPayloadExecutors periodic effects",
+	Control = "MagicControlService",
+	Displacement = "MagicPayloadExecutors displaceTarget",
+	Enhancement = "MagicService (context.ApplyEnhancement)",
+	AerialMovement = "MagicService (context.ApplyAerialMovement)",
+	Manipulation = "MagicService (context.ApplyManipulation)",
+	Summon = "MagicService (context.Summon)",
+}
 local targets: { [Humanoid]: TargetState } = setmetatable({}, { __mode = "k" }) :: any
 local active: { TargetState } = {}
 local lastSweep = 0
@@ -183,8 +200,25 @@ local function removeState(state: TargetState)
 	end
 	Movement.setMagicSlow(state.Humanoid, 1)
 	setAttribute(state.Humanoid, if model and model:IsA("Model") then model else nil, "MagicShield", 0)
-	setAttribute(state.Humanoid, if model and model:IsA("Model") then model else nil, "MagicArmorBonus", 0)
-	setAttribute(state.Humanoid, if model and model:IsA("Model") then model else nil, "MagicStrengthBonus", 0)
+	for _, attribute in AttributeSpec.Order do
+		if AttributeSpec.requiresElement(attribute) then
+			for _, element in AttributeSpec.Elements do
+				setAttribute(
+					state.Humanoid,
+					if model and model:IsA("Model") then model else nil,
+					AttributeSpec.attributeName(attribute, element),
+					0
+				)
+			end
+		else
+			setAttribute(
+				state.Humanoid,
+				if model and model:IsA("Model") then model else nil,
+				AttributeSpec.attributeName(attribute),
+				0
+			)
+		end
+	end
 	setAttribute(state.Humanoid, if model and model:IsA("Model") then model else nil, "MagicMovementBound", false)
 	setAttribute(state.Humanoid, if model and model:IsA("Model") then model else nil, "MagicShieldExpiresAt", nil)
 	setAttribute(state.Humanoid, if model and model:IsA("Model") then model else nil, "MagicSlowMultiplier", 1)
@@ -208,8 +242,6 @@ local function refreshAttributes(state: TargetState)
 	local slow = MovementEffects.multiplier(state.Effects, now)
 	local movementMultiplier = math.clamp(slow * timeRate, 0, TemporalRate.Maximum)
 	local bound = movementMultiplier <= 0
-	local armorBonus = AttributeSpec.aggregate(state.Effects, "MagicArmor", now)
-	local strengthBonus = AttributeSpec.aggregate(state.Effects, "MagicStrength", now)
 	local earliestShield: number? = nil
 	local reveals = RevealSpec.aggregate(state.Effects, now)
 	local elementalMarks = ElementalMarkSpec.encode(state.Effects, now)
@@ -261,8 +293,26 @@ local function refreshAttributes(state: TargetState)
 		state.RevealAttributes = currentRevealAttributes
 	end
 	setAttribute(state.Humanoid, parentModel, "MagicShield", shield)
-	setAttribute(state.Humanoid, parentModel, "MagicArmorBonus", armorBonus)
-	setAttribute(state.Humanoid, parentModel, "MagicStrengthBonus", strengthBonus)
+	-- Every ModifyAttribute bonus, e.g. MagicArmorBonus, CastSpeedBonus, MagicResistanceFireBonus.
+	for _, attribute in AttributeSpec.Order do
+		if AttributeSpec.requiresElement(attribute) then
+			for _, element in AttributeSpec.Elements do
+				setAttribute(
+					state.Humanoid,
+					parentModel,
+					AttributeSpec.attributeName(attribute, element),
+					AttributeSpec.aggregate(state.Effects, attribute, now, element)
+				)
+			end
+		else
+			setAttribute(
+				state.Humanoid,
+				parentModel,
+				AttributeSpec.attributeName(attribute),
+				AttributeSpec.aggregate(state.Effects, attribute, now)
+			)
+		end
+	end
 	setAttribute(state.Humanoid, parentModel, "MagicMovementBound", bound)
 	local expiresAt = if earliestShield then workspace:GetServerTimeNow() + earliestShield - os.clock() else nil
 	setAttribute(state.Humanoid, parentModel, "MagicShieldExpiresAt", expiresAt)
@@ -381,7 +431,8 @@ local function putEffect(
 	viewerUserId: number?,
 	color: Color3?,
 	onTargetDeath: ((Humanoid) -> ())?,
-	requiredElementalMark: string?
+	requiredElementalMark: string?,
+	element: string?
 ): boolean
 	if humanoid.Health <= 0 or not humanoid:IsDescendantOf(workspace) or not caster:IsDescendantOf(workspace) then
 		return false
@@ -427,6 +478,7 @@ local function putEffect(
 			elseif kind == "ModifyAttribute" then
 				effect.Amount = amount
 				effect.Attribute = attribute
+				effect.Element = element
 			elseif kind == "Transformation" then
 				effect.Multiplier = multiplier
 			elseif kind == "Reveal" then
@@ -478,6 +530,7 @@ local function putEffect(
 		OnTargetDeath = onTargetDeath,
 		RequiredElementalMark = requiredElementalMark,
 		Multiplier = multiplier,
+		Element = element,
 	})
 	refreshAttributes(state)
 	return true
@@ -488,7 +541,9 @@ function Status.heal(caster: Model, humanoid: Humanoid, amount: number): number
 		return 0
 	end
 	local before = humanoid.Health
-	humanoid.Health = math.min(humanoid.MaxHealth, before + math.clamp(amount, 0, Limits.MaxHeal))
+	-- HealingReceived scales every heal, including Restoration ticks.
+	local received = amount * AttributeSpec.multiplier(humanoid, "HealingReceived")
+	humanoid.Health = math.min(humanoid.MaxHealth, before + math.clamp(received, 0, Limits.MaxHeal))
 	return math.max(0, humanoid.Health - before)
 end
 
@@ -628,11 +683,20 @@ function Status.modifyAttribute(
 	amount: number,
 	duration: number,
 	onTargetDeath: ((Humanoid) -> ())?,
-	requiredElementalMark: string?
+	requiredElementalMark: string?,
+	element: string?
 ): boolean
 	local safeAmount = AttributeSpec.clamp(attribute, amount)
 	if safeAmount == nil then
 		return false
+	end
+	-- Resistance needs a real element; every other attribute must not carry one.
+	if AttributeSpec.requiresElement(attribute) then
+		if not AttributeSpec.validElement(element) then
+			return false
+		end
+	else
+		element = nil
 	end
 	return putEffect(
 		humanoid,
@@ -647,7 +711,8 @@ function Status.modifyAttribute(
 		nil,
 		nil,
 		onTargetDeath,
-		requiredElementalMark
+		requiredElementalMark,
+		element
 	)
 end
 

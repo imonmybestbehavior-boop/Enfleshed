@@ -21,6 +21,7 @@ local SpecialResourceSpec = require(script.Parent.MagicSpecialResourceSpec)
 local SpecialResources = require(script.Parent.Parent.Configuration.MagicLocus).SpecialResources
 local SpellIdentitySpec = require(script.Parent.MagicSpellIdentitySpec)
 local TriggerSpec = require(script.Parent.MagicTriggerSpec)
+local AttributeSpec = require(script.Parent.MagicAttributeSpec)
 local Spec = {}
 Spec.Principles = Schema.Principles
 Spec.PresentationProfiles = Schema.PresentationProfiles
@@ -1369,6 +1370,21 @@ function Spec.validate(d, spawnNesting: number?)
 				if (p.Kind == "ElementalMark" or p.Kind == "ConsumeElementalMark") and d.Element == "Neutral" then
 					return false, "Elemental marks require a non-neutral selected Element"
 				end
+				if p.Kind == "ModifyAttribute" then
+					-- Element is required for Resistance and rejected for every other attribute;
+					-- Amount must sit inside the chosen attribute's own range.
+					local attribute = AttributeSpec.Definitions[p.Attribute]
+					if AttributeSpec.requiresElement(p.Attribute) then
+						if p.Element == nil then
+							return false, "Missing payload setting: Resistance element"
+						end
+					elseif p.Element ~= nil then
+						return false, "Only Resistance uses an element"
+					end
+					if not bounded(p.Amount, attribute.Minimum, attribute.Maximum) then
+						return false, "Payload setting is outside its safety limit: Modifier amount"
+					end
+				end
 				if p.Kind == "Summon" then
 					local lifetimeMode = p.LifetimeMode or "FixedDuration"
 					if not table.find(SummonLimits.LifetimeModes, lifetimeMode) then
@@ -1498,8 +1514,15 @@ function Spec.estimate(d)
 				elseif p.Kind == "Slow" then
 					controlWeight += (1 - (p.Multiplier or 1)) * 10 * (p.Duration or 1)
 				end
+				local amountWeight = math.abs(p.Amount or 0)
+				local attribute = p.Kind == "ModifyAttribute" and AttributeSpec.Definitions[p.Attribute]
+				if attribute then
+					-- Weigh every attribute on the same 0-100 scale as armor, so a full
+					-- Resistance (1.0) or DamageTaken (50%) costs like full armor.
+					amountWeight = amountWeight / math.max(math.abs(attribute.Minimum), attribute.Maximum) * 100
+				end
 				strength = strength
-					+ math.abs(p.Amount or 0) * ((p.Kind == "DamageOverTime" or p.Kind == "Restoration") and math.floor(
+					+ amountWeight * ((p.Kind == "DamageOverTime" or p.Kind == "Restoration") and math.floor(
 						p.Duration / p.Interval
 					) or 1)
 					+ (p.Magnitude or 0) * 0.5

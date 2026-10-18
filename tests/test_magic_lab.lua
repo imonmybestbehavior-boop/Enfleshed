@@ -123,6 +123,18 @@ env.script.Parent.Parent = {
 		MagicVisualSpec = "visualSpec",
 	},
 }
+local schemaScript = env.script
+env.script = { Parent = { MagicDamageRules = "damageRules", Parent = { Configuration = { MagicLab = "limits" } } } }
+local attributeSpec = load("src/shared/Modules/MagicAttributeSpec.luau")
+env.script = schemaScript
+env.script.Parent.Parent.Modules.MagicAttributeSpec = "attributeSpec"
+local schemaRequire = env.require
+env.require = function(v)
+	if v == "attributeSpec" then
+		return attributeSpec
+	end
+	return schemaRequire(v)
+end
 local schema = load("src/shared/Configuration/MagicSchema.luau")
 assert(#schema.Principles == 6, "Magic Lab should expose all six Principles")
 assert(schema.supportsPrincipleForm("Matter", "Manipulation"))
@@ -238,6 +250,7 @@ env.script = {
 		MagicLocusRequirementSpec = "locusRequirementSpec",
 		MagicSpecialResourceSpec = "specialResourceSpec",
 		MagicVisualSpec = "visualSpec",
+		MagicAttributeSpec = "attributeSpec",
 		Parent = {
 			Configuration = {
 				MagicLab = "limits",
@@ -291,6 +304,8 @@ env.require = function(v)
 		return audioSpec
 	elseif v == "visualSpec" then
 		return visualSpec
+	elseif v == "attributeSpec" then
+		return attributeSpec
 	end
 	error(v)
 end
@@ -1014,6 +1029,77 @@ do
 			{ Kind = "ModifyAttribute", Attribute = "MagicArmor", Amount = 20, Duration = 5 },
 		} } }
 	assert(not spec.validate(duplicateArmorModifier), "a spell must have one deterministic modifier per attribute")
+	-- Phase 2 attributes: each validates inside its own range; Element only for Resistance.
+	local function attributeDraft(payload)
+		local draft = spec.createDraft("Aura", "Energy")
+		payload.Kind = "ModifyAttribute"
+		payload.Duration = payload.Duration or 5
+		draft.Triggers.OnTick = { { Payloads = { payload } } }
+		return draft
+	end
+	for _, attribute in attributeSpec.Order do
+		local definition = attributeSpec.Definitions[attribute]
+		local element = if attributeSpec.requiresElement(attribute) then "Fire" else nil
+		assert(table.find(schema.Payloads.ModifyAttribute.Fields[1].Options, attribute), attribute .. " is selectable")
+		assert(
+			spec.validate(attributeDraft({ Attribute = attribute, Element = element, Amount = definition.Maximum })),
+			attribute .. " validates at its maximum"
+		)
+		assert(
+			spec.validate(attributeDraft({ Attribute = attribute, Element = element, Amount = definition.Minimum })),
+			attribute .. " validates at its minimum"
+		)
+		assert(
+			not spec.validate(
+				attributeDraft({ Attribute = attribute, Element = element, Amount = definition.Maximum + 0.5 })
+			),
+			attribute .. " rejects values above its own maximum"
+		)
+		assert(
+			conditionSpec.Properties.Status[attributeSpec.attributeName(attribute, element)],
+			attribute .. " bonus is available to Status conditions"
+		)
+	end
+	local ok, reason = spec.validate(attributeDraft({ Attribute = "Resistance", Amount = 0.3 }))
+	assert(not ok and string.find(reason, "Resistance element", 1, true), "Resistance requires an Element")
+	assert(not spec.validate(attributeDraft({ Attribute = "Resistance", Element = "Neutral", Amount = 0.3 })))
+	assert(not spec.validate(attributeDraft({ Attribute = "Resistance", Element = "Plasma", Amount = 0.3 })))
+	ok, reason = spec.validate(attributeDraft({ Attribute = "DamageTaken", Element = "Fire", Amount = 10 }))
+	assert(not ok and string.find(reason, "Only Resistance", 1, true), "Element is rejected for other attributes")
+	assert(spec.validate(attributeDraft({ Attribute = "Resistance", Element = "Ice", Amount = -0.5 })))
+	assert(not spec.validate(attributeDraft({ Attribute = "DamageTaken", Amount = 60 })), "DamageTaken caps at 50")
+	assert(not spec.validate(attributeDraft({ Attribute = "HealingReceived", Amount = -80 })), "-75 floor")
+	for _, element in attributeSpec.Elements do
+		assert(conditionSpec.Properties.Status["MagicResistance" .. element .. "Bonus"], element)
+	end
+	-- Editor helpers: Element shows only for Resistance; Amount uses the attribute's range.
+	local elementField, amountField
+	for _, field in schema.Payloads.ModifyAttribute.Fields do
+		if field.Key == "Element" then
+			elementField = field
+		elseif field.Key == "Amount" then
+			amountField = field
+		end
+	end
+	assert(elementField and not elementField.Required, "Element is optional at the schema level")
+	assert(schema.fieldVisible({ Kind = "ModifyAttribute", Attribute = "Resistance" }, elementField))
+	assert(not schema.fieldVisible({ Kind = "ModifyAttribute", Attribute = "CastSpeed" }, elementField))
+	local resolved = schema.resolveField({ Kind = "ModifyAttribute", Attribute = "Resistance" }, amountField)
+	assert(resolved.Min == -1 and resolved.Max == 1 and amountField.Min == -100, "per-attribute bounds")
+	local switching = { Kind = "ModifyAttribute", Attribute = "Resistance", Amount = 15, Duration = 5 }
+	schema.normalizePayload(switching)
+	assert(switching.Element == "Fire" and switching.Amount == 0.2, "switching to Resistance picks an element")
+	switching.Attribute = "CastSpeed"
+	schema.normalizePayload(switching)
+	assert(switching.Element == nil and switching.Amount == 0.2, "leaving Resistance drops the element")
+	assert(spec.validate(attributeDraft(switching)), "a normalized payload validates")
+	-- Cost weighs attributes on the armor scale, so a full Resistance is not free.
+	local fullArmor = spec.estimate(attributeDraft({ Attribute = "MagicArmor", Amount = 100 })).ManaDemand
+	local fullResist =
+		spec.estimate(attributeDraft({ Attribute = "Resistance", Element = "Fire", Amount = 1 })).ManaDemand
+	assert(math.abs(fullArmor - fullResist) < 1e-6, "full Resistance costs like full armor")
+	-- AerialMovement is an Enchantment OnCast payload.
+	assert(schema.supportsPayload("AerialMovement", "SelfEnhancement", "OnCast"), "AerialMovement on Enchantment")
 	local areaDraft = spec.createDraft("Field", "Matter")
 	assert(areaDraft, "Field draft should be available to Matter")
 	areaDraft.Triggers.OnEnter = { { Payloads = { { Kind = "Damage", Amount = 1 } } } }

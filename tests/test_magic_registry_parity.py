@@ -48,30 +48,6 @@ PAYLOAD_CONSUMERS = [
 # test fails when a kind outside this list is missing, and when a listed gap
 # gets fixed (remove the entry so it cannot regress).
 KNOWN_PAYLOAD_GAPS = {
-	"src/server/Services/MagicStatusEffectService.luau": {
-		# Only timed statuses live here; instant and periodic payloads do not.
-		"Damage",
-		"DamageOverTime",
-		"ConsumeElementalMark",
-		"Force",
-		"Heal",
-		"Restoration",
-		"Control",
-		"Displacement",
-		"Enhancement",
-		"AerialMovement",
-		"Manipulation",
-		"Summon",
-	},
-	"src/shared/Modules/SpellStatCaps.luau": {
-		"Damage",
-		"ConsumeElementalMark",
-		"Restoration",
-		"Enhancement",
-		"AerialMovement",
-		"Manipulation",
-		"Summon",
-	},
 	"src/shared/Modules/CombatPolicy.luau": {
 		"Damage",
 		"Heal",
@@ -97,7 +73,6 @@ KNOWN_PAYLOAD_GAPS = {
 		"Manipulation",
 	},
 	"src/shared/Modules/MagicAuthoringGuide.luau": {"ElementalMark", "ConsumeElementalMark"},
-	"tests/test_magic_lab.lua": {"AerialMovement"},
 }
 
 

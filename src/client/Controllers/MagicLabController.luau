@@ -1468,10 +1468,15 @@ function Lab.start(send, aim, launcher)
 		scroll.ScrollingEnabled = pageMode ~= "Library" or libraryView.Selected ~= nil
 	end
 	local function renderField(object, field)
+		if not Schema.fieldVisible(object, field) then
+			return
+		end
+		field = Schema.resolveField(object, field)
 		local options = field.Options
 		if options then
 			select(field.Label, object[field.Key] or options[1], options, function(value)
 				object[field.Key] = value
+				Schema.normalizePayload(object)
 				if field.Key == "DamageChannel" then
 					if value == "Physical" then
 						setInternalDefault("Body")

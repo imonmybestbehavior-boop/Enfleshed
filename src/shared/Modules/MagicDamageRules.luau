@@ -13,6 +13,23 @@ function Rules.defaultElementForExpression(expression)
 	return Rules.ExpressionElements[expression] or "Neutral"
 end
 
+-- Spell-driven bonuses written by ModifyAttribute (see MagicAttributeSpec, which
+-- owns these ranges; kept literal here because that module requires this one).
+Rules.ArmorBonusRange = { -100, 100 }
+Rules.ResistanceBonusRange = { -1, 1 }
+Rules.DamageTakenRange = { -50, 50 }
+
+local function bonus(target, attribute, range)
+	if not target then
+		return 0
+	end
+	local value = target:GetAttribute(attribute)
+	if type(value) ~= "number" or value ~= value then
+		return 0
+	end
+	return math.max(range[1], math.min(range[2], value))
+end
+
 function Rules.mitigate(amount, resistance, armor)
 	local safeAmount = 0
 	if type(amount) == "number" and amount == amount then
@@ -20,7 +37,7 @@ function Rules.mitigate(amount, resistance, armor)
 	end
 	local safeResistance = 0
 	if type(resistance) == "number" and resistance == resistance then
-		safeResistance = math.max(0, math.min(1, resistance))
+		safeResistance = math.max(-1, math.min(1, resistance))
 	end
 	local afterResistance = safeAmount * (1 - safeResistance)
 	local safeArmor = 0
@@ -36,9 +53,12 @@ function Rules.resistance(target, element)
 	end
 	local value = target:GetAttribute("MagicResistance" .. element)
 	if type(value) ~= "number" or value ~= value then
-		return 0
+		value = 0
 	end
-	return math.max(0, math.min(1, value))
+	local base = math.max(0, math.min(1, value))
+	local modifier = bonus(target, "MagicResistance" .. element .. "Bonus", Rules.ResistanceBonusRange)
+	-- A negative total is a vulnerability: mitigate() turns -0.5 into x1.5 damage.
+	return math.max(-1, math.min(1, base + modifier))
 end
 
 function Rules.armor(target)
@@ -73,9 +93,9 @@ function Rules.soulArmor(target)
 	end
 	local value = target:GetAttribute("SoulArmor")
 	if type(value) ~= "number" or value ~= value then
-		return 0
+		value = 0
 	end
-	return math.max(0, math.min(100, value))
+	return math.max(0, math.min(100, value + bonus(target, "SoulArmorBonus", Rules.ArmorBonusRange)))
 end
 
 function Rules.physicalResistance(target)
@@ -95,18 +115,30 @@ function Rules.physicalArmor(target)
 	end
 	local value = target:GetAttribute("PhysicalArmor")
 	if type(value) ~= "number" or value ~= value then
-		return 0
+		value = 0
 	end
-	return math.max(0, math.min(100, value))
+	return math.max(0, math.min(100, value + bonus(target, "PhysicalArmorBonus", Rules.ArmorBonusRange)))
+end
+
+-- DamageTakenBonus scales damage after mitigation: +20 means x1.2.
+function Rules.applyDamageTaken(amount, target)
+	local safeAmount = 0
+	if type(amount) == "number" and amount == amount then
+		safeAmount = math.max(0, amount)
+	end
+	return safeAmount * (1 + bonus(target, "DamageTakenBonus", Rules.DamageTakenRange) / 100)
 end
 
 function Rules.applyChannel(amount, target, channel, element)
+	local mitigated
 	if channel == "Soul" then
-		return Rules.mitigate(amount, Rules.soulResistance(target), Rules.soulArmor(target))
+		mitigated = Rules.mitigate(amount, Rules.soulResistance(target), Rules.soulArmor(target))
 	elseif channel == "Physical" then
-		return Rules.mitigate(amount, Rules.physicalResistance(target), Rules.physicalArmor(target))
+		mitigated = Rules.mitigate(amount, Rules.physicalResistance(target), Rules.physicalArmor(target))
+	else
+		mitigated = Rules.mitigate(amount, Rules.resistance(target, element), Rules.armor(target))
 	end
-	return Rules.mitigate(amount, Rules.resistance(target, element), Rules.armor(target))
+	return Rules.applyDamageTaken(mitigated, target)
 end
 
 function Rules.applyOutgoingStrength(amount, strengthBonus)

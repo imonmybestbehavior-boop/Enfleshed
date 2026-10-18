@@ -454,7 +454,8 @@ Payloads.Executors = {
 					amount,
 					payload.Duration,
 					context.TargetDeathCallback and context.TargetDeathCallback(humanoid),
-					context.RequiredElementalMark
+					context.RequiredElementalMark,
+					payload.Element
 				)
 			then
 				context.EffectFeedback(payload.Attribute, humanoid, amount)

@@ -47,7 +47,11 @@ local function apply(
 		if type(regionMultiplier) == "number" and regionMultiplier == regionMultiplier then
 			incoming *= math.clamp(regionMultiplier, 0, 4)
 		end
+		-- Spell hits: mitigation, then the target's DamageTaken modifier.
 		incoming = DamageRules.applyChannel(incoming, targetModel, eventContext.DamageChannel, eventContext.Element)
+	else
+		-- Melee and other context-free hits still honour DamageTaken.
+		incoming = DamageRules.applyDamageTaken(incoming, targetModel)
 	end
 	if targetModel and targetModel:IsA("Model") then
 		incoming = Defense.resolve(attacker, targetModel, incoming, melee)

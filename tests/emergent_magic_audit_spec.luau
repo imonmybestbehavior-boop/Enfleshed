@@ -246,7 +246,7 @@ local ControlDouble = {
 }
 
 local sharedModules = {
-	MagicAttributeSpec = load("src/shared/Modules/MagicAttributeSpec.luau"),
+	MagicAttributeSpec = attributeSpec,
 	MagicTemporalRate = load("src/shared/Modules/MagicTemporalRate.luau"),
 	MagicBodyRegionSpec = load("src/shared/Modules/MagicBodyRegionSpec.luau"),
 	MagicElementalInteractionSpec = load("src/shared/Modules/MagicElementalInteractionSpec.luau"),

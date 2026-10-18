@@ -18,6 +18,24 @@ local DURATION_KINDS = {
 	DamageOverTime = true,
 }
 
+-- Payload kinds Caps.payload leaves unchanged, and why. Listed so every
+-- Schema.Payloads kind is accounted for here (test_magic_registry_parity).
+Caps.UncappedKinds = {
+	Damage = "Capped on the final hit by Caps.damage (every damage source)",
+	ConsumeElementalMark = "Removes mark stacks; no numeric effect on the target",
+	Restoration = "Support over time; PvP profiles apply only between opponents",
+	Enhancement = "Affects only the caster",
+	AerialMovement = "Affects only the caster",
+	Manipulation = "Moves world objects, not players",
+	Summon = "Summon damage is capped by Caps.damage",
+}
+
+-- ModifyAttribute caps by attribute; anything not listed uses MaxAttributeChange.
+local ATTRIBUTE_CAP_KEYS = {
+	DamageTaken = "MaxDamageTakenChange",
+	Resistance = "MaxResistanceChange",
+}
+
 -- Profile name for a hit. `attacker`/`target` are CombatPolicy owners (nil = not player-owned).
 -- PvP profiles apply only between players who may fight each other (same PvP
 -- zone or a mutual duel); co-op support between teammates stays PvE.
@@ -82,9 +100,12 @@ function Caps.payload(payload: any, profile: { [string]: number }?, potency: num
 		elseif profile.MinTransformScale and out.Multiplier < 1 then
 			out.Multiplier = math.max(out.Multiplier, 1 - (1 - profile.MinTransformScale) / p)
 		end
-	elseif kind == "ModifyAttribute" and number(out.Amount) and profile.MaxAttributeChange then
-		local limit = profile.MaxAttributeChange / p
-		out.Amount = math.clamp(out.Amount, -limit, limit)
+	elseif kind == "ModifyAttribute" and number(out.Amount) then
+		local cap = profile[ATTRIBUTE_CAP_KEYS[out.Attribute] or "MaxAttributeChange"]
+		if cap then
+			local limit = cap / p
+			out.Amount = math.clamp(out.Amount, -limit, limit)
+		end
 	end
 	return out
 end
