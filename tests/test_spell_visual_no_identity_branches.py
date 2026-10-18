@@ -12,11 +12,11 @@ VISUAL_FILES = sorted((ROOT / "src/shared/SpellVFXSystem/Visual").glob("*.luau")
 
 def code(path):
     """Source with Luau comments removed, so documentation may name what code must not use."""
-    return re.sub(r"--[^\n]*", "", path.read_text())
+    return re.sub(r"--[^\n]*", "", path.read_text(encoding="utf-8"))
 
 
 def curated_names():
-    source = (ROOT / "src/shared/Modules/GrimoireStarters.luau").read_text()
+    source = (ROOT / "src/shared/Modules/GrimoireStarters.luau").read_text(encoding="utf-8")
     return sorted(set(re.findall(r'^\s*Name = "([^"]+)"', source, re.MULTILINE)))
 
 

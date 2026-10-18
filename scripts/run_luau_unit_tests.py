@@ -15,7 +15,7 @@ SKIP = {"test_magic_lab.lua", "test_grimoire_library.lua"}
 
 sources = ["local sources = {}"]
 for path in sorted((ROOT / "src").rglob("*.luau")):
-    sources.append(f"sources[{str(path.relative_to(ROOT))!r}] = [====[{path.read_text()}]====]")
+    sources.append(f"sources[{path.relative_to(ROOT).as_posix()!r}] = [====[{path.read_text(encoding="utf-8")}]====]")
 prelude = "\n".join(sources) + '''
 local base = getfenv()
 base.loadfile = function(path, mode, environment)
@@ -54,8 +54,9 @@ with tempfile.TemporaryDirectory(prefix="enfleshed-unit-") as directory:
         harness = Path(directory) / "harness.luau"
         harness.write_text(
             prelude
-            + "local test = assert(loadstring([====[" + test.read_text() + "]====], " + repr(test.name) + "))\n"
-            + "setfenv(test, base)\ntest()\n"
+            + "local test = assert(loadstring([====[" + test.read_text(encoding="utf-8") + "]====], " + repr(test.name) + "))\n"
+            + "setfenv(test, base)\ntest()\n",
+            encoding="utf-8",
         )
         result = subprocess.run([sys.argv[1], str(harness)], cwd=ROOT, capture_output=True, text=True)
         if result.returncode != 0:

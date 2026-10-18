@@ -40,12 +40,12 @@ class DefendTheWallsMapTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.place = ET.parse(built_place()).getroot()
-        cls.mode = (SERVICES / "DefendTheWallsService.luau").read_text()
-        cls.guards = (SERVICES / "DefendTheWallsGuards.luau").read_text()
-        cls.walls = (SERVICES / "DefendTheWallsMap/Walls.luau").read_text()
-        cls.gate = (SERVICES / "DefendTheWallsMap/Gate.luau").read_text()
-        cls.hud = (ROOT / "src/client/UI/HUD/MissionTracker.luau").read_text()
-        cls.config = (ROOT / "src/shared/Configuration/DefendTheWalls.luau").read_text()
+        cls.mode = (SERVICES / "DefendTheWallsService.luau").read_text(encoding="utf-8")
+        cls.guards = (SERVICES / "DefendTheWallsGuards.luau").read_text(encoding="utf-8")
+        cls.walls = (SERVICES / "DefendTheWallsMap/Walls.luau").read_text(encoding="utf-8")
+        cls.gate = (SERVICES / "DefendTheWallsMap/Gate.luau").read_text(encoding="utf-8")
+        cls.hud = (ROOT / "src/client/UI/HUD/MissionTracker.luau").read_text(encoding="utf-8")
+        cls.config = (ROOT / "src/shared/Configuration/DefendTheWalls.luau").read_text(encoding="utf-8")
 
     def test_built_place_contains_map_builder_and_layout(self):
         found = set(names(self.place))
@@ -57,7 +57,7 @@ class DefendTheWallsMapTests(unittest.TestCase):
         self.assertIn(("ModuleScript", "DefendTheWallsAssets"), found)
 
     def test_lighting_is_future_and_streaming_stays_on(self):
-        text = (ROOT / "default.project.json").read_text()
+        text = (ROOT / "default.project.json").read_text(encoding="utf-8")
         self.assertIn('"Technology": "Future"', text)
         self.assertIn('"StreamingEnabled": true', text)
 
@@ -81,7 +81,7 @@ class DefendTheWallsMapTests(unittest.TestCase):
         self.assertIn("message.WallHP", self.hud)
         self.assertIn("Integrity = {", self.config)
         self.assertIn('SetAttribute("DefenderSpawn"', self.mode)
-        self.assertIn('GetAttribute("DefenderSpawn")', (ROOT / "src/server/Networking/ActionRouter.luau").read_text())
+        self.assertIn('GetAttribute("DefenderSpawn")', (ROOT / "src/server/Networking/ActionRouter.luau").read_text(encoding="utf-8"))
         # Repairs only work on the active wall or doors.
         self.assertIn("index ~= wallLevel", self.mode)
 
@@ -93,7 +93,7 @@ class DefendTheWallsMapTests(unittest.TestCase):
         # Enemy melee only hits players and CityHuman targets, so the active wall's gates carry the tag.
         self.assertIn('CollectionService:AddTag(gate, "CityHuman")', self.mode)
         self.assertIn('CollectionService:RemoveTag(gate, "CityHuman")', self.mode)
-        enemy = (SERVICES / "EnemyService.luau").read_text()
+        enemy = (SERVICES / "EnemyService.luau").read_text(encoding="utf-8")
         self.assertIn('Collection:HasTag(character, "CityHuman")', enemy)
         # Wall runs overlap the side blockers so nothing squeezes round the ends.
         self.assertIn("-wall.HalfWidth - 6", self.walls)
@@ -108,11 +108,11 @@ class DefendTheWallsMapTests(unittest.TestCase):
             self.assertIn(key, self.config)
 
     def test_world_labels_never_stack(self):
-        kit = (SERVICES / "DefendTheWallsMap/Kit.luau").read_text()
+        kit = (SERVICES / "DefendTheWallsMap/Kit.luau").read_text(encoding="utf-8")
         self.assertIn("sign.AlwaysOnTop, sign.MaxDistance", kit)
         self.assertIn("false, maxDistance", kit)
         for path in (SERVICES / "DefendTheWallsMap").glob("*.luau"):
-            self.assertNotIn("AlwaysOnTop = true", path.read_text())
+            self.assertNotIn("AlwaysOnTop = true", path.read_text(encoding="utf-8"))
 
     def test_stuck_removal_targets_current_objective(self):
         self.assertIn("Config.StuckTimeout", self.mode)

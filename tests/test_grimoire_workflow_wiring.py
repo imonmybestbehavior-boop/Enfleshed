@@ -2,7 +2,7 @@
 from pathlib import Path
 import unittest
 ROOT = Path(__file__).resolve().parents[1]
-def read(path): return (ROOT / path).read_text()
+def read(path): return (ROOT / path).read_text(encoding="utf-8")
 
 class WorkflowWiring(unittest.TestCase):
     def test_digits_edit_fields_and_cannot_cast_through_ui(self):

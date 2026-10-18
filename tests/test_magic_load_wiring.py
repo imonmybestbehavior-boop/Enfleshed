@@ -2,7 +2,7 @@
 from pathlib import Path
 import unittest
 
-SERVICE = (Path(__file__).resolve().parents[1] / "src/server/Services/MagicService.luau").read_text()
+SERVICE = (Path(__file__).resolve().parents[1] / "src/server/Services/MagicService.luau").read_text(encoding="utf-8")
 
 
 class MagicLoadWiring(unittest.TestCase):

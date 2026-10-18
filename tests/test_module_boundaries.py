@@ -16,11 +16,11 @@ class ModuleBoundaries(unittest.TestCase):
     def test_extracted_modules_are_required_by_their_owner(self):
         for module, (owner, require) in EXTRACTED.items():
             self.assertTrue((ROOT / module).exists(), module)
-            self.assertIn(require, (ROOT / owner).read_text(), owner)
+            self.assertIn(require, (ROOT / owner).read_text(encoding="utf-8"), owner)
 
     def test_extracted_modules_do_not_depend_back_on_their_owner(self):
         for module, (owner, _) in EXTRACTED.items():
-            source = (ROOT / module).read_text()
+            source = (ROOT / module).read_text(encoding="utf-8")
             owner_name = Path(owner).stem
             self.assertNotIn(f"script.Parent.{owner_name})", source, f"{module} must not require {owner_name}")
             self.assertTrue(source.startswith("--!strict"), module)

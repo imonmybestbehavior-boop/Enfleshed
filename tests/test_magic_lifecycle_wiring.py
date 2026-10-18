@@ -8,7 +8,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 class MagicLifecycleWiring(unittest.TestCase):
     def test_transform_baseline_is_restored_when_live_model_leaves_workspace(self):
-        source = (ROOT / "src/server/Services/MagicStatusEffectService.luau").read_text()
+        source = (ROOT / "src/server/Services/MagicStatusEffectService.luau").read_text(encoding="utf-8")
         restore = source[
             source.index("local function restoreTransform(") : source.index("\nlocal function getState(")
         ]

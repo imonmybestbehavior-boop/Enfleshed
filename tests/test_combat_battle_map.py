@@ -6,7 +6,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 class CombatBattleMapTests(unittest.TestCase):
     def read(self, path):
-        return (ROOT / path).read_text()
+        return (ROOT / path).read_text(encoding="utf-8")
 
     def test_generator_exposes_required_builders_and_map_organization(self):
         generator = self.read("src/server/Services/MapGenerator.luau")

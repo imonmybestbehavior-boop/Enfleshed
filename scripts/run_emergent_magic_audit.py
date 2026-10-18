@@ -15,10 +15,10 @@ spec_path = Path(sys.argv[2]) if len(sys.argv) > 2 else ROOT / "tests/emergent_m
 parts = ["local sources = {}"]
 for folder in ("src/shared", "src/server"):
     for path in sorted((ROOT / folder).rglob("*.luau")):
-        parts.append(f"sources[{str(path.relative_to(ROOT))!r}] = [====[{path.read_text()}]====]")
-test = (ROOT / "tests/test_magic_lab.lua").read_text()
+        parts.append(f"sources[{path.relative_to(ROOT).as_posix()!r}] = [====[{path.read_text(encoding="utf-8")}]====]")
+test = (ROOT / "tests/test_magic_lab.lua").read_text(encoding="utf-8")
 marker = 'local spec = load("src/shared/Modules/SpellSpec.luau")'
-test = test[: test.index(marker) + len(marker)] + "\n" + spec_path.read_text()
+test = test[: test.index(marker) + len(marker)] + "\n" + spec_path.read_text(encoding="utf-8")
 parts.append('''local base = getfenv()
 base.loadfile = function(path, mode, environment)
     local content = sources[path]
@@ -33,5 +33,5 @@ test()
 ''')
 with tempfile.TemporaryDirectory(prefix="enfleshed-audit-") as directory:
     harness = Path(directory) / "harness.luau"
-    harness.write_text("\n".join(parts))
+    harness.write_text("\n".join(parts), encoding="utf-8")
     raise SystemExit(subprocess.run([sys.argv[1], str(harness)], cwd=ROOT).returncode)

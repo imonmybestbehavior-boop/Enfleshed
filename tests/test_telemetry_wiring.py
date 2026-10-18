@@ -7,14 +7,14 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 def read(path):
-    return (ROOT / path).read_text()
+    return (ROOT / path).read_text(encoding="utf-8")
 
 
 class TelemetryWiring(unittest.TestCase):
     def test_every_onboarding_step_is_emitted(self):
         spec = read("src/shared/Modules/TelemetrySpec.luau")
         steps = re.findall(r'^\t"(\w+)",$', spec[spec.index("Spec.Onboarding = {"):spec.index("}")], re.MULTILINE)
-        server = "".join(p.read_text() for p in (ROOT / "src/server").rglob("*.luau"))
+        server = "".join(p.read_text(encoding="utf-8") for p in (ROOT / "src/server").rglob("*.luau"))
         for step in steps:
             if step == "CastSpell":
                 self.assertIn('Telemetry.onboarding(player, "CastSpell")', read("src/server/Services/TelemetryService.luau"))
@@ -33,7 +33,7 @@ class TelemetryWiring(unittest.TestCase):
             self.assertGreater(before.rfind("safe(function()"), before.rfind("\tend)\n"), "AnalyticsService call outside safe()")
         for path in (ROOT / "src").rglob("*.luau"):
             if path.name != "TelemetryService.luau":
-                self.assertNotIn("AnalyticsService", path.read_text(), f"{path.name} must go through TelemetryService")
+                self.assertNotIn("AnalyticsService", path.read_text(encoding="utf-8"), f"{path.name} must go through TelemetryService")
 
     def test_mission_and_economy_events(self):
         mission = read("src/server/Services/ModeRunner.luau")

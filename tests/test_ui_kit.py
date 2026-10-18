@@ -6,7 +6,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 def read(path):
-    return (ROOT / path).read_text()
+    return (ROOT / path).read_text(encoding="utf-8")
 
 
 class UiKit(unittest.TestCase):
@@ -28,7 +28,7 @@ class UiKit(unittest.TestCase):
         self.assertIn("GamepadNav.close(panel)", inventory)
 
     def test_every_core_action_has_a_gamepad_binding(self):
-        client = "".join(p.read_text() for p in (ROOT / "src/client").rglob("*.luau"))
+        client = "".join(p.read_text(encoding="utf-8") for p in (ROOT / "src/client").rglob("*.luau"))
         for key in ("ButtonSelect", "DPadDown", "ButtonR1", "DPadLeft", "DPadRight",  # menus + spells
                     "ButtonR2", "ButtonL2", "ButtonB", "ButtonY", "ButtonL3", "ButtonA"):  # combat + movement
             self.assertIn(f"Enum.KeyCode.{key}", client, key)
