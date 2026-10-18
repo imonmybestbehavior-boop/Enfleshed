@@ -3448,7 +3448,7 @@ function Magic.reset(player)
 		Movement.setMagicAerial(effect.State, 0)
 	end
 	enhancements[player] = nil
-	-- Active spell and Self Enhancement expiry triggers can contain Summon
+	-- Active spell and Enchantment expiry triggers can contain Summon
 	-- payloads, so dismiss groups after every final event has run.
 	Summons.clearOwner(player)
 	local old = playerData[player]
@@ -3736,8 +3736,8 @@ RunService.Heartbeat:Connect(function(delta)
 				if not spell.ResourceEnded then
 					feedback(spell.Remote, spell.Player, "EXPIRED", d, {
 						Reason = if not stats or stats.Mana <= 0
-							then "Self Enhancement ended · mana depleted"
-							else "Self Enhancement channel limit reached",
+							then "Enchantment ended · mana depleted"
+							else "Enchantment channel limit reached",
 					})
 				end
 				table.remove(active, i)

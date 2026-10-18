@@ -1352,6 +1352,7 @@ function Forge.mount(parent, draft, schema, spec, callbacks)
 			CellSize = UDim2.new(if state.Mobile then 1 else 0.5, -8, 0, 84),
 			SortOrder = Enum.SortOrder.LayoutOrder,
 		}, body)
+		local tileParent = body
 		local function tile(icon, color, title, blurb, enabled, callback, badge)
 			local base = if enabled then C.Card else Color3.fromRGB(24, 21, 26)
 			local item = new("TextButton", {
@@ -1359,7 +1360,7 @@ function Forge.mount(parent, draft, schema, spec, callbacks)
 				AutoButtonColor = false,
 				BackgroundColor3 = base,
 				BorderSizePixel = 0,
-			}, body)
+			}, tileParent)
 			corner(item, 12)
 			stroke(item, if enabled then C.PanelEdge else C.Panel)
 			if enabled then
@@ -1482,32 +1483,84 @@ function Forge.mount(parent, draft, schema, spec, callbacks)
 			end
 		else
 			local options = optionsFor(picker, picker.Intent or {})
+			-- Group by Polarity (Boons, Banes, Other); each tile keeps its Category as a sub-label.
+			-- Behaviors and spawned effects are not payloads, so they sit under Other.
+			local groups = {}
 			for _, option in options do
-				local icon, color, title, blurb
-				if option.Kind == "Payload" then
-					local definition = schema.Payloads[option.Id]
-					icon = PayloadIcon[option.Id] or "▲"
-					color = CategoryColor[definition.Category] or C.Muted
-					title = PayloadVerb[option.Id] or definition.Label
-					blurb = definition.Description
-				elseif option.Kind == "Spawn" then
-					local definition = schema.Forms[option.Id]
-					icon, color = FormIcon[option.Id] or "◆", C.Gold
-					title = FormVerb[option.Id] or ("Create " .. definition.Label)
-					blurb = "Starts a separate " .. definition.Label .. " here. It gets its own triggers and effects."
-				else
-					local definition = schema.Behaviors[option.Id]
-					icon, color, title, blurb = "*", C.Warn, definition.Label, definition.Description
+				local definition = option.Kind == "Payload" and schema.Payloads[option.Id]
+				local polarity = definition and definition.Polarity or "Neutral"
+				groups[polarity] = groups[polarity] or {}
+				table.insert(groups[polarity], option)
+			end
+			if #options > 0 then
+				grid:Destroy()
+				grid = nil
+				new("UIListLayout", { Padding = UDim.new(0, 8), SortOrder = Enum.SortOrder.LayoutOrder }, body)
+			end
+			for groupIndex, polarity in schema.PolarityOrder do
+				local groupOptions = groups[polarity]
+				if groupOptions then
+					text(body, string.upper(schema.PolarityLabels[polarity]), 12, C.Gold, Enum.Font.GothamBlack, {
+						Name = "PickerGroupHeading",
+						Size = UDim2.new(1, 0, 0, 22),
+						TextYAlignment = Enum.TextYAlignment.Bottom,
+						LayoutOrder = groupIndex * 2 - 1,
+					})
+					local section = new("Frame", {
+						Name = "PickerGroup",
+						BackgroundTransparency = 1,
+						Size = UDim2.new(1, 0, 0, 0),
+						AutomaticSize = Enum.AutomaticSize.Y,
+						LayoutOrder = groupIndex * 2,
+					}, body)
+					new("UIGridLayout", {
+						CellPadding = UDim2.fromOffset(12, 12),
+						CellSize = UDim2.new(if state.Mobile then 1 else 0.5, -8, 0, 84),
+						SortOrder = Enum.SortOrder.LayoutOrder,
+					}, section)
+					tileParent = section
+					for _, option in groupOptions do
+						local icon, color, title, blurb, category
+						if option.Kind == "Payload" then
+							local definition = schema.Payloads[option.Id]
+							icon = PayloadIcon[option.Id] or "▲"
+							color = CategoryColor[definition.Category] or C.Muted
+							title = PayloadVerb[option.Id] or definition.Label
+							blurb = definition.Description
+							category = definition.Category
+						elseif option.Kind == "Spawn" then
+							local definition = schema.Forms[option.Id]
+							icon, color = FormIcon[option.Id] or "◆", C.Gold
+							title = FormVerb[option.Id] or ("Create " .. definition.Label)
+							blurb = "Starts a separate "
+								.. definition.Label
+								.. " here. It gets its own triggers and effects."
+						else
+							local definition = schema.Behaviors[option.Id]
+							icon, color, title, blurb = "*", C.Warn, definition.Label, definition.Description
+						end
+						tile(
+							icon,
+							color,
+							title,
+							if option.Enabled then blurb else option.Reason,
+							option.Enabled,
+							function()
+								addOption(picker, option)
+							end,
+							if not option.Enabled then "UNAVAILABLE" elseif category then string.upper(category) else nil
+						)
+					end
+					tileParent = body
 				end
-				tile(icon, color, title, if option.Enabled then blurb else option.Reason, option.Enabled, function()
-					addOption(picker, option)
-				end, if option.Enabled then nil else "UNAVAILABLE")
 			end
 			if #options == 0 then
 				tile("—", C.Faint, "Nothing available", "The engine has no supported actions for this moment.", false)
 			end
 		end
-		grid.Parent = body
+		if grid then
+			grid.Parent = body
+		end
 	end
 
 	------------------------------------------------------------------ inspector

@@ -757,6 +757,7 @@ function Lab.start(send, aim, launcher)
 				rebuildPreservingScroll()
 			end)
 		end
+		return label
 	end
 	local function info(text, _height)
 		cardPairHolder, cardPairCount, cardPairCards, cardPairLayout = nil, 0, {}, nil
@@ -2493,17 +2494,12 @@ function Lab.start(send, aim, launcher)
 					and draft.Casting.Mode ~= "Toggle"
 					and draft.Casting.Mode ~= "Sustained"
 				then
-					toggle(
-						"Remain active until toggled off",
-						draft.Lifetime.Mode == "UntilToggledOff",
-						function(value)
-							local endWhen = draft.Lifetime.EndWhen
-							draft.Lifetime = if value
-								then { Mode = "UntilToggledOff", EndWhen = endWhen }
-								else { Mode = "FixedDuration", Duration = 10, EndWhen = endWhen }
-						end,
-						"Fields, Auras, Self Enhancements, and Constructs stay active until you cast the same spell again."
-					)
+					toggle("Remain active until toggled off", draft.Lifetime.Mode == "UntilToggledOff", function(value)
+						local endWhen = draft.Lifetime.EndWhen
+						draft.Lifetime = if value
+							then { Mode = "UntilToggledOff", EndWhen = endWhen }
+							else { Mode = "FixedDuration", Duration = 10, EndWhen = endWhen }
+					end, "Fields, Auras, Enchantments, and Constructs stay active until you cast the same spell again.")
 				end
 				if
 					LifetimeSpec.supports(draft.Form, "UntilDestroyed")
@@ -2605,7 +2601,7 @@ function Lab.start(send, aim, launcher)
 						"Active duration (seconds)",
 						draft.Lifetime,
 						"Duration",
-						"How long this enhancement remains active after casting."
+						"How long this enchantment remains active after casting."
 					)
 				elseif draft.Lifetime.Mode == "UntilConditionFails" then
 					if draft.Form == "Projectile" or conditionBoundChannel then
@@ -3250,7 +3246,7 @@ function Lab.start(send, aim, launcher)
 					"Approach radius (studs)",
 					draft.Proximity,
 					"Radius",
-					"Maximum distance from the active Self Enhancement's caster or Construct where a target can trigger OnProximity."
+					"Maximum distance from the active Enchantment's caster or Construct where a target can trigger OnProximity."
 				)
 				numeric(
 					"Proximity sample interval (seconds)",
@@ -3560,214 +3556,227 @@ function Lab.start(send, aim, launcher)
 			if not configuring then
 				info(Schema.EventDescriptions[event] or "Effects run when this Form resolves its target.", 40)
 			end
-			for _, category in ipairs(EffectCategoryOrder) do
-				local kinds = {}
-				for kind, definition in Schema.Payloads do
-					if effectCategory(kind) == category then
-						table.insert(kinds, kind)
+			-- Group effects by Polarity (Boons, Banes, Other); Category stays as the sub-heading.
+			for _, polarity in Schema.PolarityOrder do
+				local groupShown = false
+				for _, category in ipairs(EffectCategoryOrder) do
+					local kinds = {}
+					for kind, definition in Schema.Payloads do
+						if effectCategory(kind) == category and (definition.Polarity or "Neutral") == polarity then
+							table.insert(kinds, kind)
+						end
 					end
-				end
-				table.sort(kinds)
-				local hasSelectedEffect = false
-				for _, kind in ipairs(kinds) do
-					if payload(kind) then
-						hasSelectedEffect = true
-						break
+					table.sort(kinds)
+					local hasSelectedEffect = false
+					for _, kind in ipairs(kinds) do
+						if payload(kind) then
+							hasSelectedEffect = true
+							break
+						end
 					end
-				end
-				if not configuring or hasSelectedEffect then
-					heading(string.upper(category))
-					if not configuring then
-						local categoryDescriptions = {
-							Damage = "Hurt targets immediately or over time.",
-							Healing = "Restore health or help a target recover.",
-							Defense = "Shield targets or improve defensive attributes.",
-							Control = "Push, pull, slow, bind, or otherwise limit movement.",
-							Movement = "Change how a target moves through the world.",
-							Summoning = "Create a companion with a bounded lifetime and behavior.",
-							Utility = "Reveal, transform, or interact with prepared objects.",
-						}
-						info(
-							categoryDescriptions[category] or "Effects describe the gameplay outcomes of the spell.",
-							34
-						)
-					end
-					for _, kind in kinds do
-						local definition = Schema.Payloads[kind]
-						local value = payload(kind)
-						if not configuring or value ~= nil then
-							local objectInteractionOnly = draft.Targeting == "ObjectTarget"
-								and (draft.Form == "Projectile" or draft.Form == "Beam" or draft.Form == "Wave")
-							local formAndTargetCompatible = (
-								not objectInteractionOnly
-								or kind == "Force"
-								or kind == "Control"
-								or kind == "Manipulation"
+					if #kinds > 0 and (not configuring or hasSelectedEffect) then
+						if not groupShown then
+							groupShown = true
+							local groupLabel = heading(string.upper(Schema.PolarityLabels[polarity]))
+							groupLabel.TextSize = 15
+							groupLabel.TextColor3 = K.C.Ink
+						end
+						heading(string.upper(category))
+						if not configuring then
+							local categoryDescriptions = {
+								Damage = "Hurt targets immediately or over time.",
+								Healing = "Restore health or help a target recover.",
+								Defense = "Shield targets or improve defensive attributes.",
+								Control = "Push, pull, slow, bind, or otherwise limit movement.",
+								Movement = "Change how a target moves through the world.",
+								Summoning = "Create a companion with a bounded lifetime and behavior.",
+								Utility = "Reveal, transform, or interact with prepared objects.",
+							}
+							info(
+								categoryDescriptions[category] or "Effects describe the gameplay outcomes of the spell.",
+								34
 							)
-								and (
-									kind ~= "Manipulation"
-									or draft.Form == "Manipulation"
-									or draft.Targeting == "ObjectTarget"
-								)
-							local capabilityCompatible = Schema.supportsPayloadCapability(kind, draft.Form, event)
-							local available = (capabilityCompatible and formAndTargetCompatible) or value ~= nil
-							local reason = if kind == "Manipulation"
+						end
+						for _, kind in kinds do
+							local definition = Schema.Payloads[kind]
+							local value = payload(kind)
+							if not configuring or value ~= nil then
+								local objectInteractionOnly = draft.Targeting == "ObjectTarget"
 									and (draft.Form == "Projectile" or draft.Form == "Beam" or draft.Form == "Wave")
-									and draft.Targeting ~= "ObjectTarget"
-								then "Requires ObjectTarget so the server can validate the exact manipulated part."
-								elseif
-									objectInteractionOnly
-									and kind ~= "Force"
-									and kind ~= "Control"
-									and kind ~= "Manipulation"
-								then "Aimed object Forms allow Force, Control, or authorized material Manipulation."
-								elseif
-									not definition.TargetIndependent
-									and (not form.TargetTypes or not form.TargetTypes.Humanoid)
-								then "This Form does not resolve Humanoid targets."
-								elseif
-									definition.Events[draft.Form]
-								then "Available on a different event for this Form."
-								else "This effect cannot run with the current Form, target mode, or timing. Choose a compatible combination."
-							if not configuring then
-								card(definition.Label, definition.Description, value ~= nil, function(enabled)
-									setPayload(kind, enabled)
-								end, available, reason)
-							elseif value then
-								heading(definition.Label)
-								info(definition.Description, 38)
-								if not capabilityCompatible or not formAndTargetCompatible then
-									info(
-										"This selected effect is incompatible with the current Form, target mode, or timing. "
-											.. reason,
-										52
+								local formAndTargetCompatible = (
+									not objectInteractionOnly
+									or kind == "Force"
+									or kind == "Control"
+									or kind == "Manipulation"
+								)
+									and (
+										kind ~= "Manipulation"
+										or draft.Form == "Manipulation"
+										or draft.Targeting == "ObjectTarget"
 									)
+								local capabilityCompatible = Schema.supportsPayloadCapability(kind, draft.Form, event)
+								local available = (capabilityCompatible and formAndTargetCompatible) or value ~= nil
+								local reason = if kind == "Manipulation"
+										and (draft.Form == "Projectile" or draft.Form == "Beam" or draft.Form == "Wave")
+										and draft.Targeting ~= "ObjectTarget"
+									then "Requires ObjectTarget so the server can validate the exact manipulated part."
+									elseif
+										objectInteractionOnly
+										and kind ~= "Force"
+										and kind ~= "Control"
+										and kind ~= "Manipulation"
+									then "Aimed object Forms allow Force, Control, or authorized material Manipulation."
+									elseif
+										not definition.TargetIndependent
+										and (not form.TargetTypes or not form.TargetTypes.Humanoid)
+									then "This Form does not resolve Humanoid targets."
+									elseif
+										definition.Events[draft.Form]
+									then "Available on a different event for this Form."
+									else "This effect cannot run with the current Form, target mode, or timing. Choose a compatible combination."
+								if not configuring then
+									card(definition.Label, definition.Description, value ~= nil, function(enabled)
+										setPayload(kind, enabled)
+									end, available, reason)
+								elseif value then
+									heading(definition.Label)
+									info(definition.Description, 38)
+									if not capabilityCompatible or not formAndTargetCompatible then
+										info(
+											"This selected effect is incompatible with the current Form, target mode, or timing. "
+												.. reason,
+											52
+										)
+									end
 								end
-							end
-							if configuring and value then
-								if kind == "Summon" then
-									heading("HOW SUMMONS WORK")
-									info(
-										"CURRENT TRIGGER: "
-											.. event
-											.. (if draft.Form == "Projectile" and event == "OnImpact"
-												then " — waits for the projectile to collide. Choose OnCast to summon as soon as you cast."
-												else " — the summon appears when this event occurs.")
-											.. " Spawn position (Caster or Event) controls where it appears, not when. Repeated Event triggers add members up to the cap; Caster placement refreshes one group. Assign a spell slot and choose Hunter to let companions seek visible hostiles near their spawn points.",
-										76
-									)
-									for _, field in definition.Fields do
-										if
-											(field.Key ~= "Duration" and field.Key ~= "RespawnPolicy")
-											or (field.Key == "Duration" and (value.LifetimeMode or "FixedDuration") == "FixedDuration")
-											or (
-												field.Key == "RespawnPolicy"
-												and (value.LifetimeMode or "FixedDuration") == "UntilCommanded"
-											)
-										then
-											if field.Key == "LifetimeMode" then
-												local previous = value.LifetimeMode or "FixedDuration"
-												select(field.Label, previous, field.Options, function(selected)
-													value.LifetimeMode = selected
-													if selected == "UntilCommanded" then
-														value.Duration = nil
-														value.RespawnPolicy = value.RespawnPolicy or "DismissOnDeath"
-													elseif value.Duration == nil then
-														value.Duration = 30
-														value.RespawnPolicy = "DismissOnDeath"
-													end
-												end, nil, field.Help)
-											elseif field.Key == "SpellSlot" then
-												select(
-													field.Label,
-													value.SpellSlot or "None",
-													field.Options,
-													function(selected)
-														value.SpellSlot = if selected == "None" then nil else selected
-													end,
-													nil,
-													field.Help
+								if configuring and value then
+									if kind == "Summon" then
+										heading("HOW SUMMONS WORK")
+										info(
+											"CURRENT TRIGGER: "
+												.. event
+												.. (if draft.Form == "Projectile" and event == "OnImpact"
+													then " — waits for the projectile to collide. Choose OnCast to summon as soon as you cast."
+													else " — the summon appears when this event occurs.")
+												.. " Spawn position (Caster or Event) controls where it appears, not when. Repeated Event triggers add members up to the cap; Caster placement refreshes one group. Assign a spell slot and choose Hunter to let companions seek visible hostiles near their spawn points.",
+											76
+										)
+										for _, field in definition.Fields do
+											if
+												(field.Key ~= "Duration" and field.Key ~= "RespawnPolicy")
+												or (field.Key == "Duration" and (value.LifetimeMode or "FixedDuration") == "FixedDuration")
+												or (
+													field.Key == "RespawnPolicy"
+													and (value.LifetimeMode or "FixedDuration") == "UntilCommanded"
 												)
-											else
-												renderField(value, field)
+											then
+												if field.Key == "LifetimeMode" then
+													local previous = value.LifetimeMode or "FixedDuration"
+													select(field.Label, previous, field.Options, function(selected)
+														value.LifetimeMode = selected
+														if selected == "UntilCommanded" then
+															value.Duration = nil
+															value.RespawnPolicy = value.RespawnPolicy
+																or "DismissOnDeath"
+														elseif value.Duration == nil then
+															value.Duration = 30
+															value.RespawnPolicy = "DismissOnDeath"
+														end
+													end, nil, field.Help)
+												elseif field.Key == "SpellSlot" then
+													select(
+														field.Label,
+														value.SpellSlot or "None",
+														field.Options,
+														function(selected)
+															value.SpellSlot = if selected == "None"
+																then nil
+																else selected
+														end,
+														nil,
+														field.Help
+													)
+												else
+													renderField(value, field)
+												end
 											end
 										end
-									end
-									local companionSlot = tonumber(value.SpellSlot)
-									local companion = if companionSlot then equipped[companionSlot] else nil
-									local assignedProfile, assignedReason = nil, nil
-									if companion then
-										assignedProfile, assignedReason =
-											CompanionSpellPolicy.classify(Spec.normalize(companion))
-									end
-									if not companionSlot then
-										local noSpellHelp = if value.Role == "Medic"
-											then "No companion spell assigned. Medic stays idle until you choose an equipped Ally spell with Heal, Restoration, or Shield."
-											elseif
-												value.Role == "Controller"
-											then "No companion spell assigned. Controller stays idle until you choose an equipped hostile-control spell."
-											else "No companion spell assigned. This is valid: Guardian/Hunter uses its basic attack. Choose an equipped spell slot only if you want it to cast magic."
-										info(noSpellHelp, 54)
-									elseif not companion then
-										info(
-											string.format(
-												"Slot %d is empty. Equip a spell there in the spell slots, or choose None.",
-												companionSlot
-											),
-											48
-										)
-									elseif not assignedProfile then
-										info(
-											string.format(
-												"Slot %d · %s cannot be cast by a companion: %s",
-												companionSlot,
-												companion.Name,
-												assignedReason or "incompatible spell"
-											),
-											54
-										)
-									elseif
-										value.Role == "Medic"
-										and (
-											assignedProfile.Mode ~= "Ally"
-											or (
-												not assignedProfile.CanHeal
-												and not assignedProfile.CanShield
-												and not assignedProfile.CanModifyAttribute
+										local companionSlot = tonumber(value.SpellSlot)
+										local companion = if companionSlot then equipped[companionSlot] else nil
+										local assignedProfile, assignedReason = nil, nil
+										if companion then
+											assignedProfile, assignedReason =
+												CompanionSpellPolicy.classify(Spec.normalize(companion))
+										end
+										if not companionSlot then
+											local noSpellHelp = if value.Role == "Medic"
+												then "No companion spell assigned. Medic stays idle until you choose an equipped Ally spell with Heal, Restoration, or Shield."
+												elseif
+													value.Role == "Controller"
+												then "No companion spell assigned. Controller stays idle until you choose an equipped hostile-control spell."
+												else "No companion spell assigned. This is valid: Guardian/Hunter uses its basic attack. Choose an equipped spell slot only if you want it to cast magic."
+											info(noSpellHelp, 54)
+										elseif not companion then
+											info(
+												string.format(
+													"Slot %d is empty. Equip a spell there in the spell slots, or choose None.",
+													companionSlot
+												),
+												48
 											)
-										)
-									then
-										info(
-											string.format(
-												"Slot %d · %s is not a healing/protection spell. Medic requires an Ally spell with Heal, Restoration, Shield, or a positive armor modifier.",
-												companionSlot,
-												companion.Name
-											),
-											54
-										)
-									elseif value.Role == "Controller" and not assignedProfile.CanControl then
-										info(
-											string.format(
-												"Slot %d · %s does not have a control effect. Controller requires hostile Slow, Bind, Control, or Displacement.",
-												companionSlot,
-												companion.Name
-											),
-											54
-										)
+										elseif not assignedProfile then
+											info(
+												string.format(
+													"Slot %d · %s cannot be cast by a companion: %s",
+													companionSlot,
+													companion.Name,
+													assignedReason or "incompatible spell"
+												),
+												54
+											)
+										elseif
+											value.Role == "Medic"
+											and (
+												assignedProfile.Mode ~= "Ally"
+												or (
+													not assignedProfile.CanHeal
+													and not assignedProfile.CanShield
+													and not assignedProfile.CanModifyAttribute
+												)
+											)
+										then
+											info(
+												string.format(
+													"Slot %d · %s is not a healing/protection spell. Medic requires an Ally spell with Heal, Restoration, Shield, or a positive armor modifier.",
+													companionSlot,
+													companion.Name
+												),
+												54
+											)
+										elseif value.Role == "Controller" and not assignedProfile.CanControl then
+											info(
+												string.format(
+													"Slot %d · %s does not have a control effect. Controller requires hostile Slow, Bind, Control, or Displacement.",
+													companionSlot,
+													companion.Name
+												),
+												54
+											)
+										else
+											info(
+												string.format(
+													"Ready · slot %d: %s (%s, %s target). Use Protect/Attack for hostile spells or Support for Ally spells. Companions use your normal magic resource limits.",
+													companionSlot,
+													companion.Name,
+													companion.Form,
+													assignedProfile.Mode
+												),
+												54
+											)
+										end
 									else
-										info(
-											string.format(
-												"Ready · slot %d: %s (%s, %s target). Use Protect/Attack for hostile spells or Support for Ally spells. Companions use your normal magic resource limits.",
-												companionSlot,
-												companion.Name,
-												companion.Form,
-												assignedProfile.Mode
-											),
-											54
-										)
+										showFields(value, definition.Fields)
 									end
-								else
-									showFields(value, definition.Fields)
 								end
 							end
 						end

@@ -1268,7 +1268,7 @@ local showcaseExpansion = {
 	},
 	{
 		Name = "Redshift Lunge",
-		Description = "A self enhancement accelerates movement and empowers the next close-range exchange.",
+		Description = "An enchantment accelerates movement and empowers the next close-range exchange.",
 		Form = "SelfEnhancement",
 		Principle = "Body",
 		Element = "Fire",

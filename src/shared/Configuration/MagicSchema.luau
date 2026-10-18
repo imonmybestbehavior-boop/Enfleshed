@@ -783,8 +783,8 @@ Schema.Forms = {
 		},
 	},
 	SelfEnhancement = {
-		Label = "Self Enhancement",
-		Description = "An active spell on yourself. Add Movement to run faster or jump higher, or choose other supported effects. You can also add effects that happen when someone approaches you.",
+		Label = "Enchantment",
+		Description = "An enchantment on yourself. Add Swiftness to run faster or jump higher, or choose other supported effects. You can also add effects that happen when someone approaches you.",
 		Geometry = "Self",
 		Motion = "Stationary",
 		Draft = {
@@ -1563,10 +1563,10 @@ Schema.Payloads = {
 		},
 	},
 	Enhancement = {
-		Label = "Movement enhancement",
+		Label = "Swiftness",
 		Category = "Movement",
 		Polarity = "Boon",
-		Description = "Improves your movement while this Self Enhancement is active.",
+		Description = "Improves your movement while this Enchantment is active.",
 		Forms = set({ "SelfEnhancement" }),
 		Events = { SelfEnhancement = set({ "OnCast" }) },
 		Defaults = { SpeedMultiplier = 1.2, WalkSpeedBonus = 0, JumpPowerBonus = 0 },
@@ -1601,7 +1601,7 @@ Schema.Payloads = {
 		Label = "Aerial movement",
 		Category = "Movement",
 		Polarity = "Boon",
-		Description = "Lets you steer in three dimensions while this Self Enhancement is active. WASD moves horizontally; Space rises and Left Control descends.",
+		Description = "Lets you steer in three dimensions while this Enchantment is active. WASD moves horizontally; Space rises and Left Control descends.",
 		Forms = set({ "SelfEnhancement" }),
 		Events = { SelfEnhancement = set({ "OnCast" }) },
 		Defaults = { Speed = 32 },
@@ -1805,6 +1805,9 @@ Schema.PayloadOrder = {
 	"Manipulation",
 	"Summon",
 }
+-- Effect pickers group payloads by Polarity first, then by Category.
+Schema.PolarityOrder = { "Boon", "Bane", "Neutral" }
+Schema.PolarityLabels = { Boon = "Boons", Bane = "Banes", Neutral = "Other" }
 Schema.PayloadCategories =
 	{ "Support", "Impact", "Control", "Detection", "Movement", "Temporal", "World interaction", "Summoning" }
 

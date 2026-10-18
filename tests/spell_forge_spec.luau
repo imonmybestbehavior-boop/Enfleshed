@@ -318,6 +318,25 @@ assert(root:FindFirstChild("ActionPicker"), "Trigger picker opens")
 click(root:FindFirstChild("ActionPicker"), "When it hits")
 assert(has(root:FindFirstChild("ActionPicker"), "What do you want to happen?"), "Intent stage")
 click(root:FindFirstChild("ActionPicker"), "Affect a target")
+-- Effects are grouped Boons, Banes, Other by payload Polarity, with Category kept as each tile's sub-label.
+local groupHeadings = {}
+for _, item in root:FindFirstChild("ActionPicker"):GetDescendants() do
+	if item.Name == "PickerGroupHeading" then
+		table.insert(groupHeadings, item)
+	end
+end
+table.sort(groupHeadings, function(a, b)
+	return a.LayoutOrder < b.LayoutOrder
+end)
+local headingTexts = {}
+for _, item in groupHeadings do
+	table.insert(headingTexts, item.Text)
+end
+assert(
+	table.concat(headingTexts, ",") == "BOONS,BANES,OTHER",
+	"Effect groups in order: " .. table.concat(headingTexts, ",")
+)
+assert(has(root:FindFirstChild("ActionPicker"), string.upper(schema.Payloads.Damage.Category)), "Category sub-label")
 click(root:FindFirstChild("ActionPicker"), "Deal damage")
 assert(root:FindFirstChild("ActionPicker") == nil, "Picker closes after choosing")
 assert(draft.Triggers.OnImpact and draft.Triggers.OnImpact[1].Payloads[1].Kind == "Damage", "Damage added on impact")
