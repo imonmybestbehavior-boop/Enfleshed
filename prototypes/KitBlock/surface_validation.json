@@ -1,8 +1,0 @@
-{
-  "coplanar_pairs_before": 2083,
-  "coplanar_pairs_after": 0,
-  "adjusted_visuals": 491,
-  "iterations": 6,
-  "collision_geometry_unchanged": true,
-  "max_dimension_reduction": 0.09600000000000009
-}

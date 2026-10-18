@@ -8,6 +8,7 @@ export type Attack = {
 	Size: Vector3,
 	Offset: number,
 	Reach: number,
+	Reaction: string?,
 }
 
 export type ActionOptions = {
@@ -21,7 +22,6 @@ export type ActionOptions = {
 	CastOrigin: Vector3?,
 	EquipmentSlot: string?,
 	EquipmentAction: string?,
-	AwakeningProfileId: string?,
 	SummonMode: string?,
 	SummonId: number?,
 	AllowsTargetedSpells: boolean?,
@@ -41,7 +41,6 @@ export type ActionRequest = {
 	CastOrigin: Vector3?,
 	EquipmentSlot: string?,
 	EquipmentAction: string?,
-	AwakeningProfileId: string?,
 	SummonMode: string?,
 	SummonId: number?,
 	AllowsTargetedSpells: boolean?,
@@ -87,6 +86,11 @@ export type PlayerState = {
 	ActiveAt: number,
 	ActiveUntil: number,
 	HitTargets: { [Humanoid]: boolean },
+	Heavy: boolean,
+	Blocking: boolean,
+	AttackFacing: Vector3?, -- Flat facing the client swung toward, once checked against the server's.
+	DamageScale: number, -- Multiplier for the current swing (a parry bonus raises it).
+	ParryBonusUntil: number,
 }
 
 return {}

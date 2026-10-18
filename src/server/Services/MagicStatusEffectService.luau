@@ -15,6 +15,7 @@ local EffectSpec = require(game:GetService("ReplicatedStorage").Shared.Modules.M
 local ElementalMarkSpec = require(game:GetService("ReplicatedStorage").Shared.Modules.MagicElementalMarkSpec)
 local DamageRules = require(game:GetService("ReplicatedStorage").Shared.Modules.MagicDamageRules)
 local Movement = require(script.Parent.MovementService)
+local Schema = require(game:GetService("ReplicatedStorage").Shared.Configuration.MagicSchema)
 TemporalRate.configure(Limits.MinTimeRate, Limits.MaxTimeRate)
 
 type Effect = {
@@ -22,6 +23,7 @@ type Effect = {
 	Attribute: string?,
 	Caster: Model,
 	SpellId: string,
+	Polarity: string,
 	ExpiresAt: number,
 	Remaining: number?,
 	LastUpdateAt: number?,
@@ -49,6 +51,13 @@ local Status = {}
 local targets: { [Humanoid]: TargetState } = setmetatable({}, { __mode = "k" }) :: any
 local active: { TargetState } = {}
 local lastSweep = 0
+
+-- Boon/Bane/Neutral from the payload registry; stored on each effect for later
+-- cleanse/purge and UI grouping. It does not change how the effect behaves.
+local function polarityOf(kind: string): string
+	local definition = Schema.Payloads[kind]
+	return if definition and definition.Polarity then definition.Polarity else "Neutral"
+end
 
 local function setAttribute(humanoid: Humanoid, model: Model?, name: string, value: any)
 	humanoid:SetAttribute(name, value)
@@ -309,6 +318,7 @@ function Status.elementalMark(
 		Stacks = stacks,
 		Caster = caster,
 		SpellId = spellId,
+		Polarity = polarityOf("ElementalMark"),
 		ExpiresAt = expiresAt,
 		Remaining = safeDuration,
 		LastUpdateAt = now,
@@ -456,6 +466,7 @@ local function putEffect(
 		Attribute = attribute,
 		Caster = caster,
 		SpellId = spellId,
+		Polarity = polarityOf(kind),
 		ExpiresAt = expiresAt,
 		Remaining = if kind == "TimeDilation" then nil else safeDuration,
 		LastUpdateAt = if kind == "TimeDilation" then nil else now,

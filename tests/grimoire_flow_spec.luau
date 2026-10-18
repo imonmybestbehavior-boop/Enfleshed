@@ -4,13 +4,34 @@ local summary = load("src/shared/Modules/GrimoireSummary.luau")
 local catalog = library.empty()
 local labCost = load("src/shared/Modules/MagicLabCost.luau")
 local authoringGuide = load("src/shared/Modules/MagicAuthoringGuide.luau")
+-- Guided choices no longer carry a Principle; the Lab resolves it the same
+-- way: the payload's required Principle (Matter for Manipulation), else Energy, else the first Principle
+-- that supports the Form (MagicLabController internalDefaultForForm).
+local function choicePrinciple(choice)
+	local required = schema.Payloads[choice.Payload] and schema.Payloads[choice.Payload].Principle
+	if required then
+		return required
+	end
+	if choice.Payload == "Manipulation" then
+		return "Matter"
+	end
+	if schema.supportsPrincipleForm("Energy", choice.Form) then
+		return "Energy"
+	end
+	for _, principle in ipairs(schema.Principles) do
+		if schema.supportsPrincipleForm(principle, choice.Form) then
+			return principle
+		end
+	end
+	return nil
+end
 for _, intent in ipairs(authoringGuide.intents()) do
 	local shapes = authoringGuide.shapes(intent.Id, schema, spec)
 	for _, form in ipairs(shapes) do
 		local choices = authoringGuide.forShape(intent.Id, form, schema, spec)
 		assert(#choices > 0, "Every offered shape must have a valid starter effect")
 		for _, choice in ipairs(choices) do
-			local draft = spec.createDraft(choice.Form, choice.Principle)
+			local draft = spec.createDraft(choice.Form, choicePrinciple(choice))
 			local payload = spec.copy(schema.Payloads[choice.Payload].Defaults or {})
 			payload.Kind = choice.Payload
 			draft.Triggers[choice.Event] = { { Payloads = { payload } } }
@@ -33,7 +54,8 @@ assert(
 local healingForms = authoringGuide.shapes("Healing", schema, spec)
 assert(authoringGuide.isRecommended("Healing", "Aura"), "Aura should be suggested for healing")
 assert(table.find(healingForms, "Projectile") ~= nil, "A healing payload may be delivered by a compatible Projectile")
-assert(#authoringGuide.forShape("Attack", "Manipulation", schema, spec) == 0, "Unsupported combinations stay hidden")
+-- Manipulation moves objects; it has no way to heal a creature.
+assert(#authoringGuide.forShape("Healing", "Manipulation", schema, spec) == 0, "Unsupported combinations stay hidden")
 local slots = {}
 for slot, example in ipairs({
 	{ "Projectile", "Energy", "Damage", "OnImpact", "Practice bolt" },
@@ -90,16 +112,18 @@ assert(spec.validate(legacyCost), "Legacy estimate fields should migrate to vali
 print("PASS: legacy estimate-cost serialization repaired without changing calculations")
 
 -- Exercise the actual Lab serializer, not a parallel model of its storage behavior.
-local codecFactory = assert(
-	loadstring(
-		"return function(Spec, LabCost, Color3, typeof, type) "
-			.. __CODEC_SOURCE
-			.. " return validateStored, hydrate, dehydrate end"
-	)
-)()
+local codecFactory = assert(loadstring(
+	"return function(Spec, LabCost, Color3, typeof, type, SpellIdentitySpec) "
+		-- MagicLabService defines these just above the extracted codec; in
+		-- the Studio sandbox reprice is LabCost.refresh.
+		.. "local function unrestricted() return true end "
+		.. "local function reprice(definition) LabCost.refresh(definition, Spec.estimate, Spec.copy) end "
+		.. __CODEC_SOURCE
+		.. " return validateStored, hydrate, dehydrate end"
+))()
 local validateStored, hydrate, dehydrate = codecFactory(spec, labCost, env.Color3, env.typeof, function(value)
 	return env.typeof(value) == "Color3" and "userdata" or type(value)
-end)
+end, identitySpec)
 local profile = load("src/shared/Modules/MagicLibraryProfile.luau")
 local ids = load("src/shared/Modules/MagicSlots.luau")
 local runtimeSpell = spec.copy(original)
@@ -155,6 +179,22 @@ local transport = {
 	end,
 }
 local response
+-- Studio-sandbox versions of MagicLabService's progression gates: when
+-- unrestricted, pricing is LabCost.refresh and every slot/spell is usable.
+transport.unrestricted = function()
+	return true
+end
+transport.reprice = function(definition)
+	labCost.refresh(definition, spec.estimate, spec.copy)
+end
+transport.usable = function()
+	return true, ""
+end
+transport.syncCompanion = function(player, slot, definition)
+	local catalog = transport.catalogs[player]
+	local recordId = catalog and catalog.Assignments[tostring(slot)]
+	transport.Magic.setCompanionSpell(player, slot, if definition and recordId then definition else nil)
+end
 transport.publish = function(_, ok, text, changedSlot, state)
 	response = { Ok = ok, Text = text, Slot = changedSlot, State = state }
 end
@@ -162,6 +202,14 @@ transport.reply = function(_, _, ok, text)
 	response = { Ok = ok, Text = text }
 end
 setmetatable(transport, { __index = getfenv() })
+-- Analytics is fire-and-forget; record calls so the flow can be asserted on.
+transport.telemetryEvents = {}
+transport.Telemetry = {
+	onboarding = function(_, step)
+		table.insert(transport.telemetryEvents, step)
+	end,
+	economy = function() end,
+}
 local action = assert(loadstring(__LIBRARY_ACTION_SOURCE))
 setfenv(action, transport)
 local function command(kind, args)

@@ -13,6 +13,11 @@ local MagicLab = require(game:GetService("ReplicatedStorage").Shared.Configurati
 local TemporalRate = require(game:GetService("ReplicatedStorage").Shared.Modules.MagicTemporalRate)
 local BodyRegion = require(game:GetService("ReplicatedStorage").Shared.Modules.MagicBodyRegionSpec)
 local ElementalInteractions = require(game:GetService("ReplicatedStorage").Shared.Modules.MagicElementalInteractionSpec)
+local CombatPolicy = require(game:GetService("ReplicatedStorage").Shared.Modules.CombatPolicy)
+local StatCaps = require(game:GetService("ReplicatedStorage").Shared.Modules.SpellStatCaps)
+local CapProfiles = require(game:GetService("ReplicatedStorage").Shared.Configuration.SpellStatCaps)
+local Schema = require(game:GetService("ReplicatedStorage").Shared.Configuration.MagicSchema)
+local Players = game:GetService("Players")
 local Payloads = {}
 local periodicEffects = {}
 local RunService = game:GetService("RunService")
@@ -235,6 +240,10 @@ local function displaceTarget(payload, context, humanoid)
 	return ok
 end
 
+local function targetModel(target: Instance): Instance?
+	return if target:IsA("Humanoid") then target.Parent else target:FindFirstAncestorOfClass("Model")
+end
+
 -- Payload metadata stays beside the executor registry so cross-cutting runtime
 -- behavior does not need to grow a payload-kind conditional list.
 Payloads.Metadata = {
@@ -328,6 +337,7 @@ Payloads.Executors = {
 					Caster = context.Caster,
 					Target = target,
 					SpellId = context.SpellId,
+					Polarity = Schema.Payloads.DamageOverTime.Polarity,
 					Amount = payload.Amount * context.Potency,
 					Interval = payload.Interval,
 					UntilNext = payload.Interval,
@@ -376,6 +386,7 @@ Payloads.Executors = {
 					Caster = context.Caster,
 					Target = target,
 					SpellId = context.SpellId,
+					Polarity = Schema.Payloads.Restoration.Polarity,
 					Amount = payload.Amount * context.Potency,
 					Interval = payload.Interval,
 					UntilNext = payload.Interval,
@@ -594,18 +605,42 @@ Payloads.Executors = {
 }
 
 function Payloads.execute(payloads: { any }, context: any)
+	local casterOwner = CombatPolicy.owner(context.Caster, Players)
 	for _, payload in payloads do
 		local executor = Payloads.Executors[payload.Kind]
-		if executor then
-			local metadata = Payloads.Metadata[payload.Kind]
-			if metadata and metadata.TracksHumanoidTargets then
-				for _, target in context.Targets or {} do
-					if context.TrackAffected then
-						context.TrackAffected(target)
-					end
-				end
+		if not executor then
+			continue
+		end
+		-- Partition targets by stat-cap profile; hostile effects also drop
+		-- player-owned targets the caster may not attack.
+		local hostile = CombatPolicy.isHostilePayload(payload)
+		local groups: { [string]: { Instance } } = {}
+		local allowed: { Instance } = {}
+		local split = false
+		for _, target in context.Targets or {} do
+			local owner = CombatPolicy.owner(targetModel(target), Players)
+			if not hostile or CombatPolicy.allows(casterOwner, owner) then
+				local profile = StatCaps.profileName(casterOwner, owner)
+				groups[profile] = groups[profile] or {}
+				table.insert(groups[profile], target)
+				table.insert(allowed, target)
+				split = split or profile ~= "PvE"
 			end
-			executor(payload, context)
+		end
+		local metadata = Payloads.Metadata[payload.Kind]
+		if metadata and metadata.TracksHumanoidTargets and context.TrackAffected then
+			for _, target in allowed do
+				context.TrackAffected(target)
+			end
+		end
+		if not context.Targets or (not split and #allowed == #context.Targets) then
+			executor(payload, context) -- common case: no PvP targets, nothing filtered
+		else
+			for profile, targets in groups do
+				local groupContext = table.clone(context)
+				groupContext.Targets = targets
+				executor(StatCaps.payload(payload, CapProfiles[profile], context.Potency), groupContext)
+			end
 		end
 	end
 end

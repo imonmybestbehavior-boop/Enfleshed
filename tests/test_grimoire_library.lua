@@ -1,4 +1,12 @@
-local Library = assert(loadfile("src/shared/Modules/GrimoireLibrary.luau"))()
+local IdentitySpec = assert(loadfile("src/shared/Modules/MagicSpellIdentitySpec.luau"))()
+local libraryEnv = setmetatable({
+	script = { Parent = { MagicSpellIdentitySpec = "identitySpec" } },
+	require = function(ref)
+		assert(ref == "identitySpec", "unexpected require")
+		return IdentitySpec
+	end,
+}, { __index = _G })
+local Library = assert(loadfile("src/shared/Modules/GrimoireLibrary.luau", "t", libraryEnv))()
 local Profile = assert(loadfile("src/shared/Modules/MagicLibraryProfile.luau"))()
 local Slots = assert(loadfile("src/shared/Modules/MagicSlots.luau"))()
 local function clone(v)

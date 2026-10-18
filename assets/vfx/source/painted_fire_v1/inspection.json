@@ -1,0 +1,155 @@
+{
+  "version": 1,
+  "provenance": "User supplied images; original bytes preserved without pixel modification.",
+  "status": "candidate_source_artwork",
+  "assets": {
+    "fireball": {
+      "file": "assets/vfx/source/painted_fire_v1/fireball.png",
+      "sha256": "f862b13c1cbe837f17a2193d5a4816147b349176984c6cfc4162dcc99bc311ca",
+      "size": [
+        1254,
+        1254
+      ],
+      "mode": "RGBA",
+      "alpha_extrema": [
+        0,
+        255
+      ],
+      "transparent_pixels": 1124755,
+      "partially_transparent_pixels": 447443,
+      "visible_bounds": [
+        41,
+        27,
+        1232,
+        1238
+      ],
+      "bounds_alpha_at_least_16": [
+        46,
+        299,
+        1223,
+        993
+      ],
+      "padding_left_top_right_bottom": [
+        41,
+        27,
+        22,
+        16
+      ],
+      "exceeds_current_1024px_project_budget": true,
+      "roblox_id": null,
+      "studio_verified": false
+    },
+    "trail": {
+      "file": "assets/vfx/source/painted_fire_v1/trail.png",
+      "sha256": "ccad77229496652ec9a51dd1edae1f69b4d63cbe6930c34e10c06fa85deea942",
+      "size": [
+        2172,
+        724
+      ],
+      "mode": "RGBA",
+      "alpha_extrema": [
+        0,
+        255
+      ],
+      "transparent_pixels": 1023470,
+      "partially_transparent_pixels": 548506,
+      "visible_bounds": [
+        35,
+        9,
+        2156,
+        724
+      ],
+      "bounds_alpha_at_least_16": [
+        37,
+        73,
+        2153,
+        673
+      ],
+      "padding_left_top_right_bottom": [
+        35,
+        9,
+        16,
+        0
+      ],
+      "exceeds_current_1024px_project_budget": true,
+      "roblox_id": null,
+      "studio_verified": false
+    },
+    "impact": {
+      "file": "assets/vfx/source/painted_fire_v1/impact.png",
+      "sha256": "e1477d30210323e52948a393f691af7866035e5457b832c02518116ab9b00fa4",
+      "size": [
+        1254,
+        1254
+      ],
+      "mode": "RGBA",
+      "alpha_extrema": [
+        0,
+        255
+      ],
+      "transparent_pixels": 823069,
+      "partially_transparent_pixels": 748975,
+      "visible_bounds": [
+        0,
+        9,
+        1248,
+        1254
+      ],
+      "bounds_alpha_at_least_16": [
+        37,
+        60,
+        1235,
+        1217
+      ],
+      "padding_left_top_right_bottom": [
+        0,
+        9,
+        6,
+        0
+      ],
+      "exceeds_current_1024px_project_budget": true,
+      "roblox_id": null,
+      "studio_verified": false
+    },
+    "core": {
+      "file": "assets/vfx/source/painted_fire_v1/core.png",
+      "sha256": "28908326884122b125ef0374668b6cba69bcbfa66cbf49b51866cfdf46b98350",
+      "size": [
+        1254,
+        1254
+      ],
+      "mode": "RGBA",
+      "alpha_extrema": [
+        0,
+        255
+      ],
+      "visible_bounds": [
+        0,
+        9,
+        1254,
+        1254
+      ],
+      "bounds_alpha_at_least_16": [
+        112,
+        138,
+        1170,
+        1120
+      ],
+      "padding_left_top_right_bottom": [
+        0,
+        9,
+        0,
+        0
+      ],
+      "roblox_id": null,
+      "studio_verified": false
+    }
+  },
+  "pending": [
+    "Gameplay-sized readability review",
+    "Export preparation",
+    "Animation and tiling",
+    "Upload approval for these new assets",
+    "Studio visual verification"
+  ]
+}

@@ -1,0 +1,190 @@
+{
+  "frames": [
+    {
+      "index": 0,
+      "nonempty": true,
+      "visible_bounds_local": [
+        16,
+        19,
+        310,
+        299
+      ],
+      "coverage": 0.5192
+    },
+    {
+      "index": 1,
+      "nonempty": true,
+      "visible_bounds_local": [
+        11,
+        16,
+        308,
+        299
+      ],
+      "coverage": 0.5256
+    },
+    {
+      "index": 2,
+      "nonempty": true,
+      "visible_bounds_local": [
+        7,
+        17,
+        307,
+        299
+      ],
+      "coverage": 0.5293
+    },
+    {
+      "index": 3,
+      "nonempty": true,
+      "visible_bounds_local": [
+        4,
+        16,
+        306,
+        299
+      ],
+      "coverage": 0.5289
+    },
+    {
+      "index": 4,
+      "nonempty": true,
+      "visible_bounds_local": [
+        9,
+        16,
+        311,
+        300
+      ],
+      "coverage": 0.5337
+    },
+    {
+      "index": 5,
+      "nonempty": true,
+      "visible_bounds_local": [
+        3,
+        16,
+        309,
+        300
+      ],
+      "coverage": 0.5448
+    },
+    {
+      "index": 6,
+      "nonempty": true,
+      "visible_bounds_local": [
+        4,
+        13,
+        308,
+        300
+      ],
+      "coverage": 0.539
+    },
+    {
+      "index": 7,
+      "nonempty": true,
+      "visible_bounds_local": [
+        4,
+        17,
+        305,
+        300
+      ],
+      "coverage": 0.5374
+    },
+    {
+      "index": 8,
+      "nonempty": true,
+      "visible_bounds_local": [
+        15,
+        17,
+        311,
+        302
+      ],
+      "coverage": 0.5384
+    },
+    {
+      "index": 9,
+      "nonempty": true,
+      "visible_bounds_local": [
+        10,
+        18,
+        309,
+        301
+      ],
+      "coverage": 0.5392
+    },
+    {
+      "index": 10,
+      "nonempty": true,
+      "visible_bounds_local": [
+        9,
+        17,
+        308,
+        299
+      ],
+      "coverage": 0.5326
+    },
+    {
+      "index": 11,
+      "nonempty": true,
+      "visible_bounds_local": [
+        5,
+        16,
+        306,
+        298
+      ],
+      "coverage": 0.5337
+    },
+    {
+      "index": 12,
+      "nonempty": true,
+      "visible_bounds_local": [
+        10,
+        12,
+        310,
+        298
+      ],
+      "coverage": 0.5324
+    },
+    {
+      "index": 13,
+      "nonempty": true,
+      "visible_bounds_local": [
+        10,
+        13,
+        309,
+        299
+      ],
+      "coverage": 0.5298
+    },
+    {
+      "index": 14,
+      "nonempty": true,
+      "visible_bounds_local": [
+        12,
+        16,
+        308,
+        299
+      ],
+      "coverage": 0.5278
+    },
+    {
+      "index": 15,
+      "nonempty": true,
+      "visible_bounds_local": [
+        10,
+        16,
+        306,
+        298
+      ],
+      "coverage": 0.5311
+    }
+  ],
+  "all_frames_nonempty": true,
+  "integer_grid": false,
+  "browser_sampling": "fractional normalized 4x4 source rectangles",
+  "production_ready": false,
+  "browser_checks": [
+    "Loaded original and generated images",
+    "Frame stepping updates displayed index",
+    "No console errors during final control check"
+  ],
+  "visual_approval": "pending user review"
+}

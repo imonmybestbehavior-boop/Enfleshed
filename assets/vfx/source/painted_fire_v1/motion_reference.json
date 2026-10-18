@@ -1,0 +1,33 @@
+{
+  "version": 1,
+  "status": "timing_approved_by_user",
+  "approval_date": "2026-10-17",
+  "approval_text": "The timing looks good.",
+  "scope": "Local painted-fire motion study only; does not approve upload or final Studio appearance.",
+  "units": "seconds",
+  "phases": {
+    "formation": { "start": 0, "end": 0.6 },
+    "flight": { "start": 0.6, "end": 2.25 },
+    "impact": { "start": 2.25, "end": 3.45 },
+    "reset": { "start": 3.45, "end": 4.2 }
+  },
+  "playback": {
+    "formation_easing": "cubic_out",
+    "flight_progress_exponent": 0.82,
+    "impact_expansion_easing": "cubic_out",
+    "impact_expansion_speed_multiplier": 2.5,
+    "impact_fade_start_normalized": 0.35
+  },
+  "runtime_binding": {
+    "formation": "Adapt visual anticipation to the existing authoritative cast phase.",
+    "flight": "Follow the authoritative projectile transform until actual impact or expiration; never force a 1.65-second hit time.",
+    "impact": "Start at the actual impact event; use the approved 1.2-second cosmetic envelope where appropriate.",
+    "reset": "Preview-only gap; introduces no cooldown or gameplay delay."
+  },
+  "pending": [
+    "Evolving flame silhouette animation",
+    "Production texture exports",
+    "Roblox asset publication and fetch verification",
+    "Existing Fire signature integration and Studio art review"
+  ]
+}

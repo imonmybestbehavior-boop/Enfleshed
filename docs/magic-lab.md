@@ -1,16 +1,18 @@
 # Development Magic Lab and normalized runtime
 
+> **Update 2026-10-14:** the discovery system, its DataStore, Locus resource persistence and Locus practice progression have been removed (Phase 0.3 in [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md)). Statements below about discovery milestones, saved Discovery records or Focus profiles are historical.
+
 ## Active test configuration
 
-Progression is disabled for this mechanics testbed. All registered Principles,
-Expressions, Forms, payloads, behaviors, palettes, projectile shapes, and Focus
-profiles are available without cast-count requirements. Successful casts do not
-raise Locus stats or unlock content. Mana, Strain, complexity, spell-authored
-requirements, server validation, and resource limits still operate as mechanics
-under test; those are not content unlocks. The K panel changes a freely available
-Focus profile, while P edits and equips the nine spell slots.
+The active fighter sandbox enables spell discovery milestones. Successful casts
+advance principle, form, and expression counters used to unlock editor options
+and Focus profiles. Mana, Strain, complexity, server validation, and resource
+limits remain part of the mechanics under test. The K panel selects a Focus
+profile, while P opens the Grimoire to edit, save, and equip spells. Per-spell
+power upgrades are not implemented yet.
 
-This pass adds a Studio-only spell editor to the existing city and sandbox. It does not regenerate geometry, change encounters, add progression, or replace equipment. Open **Enfleshed_CitySaferSide.rbxlx** for the current city, not the older default sandbox.
+The Grimoire and magic runtime are part of the active castle fighter sandbox. Open
+`Enfleshed-Combat-Sandbox.rbxlx` and press Play to generate the test arena.
 
 ## Files
 
@@ -50,8 +52,8 @@ Modified for this pass:
 - `ActionRouter.luau`: initialize Lab transport with existing authoritative character state.
 - `MagicController.luau`: start Lab alongside existing controls.
 - `InputController.luau`, `CameraController.luau`: release mouse and suppress gameplay actions while editing.
-- `prototypes/{KitBlock,KitDistrict,CitySaferSide}/review.project.json`: include new server modules in explicit service mappings.
-- Rebuilt `Enfleshed.rbxlx` and `Enfleshed_CitySaferSide.rbxlx`.
+- The former city prototype place mappings are archived in `Shelved Project`.
+- Rebuilt `Enfleshed-Combat-Sandbox.rbxlx`.
 
 Existing uncommitted world/gameplay work was preserved. Registered `Spells.luau` was not edited.
 
@@ -225,7 +227,7 @@ Projectile drafts can add up to the configured motion-phase limit and choose **B
 
 The Setup page allows spells to keep movement enabled with a bounded speed penalty, prevent movement, or prevent mouse-look rotation during charge, server-timed gather, and held channels. These rules are server-validated; a movement penalty composes with sprint, Body Enhancement, and Slow, while a full movement lock also blocks jump and dash. Rotation lock freezes client mouse-look, retains the server-validated initial aim through charge/gather, and rejects channeled aim updates. Movement and camera control return on cast completion, interruption, release, death, or respawn. Studio check: test a 50% penalty while sprinting and while Body Reinforcement is active, then disable movement and rotation during a charged cast and channel; cancel each and confirm the prior speed, aim control, and dash access return.
 
-1. Stop any current session. Open the freshly rebuilt **Enfleshed_CitySaferSide.rbxlx** with Studio's File → Open from File. Press Play and complete the existing opening if shown. Existing city spawn/geometry should remain the same.
+1. Stop any current session. Open **Enfleshed-Combat-Sandbox.rbxlx** with Studio's File → Open from File and press Play. The server generates the castle arena and spawns the player directly into combat.
 2. Press P. Select Fireball. Set radius 1, speed 100, direct damage 10. Apply, close, aim at an existing target, then 1. The existing combat hit feedback should report damage.
 3. Reopen P: radius 8, speed 35, direct damage 50, Explode enabled, explosion radius 12. Cast Test. Expect a slower, much wider projectile. Stand away from nearby walls/floor when comparing travel: an eight-stud radius can correctly collide immediately with close geometry. Do not interpret an immediate overlap hit as a failed cast.
 4. Select BodyReinforcement, multiplier 3. Apply and 1. Compare walking and Shift sprint; Q dash and normal controls should remain available. 1 again disables the toggle. Test a timed duration too.
@@ -234,7 +236,7 @@ The Setup page allows spells to keep movement enabled with a bounded speed penal
 7. Add Force alongside Damage on a draft. Confirm displacement without a new stun/control-lock. Material-target spells show a source-material picker; aim at its matching tagged Earth, Metal, Wood, or Water source. For Manipulation, choose Raise or Lower and test on a tagged part with `MagicRaise=true`; it should move by the authored distance in the selected vertical direction. Ordinary walls are not valid material targets.
 8. Change Forms after adding effects. Keep effects that remain compatible and omit only those that the new Form cannot execute. Try unsupported Soul and out-of-range numeric values: Apply must reject with a reason.
 9. Use Studio's Server & Clients test with two clients. Each client has independent Lab drafts/applied state; gameplay damage is server-owned. Check cooldown spam, death/respawn and disconnect during active fields/projectiles.
-10. Close the Lab and retest existing equipment, sprint/dash, melee and registered spell controls. Verify no city/navigation changes.
+10. Close the Grimoire and retest equipment, sprint/dash, melee, and registered spell controls.
 
 Aerial movement check: create a Self Enhancement with **Aerial movement** on **OnCast**, set speed to 32, apply, and cast it. WASD steers horizontally, Space rises, and Left Control descends; gamepad uses A/B, with Rise/Descend touch buttons. Release the controls to hover. Cast a separate speed Enhancement at the same time and confirm both effects coexist. Let the aerial spell expire (or cast its toggle again) and verify normal gravity and walking return. Try moving into a wall and confirm collision remains solid.
 
@@ -257,7 +259,6 @@ Recorded offline results (2026-09-28):
 - StyLua check passed for the touched runtime, controller, configuration, type and test files.
 - Rojo 7.7.0 built both requested places successfully.
 - Main-place reference/source checks: three tests passed.
-- City review audit passed: 37,499 Parts, 250 frontages, 22 through-rooms, 600 doorway samples, eight stair towers, 3,296 module route samples, 1,412 upper samples, 81,775 reachable ground cells, 84 module references, zero coplanar overlaps/errors. Geometry was not regenerated.
 - `git diff --check` passed.
 - Studio execution and standalone Luau typechecking were not run; the latter tool is not installed.
 
@@ -314,7 +315,7 @@ Offline findings addressed:
 
 The existing server authority, character attachment following and death/leave cleanup paths were reviewed. This is not a live multiplayer verification. No Studio connector or installed Studio test runner was available in this session.
 
-Focused manual acceptance test in the rebuilt CitySaferSide place:
+Focused manual acceptance test in the rebuilt combat sandbox:
 1. P → choose Construct → Test → equip → close. Aim at a wall within Distance and press the selected slot key. Verify contact placement, visible cast feedback, and collision. Try a tight corner: if rejected, the on-screen reason should be readable. Repeat with a separate Construct draft on floor and a sloped surface.
 2. In a two-client test, attach to the other character, then have them move and turn. Confirm following without pinning/flinging. Kill/reset the target; attachment must disappear. Repeat and reset the caster instead, then repeat and disconnect the caster. Neither client should retain an orphaned construct.
 3. Aura draft: add Damage and test just inside/outside the configured root radius and behind a solid wall. Add Force and verify outward displacement without a stun. Verify no further periodic damage after duration ends.
@@ -403,7 +404,7 @@ All instant casts first validate on the server, then reserve the caster's single
 
 The client hand transform isn't authoritative on the server. For ordinary player Projectile/Beam casts the client sends its current raised-hand point; the server accepts it only within 3.5 studs of the root and after a root-to-hand obstruction ray. Invalid points use a server fallback. The subsequent projectile sweep/Beam ray remains server-authoritative and can still hit a wall immediately beyond the hand. Equipment muzzle origins continue to use the server's equipped weapon data.
 
-Studio procedure: stop Play and open the rebuilt CitySaferSide place. Equip a projectile, Beam, Field, Construct and SelfEnhancement in slots. In a side view and then from a second client, press each slot once: see the gather, then observe spell/VFX release at the end of that gesture, followed by brief recovery. Check Beam begins at the raised hands, ground effects begin at the downward release, and self enhancement begins on its upward release. Move/sprint/dash while gathering; there should be no movement lock. Press another slot during gather and confirm it is rejected without starting another pose. Test respawn during gather and test charged Stone Shot hold/release. Fire at a wall close to the hand: no projectile or damage may appear through it. Check Studio Output and per-character MagicPoseProfile attributes if cue appears but pose does not.
+Studio procedure: stop Play and open the rebuilt combat sandbox. Equip a projectile, Beam, Field, Construct and SelfEnhancement in slots. In a side view and then from a second client, press each slot once: see the gather, then observe spell/VFX release at the end of that gesture, followed by brief recovery. Check Beam begins at the raised hands, ground effects begin at the downward release, and self enhancement begins on its upward release. Move/sprint/dash while gathering; there should be no movement lock. Press another slot during gather and confirm it is rejected without starting another pose. Test respawn during gather and charged Stone Shot hold/release. Fire at a wall close to the hand: no projectile or damage may appear through it. Check Studio Output and per-character MagicPoseProfile attributes if cue appears but pose does not.
 
 StyLua check, both Rojo builds and git diff --check passed. This environment did not run Studio or automated test suites for this pass, so animation-to-hit alignment, multiplayer cue ordering and wall clearance still need live verification.
 

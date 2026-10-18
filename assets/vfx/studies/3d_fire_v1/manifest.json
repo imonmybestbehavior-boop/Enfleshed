@@ -1,0 +1,18 @@
+{
+  "status": "Blender motion study; Studio import unverified",
+  "frames": 48,
+  "fps": 24,
+  "patches": 24,
+  "deform_bones_per_patch": 21,
+  "vertices_per_patch": 168,
+  "faces_per_patch": 162,
+  "source_reference": "user concept sheet 5aa64350-9274-4053-9e5c-c0b2cc0bd615",
+  "motion": "Staggered solid skinned patches born inside, advected head to flank to wake, curled and collapsed at expiry",
+  "coordinates": "Blender +X is projectile forward; verify Roblox axis/scale during import",
+  "limitations": [
+    "First motion construction, not final art",
+    "Simple four-band UV palette, no production textures",
+    "Not performance profiled",
+    "No Studio upload or gameplay integration"
+  ]
+}

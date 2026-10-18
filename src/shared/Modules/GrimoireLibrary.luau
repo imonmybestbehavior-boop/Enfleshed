@@ -1,5 +1,6 @@
 --!strict
 -- Organization only. Spell definitions remain owned and validated by SpellSpec.
+local SpellIdentitySpec = require(script.Parent.MagicSpellIdentitySpec)
 local Library = { Version = 2, MaxRecords = 200, MaxCollections = 32 }
 local function text(value, limit)
 	return type(value) == "string" and #value > 0 and #value <= limit and not value:find("[%c]")
@@ -11,8 +12,26 @@ local function count(values)
 	end
 	return n
 end
+-- Tags the server uses to recognise seeded spells (GrimoireStarters). They are
+-- hidden from player labels and preserved when labels are edited.
+Library.SystemTags = { "starter-template", "system-showcase", "combat-starter" }
+
+local function systemTagsOf(record)
+	local found = {}
+	for _, tag in ipairs(Library.SystemTags) do
+		if string.find(record.Tags, tag, 1, true) then
+			table.insert(found, tag)
+		end
+	end
+	return found
+end
+
 function Library.labels(record)
-	return string.gsub(record.Tags, "starter%-template,?%s*", "")
+	local labels = record.Tags
+	for _, tag in ipairs(Library.SystemTags) do
+		labels = string.gsub(labels, (string.gsub(tag, "%-", "%%-")) .. ",?%s*", "")
+	end
+	return labels
 end
 function Library.empty()
 	return { Records = {}, Collections = { "Unfiled" }, Assignments = {}, NextId = 1, HelpDismissed = false }
@@ -222,13 +241,19 @@ function Library.mutate(catalog, action, args, clone, now)
 			return false, reason
 		end
 		local copy = catalog.Records[id]
-		copy.Collection = if record.Collection == "Starter templates" then "Unfiled" else record.Collection
+		-- A copy of a seeded spell is the player's own: it leaves the curated
+		-- collection and drops the system tags seeding uses to manage originals.
+		copy.Collection = if #systemTagsOf(record) > 0 or record.Collection == "Starter templates"
+			then "Unfiled"
+			else record.Collection
 		copy.Tags = Library.labels(record)
-		copy.Definition.Name = string.sub(record.Definition.Name, 1, 41) .. " (copy)"
+		local base = SpellIdentitySpec.normalizeName(record.Definition.Name, SpellIdentitySpec.MaxNameLength - 7)
+		copy.Definition.Name = (base or SpellIdentitySpec.DefaultName) .. " (copy)"
 		return true, "Copy created; the original is unchanged"
 	elseif action == "Rename" then
-		if not text(args.Name, 48) then
-			return false, "Use a spell name of 1–48 characters"
+		local nameValid, nameReason = SpellIdentitySpec.validateName(args.Name)
+		if not nameValid then
+			return false, nameReason
 		end
 		record.Definition.Name = args.Name
 	elseif action == "Move" then
@@ -246,11 +271,13 @@ function Library.mutate(catalog, action, args, clone, now)
 		if type(args.Tags) ~= "string" or #args.Tags > 240 or args.Tags:find("[%c]") then
 			return false, "Labels must be at most 240 characters"
 		end
-		if string.find(record.Tags, "starter-template", 1, true) then
-			if #args.Tags > 222 then
-				return false, "Starter labels must be at most 222 characters"
+		local systemTags = systemTagsOf(record)
+		if #systemTags > 0 then
+			local prefix = table.concat(systemTags, ", ")
+			if #prefix + 2 + #args.Tags > 240 then
+				return false, "Starter labels must be at most " .. tostring(238 - #prefix) .. " characters"
 			end
-			record.Tags = "starter-template" .. (if args.Tags == "" then "" else ", " .. args.Tags)
+			record.Tags = prefix .. (if args.Tags == "" then "" else ", " .. args.Tags)
 		else
 			record.Tags = args.Tags
 		end

@@ -1,0 +1,1617 @@
+{
+  "schema_version": 1,
+  "local_validation_passed": true,
+  "release_ready": false,
+  "errors": [],
+  "warnings": [
+    "Recorded IDs have not been fetched or permission-checked in Studio during this audit.",
+    "Candidate artwork is not published, bound to runtime, or visually verified in Studio."
+  ],
+  "inventory": [
+    {
+      "key": "acid_splat",
+      "file": "assets/vfx/textures/acid_splat.png",
+      "sha256": "18b75f956eb739a3771ee30c2cafa015525b3939d8ebbe4b35759230b2e80e8c",
+      "recorded_id": 131280586202366,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "arc_flicker",
+      "file": "assets/vfx/textures/arc_flicker.png",
+      "sha256": "bff30a415ab8f21a1e2ad8e03f905683bbc2e14c42dd74eebcaf3aa205e17a6b",
+      "recorded_id": 132848434993947,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "arcane_burst",
+      "file": "assets/vfx/textures/arcane_burst.png",
+      "sha256": "40098216ac98231f72dc51e998e052099af1d9efef39a362bd260bddf01fd5a5",
+      "recorded_id": 125708043067524,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "arcane_glyphs",
+      "file": "assets/vfx/textures/arcane_glyphs.png",
+      "sha256": "5e52c38b8fd89fe2223ce032ee1955f29652be9905040b50f4fbdda214699517",
+      "recorded_id": 123769486237759,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "arcane_orb",
+      "file": "assets/vfx/textures/arcane_orb.png",
+      "sha256": "8d050a1c173832b54abdc92c93bb6cc439e357b85aec97362c2b2f7dc518a9ac",
+      "recorded_id": 90732938892452,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "beam_energy",
+      "file": "assets/vfx/textures/beam_energy.png",
+      "sha256": "9836e088e28fbfa397ab0f53f9329fb9239c67aa9c4a61834e61775e3327a15d",
+      "recorded_id": 114828697097531,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "bolt_strip",
+      "file": "assets/vfx/textures/bolt_strip.png",
+      "sha256": "f4885af6c0838547468cd535bac8aff0fc8d9f8fa3f086c4c69365b0c12a5692",
+      "recorded_id": 79508492299062,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "caustics",
+      "file": "assets/vfx/textures/caustics.png",
+      "sha256": "ba214c10d28cd033cb9070d5bf815bcc83ad6e682e669f1b494db0f649929975",
+      "recorded_id": 123036370236448,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "clock_dial",
+      "file": "assets/vfx/textures/clock_dial.png",
+      "sha256": "6a41b5cb1e1d195a072d176dc1d5bd2ff404fa2158ee3d35a2994f5fc88651c7",
+      "recorded_id": 116649557579175,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "core_plasma",
+      "file": "assets/vfx/textures/core_plasma.png",
+      "sha256": "a9955b3a1120a5d2172fcc3584b106b13c9511a4fbd3177555e8ea348fa7e5a3",
+      "recorded_id": 103260483883403,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "debris_chip",
+      "file": "assets/vfx/textures/debris_chip.png",
+      "sha256": "a947befd01594acb568477f05a89ba715afc8d67df1af98337af035d34f8db3d",
+      "recorded_id": 98614141403766,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "drip_trail",
+      "file": "assets/vfx/textures/drip_trail.png",
+      "sha256": "0c1642bc7c12e4e5ef8651c1ae93f70b8f14f23ef6724e39fffb341c1cd1a964",
+      "recorded_id": 75467000590743,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "droplet",
+      "file": "assets/vfx/textures/droplet.png",
+      "sha256": "22efa4ff42233fc5a184a729e92541402ea15728965f3ae080bee15345fa7dfa",
+      "recorded_id": 92957467413247,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "dust_burst",
+      "file": "assets/vfx/textures/dust_burst.png",
+      "sha256": "01383b3be7c51ffa7c7a2f9f2d8b279594a22ceebe0847d3f4104c2314d5f9d1",
+      "recorded_id": 78150869887099,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "dust_plume",
+      "file": "assets/vfx/textures/dust_plume.png",
+      "sha256": "69e2e02cd36e20af752bcc29bf11c366a19be69cad802ee1d091e60b1604c524",
+      "recorded_id": 137664113646814,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "earth_fissure",
+      "file": "assets/vfx/textures/earth_fissure.png",
+      "sha256": "43f2fde0416209eba8d409b70af50cf56c68cc86f27f97c7768c9243d1da4e54",
+      "recorded_id": 94417054982206,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "ember_streak",
+      "file": "assets/vfx/textures/ember_streak.png",
+      "sha256": "ef47755c9ba99d489c88c65e0634eee79191fd721bd1f5fe1002ef7c1819cb90",
+      "recorded_id": 101768246297257,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "explosion_fire",
+      "file": "assets/vfx/textures/explosion_fire.png",
+      "sha256": "c216d13d3fe894ef626f50f73ee76216f0cd539c6116b412362cff801d6892b5",
+      "recorded_id": 72036682322915,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "flame_tongue",
+      "file": "assets/vfx/textures/flame_tongue.png",
+      "sha256": "c9e436929366e2b275f67bf66fd63075327070540e614025f314c58e67152919",
+      "recorded_id": 112145372346640,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "flame_wisp",
+      "file": "assets/vfx/textures/flame_wisp.png",
+      "sha256": "60f40543a822532520a34546ed59d5698033c5b3ec069582a78bf343d1eef8c2",
+      "recorded_id": 88048622888722,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "force_streak",
+      "file": "assets/vfx/textures/force_streak.png",
+      "sha256": "e51e60410726aba04af8dbfa21810c9947d94f5f0a7e6c69fc5903a166b229e6",
+      "recorded_id": 135496349676809,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "frost_crack",
+      "file": "assets/vfx/textures/frost_crack.png",
+      "sha256": "4dbb52f8b943da47d456c26419c3040bf6c3fdfa59083948e4e69295e08dd35f",
+      "recorded_id": 85756738990629,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "frost_mist",
+      "file": "assets/vfx/textures/frost_mist.png",
+      "sha256": "0a9cbbd3376641bcda5d675ecd625e13f283ca8ed1ed33094c57747f34e07eb9",
+      "recorded_id": 94442796920292,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "gear_mote",
+      "file": "assets/vfx/textures/gear_mote.png",
+      "sha256": "158dbbfa52b951ef9dcb9ee34a6e8b01ad08d15ae751c7b3b18a01a48b3b2774",
+      "recorded_id": 91389012064732,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "ghost_trail",
+      "file": "assets/vfx/textures/ghost_trail.png",
+      "sha256": "4881e19b9e0af136c34befab990f8d8ab167a69d781242c810ce5fb7cba9c87d",
+      "recorded_id": 100654595086328,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "glow_soft",
+      "file": "assets/vfx/textures/glow_soft.png",
+      "sha256": "77664ed171ebb555857c1715c06a2c940f1935bcdadf6337c469c15ecb712137",
+      "recorded_id": 108816055754879,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "glyph_chain",
+      "file": "assets/vfx/textures/glyph_chain.png",
+      "sha256": "e098d1b65e38de961a5404942c86aa0a3e260bcbf214b0deb53fc5627e8ce0b5",
+      "recorded_id": 122961919513610,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "gust_strokes",
+      "file": "assets/vfx/textures/gust_strokes.png",
+      "sha256": "287dc048ad5244bd4ab6642564d6e3a715a12e55f072d21a95b1d72b332b6bc8",
+      "recorded_id": 104872241153803,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "heat_haze",
+      "file": "assets/vfx/textures/heat_haze.png",
+      "sha256": "abbe7cc2631fa7106cb15380e5bd7391f4db5dc56a90afe528886df6c57628bb",
+      "recorded_id": 137728925486767,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "hex_seal",
+      "file": "assets/vfx/textures/hex_seal.png",
+      "sha256": "3ef8e8c531ed0b2d047d3f0b8b1a3e443f40941d66a655174200274e1e6a58df",
+      "recorded_id": 121390918975577,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "hourglass_mote",
+      "file": "assets/vfx/textures/hourglass_mote.png",
+      "sha256": "abbe782c5051943780bb0824a699325c6d8e8108b97da4b14f773dc6ca5c0d4b",
+      "recorded_id": 71803473363047,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "ice_glint",
+      "file": "assets/vfx/textures/ice_glint.png",
+      "sha256": "882e597928698f020b96dd6da456f4fc6f8f133f88d6363e464d4ff2d8fca237",
+      "recorded_id": 103287696483573,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "ice_shatter",
+      "file": "assets/vfx/textures/ice_shatter.png",
+      "sha256": "3f98dd964ae53ae9f58f18a0adea4535ed703e31eb9c3c2c9478859d6b03e8c9",
+      "recorded_id": 102805423302437,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "ice_trail",
+      "file": "assets/vfx/textures/ice_trail.png",
+      "sha256": "3a24a967660a04240f1926b0180938bc8dafb601e3325e59d2219e1fab817938",
+      "recorded_id": 113698571284202,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "impact_frame",
+      "file": "assets/vfx/textures/impact_frame.png",
+      "sha256": "c02794bbba5d231f31917ad5abf033c5cb90aca4885912cba05a79e95230d20b",
+      "recorded_id": 106105084385785,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "impact_star",
+      "file": "assets/vfx/textures/impact_star.png",
+      "sha256": "ede31f993836ba8ab00a025aee59e2e9d0734d858a5647dcaaf78a44024d6d6e",
+      "recorded_id": 81180841752524,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "kinetic_burst",
+      "file": "assets/vfx/textures/kinetic_burst.png",
+      "sha256": "4e615d9c84b892741776639d9f8f76a5eb90f0f2ee5ad3a8f819d415c4d8799d",
+      "recorded_id": 138778484387702,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "leaf_scrap",
+      "file": "assets/vfx/textures/leaf_scrap.png",
+      "sha256": "fdae5078da888e8cfeccd50927d261910b1c7ace357fe60d68ef5f0be7ee140c",
+      "recorded_id": 117394836981411,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "miasma",
+      "file": "assets/vfx/textures/miasma.png",
+      "sha256": "c53cc31f576ebaaa880504137296bbe71e569d19b5934eb552f6943330867389",
+      "recorded_id": 90325652408224,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "plasma_orb",
+      "file": "assets/vfx/textures/plasma_orb.png",
+      "sha256": "10f82430440fc3882d4e78f885e02d6b7ce9ef4ad2b3d3328eb04b0d44e97e94",
+      "recorded_id": 121923979765855,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "portal_rings",
+      "file": "assets/vfx/textures/portal_rings.png",
+      "sha256": "f0370ab7e138de8d833920f99026ea23f9d745469230c597449260bddfb33146",
+      "recorded_id": 74378803015157,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "pressure_wave",
+      "file": "assets/vfx/textures/pressure_wave.png",
+      "sha256": "f0cc30615612382825d201733fb36efed9f692a8dace0d3db548ece7f5fdaa62",
+      "recorded_id": 130034761185865,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "rift_tear",
+      "file": "assets/vfx/textures/rift_tear.png",
+      "sha256": "ca07a8b1d829a86a320ba605f3d509cb934891dfa039cc7ddeadd489ca0d44bb",
+      "recorded_id": 74495075138233,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "ripple_ring",
+      "file": "assets/vfx/textures/ripple_ring.png",
+      "sha256": "9dcf1486ffd9d5de4832c86f1bd0baf0167772a79e3f9d0d7c1395f03cce911e",
+      "recorded_id": 135350826920409,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "rock_burst",
+      "file": "assets/vfx/textures/rock_burst.png",
+      "sha256": "c633028db1e7b2799445ffa3f9209c8f936bd95ea337462ac9745d31977512b1",
+      "recorded_id": 120729470342478,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "rubble_trail",
+      "file": "assets/vfx/textures/rubble_trail.png",
+      "sha256": "508a9628dc3315b2edf33f0eab76bc0ffea9aaaa0dcb3dd67ccd38a699411d46",
+      "recorded_id": 70490797157044,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "rune_circle",
+      "file": "assets/vfx/textures/rune_circle.png",
+      "sha256": "677ff24bb07ed218ea7f3bed6c37cf4d1d1943ba3accb8a8b6adc035629b680c",
+      "recorded_id": 81191942004415,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "sand_trail",
+      "file": "assets/vfx/textures/sand_trail.png",
+      "sha256": "28182b03cefaca4b6457d9e6a5998db981cd8ba6aa4fa27f0d6d4b303e5095b9",
+      "recorded_id": 129608613071876,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "scorch_lichtenberg",
+      "file": "assets/vfx/textures/scorch_lichtenberg.png",
+      "sha256": "f3727ad23cb4d87a49f26ea917e32fc9c4d6908206c876d1d3637886a7f9307e",
+      "recorded_id": 136722261359982,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "shard_trail",
+      "file": "assets/vfx/textures/shard_trail.png",
+      "sha256": "052a0edb41e47ee840d2293f2a097abfa2b310da6fbf7a6d6a4ed83294964bdd",
+      "recorded_id": 110702463934827,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "shockwave_ring",
+      "file": "assets/vfx/textures/shockwave_ring.png",
+      "sha256": "7898dd51d10ab62ca2b9be306ec0624728c81b9f94968b5c9194fc0e7eee76a9",
+      "recorded_id": 97264403337066,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "sinew_trail",
+      "file": "assets/vfx/textures/sinew_trail.png",
+      "sha256": "fcb16c05e8793fa56653d5bb346539aad01c7c0133db32b432dfa9e6ce8995a6",
+      "recorded_id": 106040190482992,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "skull_mote",
+      "file": "assets/vfx/textures/skull_mote.png",
+      "sha256": "10c501a3698b2617d91dc2fc58d8d50dfa8159ececa6ccb90f43ac1a4232ef28",
+      "recorded_id": 95692697309383,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "slash_arc",
+      "file": "assets/vfx/textures/slash_arc.png",
+      "sha256": "22865749b331fad90e2961e8b3989d5d3b412a74a62b4448562e36c68d09cbe7",
+      "recorded_id": 91222243814443,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "smoke_billow",
+      "file": "assets/vfx/textures/smoke_billow.png",
+      "sha256": "1947d7defc0acf73bb2186c44d141d8b0c9472c8f5ad26bd34b5f60caa6cb8f2",
+      "recorded_id": 108451986898935,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "soul_burst",
+      "file": "assets/vfx/textures/soul_burst.png",
+      "sha256": "2796948c3525b58fdcec7734ed6d7b03b570f45aa5d728f721a4e75c59eb10bd",
+      "recorded_id": 72721763832865,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "soul_sigil",
+      "file": "assets/vfx/textures/soul_sigil.png",
+      "sha256": "beed28e8aa0fe53ae3d210689c086d27ef0fbb552b293b733536ddd37d58570d",
+      "recorded_id": 118156290870104,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "soul_wisp",
+      "file": "assets/vfx/textures/soul_wisp.png",
+      "sha256": "5ceefec05786400957b59b82674851ddae75e0c383a0cb8d524750fd97a5f124",
+      "recorded_id": 90620557948643,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "spark_burst",
+      "file": "assets/vfx/textures/spark_burst.png",
+      "sha256": "88e3f3913a86461b564265a577295fa4cc46e23273f8e1c99431f9cfcf305338",
+      "recorded_id": 74595409775972,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "star_mote",
+      "file": "assets/vfx/textures/star_mote.png",
+      "sha256": "3cc50eeb046a349422e244009129dfbea387921a1297169043d367111c9e0b40",
+      "recorded_id": 86473490724513,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "time_ripple",
+      "file": "assets/vfx/textures/time_ripple.png",
+      "sha256": "19b7467aec33954cba115b076bd9f695cb7c9c220137f52a600adf8da636e329",
+      "recorded_id": 128099216238436,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "toxic_bubble",
+      "file": "assets/vfx/textures/toxic_bubble.png",
+      "sha256": "0c5cdae5d6d0600ab5f1043f931de7324d242763b0eeb7ca55297d57f600c226",
+      "recorded_id": 86188901777641,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "toxic_pool",
+      "file": "assets/vfx/textures/toxic_pool.png",
+      "sha256": "b246aa07726b55c3a7f93c59553cdba241ace6f0277f901e10b26643071d40ab",
+      "recorded_id": 138882235323111,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "trail_flame",
+      "file": "assets/vfx/textures/trail_flame.png",
+      "sha256": "6158332ed302b3c556b9849334da334c5035a2af9cd45b7def34c3d116732212",
+      "recorded_id": 104935423151233,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "void_orb",
+      "file": "assets/vfx/textures/void_orb.png",
+      "sha256": "3591f8a93801f8fd73d6186d9b09789639940909c9c1935d7205f084fb5fe244",
+      "recorded_id": 105905297411453,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "ward_hex",
+      "file": "assets/vfx/textures/ward_hex.png",
+      "sha256": "615a47db328515dd4d02d4d8529b35968a8a038b4acdeb674b98209acb5fbcd3",
+      "recorded_id": 97959735913110,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "warp_implode",
+      "file": "assets/vfx/textures/warp_implode.png",
+      "sha256": "afea41d5c9fce6c997e0ae86032b3b5d7191543a4aba352729babd9e71c0fee7",
+      "recorded_id": 112992321222321,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "water_orb",
+      "file": "assets/vfx/textures/water_orb.png",
+      "sha256": "54fa2d8b68f47317f8c675ae2618352793448892ad2152c3114f2883390fce36",
+      "recorded_id": 132721809235775,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "water_splash",
+      "file": "assets/vfx/textures/water_splash.png",
+      "sha256": "668d628c19df520759ff647b27386ed326ed942b98279ba7a24f7ee292df4dde",
+      "recorded_id": 120237086632077,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "water_trail",
+      "file": "assets/vfx/textures/water_trail.png",
+      "sha256": "8ceb5fd17c57fccd8eaa5172496890645b1aca10dbdd67492fd47d7f92a3a79d",
+      "recorded_id": 89136684882466,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "wind_swirl",
+      "file": "assets/vfx/textures/wind_swirl.png",
+      "sha256": "a0b230d9e13619be486aaaf5089e2ef15aa182ec7d4788db35113edf49244be5",
+      "recorded_id": 97125676372106,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "mesh:arcane_prism",
+      "file": "assets/vfx/meshes/arcane_prism.fbx",
+      "sha256": "22f55e1414bce0fca6d15bf4224e98a7f278b21bd3d5272adabcd658271e762c",
+      "recorded_id": 84036742963556,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "mesh:arcane_prism",
+      "file": "assets/vfx/meshes/arcane_prism.glb",
+      "sha256": "0192c00658f03c69d50d5d2478b1df7aebc16169e120c766c53ccbff5703df21",
+      "recorded_id": 84036742963556,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "mesh:arcane_prism_ink",
+      "file": "assets/vfx/meshes/arcane_prism_ink.fbx",
+      "sha256": "a85f883bef728ab08b99aaff22be3b0bc9fc388c6d1588c17ee6d612259249c3",
+      "recorded_id": 116269905279659,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "mesh:arcane_prism_ink",
+      "file": "assets/vfx/meshes/arcane_prism_ink.glb",
+      "sha256": "29f9a2aa112c7f614ec1ddee8251aa20c70bb26877990ece336a0d0da906a49c",
+      "recorded_id": 116269905279659,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "mesh:chain_link",
+      "file": "assets/vfx/meshes/chain_link.fbx",
+      "sha256": "5bec5b5b29f7388870859806d3c4bfb5ae5f92163b8574bacb8b64886b5db7e6",
+      "recorded_id": 119176469015819,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "mesh:chain_link",
+      "file": "assets/vfx/meshes/chain_link.glb",
+      "sha256": "7baa2ba4b76fbc39e609e65b61b7618e427e6f13edb3c9a8cb5da9c7d30721e3",
+      "recorded_id": 119176469015819,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "mesh:chain_link_ink",
+      "file": "assets/vfx/meshes/chain_link_ink.fbx",
+      "sha256": "d0a8d905948db2b697b4a4e667532f55e942ddaa2926111b511c02e1f2e1bd3a",
+      "recorded_id": 113430611527749,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "mesh:chain_link_ink",
+      "file": "assets/vfx/meshes/chain_link_ink.glb",
+      "sha256": "461509fb93a7b2b0430fdb8309c6d6603114821ec7da291113b01c7d8f4fa7ed",
+      "recorded_id": 113430611527749,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "mesh:chrono_gear",
+      "file": "assets/vfx/meshes/chrono_gear.fbx",
+      "sha256": "7d32e69a8e130c712320ed66cae2e504cceb69f0f16944caf9ceaba7fcc9c1e2",
+      "recorded_id": 133741481357733,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "mesh:chrono_gear",
+      "file": "assets/vfx/meshes/chrono_gear.glb",
+      "sha256": "1a3adef49f993d18df486f5bffe46fa3728f1dc9a90bc026f70f0cdb2550d22f",
+      "recorded_id": 133741481357733,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "mesh:chrono_gear_ink",
+      "file": "assets/vfx/meshes/chrono_gear_ink.fbx",
+      "sha256": "32f4cb4fe6579d917eff1537892f1ca5695c2a38919473bb6b875da55e700c47",
+      "recorded_id": 90611947112491,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "mesh:chrono_gear_ink",
+      "file": "assets/vfx/meshes/chrono_gear_ink.glb",
+      "sha256": "cd951a75cf96bb8653441f5ad5333ca73e759fa3457799311c07b068e98f6327",
+      "recorded_id": 90611947112491,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "mesh:comet_spike",
+      "file": "assets/vfx/meshes/comet_spike.fbx",
+      "sha256": "0c57bb49b084a38e1504240877b07373058b286347f6ba4ad4c237a3240f0cdd",
+      "recorded_id": 107771969260236,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "mesh:comet_spike",
+      "file": "assets/vfx/meshes/comet_spike.glb",
+      "sha256": "f7fd964a6ad7f5680b2d744aed424b083894a37322ec101544f699265c0d6c2d",
+      "recorded_id": 107771969260236,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "mesh:comet_spike_ink",
+      "file": "assets/vfx/meshes/comet_spike_ink.fbx",
+      "sha256": "445ee1b82edd7a75df50c808d346db72467d8862ade32fbf751918ac6a27189e",
+      "recorded_id": 130365422605549,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "mesh:comet_spike_ink",
+      "file": "assets/vfx/meshes/comet_spike_ink.glb",
+      "sha256": "0691e39a94cfea56e819499ed02fedb07f07e4ccfb9f45231837470ce2f648d6",
+      "recorded_id": 130365422605549,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "mesh:debris_rock_a",
+      "file": "assets/vfx/meshes/debris_rock_a.fbx",
+      "sha256": "eeef41bdaa8ef947bcbd762badf6e2f1e1c98fed68c3ba86658add4855768ecb",
+      "recorded_id": 92168806448854,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "mesh:debris_rock_a",
+      "file": "assets/vfx/meshes/debris_rock_a.glb",
+      "sha256": "fd2dd5961b1797dd7ec594fe4282dddb6cc4a829d46978c8e6690a4035e73ac9",
+      "recorded_id": 92168806448854,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "mesh:debris_rock_a_ink",
+      "file": "assets/vfx/meshes/debris_rock_a_ink.fbx",
+      "sha256": "634ffcb666d1100ff195e338692d23d00e22460379581d8938cb55f520851c3f",
+      "recorded_id": 125565772645017,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "mesh:debris_rock_a_ink",
+      "file": "assets/vfx/meshes/debris_rock_a_ink.glb",
+      "sha256": "1c7bee488a7b91520ce3c2987d0e87915a143076735922e1443ae6e513fbb84e",
+      "recorded_id": 125565772645017,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "mesh:debris_rock_b",
+      "file": "assets/vfx/meshes/debris_rock_b.fbx",
+      "sha256": "e05e93a987a52a21c9aeeb949a03cc114535fbdf5f2a0167725583b197a3d959",
+      "recorded_id": 124589716723684,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "mesh:debris_rock_b",
+      "file": "assets/vfx/meshes/debris_rock_b.glb",
+      "sha256": "cd25b22e2fcf6506c3889471a82662c60c34573b09d60dc42415e0ed9c8ed6f3",
+      "recorded_id": 124589716723684,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "mesh:debris_rock_b_ink",
+      "file": "assets/vfx/meshes/debris_rock_b_ink.fbx",
+      "sha256": "93ed69e966b5ccbf0035de8522197cd1173f5f31c32adbaf95ca92338d21817b",
+      "recorded_id": 135346336543229,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "mesh:debris_rock_b_ink",
+      "file": "assets/vfx/meshes/debris_rock_b_ink.glb",
+      "sha256": "1a639c5f7f952ea128febb28f51e6e0c45999df7ee53c9a3bef153a4c3dc70e9",
+      "recorded_id": 135346336543229,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "mesh:debris_rock_c",
+      "file": "assets/vfx/meshes/debris_rock_c.fbx",
+      "sha256": "9c8f2cee566f63efccbae7a1db7a0c60dcc5d9e80f80feb4e9d7c07be92098de",
+      "recorded_id": 119015006440592,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "mesh:debris_rock_c",
+      "file": "assets/vfx/meshes/debris_rock_c.glb",
+      "sha256": "3cbbb46426dd1bd6c21c9b03398a23e28828b02dcb19a4e8d6ea7b0c3e33c434",
+      "recorded_id": 119015006440592,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "mesh:debris_rock_c_ink",
+      "file": "assets/vfx/meshes/debris_rock_c_ink.fbx",
+      "sha256": "80574cd2bbbadd393ed0fc952b8da5e17a8729e8be0a8c5dc239ad1c5fb3c4d6",
+      "recorded_id": 73593644626039,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "mesh:debris_rock_c_ink",
+      "file": "assets/vfx/meshes/debris_rock_c_ink.glb",
+      "sha256": "7f57ba5eab629708719479358bead63c4949d6cc78f05b62f97d769a3220aa19",
+      "recorded_id": 73593644626039,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "mesh:earth_boulder",
+      "file": "assets/vfx/meshes/earth_boulder.fbx",
+      "sha256": "d7ed9cb6b9ced07000c21dc09e211c31ce5bfa379a96ff9289220808be8cbe40",
+      "recorded_id": 121318158646439,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "mesh:earth_boulder",
+      "file": "assets/vfx/meshes/earth_boulder.glb",
+      "sha256": "ef618599014a2f170871956ebc99b52f41db94b209d7ac2a6fc93db3efe046b6",
+      "recorded_id": 121318158646439,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "mesh:earth_boulder_ink",
+      "file": "assets/vfx/meshes/earth_boulder_ink.fbx",
+      "sha256": "63c77ab847232607601364ad3feff74d36da6c3ff7683439146ff79eeae7770e",
+      "recorded_id": 98281218132044,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "mesh:earth_boulder_ink",
+      "file": "assets/vfx/meshes/earth_boulder_ink.glb",
+      "sha256": "152d1bcb06a4311ed9094541a47e3ab0ca2898b240d2836d560e6899a487c21d",
+      "recorded_id": 98281218132044,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "mesh:earth_slab",
+      "file": "assets/vfx/meshes/earth_slab.fbx",
+      "sha256": "2172a82cbbdf86ce1b5a34c6fbceb1430116fd988008bbdc894cefa703a15745",
+      "recorded_id": 126064919628225,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "mesh:earth_slab",
+      "file": "assets/vfx/meshes/earth_slab.glb",
+      "sha256": "ca5f778f7dbd3fb034a894ef101bbd8d03bacf0a87957df7c4f87f74ee0f2fef",
+      "recorded_id": 126064919628225,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "mesh:earth_slab_ink",
+      "file": "assets/vfx/meshes/earth_slab_ink.fbx",
+      "sha256": "3b29c04ffd2fc2a78868bc39562e28feadee29acf6f4ad061cdcca21b9c0247e",
+      "recorded_id": 102173328441333,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "mesh:earth_slab_ink",
+      "file": "assets/vfx/meshes/earth_slab_ink.glb",
+      "sha256": "63fe43f979f1acd8b566d72a2cdfbc34146a5b200bec5dedf7f6707c17f3a46d",
+      "recorded_id": 102173328441333,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "mesh:earth_spire",
+      "file": "assets/vfx/meshes/earth_spire.fbx",
+      "sha256": "344cc0d33f47c0508eeaf4b2eaf71b78f22c99e153943a950535abd5c15451bb",
+      "recorded_id": 77824172558861,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "mesh:earth_spire",
+      "file": "assets/vfx/meshes/earth_spire.glb",
+      "sha256": "ab55ee9274877c6edd9ed991dce39cf8189b6b69e51b9c96e248b08e52acf363",
+      "recorded_id": 77824172558861,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "mesh:earth_spire_ink",
+      "file": "assets/vfx/meshes/earth_spire_ink.fbx",
+      "sha256": "88606790d87fa1a86e2fc3aaadb96d7a021f47837941029df4771cb0080dbeae",
+      "recorded_id": 100964080652122,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "mesh:earth_spire_ink",
+      "file": "assets/vfx/meshes/earth_spire_ink.glb",
+      "sha256": "1ff4d935fa4b568510ebaac25e5e2b8ba44a15261261c98b43265a9233099746",
+      "recorded_id": 100964080652122,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "mesh:energy_ribbon",
+      "file": "assets/vfx/meshes/energy_ribbon.fbx",
+      "sha256": "942882fc49709cf10baa847f57dd699a50c6ea69d14b3e1fd77aaafac5f4435b",
+      "recorded_id": 86013176261826,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "mesh:energy_ribbon",
+      "file": "assets/vfx/meshes/energy_ribbon.glb",
+      "sha256": "3dc08a2ec2a753d517f8a4351136c608a26d6aec5b64bd9404b0735d543af381",
+      "recorded_id": 86013176261826,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "mesh:fire_core",
+      "file": "assets/vfx/meshes/fire_core.fbx",
+      "sha256": "dabfb52353e7220da4685c291798b3a1cfb6feec393572418256eb6afd8930e1",
+      "recorded_id": 78981525389627,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "mesh:fire_core",
+      "file": "assets/vfx/meshes/fire_core.glb",
+      "sha256": "706f86c4e02a6ff58c9f8733fbc63057fc88b58a855e6b08436fbe5b40de0737",
+      "recorded_id": 78981525389627,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "mesh:fire_core_ink",
+      "file": "assets/vfx/meshes/fire_core_ink.fbx",
+      "sha256": "181b12e763ed587396c50438d9bfa0b41428cc679e479acd17f6a3f2791208df",
+      "recorded_id": 136448041256422,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "mesh:fire_core_ink",
+      "file": "assets/vfx/meshes/fire_core_ink.glb",
+      "sha256": "0672ddcdbf31b7cff3d99b6f2584d2a39c42c0305d960bd9e4ac6bfbd673ed60",
+      "recorded_id": 136448041256422,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "mesh:flame_shell",
+      "file": "assets/vfx/meshes/flame_shell.fbx",
+      "sha256": "3c3fc30254822dfe3b9e4563115c7823786070ccafc388fc4f53c09f95db1b3a",
+      "recorded_id": 125695199020332,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "mesh:flame_shell",
+      "file": "assets/vfx/meshes/flame_shell.glb",
+      "sha256": "659c786396c112ff40b099da3072f330f35d4b660d5e546e311a1e68fd60cb3c",
+      "recorded_id": 125695199020332,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "mesh:flame_tongue",
+      "file": "assets/vfx/meshes/flame_tongue.fbx",
+      "sha256": "2cb1655d327050b2be27818226ce8d4f9a6b49a0c2073ac13adeb99ed38e9181",
+      "recorded_id": 96872484003274,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "mesh:flame_tongue",
+      "file": "assets/vfx/meshes/flame_tongue.glb",
+      "sha256": "6a650b24b96c50e69a3386ae94d74b187786af4de79fa837089a8a7a3b1e23b3",
+      "recorded_id": 96872484003274,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "mesh:flame_tongue_ink",
+      "file": "assets/vfx/meshes/flame_tongue_ink.fbx",
+      "sha256": "f74457c33a25604231775dceb8b19623896c27941b234cec669e529fb68a7328",
+      "recorded_id": 120938593695808,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "mesh:flame_tongue_ink",
+      "file": "assets/vfx/meshes/flame_tongue_ink.glb",
+      "sha256": "6ee25da113d1ad1a3c03640e5475fee92d5beb4e82bc2a8a4016bf53101779cb",
+      "recorded_id": 120938593695808,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "mesh:flesh_shard",
+      "file": "assets/vfx/meshes/flesh_shard.fbx",
+      "sha256": "dbdc3bc7b4a7d16feebb5de99e21edc50e8869930f54e7cab2b295f0c8123a17",
+      "recorded_id": 73218745981761,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "mesh:flesh_shard",
+      "file": "assets/vfx/meshes/flesh_shard.glb",
+      "sha256": "4b83f7e9e0802d40468f2c221d08af6aa292daacc9fa35a3778eb469e21f4d90",
+      "recorded_id": 73218745981761,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "mesh:flesh_shard_ink",
+      "file": "assets/vfx/meshes/flesh_shard_ink.fbx",
+      "sha256": "3419387969902eba50a4e421fd2a0d943cca9605ba392dd4bf77fcd2c018f511",
+      "recorded_id": 76706626433792,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "mesh:flesh_shard_ink",
+      "file": "assets/vfx/meshes/flesh_shard_ink.glb",
+      "sha256": "210f8fd0aa388c4358b13b7ecb31e7e7957598f914fbc0d067b3fe528d778f8c",
+      "recorded_id": 76706626433792,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "mesh:hourglass",
+      "file": "assets/vfx/meshes/hourglass.fbx",
+      "sha256": "970124769b19116296298bf7db4069616a45c77cec0f237f8ea410c3a4348dbf",
+      "recorded_id": 109878828495210,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "mesh:hourglass",
+      "file": "assets/vfx/meshes/hourglass.glb",
+      "sha256": "7160a957719de5b3b4ce99a763bb9d20a6520794a4476de75e9c541402fe876d",
+      "recorded_id": 109878828495210,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "mesh:hourglass_ink",
+      "file": "assets/vfx/meshes/hourglass_ink.fbx",
+      "sha256": "9dfc0471baa302b3a76a97ddc3f947e734748da82991935d3072d664f8f65712",
+      "recorded_id": 106871712465868,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "mesh:hourglass_ink",
+      "file": "assets/vfx/meshes/hourglass_ink.glb",
+      "sha256": "2300cd5ba4068f6402469ef7c4312e30941ae17baa030257b64dcba1489d80f5",
+      "recorded_id": 106871712465868,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "mesh:ice_cluster",
+      "file": "assets/vfx/meshes/ice_cluster.fbx",
+      "sha256": "e7ceb3cc6558ae648440a21f5217fc5de72aa06d1f4e1cfb7c51424023583c3f",
+      "recorded_id": 124143222328401,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "mesh:ice_cluster",
+      "file": "assets/vfx/meshes/ice_cluster.glb",
+      "sha256": "38a85ad75a3ab85b6f49ae71fafd693db0deb97ad765b81e623af8f7c6127212",
+      "recorded_id": 124143222328401,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "mesh:ice_cluster_ink",
+      "file": "assets/vfx/meshes/ice_cluster_ink.fbx",
+      "sha256": "a87fbb9e9b4e14419b8326c05fd13279d77e8402402f904caa303adf637c71d3",
+      "recorded_id": 133617815942734,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "mesh:ice_cluster_ink",
+      "file": "assets/vfx/meshes/ice_cluster_ink.glb",
+      "sha256": "ac58c223739dfdb55c61b04bcd9415e77e15d7f574b37c53fdca8500352b0911",
+      "recorded_id": 133617815942734,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "mesh:ice_shard_a",
+      "file": "assets/vfx/meshes/ice_shard_a.fbx",
+      "sha256": "592759afa0eab75426e7e171d7d88c3be210226bdf9ef753abd6d199ae0ddf51",
+      "recorded_id": 101744644310485,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "mesh:ice_shard_a",
+      "file": "assets/vfx/meshes/ice_shard_a.glb",
+      "sha256": "49eee8749e28095ba7de0c20da7af7a8d40bd87206f96ac9b49e1f956e2db514",
+      "recorded_id": 101744644310485,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "mesh:ice_shard_a_ink",
+      "file": "assets/vfx/meshes/ice_shard_a_ink.fbx",
+      "sha256": "7f954d990656eb35092a106fab434cb565bef442df042e029d7d3031881858f7",
+      "recorded_id": 77635122873190,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "mesh:ice_shard_a_ink",
+      "file": "assets/vfx/meshes/ice_shard_a_ink.glb",
+      "sha256": "304209fdf60cd3651292a3940e82b26f350dfc8e249483e1da1b5b23240d9130",
+      "recorded_id": 77635122873190,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "mesh:ice_shard_b",
+      "file": "assets/vfx/meshes/ice_shard_b.fbx",
+      "sha256": "38affcf06242e6d89c994284c64edaf2ee8ce8b71b877a32291b9262bed90140",
+      "recorded_id": 80218251074419,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "mesh:ice_shard_b",
+      "file": "assets/vfx/meshes/ice_shard_b.glb",
+      "sha256": "5578974d4abd6edc353786cfcb7518990174e4db9985dae03a05e7e647880d3f",
+      "recorded_id": 80218251074419,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "mesh:ice_shard_b_ink",
+      "file": "assets/vfx/meshes/ice_shard_b_ink.fbx",
+      "sha256": "5bf46fefb5d5cc271562ad2536d59a7a4516d61d087bb63c76b4a91aeedb119e",
+      "recorded_id": 133461204435330,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "mesh:ice_shard_b_ink",
+      "file": "assets/vfx/meshes/ice_shard_b_ink.glb",
+      "sha256": "7dc147e967b21d4c75a45ceed2ca398d6491086ec6b98b13319c64b62963b26b",
+      "recorded_id": 133461204435330,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "mesh:ice_spike",
+      "file": "assets/vfx/meshes/ice_spike.fbx",
+      "sha256": "b782fc7e62b526da9dcb20c2b13ff5a17977c5cdabab47155aaf954b295ece4f",
+      "recorded_id": 122197599609819,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "mesh:ice_spike",
+      "file": "assets/vfx/meshes/ice_spike.glb",
+      "sha256": "b51334f23c4380ba65ed8b6a7c973a1ef77da534d67a4e5fe26949ec3e039881",
+      "recorded_id": 122197599609819,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "mesh:ice_spike_ink",
+      "file": "assets/vfx/meshes/ice_spike_ink.fbx",
+      "sha256": "be39e5856450589380990e9775059b8bc239f07f8ce9f42a5dac74c417924923",
+      "recorded_id": 127600775916816,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "mesh:ice_spike_ink",
+      "file": "assets/vfx/meshes/ice_spike_ink.glb",
+      "sha256": "caf5e97c516b9ec957632c8e19a6f9bb9f76001992e82a2402cf9ee8a1432a44",
+      "recorded_id": 127600775916816,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "mesh:lightning_fork",
+      "file": "assets/vfx/meshes/lightning_fork.fbx",
+      "sha256": "8e3a094fc03dbfabf29582a3b046309948a0ac0f5222b6c61fddad659d6415db",
+      "recorded_id": 98165278002519,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "mesh:lightning_fork",
+      "file": "assets/vfx/meshes/lightning_fork.glb",
+      "sha256": "5cb955a5475bd7b8ac2af66cdb27c596054a0c5e3d9ed2b4dcc562035212c2f5",
+      "recorded_id": 98165278002519,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "mesh:lightning_fork_ink",
+      "file": "assets/vfx/meshes/lightning_fork_ink.fbx",
+      "sha256": "5df21e7efba6d15a8a26b87c8b7d15983929af5f6b7d90319c3304542d370897",
+      "recorded_id": 114580811429305,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "mesh:lightning_fork_ink",
+      "file": "assets/vfx/meshes/lightning_fork_ink.glb",
+      "sha256": "634834228a24c73336fe55d7f23d6f7dfa75f2a183d35c69c1eaf2c317931269",
+      "recorded_id": 114580811429305,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "mesh:poison_bubbles",
+      "file": "assets/vfx/meshes/poison_bubbles.fbx",
+      "sha256": "78e8a9440e1504aeaf9fa526c0cb6b1586acd44b7ba39349ac38e59f524ca90e",
+      "recorded_id": 123783201704218,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "mesh:poison_bubbles",
+      "file": "assets/vfx/meshes/poison_bubbles.glb",
+      "sha256": "0e25ee281723eed9535880f42c0321a507faeae0abe4e12e2abc42b2048002df",
+      "recorded_id": 123783201704218,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "mesh:poison_bubbles_ink",
+      "file": "assets/vfx/meshes/poison_bubbles_ink.fbx",
+      "sha256": "c99cbb210a494e26bc099eea36b162e94feebfcb124df5145f243bea783f788c",
+      "recorded_id": 92812619203362,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "mesh:poison_bubbles_ink",
+      "file": "assets/vfx/meshes/poison_bubbles_ink.glb",
+      "sha256": "34f9b0403d743b0b00588e1ff13b75cad955c74c9344b54ddd64ae5432ad1071",
+      "recorded_id": 92812619203362,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "mesh:poison_thorn",
+      "file": "assets/vfx/meshes/poison_thorn.fbx",
+      "sha256": "9a3393a894e4247d6a4c81722607a07dea91443267d053c0133eea8d1816c379",
+      "recorded_id": 90000297510965,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "mesh:poison_thorn",
+      "file": "assets/vfx/meshes/poison_thorn.glb",
+      "sha256": "40cd23bb941268c971862f736141eba680250510e26637d42501462cf293385b",
+      "recorded_id": 90000297510965,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "mesh:poison_thorn_ink",
+      "file": "assets/vfx/meshes/poison_thorn_ink.fbx",
+      "sha256": "605577242da778534361e5209759fa4cc07f7e3b989f71e934742bc381a34f70",
+      "recorded_id": 95008084945618,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "mesh:poison_thorn_ink",
+      "file": "assets/vfx/meshes/poison_thorn_ink.glb",
+      "sha256": "416771763ca1f2f2cc5a99396c022edcee189bcd04be3e5a14cfe9c8811aef57",
+      "recorded_id": 95008084945618,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "mesh:pressure_cone",
+      "file": "assets/vfx/meshes/pressure_cone.fbx",
+      "sha256": "eb35f75224e759bb65d02c58191e36bb382b08699d858163136fd4dbb5d917f7",
+      "recorded_id": 115191572471831,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "mesh:pressure_cone",
+      "file": "assets/vfx/meshes/pressure_cone.glb",
+      "sha256": "bedddb69dde9e4bb483632ab726ae3ecaaa30e44928326b7964789f7af7e7dda",
+      "recorded_id": 115191572471831,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "mesh:rift_frame",
+      "file": "assets/vfx/meshes/rift_frame.fbx",
+      "sha256": "c93c1c392819e24e6a98b8d9419b979e93c1ba33f656933d83438b332a24161e",
+      "recorded_id": 113442573771410,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "mesh:rift_frame",
+      "file": "assets/vfx/meshes/rift_frame.glb",
+      "sha256": "45ff2492b24c3a467904ce6898afe41df41ce2c8acb1bdc5721d0594cc3fc5f8",
+      "recorded_id": 113442573771410,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "mesh:shockwave_dome",
+      "file": "assets/vfx/meshes/shockwave_dome.fbx",
+      "sha256": "28d769341c87aad60cbd9e30e9ae9b32a3aa181157305417a2184a934c29fb03",
+      "recorded_id": 120158212803850,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "mesh:shockwave_dome",
+      "file": "assets/vfx/meshes/shockwave_dome.glb",
+      "sha256": "0dfd47069bafc7692a1a1089b81ce2fbe2ee04d8a3a604c434193af8f3556bdf",
+      "recorded_id": 120158212803850,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "mesh:shockwave_ring",
+      "file": "assets/vfx/meshes/shockwave_ring.fbx",
+      "sha256": "806b0023147549439c4d3729be7210f37cd1155ac585860551a6c772cbb8a90a",
+      "recorded_id": 81060849828208,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "mesh:shockwave_ring",
+      "file": "assets/vfx/meshes/shockwave_ring.glb",
+      "sha256": "6d7fc64da6ca92f6a95e395087615959d0ee706e567768b4deb26b12b2b08639",
+      "recorded_id": 81060849828208,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "mesh:sigil_ring",
+      "file": "assets/vfx/meshes/sigil_ring.fbx",
+      "sha256": "cff92b41b216880da4d92bb87aaa40e55a80d02c927ea7ea577d2c1781cf39da",
+      "recorded_id": 104265572022890,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "mesh:sigil_ring",
+      "file": "assets/vfx/meshes/sigil_ring.glb",
+      "sha256": "3f1c6e6cee5a25196d1235e09a98c09977e2caf8e0c740504473a19a4b7999ad",
+      "recorded_id": 104265572022890,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "mesh:sinew_tendril",
+      "file": "assets/vfx/meshes/sinew_tendril.fbx",
+      "sha256": "f3d6726934dc0eda9fe484e2380d0b51a7a1fd635e2961b2bc163188b0002712",
+      "recorded_id": 123633368950950,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "mesh:sinew_tendril",
+      "file": "assets/vfx/meshes/sinew_tendril.glb",
+      "sha256": "960516fc199820d15ae9c0585db864573b7d1712287995e93f287f857f950eff",
+      "recorded_id": 123633368950950,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "mesh:sinew_tendril_ink",
+      "file": "assets/vfx/meshes/sinew_tendril_ink.fbx",
+      "sha256": "90e4b3ffafb1e0fd480f4cdeb66aadf84469b21b9c297846ae15b5636a5411ab",
+      "recorded_id": 108506988806346,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "mesh:sinew_tendril_ink",
+      "file": "assets/vfx/meshes/sinew_tendril_ink.glb",
+      "sha256": "78e6726ad7d6af7d557fd0968c91ab650fb8818968bb6acdec94a5080aa477bf",
+      "recorded_id": 108506988806346,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "mesh:soul_skull",
+      "file": "assets/vfx/meshes/soul_skull.fbx",
+      "sha256": "fcabd023ea28047f89851635ccb0d8c4128126e8b60db4fe06b4742cfddfd683",
+      "recorded_id": 99454191196982,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "mesh:soul_skull",
+      "file": "assets/vfx/meshes/soul_skull.glb",
+      "sha256": "c4e698eef3471be0ef9ef0b4a0d1dc3e5037b64cbbc2b8cdf6f8cf5304e98841",
+      "recorded_id": 99454191196982,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "mesh:soul_skull_ink",
+      "file": "assets/vfx/meshes/soul_skull_ink.fbx",
+      "sha256": "475eb24a9f65a794721fe672fdf250053adc23a2756a987e0167d3345a1c694f",
+      "recorded_id": 105197003156613,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "mesh:soul_skull_ink",
+      "file": "assets/vfx/meshes/soul_skull_ink.glb",
+      "sha256": "e7b29fc5501e1834d42839306af46d78d696ebae8885ee5cb8eb8e9307315303",
+      "recorded_id": 105197003156613,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "mesh:void_shard",
+      "file": "assets/vfx/meshes/void_shard.fbx",
+      "sha256": "276badab7b6173c17a725938c6577b00e514abde9a692b565a4fca64f7be68ef",
+      "recorded_id": 94996568715857,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "mesh:void_shard",
+      "file": "assets/vfx/meshes/void_shard.glb",
+      "sha256": "fb24c7927ba5e75d15991bcceb797fde10b58df701fabe6fc63883e43f02fe6d",
+      "recorded_id": 94996568715857,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "mesh:void_shard_ink",
+      "file": "assets/vfx/meshes/void_shard_ink.fbx",
+      "sha256": "fc72c0febe8cb3d6b7f5b87f191c7e80e1ddcfd2ccf835425b054fb18788ade3",
+      "recorded_id": 133387997730067,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "mesh:void_shard_ink",
+      "file": "assets/vfx/meshes/void_shard_ink.glb",
+      "sha256": "c17466b92aac61202f7898991ad8b9e678cdcb37ce1f5d08a84c1090a19bf248",
+      "recorded_id": 133387997730067,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "mesh:ward_dome",
+      "file": "assets/vfx/meshes/ward_dome.fbx",
+      "sha256": "c0dc0c93a46443db78d9d15eea18aeccb43537b9f85c0fdf52903bf549ba759e",
+      "recorded_id": 114456935248249,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "mesh:ward_dome",
+      "file": "assets/vfx/meshes/ward_dome.glb",
+      "sha256": "2848ec9b28523f08509bc3d2bef5820c7933edef1570844e7eb18689f19cda61",
+      "recorded_id": 114456935248249,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "mesh:water_crown",
+      "file": "assets/vfx/meshes/water_crown.fbx",
+      "sha256": "f0e0e23d5ff9ae743e54962e9d99f90a506d28c981d80895333ddac0dc446e32",
+      "recorded_id": 90081472783879,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "mesh:water_crown",
+      "file": "assets/vfx/meshes/water_crown.glb",
+      "sha256": "d34d8bbb4bfad5f2dc0c6c4fcce618d67b02fa5fc2466ce1463958e39084a354",
+      "recorded_id": 90081472783879,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "mesh:water_curl",
+      "file": "assets/vfx/meshes/water_curl.fbx",
+      "sha256": "329e795fe172fdc434e67f2e9fad8739f846e05521c2fd531c8767c9cebe0597",
+      "recorded_id": 128601653982681,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "mesh:water_curl",
+      "file": "assets/vfx/meshes/water_curl.glb",
+      "sha256": "105437281dd9b987ce1603bfe23331ab54ab492d8455e501f8df8b614fbb576b",
+      "recorded_id": 128601653982681,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "mesh:wind_crescent",
+      "file": "assets/vfx/meshes/wind_crescent.fbx",
+      "sha256": "a3f94044993e2f3ba89d3a03f82497477fea8cb532fe388ffcfe021ea9c3b8f7",
+      "recorded_id": 117282997659186,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "mesh:wind_crescent",
+      "file": "assets/vfx/meshes/wind_crescent.glb",
+      "sha256": "ced031936e20d78d4d31c6a93f196e88752c70d558691ee77864ed401d518983",
+      "recorded_id": 117282997659186,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "mesh:wind_funnel",
+      "file": "assets/vfx/meshes/wind_funnel.fbx",
+      "sha256": "b74c902767745b66af0fab67304c5398fa1a36e3e01fb76ed8850b3962c50585",
+      "recorded_id": 133194397915751,
+      "publication": "recorded_id_unverified"
+    },
+    {
+      "key": "mesh:wind_funnel",
+      "file": "assets/vfx/meshes/wind_funnel.glb",
+      "sha256": "ce664b2d8b813f100c8736599b31dcc61b1e8e279f1431e961f8b57ee9ee33f4",
+      "recorded_id": 133194397915751,
+      "publication": "recorded_id_unverified"
+    }
+  ],
+  "study_assets": 7,
+  "placeholder_review": [
+    {
+      "file": "src/shared/SpellVFXSystem/Assets/VFXAssets.luau",
+      "line": 18,
+      "code": "Fire = \"rbxasset://textures/particles/fire_main.dds\",",
+      "status": "review_visible_or_invisible_in_Studio"
+    },
+    {
+      "file": "src/shared/SpellVFXSystem/Assets/VFXAssets.luau",
+      "line": 19,
+      "code": "Smoke = \"rbxasset://textures/particles/smoke_main.dds\",",
+      "status": "review_visible_or_invisible_in_Studio"
+    },
+    {
+      "file": "src/shared/SpellVFXSystem/Assets/VFXAssets.luau",
+      "line": 20,
+      "code": "Sparkle = \"rbxasset://textures/particles/sparkles_main.dds\",",
+      "status": "review_visible_or_invisible_in_Studio"
+    },
+    {
+      "file": "src/shared/SpellVFXSystem/Assets/VFXAssets.luau",
+      "line": 123,
+      "code": "part = Instance.new(\"WedgePart\")",
+      "status": "review_visible_or_invisible_in_Studio"
+    },
+    {
+      "file": "src/shared/SpellVFXSystem/Assets/VFXAssets.luau",
+      "line": 125,
+      "code": "local p = Instance.new(\"Part\")",
+      "status": "review_visible_or_invisible_in_Studio"
+    },
+    {
+      "file": "src/shared/SpellVFXSystem/Core/SpellVFXComposer.luau",
+      "line": 26,
+      "code": "Fire = \"rbxasset://textures/particles/fire_main.dds\",",
+      "status": "review_visible_or_invisible_in_Studio"
+    },
+    {
+      "file": "src/shared/SpellVFXSystem/Core/SpellVFXComposer.luau",
+      "line": 27,
+      "code": "Smoke = \"rbxasset://textures/particles/smoke_main.dds\",",
+      "status": "review_visible_or_invisible_in_Studio"
+    },
+    {
+      "file": "src/shared/SpellVFXSystem/Core/SpellVFXComposer.luau",
+      "line": 28,
+      "code": "Sparkle = \"rbxasset://textures/particles/sparkles_main.dds\",",
+      "status": "review_visible_or_invisible_in_Studio"
+    },
+    {
+      "file": "src/shared/SpellVFXSystem/Core/SpellVFXComposer.luau",
+      "line": 44,
+      "code": "elseif motif == \"Shell\" or motif == \"Band\" then Enum.Material.ForceField",
+      "status": "review_visible_or_invisible_in_Studio"
+    },
+    {
+      "file": "src/shared/SpellVFXSystem/Core/SpellVFXComposer.luau",
+      "line": 45,
+      "code": "else Enum.Material.Neon",
+      "status": "review_visible_or_invisible_in_Studio"
+    },
+    {
+      "file": "src/shared/SpellVFXSystem/Core/SpellVFXComposer.luau",
+      "line": 422,
+      "code": "local flame = Instance.new(\"Fire\")",
+      "status": "review_visible_or_invisible_in_Studio"
+    },
+    {
+      "file": "src/shared/SpellVFXSystem/Core/SpellVFXComposer.luau",
+      "line": 805,
+      "code": "local anchor = Instance.new(\"Part\")",
+      "status": "review_visible_or_invisible_in_Studio"
+    },
+    {
+      "file": "src/shared/SpellVFXSystem/Effects/Beam.luau",
+      "line": 20,
+      "code": "local holder = Instance.new(\"Part\")",
+      "status": "review_visible_or_invisible_in_Studio"
+    },
+    {
+      "file": "src/shared/SpellVFXSystem/Effects/Composition.luau",
+      "line": 8,
+      "code": "anchor = Instance.new(\"Part\")",
+      "status": "review_visible_or_invisible_in_Studio"
+    },
+    {
+      "file": "src/shared/SpellVFXSystem/Effects/Light.luau",
+      "line": 14,
+      "code": "local part = Instance.new(\"Part\")",
+      "status": "review_visible_or_invisible_in_Studio"
+    },
+    {
+      "file": "src/shared/SpellVFXSystem/Effects/Mesh.luau",
+      "line": 30,
+      "code": "part = Instance.new(\"Part\")",
+      "status": "review_visible_or_invisible_in_Studio"
+    },
+    {
+      "file": "src/shared/SpellVFXSystem/Effects/Mesh.luau",
+      "line": 32,
+      "code": "part.Material = Enum.Material.Neon",
+      "status": "review_visible_or_invisible_in_Studio"
+    },
+    {
+      "file": "src/shared/SpellVFXSystem/Effects/Particles.luau",
+      "line": 38,
+      "code": "then \"rbxasset://textures/particles/fire_main.dds\"",
+      "status": "review_visible_or_invisible_in_Studio"
+    },
+    {
+      "file": "src/shared/SpellVFXSystem/Effects/Particles.luau",
+      "line": 39,
+      "code": "else \"rbxasset://textures/particles/sparkles_main.dds\"",
+      "status": "review_visible_or_invisible_in_Studio"
+    },
+    {
+      "file": "src/shared/SpellVFXSystem/Effects/Sound.luau",
+      "line": 13,
+      "code": "local part = Instance.new(\"Part\")",
+      "status": "review_visible_or_invisible_in_Studio"
+    },
+    {
+      "file": "src/shared/SpellVFXSystem/Signature/SignatureRenderer.luau",
+      "line": 95,
+      "code": "local p = Instance.new(\"Part\")",
+      "status": "review_visible_or_invisible_in_Studio"
+    },
+    {
+      "file": "src/server/Services/MagicPresentation.luau",
+      "line": 83,
+      "code": "return material or Enum.Material.Neon",
+      "status": "review_visible_or_invisible_in_Studio"
+    },
+    {
+      "file": "src/server/Services/MagicPresentation.luau",
+      "line": 92,
+      "code": "emitter.Texture = \"rbxasset://textures/particles/smoke_main.dds\"",
+      "status": "review_visible_or_invisible_in_Studio"
+    },
+    {
+      "file": "src/server/Services/MagicPresentation.luau",
+      "line": 94,
+      "code": "emitter.Texture = \"rbxasset://textures/particles/fire_main.dds\"",
+      "status": "review_visible_or_invisible_in_Studio"
+    },
+    {
+      "file": "src/server/Services/MagicPresentation.luau",
+      "line": 173,
+      "code": "local anchor = Instance.new(\"Part\")",
+      "status": "review_visible_or_invisible_in_Studio"
+    },
+    {
+      "file": "src/server/Services/MagicPresentation.luau",
+      "line": 220,
+      "code": "local glow = Instance.new(\"Part\")",
+      "status": "review_visible_or_invisible_in_Studio"
+    },
+    {
+      "file": "src/server/Services/MagicPresentation.luau",
+      "line": 304,
+      "code": "local anchor = Instance.new(\"Part\")",
+      "status": "review_visible_or_invisible_in_Studio"
+    },
+    {
+      "file": "src/server/Services/MagicPresentation.luau",
+      "line": 408,
+      "code": "local pulse = Instance.new(\"Part\")",
+      "status": "review_visible_or_invisible_in_Studio"
+    },
+    {
+      "file": "src/server/Services/MagicPresentation.luau",
+      "line": 441,
+      "code": "local sparkAnchor = Instance.new(\"Part\")",
+      "status": "review_visible_or_invisible_in_Studio"
+    },
+    {
+      "file": "src/server/Services/MagicPresentation.luau",
+      "line": 476,
+      "code": "local part = Instance.new(\"Part\")",
+      "status": "review_visible_or_invisible_in_Studio"
+    },
+    {
+      "file": "src/server/Services/MagicPresentation.luau",
+      "line": 499,
+      "code": "local bar = Instance.new(\"Part\")",
+      "status": "review_visible_or_invisible_in_Studio"
+    },
+    {
+      "file": "src/server/Services/MagicPresentation.luau",
+      "line": 597,
+      "code": "local ghost = Instance.new(\"Part\")",
+      "status": "review_visible_or_invisible_in_Studio"
+    },
+    {
+      "file": "src/server/Services/MagicPresentation.luau",
+      "line": 654,
+      "code": "local part = Instance.new(\"Part\")",
+      "status": "review_visible_or_invisible_in_Studio"
+    },
+    {
+      "file": "src/server/Services/MagicPresentation.luau",
+      "line": 661,
+      "code": "part.Transparency, part.Material, part.Color = 0.55, Enum.Material.Neon, color",
+      "status": "review_visible_or_invisible_in_Studio"
+    },
+    {
+      "file": "src/server/Services/MagicPresentation.luau",
+      "line": 726,
+      "code": "local marker = Instance.new(\"Part\")",
+      "status": "review_visible_or_invisible_in_Studio"
+    },
+    {
+      "file": "src/server/Services/MagicPresentation.luau",
+      "line": 733,
+      "code": "marker.Transparency, marker.Material, marker.Color = 0.9, Enum.Material.Neon, color",
+      "status": "review_visible_or_invisible_in_Studio"
+    },
+    {
+      "file": "src/server/Services/MagicPresentation.luau",
+      "line": 736,
+      "code": "local cap = Instance.new(\"Part\")",
+      "status": "review_visible_or_invisible_in_Studio"
+    },
+    {
+      "file": "src/server/Services/MagicPresentation.luau",
+      "line": 744,
+      "code": "cap.Transparency, cap.Material, cap.Color = 0.88, Enum.Material.Neon, color",
+      "status": "review_visible_or_invisible_in_Studio"
+    },
+    {
+      "file": "src/server/Services/MagicPresentation.luau",
+      "line": 753,
+      "code": "local anchor = Instance.new(\"Part\")",
+      "status": "review_visible_or_invisible_in_Studio"
+    },
+    {
+      "file": "src/server/Services/MagicPresentation.luau",
+      "line": 793,
+      "code": "local part = Instance.new(\"Part\")",
+      "status": "review_visible_or_invisible_in_Studio"
+    },
+    {
+      "file": "src/server/Services/MagicPresentation.luau",
+      "line": 802,
+      "code": "part.Transparency, part.Material, part.Color = 0.88, Enum.Material.Neon, color",
+      "status": "review_visible_or_invisible_in_Studio"
+    },
+    {
+      "file": "src/server/Services/MagicPresentation.luau",
+      "line": 861,
+      "code": "local anchor = Instance.new(\"Part\")",
+      "status": "review_visible_or_invisible_in_Studio"
+    },
+    {
+      "file": "src/server/Services/MagicPresentation.luau",
+      "line": 879,
+      "code": "local anchor = Instance.new(\"Part\")",
+      "status": "review_visible_or_invisible_in_Studio"
+    },
+    {
+      "file": "src/server/Services/MagicPresentation.luau",
+      "line": 909,
+      "code": "anchor = Instance.new(\"Part\")",
+      "status": "review_visible_or_invisible_in_Studio"
+    }
+  ],
+  "studio_measurements": null
+}

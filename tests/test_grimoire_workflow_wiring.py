@@ -2,31 +2,43 @@
 from pathlib import Path
 import unittest
 ROOT = Path(__file__).resolve().parents[1]
-def read(path): return (ROOT / path).read_text()
+def read(path): return (ROOT / path).read_text(encoding="utf-8")
 
 class WorkflowWiring(unittest.TestCase):
     def test_digits_edit_fields_and_cannot_cast_through_ui(self):
         ui = read('src/client/Controllers/MagicLabController.luau')
-        keys = ui[ui.index('ContextActionService:BindActionAtPriority("MagicLabSlot'):]
+        keys = ui[ui.index('local function slotAction(slot: number)'):]
+        # Keyboard 1–9 and gamepad RB share the same guarded handler.
+        self.assertIn('slotHandlers[slot],', keys)
+        self.assertIn('return slotHandlers[slot](action, state, input)', keys)
         self.assertLess(keys.index('UIS:GetFocusedTextBox()'), keys.index('if panel.Visible then'))
         self.assertLess(keys.index('if panel.Visible then'), keys.index('cast(slot, true)'))
-        toggle = ui[ui.index('UIS.InputBegan:Connect(function(input, processed)'):ui.index('local slotKeys =')]
-        self.assertNotIn('pageMode = "Slots"', toggle)
+
+    def test_saving_closes_the_forge_and_new_spell_starts_fresh(self):
+        ui = read('src/client/Controllers/MagicLabController.luau')
+        handler = ui[ui.index('local saveMode = pendingLibrarySaveMode'):ui.index('persistenceState = catalog.SaveState')]
+        self.assertIn('local closeAfterSave = ok and saveMode ~= nil and pageMode == "Editor"', handler)
+        self.assertIn('pageMode = if savedFromSlot then "Slots" else "Library"', handler)
+        self.assertIn('standaloneWorkingDraft = nil', handler)
+        new_spell = ui[ui.index('local function startNewSpell()'):ui.index('local function hasWorkingDraft()')]
+        self.assertIn('beginCreation(true, true)', new_spell)
+        self.assertIn('if forLibrary and standaloneWorkingDraft and not fresh then', ui)
 
     def test_library_filters_cannot_mark_combat_drafts_dirty(self):
         ui = read('src/client/Controllers/MagicLabController.luau')
         self.assertIn('if not presentationOnly then', ui)
         self.assertIn('ctx.select(label, value, options, change, nil, nil, nil, nil, true)', read('src/client/UI/GrimoireLibraryView.luau'))
 
-    def test_sandbox_is_studio_only_and_narrative_remains_available(self):
-        arena = read('src/server/Services/CombatSandboxService.luau')
-        self.assertIn('IsStudio() and Config.Enabled', arena)
+    def test_sandbox_arena_starts_and_raw_spell_casts_stay_studio_only(self):
+        # The city/narrative services were shelved; the practice arena is always built.
+        self.assertIn('function Arena.enabled()', read('src/server/Services/CombatSandboxService.luau'))
         startup = read('src/server/init.server.luau')
-        self.assertIn('if Arena.enabled() then', startup)
-        self.assertIn('require(script.Services.SandboxService).start()', startup)
-        self.assertIn('if not Arena.enabled() then', startup)
-        self.assertIn('if Arena.enabled() then', read('src/server/Services/OpeningService.luau'))
-        self.assertIn('Equipment.chooseStarter(player, "Magic", feedback)', read('src/server/Networking/ActionRouter.luau'))
+        self.assertIn('require(script.Services.CombatSandboxService).start()', startup)
+        router = read('src/server/Networking/ActionRouter.luau')
+        self.assertIn('Equipment.chooseStarter(player, "Magic", feedback)', router)
+        # Client-supplied spell definitions may only be cast in the Studio sandbox.
+        for action in ('MagicStart', 'MagicRelease', 'MagicAimUpdate'):
+            self.assertIn('action == Protocol.' + action + ' and RunService:IsStudio() and StudioSandbox.Enabled', router)
 
     def test_storage_retains_original_namespace_and_guards(self):
         self.assertIn('LibraryDataStoreName = "EnfleshedMagicLabLibraryV1"', read('src/shared/Configuration/MagicLab.luau'))
@@ -42,26 +54,28 @@ class WorkflowWiring(unittest.TestCase):
         ui = read('src/client/Controllers/MagicLabController.luau')
         service = read('src/server/Services/MagicLabService.luau')
         guide = read('src/shared/Modules/MagicAuthoringGuide.luau')
-        self.assertIn('pageMode = "Create"', ui)
-        self.assertIn('AuthoringGuide.forShape', ui)
+        # New spells open straight into the Spell Forge with a valid starter.
+        self.assertIn('draft.Triggers.OnImpact = { { Payloads = { starterDamage } } }', ui)
+        new_spell = ui[ui.index('local function startNewSpell()'):ui.index('local function hasWorkingDraft()')]
+        self.assertIn('beginCreation(true, true)', new_spell)
         self.assertIn('local saveMode = if editingLibraryRecord then "Update" else "SaveNew"', ui)
         self.assertIn('elseif data.Action == "SaveNew" then', service)
         self.assertIn('local valid, reason = Spec.validate(data.Definition)', service)
         self.assertIn('schema.supportsPayloadCapability(kind, formName, event)', guide)
         self.assertNotIn('schema.supportsPayload(kind, formName, event, principle)', guide)
-        self.assertNotIn('spec.validate(draft)', guide)
+        # Suggested starters are pre-validated so the guide never offers one the server rejects.
+        self.assertIn('if not spec.validate(draft) then', guide)
 
     def test_empty_slots_choose_a_saved_spell_and_home_is_always_available(self):
         ui = read('src/client/Controllers/MagicLabController.luau')
         library_ui = read('src/client/UI/GrimoireLibraryView.luau')
-        self.assertIn('homeButton.Name = "ReturnToGrimoireHome"', ui)
-        self.assertIn('roof.Name = "HouseRoof"', ui)
-        self.assertIn('house.Name = "HouseBody"', ui)
-        self.assertIn('homeButton.Visible = pageMode ~= "Slots"', ui)
-        self.assertIn('homeButton.Activated:Connect(function()', ui)
+        hub = read('src/client/UI/SpellHub.luau')
+        # Home is a toolbar tab on every non-editor screen.
+        self.assertIn('{ Id = "Home", Label = "HOME"', hub)
+        self.assertIn('navigateTab = function(tab)', ui)
         self.assertIn('libraryView.chooseForSlot(slotId)', ui)
         self.assertNotIn('beginCreation(false)', ui)
-        self.assertIn('local spell = draftsBySlot[slot] or saved', ui)
+        self.assertIn('Spell = draftsBySlot[slot] or equipped[slot]', ui)
         self.assertIn('function self.chooseForSlot(slot)', library_ui)
         self.assertIn('"EQUIP IN SLOT " .. self.ChoosingSlot', library_ui)
         self.assertIn('local completedSlotChoice = ok and changedSlot ~= nil and changedSlot == libraryView.ChoosingSlot', ui)
@@ -71,7 +85,7 @@ class WorkflowWiring(unittest.TestCase):
         library_ui = read('src/client/UI/GrimoireLibraryView.luau')
         service = read('src/server/Services/MagicLabService.luau')
         self.assertIn('authoringMode = "Guided"', ui)
-        self.assertIn('SEARCH THIS CHAPTER', ui)
+        self.assertIn('expertSearch = search or ""', ui)
         self.assertIn('string.find(string.lower(label), string.lower(expertSearch), 1, true)', ui)
         self.assertIn('ctx.editRecord(self.Selected, record.Definition)', library_ui)
         self.assertIn('Action = saveMode', ui)
@@ -86,17 +100,12 @@ class WorkflowWiring(unittest.TestCase):
         self.assertIn('RecommendedForms = { "Aura", "Field", "Beam", "Projectile" }', guide)
         self.assertIn('function Guide.isRecommended(intentId, formName)', guide)
         self.assertNotIn('intent.Forms', guide)
-        self.assertIn('SUGGESTED · ', ui)
-        self.assertIn('ALSO COMPATIBLE · ', ui)
-        self.assertIn('Id = formName, Label = form.Label', ui)
-        self.assertIn('creationForm = formName', ui)
-        self.assertIn('creationChoiceGrid(options)', ui)
         self.assertIn('table.insert(results, formName)', guide)
 
     def test_advanced_show_toggle_preserves_editor_scroll(self):
         ui = read('src/client/Controllers/MagicLabController.luau')
         helper = ui[ui.index('local function rebuildPreservingScroll()'):ui.index('local libraryView')]
-        heading = ui[ui.index('local function heading(text)'):ui.index('local function info(text, height)')]
+        heading = ui[ui.index('local function heading(text)'):ui.index('local function info(text, _height)')]
         self.assertIn('scroll.CanvasPosition = previousCanvasPosition', helper)
         self.assertIn('rebuildPreservingScroll()', heading)
 

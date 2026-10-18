@@ -1,0 +1,34 @@
+{
+  "date": "2026-10-17",
+  "status": "single_imported_skin_deformation_verified",
+  "mesh_id": "rbxassetid://116032385577570",
+  "texture_id": "rbxassetid://81127106843904",
+  "bones": 22,
+  "imported_size": [
+    154.50282287597656,
+    44,
+    600
+  ],
+  "clone_scale": 0.01,
+  "imported_export_sha256": "2773714596062d455060e1c1b28db4efe5f9630b1cdf974cc2acd48cde214610",
+  "visual_evidence": "studio_client_deformed_0.jpg",
+  "animation_evidence": "studio_import_animation_verify.json",
+  "observed_before": {
+    "Frame": 31,
+    "FrameUpdates": 80
+  },
+  "observed_after": {
+    "Frame": 36,
+    "FrameUpdates": 113
+  },
+  "original_import_modified": false,
+  "runtime_integrated": false,
+  "full_effect_accepted": false,
+  "user_style_feedback": "Colors and style good; does not look like fire",
+  "limitations": [
+    "CFrame pose probe excludes Blender per-bone scale",
+    "New export scale needs confirmation on next import",
+    "No full-body fire test or performance verification",
+    "Geometry needs another art pass"
+  ]
+}

@@ -47,7 +47,7 @@ The current test configuration disables progression throughout the magic testbed
 
 Setup now begins with the existing Form selector and eight direct Form buttons using its existing reset/migration path. UIListLayout explicitly uses LayoutOrder. Descriptions for Forms, Principles, expressions, Element, effect timing and testing explain visible outcomes, with examples and optional requirements called out. Existing controls remain available.
 
-Verification: 38 Python tests pass; 57 runnable Lua magic/spell test files pass (including the new Apply test). The existing test_magic_lab.lua still cannot be parsed by standard Lua. Formatting and Rojo build pass. Rebuilt Enfleshed_GrimoirePreview.rbxlx in the project folder. Live Studio layout, focus, input and persistence checks remain pending.
+Verification at the time of that pass: 38 Python tests passed; 57 runnable Lua magic/spell test files passed (including the new Apply test). The existing test_magic_lab.lua could not be parsed by standard Lua. Formatting and Rojo build passed. The current test place is `Enfleshed-Combat-Sandbox.rbxlx`; live Studio layout, focus, input, and persistence checks remain pending.
 
 ## Guided and expert authoring follow-up
 

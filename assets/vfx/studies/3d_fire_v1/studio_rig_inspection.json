@@ -1,0 +1,9 @@
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "{\"Rigs\":[{\"Bones\":[{\"Name\":\"Root\",\"Parent\":\"Flame_00\"},{\"Name\":\"Flow_00\",\"Parent\":\"Root\"},{\"Name\":\"Flow_01\",\"Parent\":\"Root\"},{\"Name\":\"Flow_02\",\"Parent\":\"Root\"},{\"Name\":\"Flow_03\",\"Parent\":\"Root\"},{\"Name\":\"Flow_04\",\"Parent\":\"Root\"},{\"Name\":\"Flow_05\",\"Parent\":\"Root\"},{\"Name\":\"Flow_06\",\"Parent\":\"Root\"},{\"Name\":\"Flow_07\",\"Parent\":\"Root\"},{\"Name\":\"Flow_08\",\"Parent\":\"Root\"},{\"Name\":\"Flow_09\",\"Parent\":\"Root\"},{\"Name\":\"Flow_10\",\"Parent\":\"Root\"},{\"Name\":\"Flow_11\",\"Parent\":\"Root\"},{\"Name\":\"Flow_12\",\"Parent\":\"Root\"},{\"Name\":\"Flow_13\",\"Parent\":\"Root\"},{\"Name\":\"Flow_14\",\"Parent\":\"Root\"},{\"Name\":\"Flow_15\",\"Parent\":\"Root\"},{\"Name\":\"Flow_16\",\"Parent\":\"Root\"},{\"Name\":\"Flow_17\",\"Parent\":\"Root\"},{\"Name\":\"Flow_18\",\"Parent\":\"Root\"},{\"Name\":\"Flow_19\",\"Parent\":\"Root\"},{\"Name\":\"Flow_20\",\"Parent\":\"Root\"}],\"Path\":\"Workspace.single_flame_transport.Flame_00\",\"Name\":\"Flame_00\",\"TextureID\":\"rbxassetid://81127106843904\",\"MeshId\":\"rbxassetid://116032385577570\",\"Size\":[154.50282287597657,44,600]}],\"IsRunning\":false}"
+    }
+  ],
+  "isError": false
+}

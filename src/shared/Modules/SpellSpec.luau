@@ -170,7 +170,8 @@ function Spec.createDraft(formName: string, principle: string)
 		if draft.Targeting == "ObjectTarget" and formName == "Manipulation" then
 			draft.Material = { SearchRadius = 12 }
 		elseif
-			draft.Targeting == "ObjectTarget" and (formName == "Projectile" or formName == "Beam" or formName == "Wave")
+			draft.Targeting == "ObjectTarget"
+			and (formName == "Projectile" or formName == "Beam" or formName == "Wave")
 		then
 			draft.Material = nil
 		else
@@ -214,7 +215,9 @@ local function array(t, max)
 end
 local function safeTree(v, depth, budget)
 	budget[1] = budget[1] + 1
-	if budget[1] > 300 or depth > 8 then
+	-- Sized for a spell plus Limits.MaxSpawnNesting levels of compact
+	-- spawned effects (each level adds about seven table levels).
+	if budget[1] > 700 or depth > 18 then
 		return false
 	end
 	if type(v) == "table" then
@@ -276,15 +279,27 @@ local function hasOnlyObjectInteractionPayloads(d)
 				return false
 			end
 			for _, payload in ipairs(step.Payloads) do
+				local definition = type(payload) == "table" and Schema.Payloads[payload.Kind]
+				-- Target-independent payloads (Summon) may run on timings that
+				-- never resolve the object, matching Schema.eventsForEffects.
+				local targetIndependent = definition
+					and definition.TargetIndependent == true
+					and Schema.TargetIndependentEvents[runtimeEvent] == true
 				if
 					type(payload) ~= "table"
-					or (payload.Kind ~= "Force" and payload.Kind ~= "Control" and payload.Kind ~= "Manipulation")
+					or (
+						not targetIndependent
+						and payload.Kind ~= "Force"
+						and payload.Kind ~= "Control"
+						and payload.Kind ~= "Manipulation"
+					)
 				then
 					return false
 				end
 				count += 1
 				if
-					(d.Form == "Manipulation" and runtimeEvent == "OnCast")
+					targetIndependent
+					or (d.Form == "Manipulation" and runtimeEvent == "OnCast")
 					or (d.Form == "Projectile" and runtimeEvent == "OnImpact")
 					or ((d.Form == "Beam" or d.Form == "Wave") and runtimeEvent == "OnCast")
 					or (
@@ -301,7 +316,144 @@ local function hasOnlyObjectInteractionPayloads(d)
 	return count > 0 and effectiveCount > 0
 end
 
-function Spec.validate(d)
+-- Spawned effects ----------------------------------------------------------
+-- A SpawnEffect step carries a compact effect: its Form, that Form's settings,
+-- a lifetime, and its own triggers. The server expands it into a full spell
+-- definition from a fresh draft, inheriting the parent's Principle, Element,
+-- presentation, and target relationship, then validates that recursively.
+-- Manipulation is excluded: it needs a specific selected object, which an
+-- event point does not provide.
+Spec.SpawnForms = { "Projectile", "Beam", "Wave", "Field", "Aura", "Construct", "SelfEnhancement" }
+local spawnEffectKeys = {
+	Form = true,
+	Geometry = true,
+	Lifetime = true,
+	Triggers = true,
+}
+for _, formName in Spec.SpawnForms do
+	spawnEffectKeys[formName] = true
+end
+
+-- A valid starting effect for `formName`: Damage where the Form and Principle
+-- support it at the default timing, otherwise the first supported payload.
+function Spec.defaultSpawnEffect(formName: string, principle: string?)
+	local form = Schema.Forms[formName]
+	if not form or not table.find(Spec.SpawnForms, formName) then
+		return nil
+	end
+	principle = principle or "Energy"
+	-- Constructs have no default timing; their effects resolve on approach.
+	local event = form.DefaultEvent or "OnProximity"
+	local kind = if Schema.supportsPayload("Damage", formName, event, principle) then "Damage" else nil
+	if not kind then
+		for _, candidate in Schema.PayloadOrder do
+			if candidate ~= "Summon" and Schema.supportsPayload(candidate, formName, event, principle) then
+				kind = candidate
+				break
+			end
+		end
+	end
+	local effect = {
+		Form = formName,
+		Geometry = form.Geometry,
+		Lifetime = Spec.copy(form.Draft.Lifetime),
+		Triggers = {},
+	}
+	if kind then
+		local first = Spec.copy(Schema.Payloads[kind].Defaults or {})
+		first.Kind = kind
+		effect.Triggers[event] = { { Payloads = { first } } }
+	end
+	if form.Draft.Mechanics and next(form.Draft.Mechanics) then
+		effect[formName] = Spec.copy(form.Draft.Mechanics)
+	end
+	if formName == "Projectile" then
+		effect.Projectile.Behaviors = {}
+		effect.Projectile.MotionPhases = {}
+	end
+	return effect
+end
+
+function Spec.expandSpawnEffect(parent, effect)
+	if type(effect) ~= "table" or not table.find(Spec.SpawnForms, effect.Form) then
+		return nil, "Spawned effects must be a Projectile, Field, or Wave"
+	end
+	if not keys(effect, spawnEffectKeys) then
+		return nil, "Spawned effect has unsupported settings"
+	end
+	for _, formName in Spec.SpawnForms do
+		if effect[formName] ~= nil and formName ~= effect.Form then
+			return nil, "Spawned effect settings must match its Form"
+		end
+	end
+	if
+		type(parent) ~= "table"
+		or type(parent.Source) ~= "table"
+		or type(parent.Visual) ~= "table"
+		or type(parent.TargetRules) ~= "table"
+	then
+		return nil, "Spawned effects need a valid parent spell"
+	end
+	local child = Spec.createDraft(effect.Form, parent.Source.Principle)
+	if not child then
+		return nil, "This Principle cannot spawn a " .. tostring(effect.Form)
+	end
+	child.SpellId = string.sub(tostring(parent.SpellId), 1, 56) .. "Spawned"
+	child.Name = parent.Name
+	child.Tags = Spec.copy(parent.Tags or {})
+	child.Source = Spec.copy(parent.Source)
+	child.Element = parent.Element
+	child.Visual = Spec.copy(parent.Visual)
+	if type(parent.Audio) == "table" then
+		child.Audio = Spec.copy(parent.Audio)
+	end
+	if effect.Geometry ~= nil then
+		child.Geometry = effect.Geometry
+	end
+	if type(effect[effect.Form]) == "table" then
+		for key, value in pairs(effect[effect.Form]) do
+			child[effect.Form][key] = Spec.copy(value)
+		end
+	end
+	if effect.Lifetime ~= nil then
+		child.Lifetime = Spec.copy(effect.Lifetime)
+	end
+	child.Triggers = Spec.copy(effect.Triggers or {})
+	child.TargetRules.Relationship = parent.TargetRules.Relationship
+	child.TargetRules.RequiresConsent = parent.TargetRules.RequiresConsent
+	child.TargetRules.RequiresLineOfSight = parent.TargetRules.RequiresLineOfSight
+	return Spec.normalize(child)
+end
+
+local function validateSpawnStep(d, step, spawnNesting: number): (boolean, string?)
+	if spawnNesting >= Limits.MaxSpawnNesting then
+		return false, "Spawned effects can only nest " .. tostring(Limits.MaxSpawnNesting) .. " levels deep"
+	end
+	local child, reason = Spec.expandSpawnEffect(d, step.Effect)
+	if not child then
+		return false, reason
+	end
+	if child.Lifetime.Mode ~= "FixedDuration" and child.Lifetime.Mode ~= "Instantaneous" then
+		return false, "Spawned effects need a fixed or instantaneous lifetime"
+	end
+	if child.Form == "Field" and child.Field.FollowTarget then
+		return false, "Spawned Fields stay where they start"
+	end
+	if hasPayload(child, "Summon") then
+		return false, "Spawned effects cannot summon"
+	end
+	if (step.Count or 1) > 1 and child.Form ~= "Projectile" then
+		return false, "Only spawned Projectiles can spawn more than one"
+	end
+	local valid, childReason = Spec.validate(child, spawnNesting + 1)
+	if not valid then
+		return false, "Spawned " .. child.Form .. ": " .. tostring(childReason)
+	end
+	return true
+end
+
+-- spawnNesting is internal: how many SpawnEffect levels enclose `d`.
+function Spec.validate(d, spawnNesting: number?)
 	if not safeTree(d, 0, { 0 }) then
 		return false, "Malformed or oversized SpellSpec"
 	end
@@ -340,8 +492,12 @@ function Spec.validate(d)
 	then
 		return false, "Unknown SpellSpec field"
 	end
-	if type(d.SpellId) ~= "string" or type(d.Name) ~= "string" then
+	if type(d.SpellId) ~= "string" then
 		return false, "Missing spell identity"
+	end
+	local nameValid, nameReason = SpellIdentitySpec.validateName(d.Name)
+	if not nameValid then
+		return false, nameReason
 	end
 	if not keys(d.Source, { Principle = true, Expression = true }) then
 		return false, "Invalid source"
@@ -381,8 +537,10 @@ function Spec.validate(d)
 	if not Schema.supportsPrincipleForm(principle, d.Form) then
 		return false, "UNSUPPORTED Body/Form combination"
 	end
-	if d.Form == "SelfEnhancement" and (principle ~= "Body" or d.Targeting ~= "Self") then
-		return false, "Body SelfEnhancement must target self"
+	-- Which Principles may use SelfEnhancement is owned by MagicPrincipleSpec
+	-- (checked above); this Form always acts on the caster.
+	if d.Form == "SelfEnhancement" and d.Targeting ~= "Self" then
+		return false, "SelfEnhancement must target self"
 	end
 	if d.Form == "Manipulation" and d.Source.Expression ~= "Earth" then
 		return false, "UNSUPPORTED Manipulation expression: Earth is required for current material interaction"
@@ -535,7 +693,8 @@ function Spec.validate(d)
 	then
 		return false, "UntilTargetLost requires an entity or object target"
 	elseif
-		life.Mode == "UntilResourceDepleted" and not bounded(c.ManaUpkeepPerSecond, 0.01, Limits.MaxManaUpkeepPerSecond)
+		life.Mode == "UntilResourceDepleted"
+		and not bounded(c.ManaUpkeepPerSecond, 0.01, Limits.MaxManaUpkeepPerSecond)
 	then
 		return false, "UntilResourceDepleted requires positive ongoing mana upkeep"
 	elseif
@@ -569,7 +728,8 @@ function Spec.validate(d)
 			or life.EndWhen ~= nil
 			or (c.ManaUpkeepPerSecond or 0) > 0
 			or (c.StrainPerSecond or 0) > 0
-			or d.Proximity ~= nil
+			-- Proximity settings are inert without an OnProximity trigger, and
+			-- the trigger check below already forbids every trigger.
 			or (d.Construct and d.Construct.GrowthDuration ~= nil and d.Construct.GrowthDuration > 0)
 			or next(d.Triggers) ~= nil
 		then
@@ -629,14 +789,18 @@ function Spec.validate(d)
 	end
 	if
 		d.Form == "Wave"
-		and d.Wave.GrowthStartScale ~= nil
+		-- Incomplete growth settings are rejected by the Wave growth check below.
+		and type(d.Wave.GrowthStartScale) == "number"
+		and type(d.Wave.GrowthEndScale) == "number"
 		and d.Wave.Range * math.max(d.Wave.GrowthStartScale, d.Wave.GrowthEndScale) > rules.Range
 	then
 		return false, "Expanded Wave reach cannot exceed its targeting maximum range"
 	end
 	if
 		d.Form == "Beam"
-		and d.Beam.GrowthStartScale ~= nil
+		-- Incomplete growth settings are rejected by the Beam growth check below.
+		and type(d.Beam.GrowthStartScale) == "number"
+		and type(d.Beam.GrowthEndScale) == "number"
 		and d.Beam.Range * math.max(d.Beam.GrowthStartScale, d.Beam.GrowthEndScale) > rules.Range
 	then
 		return false, "Expanded Beam reach cannot exceed its targeting maximum range"
@@ -1106,10 +1270,20 @@ function Spec.validate(d)
 					return false, "OnTargetDeath has an unsupported death-cause filter"
 				end
 			end
+			stepFields.Condition = true
+			if step.Condition ~= nil then
+				local conditionValid, conditionReason = ConditionSpec.validateStep(step.Condition)
+				if not conditionValid then
+					return false, conditionReason
+				end
+			end
 			if behavior then
 				stepFields.Behavior = true
 				for _, field in behavior.Fields or {} do
 					stepFields[field.Key] = true
+				end
+				if step.Behavior == "SpawnEffect" then
+					stepFields.Effect = true
 				end
 			elseif step.Behavior then
 				return false, "Unsupported behavior: " .. tostring(step.Behavior)
@@ -1135,9 +1309,17 @@ function Spec.validate(d)
 						if not table.find(field.Options, value) then
 							return false, "Invalid behavior setting: " .. field.Label
 						end
-					elseif not bounded(value, field.Min, field.Max) then
+					elseif not bounded(value, field.Min, field.Max) or (field.Integer and value % 1 ~= 0) then
 						return false, "Behavior setting is outside its safety limit: " .. field.Label
 					end
+				end
+				if step.Behavior == "SpawnEffect" then
+					local spawnValid, spawnReason = validateSpawnStep(d, step, spawnNesting or 0)
+					if not spawnValid then
+						return false, spawnReason
+					end
+					-- A spawned effect counts as one of the spell's effects.
+					total = total + 1
 				end
 			end
 			for _, p in ipairs(step.Payloads) do
@@ -1267,6 +1449,7 @@ function Spec.estimate(d)
 	local speed = d.Projectile and d.Projectile.Speed or 0
 	local duration = d.Lifetime.Duration or (d.Lifetime.Mode ~= "FixedDuration" and 15 or 1)
 	local strength, count, behaviors, constructComponents, additionalBehaviorTargets = 0, 0, 0, 0, 0
+	local burstStrength, controlWeight = 0, 0
 	local environmentRequirementCount = 0
 	local environmentRequirements = d.EnvironmentRequirements or {}
 	if environmentRequirements.RequireGrounded then
@@ -1308,6 +1491,13 @@ function Spec.estimate(d)
 			end
 			for _, p in ipairs(step.Payloads) do
 				count = count + 1
+				if p.Kind == "Damage" or p.Kind == "Heal" or p.Kind == "Shield" then
+					burstStrength += math.abs(p.Amount or 0)
+				elseif p.Kind == "Bind" or p.Kind == "Control" or p.Kind == "TimeDilation" then
+					controlWeight += 4 + (p.Duration or 0)
+				elseif p.Kind == "Slow" then
+					controlWeight += (1 - (p.Multiplier or 1)) * 10 * (p.Duration or 1)
+				end
 				strength = strength
 					+ math.abs(p.Amount or 0) * ((p.Kind == "DamageOverTime" or p.Kind == "Restoration") and math.floor(
 						p.Duration / p.Interval
@@ -1340,6 +1530,7 @@ function Spec.estimate(d)
 	local beamExtraStrikes = if d.Beam and d.Beam.Pattern == "Cascade"
 		then math.max(0, (d.Beam.StrikeCount or 5) - 1)
 		else 0
+	local fanout = math.max(1, d.TargetRules.MaxTargets + additionalBehaviorTargets + beamExtraStrikes)
 	local cost = math.ceil(
 		2
 			+ radius * 0.8
@@ -1347,6 +1538,8 @@ function Spec.estimate(d)
 			+ speed * 0.02
 			+ duration * 0.3
 			+ strength * 0.2 * math.sqrt(ticks)
+			+ strength * 0.08 * (math.sqrt(fanout) - 1)
+			+ controlWeight * math.sqrt(fanout) * 0.5
 			+ count * 2
 			+ behaviors * 4
 			+ additionalBehaviorTargets * 0.5
@@ -1356,10 +1549,27 @@ function Spec.estimate(d)
 			+ beamExtraStrikes * 2.5
 			+ d.TargetRules.MaxTargets * 0.2
 	)
+	-- A spawned effect costs what it would as its own spell, once per spawn.
+	-- (Strain follows from the combined mana cost below.)
+	local spawnedMana, spawnedComplexity = 0, 0
+	for _, steps in pairs(d.Triggers) do
+		for _, step in ipairs(steps) do
+			if step.Behavior == "SpawnEffect" then
+				local child = Spec.expandSpawnEffect(d, step.Effect)
+				if child then
+					local childCost = Spec.estimate(child)
+					local spawned = step.Count or 1
+					spawnedMana += childCost.ManaDemand * spawned
+					spawnedComplexity += childCost.Complexity
+				end
+			end
+		end
+	end
+	cost += spawnedMana
 	return {
 		ManaDemand = cost,
-		Strain = math.ceil(cost * 0.4),
-		Complexity = math.ceil(
+		Strain = math.ceil(cost * 0.28 + burstStrength * math.sqrt(fanout) * 0.12 + controlWeight * 0.6),
+		Complexity = spawnedComplexity + math.ceil(
 			1
 				+ count
 				+ behaviors

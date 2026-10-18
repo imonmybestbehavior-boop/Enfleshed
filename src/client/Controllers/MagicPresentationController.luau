@@ -39,78 +39,83 @@ function Controller.start()
 		end
 		casts[character] = nil
 	end
-	Shared:WaitForChild(Protocol.Folder)
-		:WaitForChild("MagicPresentation").OnClientEvent
-		:Connect(function(character, profile, phase, duration, gather)
-			if typeof(character) ~= "Instance" or not character:IsA("Model") then
-				return
-			end
-			if phase == "Cancel" then
-				restore(character)
-				return
-			end
-			if phase == "Release" then
-				local existing = casts[character]
-				if existing then
-					existing.Phase = "Release"
-					existing.Start = os.clock()
-					existing.Duration = math.max(0.25, duration)
-					existing.Gather = 0
-				end
-				return
-			end
-			if phase == "Sustain" then
-				local existing = casts[character]
-				if existing then
-					existing.Phase = "Sustain"
-					existing.Start = os.clock()
-					existing.Duration = math.huge
-					existing.Gather = 0
-					return
-				end
-			end
-			local root = character:FindFirstChild("HumanoidRootPart")
-			local humanoid = character:FindFirstChildOfClass("Humanoid")
-			local camera = workspace.CurrentCamera
-			if
-				not root
-				or not humanoid
-				or humanoid.Health <= 0
-				or not camera
-				or (root.Position - camera.CFrame.Position).Magnitude > Config.ObserverDistance
-			then
-				return
-			end
-			local count = 0
-			for _ in casts do
-				count += 1
-			end
-			if not casts[character] and count >= Config.MaxObservedCasts then
-				return
-			end
+	local remotes = Shared:WaitForChild(Protocol.Folder, 15)
+	assert(remotes, "Magic presentation remote folder did not start within 15 seconds")
+	local presentation = remotes:WaitForChild("MagicPresentation", 15)
+	assert(
+		presentation and presentation:IsA("RemoteEvent"),
+		"Magic presentation remote did not start within 15 seconds"
+	)
+	presentation.OnClientEvent:Connect(function(character, profile, phase, duration, gather)
+		if typeof(character) ~= "Instance" or not character:IsA("Model") then
+			return
+		end
+		if phase == "Cancel" then
 			restore(character)
-			local joints = {}
-			for _, joint in character:GetDescendants() do
-				local entry = Rig.describe(joint)
-				if entry then
-					table.insert(joints, entry)
-				end
+			return
+		end
+		if phase == "Release" then
+			local existing = casts[character]
+			if existing then
+				existing.Phase = "Release"
+				existing.Start = os.clock()
+				existing.Duration = math.max(0.25, duration)
+				existing.Gather = 0
 			end
-			character:SetAttribute("MagicPoseJointCount", #joints)
-			character:SetAttribute("MagicPoseProfile", profile)
-			if #joints == 0 and not warned[character] then
-				warned[character] = true
-				warn("Magic casting: no supported body joints found in " .. character.Name)
+			return
+		end
+		if phase == "Sustain" then
+			local existing = casts[character]
+			if existing then
+				existing.Phase = "Sustain"
+				existing.Start = os.clock()
+				existing.Duration = math.huge
+				existing.Gather = 0
+				return
 			end
-			casts[character] = {
-				Profile = profile,
-				Phase = phase,
-				Start = os.clock(),
-				Duration = if phase == "Sustain" then math.huge else math.clamp(duration, 0.1, Config.MaxPoseDuration),
-				Gather = math.clamp(gather or 0.1, 0.05, Config.MaxPoseDuration),
-				Joints = joints,
-			}
-		end)
+		end
+		local root = character:FindFirstChild("HumanoidRootPart")
+		local humanoid = character:FindFirstChildOfClass("Humanoid")
+		local camera = workspace.CurrentCamera
+		if
+			not root
+			or not humanoid
+			or humanoid.Health <= 0
+			or not camera
+			or (root.Position - camera.CFrame.Position).Magnitude > Config.ObserverDistance
+		then
+			return
+		end
+		local count = 0
+		for _ in casts do
+			count += 1
+		end
+		if not casts[character] and count >= Config.MaxObservedCasts then
+			return
+		end
+		restore(character)
+		local joints = {}
+		for _, joint in character:GetDescendants() do
+			local entry = Rig.describe(joint)
+			if entry then
+				table.insert(joints, entry)
+			end
+		end
+		character:SetAttribute("MagicPoseJointCount", #joints)
+		character:SetAttribute("MagicPoseProfile", profile)
+		if #joints == 0 and not warned[character] then
+			warned[character] = true
+			warn("Magic casting: no supported body joints found in " .. character.Name)
+		end
+		casts[character] = {
+			Profile = profile,
+			Phase = phase,
+			Start = os.clock(),
+			Duration = if phase == "Sustain" then math.huge else math.clamp(duration, 0.1, Config.MaxPoseDuration),
+			Gather = math.clamp(gather or 0.1, 0.05, Config.MaxPoseDuration),
+			Joints = joints,
+		}
+	end)
 	local distortionCamera: Camera? = nil
 	local distortionBlur: BlurEffect? = nil
 	local distortionColor: ColorCorrectionEffect? = nil

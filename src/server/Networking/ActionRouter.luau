@@ -13,24 +13,38 @@ local Combat = require(Services.CombatService)
 local Damage = require(Services.DamageService)
 local Magic = require(Services.MagicService)
 local Equipment = require(Services.EquipmentService)
-local CityConfig = require(Shared.Configuration.CityLife)
-local Opening = require(Services.OpeningService)
+local Inventory = require(Services.InventoryService)
 local Summons = require(Services.SummonService)
-local Discovery = require(Services.MagicDiscoveryService)
+local Telemetry = require(Services.TelemetryService)
+local StudioSandbox = require(Shared.Configuration.DevelopmentSandbox)
+local SandboxSpawn = require(Shared.Configuration.CombatBattleMap).Spawn
 local Router = {}
 
+local function playerReady(player: Player): boolean
+	return player:GetAttribute("CharacterReady") == true or (RunService:IsStudio() and StudioSandbox.Enabled == true)
+end
+
 function Router.start()
-	local folder = Instance.new("Folder")
-	folder.Name = Protocol.Folder
-	local request = Instance.new("RemoteEvent")
-	request.Name = Protocol.Request
-	request.Parent = folder
-	local feedback = Instance.new("RemoteEvent")
-	feedback.Name = Protocol.Feedback
-	feedback.Parent = folder
-	local aerialControl = Instance.new("RemoteEvent")
-	aerialControl.Name = Protocol.AerialControl
-	aerialControl.Parent = folder
+	local folder = Shared:FindFirstChild(Protocol.Folder) :: Folder?
+	if not folder then
+		folder = Instance.new("Folder")
+		folder.Name = Protocol.Folder
+		folder.Parent = Shared
+	end
+	local function remote(name: string): RemoteEvent
+		local existing = folder:FindFirstChild(name)
+		if existing and existing:IsA("RemoteEvent") then
+			return existing
+		end
+		local event = Instance.new("RemoteEvent")
+		event.Name, event.Parent = name, folder
+		return event
+	end
+	local request = remote(Protocol.Request)
+	local feedback = remote(Protocol.Feedback)
+	local aerialControl = remote(Protocol.AerialControl)
+	-- Publish core transport before optional services or the battlefield build;
+	-- clients can start their camera and launcher even if later startup reports an error.
 	Damage.Applied:Connect(function(_attacker: Model, target: Humanoid, amount: number)
 		local model = target.Parent
 		if model and model:IsA("Model") then
@@ -42,8 +56,8 @@ function Router.start()
 			})
 		end
 	end)
-	Opening.start(folder, feedback)
-	Discovery.start()
+	Inventory.start(folder)
+	Equipment.start(feedback)
 
 	local states: { [Player]: Types.PlayerState } = {}
 	local limits: { [Player]: { Tokens: number, Updated: number, Sequence: number } } = {}
@@ -52,6 +66,7 @@ function Router.start()
 	local function clearState(player: Player)
 		local state = states[player]
 		if state then
+			Combat.reset(state)
 			Movement.unbind(state)
 			states[player] = nil
 		end
@@ -65,7 +80,6 @@ function Router.start()
 		limits[player] = { Tokens = Config.Networking.Burst, Updated = os.clock(), Sequence = 0 }
 		Magic.bind(player)
 		Equipment.bind(player)
-		Opening.bind(player)
 		local function characterAdded(character: Model)
 			if player.Character ~= character then
 				return
@@ -101,7 +115,15 @@ function Router.start()
 			if player.Character ~= character or not limits[player] or humanoid.Health <= 0 then
 				return
 			end
-			Opening.prepareCharacter(player, character)
+			local missionConfig = require(Shared.Configuration.DefendTheWalls)
+			-- Defenders respawn behind the wall currently holding (it moves back as walls fall).
+			local mission = workspace:FindFirstChild("DefendTheWalls")
+			local fallback = mission and mission:GetAttribute("DefenderSpawn")
+			local spawn = if player:GetAttribute("MissionDefender") == true
+				then (if typeof(fallback) == "Vector3" then fallback else missionConfig.Defender)
+				elseif player:GetAttribute("MissionSandbox") == true then SandboxSpawn
+				else missionConfig.Hub
+			character:PivotTo(CFrame.new(spawn))
 			local now = workspace:GetServerTimeNow()
 			humanoid.MaxHealth = Config.Player.MaxHealth
 			humanoid.Health = Config.Player.MaxHealth
@@ -144,6 +166,11 @@ function Router.start()
 				ActiveAt = 0,
 				ActiveUntil = 0,
 				HitTargets = {},
+				Heavy = false,
+				Blocking = false,
+				AttackFacing = nil,
+				DamageScale = 1,
+				ParryBonusUntil = 0,
 			}
 			Movement.bind(states[player])
 			character:SetAttribute("MagicSlowMultiplier", 1)
@@ -155,6 +182,7 @@ function Router.start()
 				Equipment.chooseStarter(player, "Magic", feedback)
 			end
 			player:SetAttribute("CharacterReady", true)
+			Telemetry.onboarding(player, "Spawned")
 		end
 		connections[player] = {
 			player.CharacterAdded:Connect(characterAdded),
@@ -176,7 +204,6 @@ function Router.start()
 		limits[player] = nil
 		Magic.remove(player)
 		Equipment.remove(player)
-		Opening.remove(player)
 		for _, connection in connections[player] or {} do
 			connection:Disconnect()
 		end
@@ -190,7 +217,7 @@ function Router.start()
 		local state = states[player]
 		if
 			not state
-			or not player:GetAttribute("OpeningComplete")
+			or not playerReady(player)
 			or character ~= state.Character
 			or player.Character ~= state.Character
 			or state.Humanoid.Health <= 0
@@ -210,7 +237,7 @@ function Router.start()
 
 	request.OnServerEvent:Connect(function(player: Player, payload: any)
 		local limit = limits[player]
-		if not limit or not player:GetAttribute("OpeningComplete") then
+		if not limit or not playerReady(player) then
 			return
 		end
 		local clock = os.clock()
@@ -242,12 +269,14 @@ function Router.start()
 			action ~= Protocol.Sprint
 			and action ~= Protocol.Dash
 			and action ~= Protocol.Light
+			and action ~= Protocol.Heavy
+			and action ~= Protocol.BlockStart
+			and action ~= Protocol.BlockEnd
 			and action ~= Protocol.MagicStart
 			and action ~= Protocol.MagicRelease
 			and action ~= Protocol.MagicAimUpdate
 			and action ~= Protocol.EquipmentSwitch
 			and action ~= Protocol.EquipmentUse
-			and action ~= Protocol.MagicAwakeningSelect
 			and action ~= Protocol.SummonCommand
 			and action ~= Protocol.MagicConsent
 		then
@@ -283,7 +312,14 @@ function Router.start()
 			accepted = true
 		elseif action == Protocol.Light then
 			validPosition = Movement.update(player, state, now, feedback)
-			accepted = validPosition and Equipment.meleeActive(player) and Combat.request(state, now)
+			accepted = validPosition and Combat.request(state, now, Equipment.meleeLoadout(player), payload.Direction)
+		elseif action == Protocol.Heavy then
+			validPosition = Movement.update(player, state, now, feedback)
+			accepted = validPosition and Combat.heavy(state, now, Equipment.meleeLoadout(player), payload.Direction)
+		elseif action == Protocol.BlockStart then
+			accepted = Combat.blockStart(player, state, now, Equipment.meleeLoadout(player), feedback)
+		elseif action == Protocol.BlockEnd then
+			accepted = Combat.blockEnd(state, now)
 		elseif action == Protocol.Dash and validPosition then
 			local direction = payload.Direction
 			if
@@ -294,33 +330,25 @@ function Router.start()
 				and direction.Magnitude > 0.9
 				and direction.Magnitude < 1.1
 			then
+				Combat.blockEnd(state, now)
 				accepted = Movement.dash(state, now)
 				validPosition = Movement.update(player, state, now, feedback)
 				accepted = accepted and validPosition
 			end
-		elseif action == Protocol.MagicStart and RunService:IsStudio() and CityConfig.DevelopmentSpells then
+		elseif action == Protocol.MagicStart and RunService:IsStudio() and StudioSandbox.Enabled then
 			Magic.start(player, state, payload, feedback)
 			accepted = true
-		elseif action == Protocol.MagicRelease and RunService:IsStudio() and CityConfig.DevelopmentSpells then
+		elseif action == Protocol.MagicRelease and RunService:IsStudio() and StudioSandbox.Enabled then
 			Magic.release(player, state, payload, feedback)
 			accepted = true
-		elseif action == Protocol.MagicAimUpdate and RunService:IsStudio() and CityConfig.DevelopmentSpells then
+		elseif action == Protocol.MagicAimUpdate and RunService:IsStudio() and StudioSandbox.Enabled then
 			accepted = Magic.updateAim(player, state, payload)
 		elseif action == Protocol.MagicConsent and TargetConsent.valid(payload.AllowsTargetedSpells) then
 			player:SetAttribute(TargetConsent.Attribute, payload.AllowsTargetedSpells)
 			accepted = true
 		elseif action == Protocol.EquipmentSwitch then
+			Combat.blockEnd(state, now)
 			accepted = Equipment.switch(player, payload.EquipmentSlot, feedback)
-		elseif action == Protocol.MagicAwakeningSelect then
-			local selected, reason = Discovery.selectAwakeningProfile(player, payload.AwakeningProfileId)
-			accepted = selected
-			feedback:FireClient(player, {
-				Kind = "MagicAwakening",
-				Accepted = selected,
-				ProfileId = payload.AwakeningProfileId,
-				CurrentProfileId = Discovery.awakeningProfileId(player),
-				Reason = reason,
-			})
 		elseif action == Protocol.SummonCommand then
 			local commandAccepted, reason =
 				Summons.command(player, payload.SummonMode, payload.TargetModel, payload.WorldPoint, payload.SummonId)
@@ -354,9 +382,18 @@ function Router.start()
 			ReadyAt = state.ReadyAt,
 			DashReadyAt = state.DashReadyAt,
 			Sprinting = state.Sprinting,
+			Blocking = state.Blocking,
 		})
-		if accepted and action == Protocol.Light then
-			feedback:FireAllClients({ Kind = "Swing", Character = state.Character, Combo = state.Combo })
+		if accepted and (action == Protocol.Light or action == Protocol.Heavy) and state.Attack then
+			feedback:FireAllClients({
+				Kind = "Swing",
+				Character = state.Character,
+				Combo = state.Combo,
+				Heavy = state.Heavy,
+				Size = state.Attack.Size,
+				Offset = state.Attack.Offset,
+				Duration = state.Attack.Startup + state.Attack.Active,
+			})
 		end
 	end)
 
@@ -377,9 +414,8 @@ function Router.start()
 		return states[player]
 	end)
 	require(Services.MagicPresentation).start(folder)
+	require(Services.SpellVFXRelay).start(folder)
 	Summons.start(Magic.castSummonSpell, Magic.getCompanionSpellProfile, feedback, Magic.executeSummonCommand)
-	-- Publish only after listeners are connected.
-	folder.Parent = Shared
 end
 
 return Router
