@@ -15,6 +15,92 @@ def top_level_table_keys(source: str) -> set[str]:
 	return set(re.findall(r"^\t([A-Za-z][A-Za-z0-9]*) = \{", source, re.MULTILINE))
 
 
+def payload_entries(schema: str) -> dict[str, str]:
+	payloads = block(schema, "Schema.Payloads = {", "\nfor kind, payload in Schema.Payloads")
+	return dict(re.findall(r"^\t([A-Za-z][A-Za-z0-9]*) = \{\n(.*?)^\t\},?$", payloads, re.MULTILINE | re.DOTALL))
+
+
+def names_kind(source: str, kind: str) -> bool:
+	# A consumer "registers" a kind when it names it as a string or a table key.
+	return f'"{kind}"' in source or re.search(rf'(?<![A-Za-z0-9_."]){kind}\s*=(?!=)', source) is not None
+
+
+BOON = {"Heal", "Restoration", "Shield", "Enhancement", "AerialMovement"}
+BANE = {"Damage", "DamageOverTime", "Slow", "Bind", "ElementalMark"}
+
+# Every Schema.Payloads kind must be named by each of these consumers, so a new
+# payload kind fails here until every file handles it.
+PAYLOAD_CONSUMERS = [
+	"src/server/Services/MagicPayloadExecutors.luau",
+	"src/server/Services/MagicStatusEffectService.luau",
+	"src/shared/Modules/SpellStatCaps.luau",
+	"src/shared/Modules/CombatPolicy.luau",
+	"src/shared/Modules/MagicCompanionSpellPolicy.luau",
+	"src/client/UI/SpellForgeComponents.luau",
+	"src/client/UI/GrimoireSpellVisual.luau",
+	"src/shared/SpellVFXSystem/Core/SpellVFXAnalyzer.luau",
+	"src/shared/SpellVFXSystem/Visual/SpellVisualFeatureExtractor.luau",
+	"src/shared/Modules/MagicAuthoringGuide.luau",
+	"tests/test_magic_lab.lua",
+]
+
+# Kinds each consumer does not name today, kept as an explicit baseline. The
+# test fails when a kind outside this list is missing, and when a listed gap
+# gets fixed (remove the entry so it cannot regress).
+KNOWN_PAYLOAD_GAPS = {
+	"src/server/Services/MagicStatusEffectService.luau": {
+		# Only timed statuses live here; instant and periodic payloads do not.
+		"Damage",
+		"DamageOverTime",
+		"ConsumeElementalMark",
+		"Force",
+		"Heal",
+		"Restoration",
+		"Control",
+		"Displacement",
+		"Enhancement",
+		"AerialMovement",
+		"Manipulation",
+		"Summon",
+	},
+	"src/shared/Modules/SpellStatCaps.luau": {
+		"Damage",
+		"ConsumeElementalMark",
+		"Restoration",
+		"Enhancement",
+		"AerialMovement",
+		"Manipulation",
+		"Summon",
+	},
+	"src/shared/Modules/CombatPolicy.luau": {
+		"Damage",
+		"Heal",
+		"Restoration",
+		"Shield",
+		"Enhancement",
+		"AerialMovement",
+		"Manipulation",
+		"Summon",
+	},
+	"src/shared/Modules/MagicCompanionSpellPolicy.luau": {
+		"Transformation",
+		"Enhancement",
+		"AerialMovement",
+		"Manipulation",
+		"Summon",
+	},
+	"src/client/UI/GrimoireSpellVisual.luau": {"Force", "ModifyAttribute", "Transformation", "Control"},
+	"src/shared/SpellVFXSystem/Core/SpellVFXAnalyzer.luau": {"ConsumeElementalMark", "ModifyAttribute", "Transformation"},
+	"src/shared/SpellVFXSystem/Visual/SpellVisualFeatureExtractor.luau": {
+		"ConsumeElementalMark",
+		"Transformation",
+		"Manipulation",
+	},
+	"src/shared/Modules/MagicAuthoringGuide.luau": {"ElementalMark", "ConsumeElementalMark"},
+	"tests/test_magic_lab.lua": {"AerialMovement"},
+}
+
+
 class MagicRegistryParity(unittest.TestCase):
 	@classmethod
 	def setUpClass(cls) -> None:
@@ -73,6 +159,41 @@ class MagicRegistryParity(unittest.TestCase):
 		payloads = top_level_table_keys(payload_definitions)
 		executors = set(re.findall(r"^\t([A-Za-z][A-Za-z0-9]*) = function", executor_table, re.MULTILINE))
 		self.assertEqual(payloads, executors, "Every selectable Payload must have a server executor")
+
+	def test_each_payload_kind_is_registered_in_every_consumer(self):
+		kinds = set(payload_entries(self.schema))
+		self.assertTrue(kinds)
+		for path in PAYLOAD_CONSUMERS:
+			source = (ROOT / path).read_text(encoding="utf-8")
+			missing = {kind for kind in kinds if not names_kind(source, kind)}
+			known = KNOWN_PAYLOAD_GAPS.get(path, set())
+			with self.subTest(consumer=path):
+				self.assertLessEqual(known, kinds, "Known gaps must be real Schema.Payloads kinds")
+				self.assertEqual(missing - known, set(), f"{path} does not handle these payload kinds")
+				self.assertEqual(known - missing, set(), f"{path} now handles these; remove them from KNOWN_PAYLOAD_GAPS")
+
+	def test_each_payload_declares_its_polarity(self):
+		for kind, body in payload_entries(self.schema).items():
+			with self.subTest(kind=kind):
+				polarities = re.findall(r'^\t\tPolarity = "([A-Za-z]+)",$', body, re.MULTILINE)
+				expected = "Boon" if kind in BOON else "Bane" if kind in BANE else "Neutral"
+				self.assertEqual(polarities, [expected], f'{kind} must declare Polarity = "{expected}"')
+
+	def test_status_and_periodic_effects_record_polarity_and_source_spell(self):
+		status = (ROOT / "src/server/Services/MagicStatusEffectService.luau").read_text(encoding="utf-8")
+		self.assertIn("Polarity: string,", status)
+		self.assertIn("local definition = Schema.Payloads[kind]", status)
+		mark = block(status, "local candidate: Effect = {", "\n\t}")
+		self.assertIn("SpellId = spellId,", mark)
+		self.assertIn('Polarity = polarityOf("ElementalMark"),', mark)
+		put_effect = block(status, "\ttable.insert(state.Effects, {", "\n\t})")
+		self.assertIn("SpellId = spellId,", put_effect)
+		self.assertIn("Polarity = polarityOf(kind),", put_effect)
+		executors = (ROOT / "src/server/Services/MagicPayloadExecutors.luau").read_text(encoding="utf-8")
+		for kind in ("DamageOverTime", "Restoration"):
+			periodic = block(executors, f'\t\t\t\t\tKind = "{kind}",', "\n\t\t\t\t}")
+			self.assertIn("SpellId = context.SpellId,", periodic)
+			self.assertIn(f"Polarity = Schema.Payloads.{kind}.Polarity,", periodic)
 
 	def test_elemental_marks_use_the_selected_element_and_shared_status_path(self):
 		payloads = block(self.schema, "Schema.Payloads = {", "\nfor kind, payload in Schema.Payloads")

@@ -252,6 +252,7 @@ local sharedModules = {
 	MagicElementalInteractionSpec = load("src/shared/Modules/MagicElementalInteractionSpec.luau"),
 	CombatPolicy = load("src/shared/Modules/CombatPolicy.luau"),
 	SpellStatCapsConfig = load("src/shared/Configuration/SpellStatCaps.luau"),
+	MagicSchema = schema,
 }
 sharedModules.SpellStatCaps = assert(loadfile(
 	"src/shared/Modules/SpellStatCaps.luau",
@@ -327,7 +328,11 @@ local serverEnv = setmetatable({
 						CombatPolicy = "CombatPolicy",
 						SpellStatCaps = "SpellStatCaps",
 					},
-					Configuration = { MagicLab = "MagicLab", SpellStatCaps = "SpellStatCapsConfig" },
+					Configuration = {
+						MagicLab = "MagicLab",
+						SpellStatCaps = "SpellStatCapsConfig",
+						MagicSchema = "MagicSchema",
+					},
 				},
 			}
 		end,
