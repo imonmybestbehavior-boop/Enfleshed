@@ -20,6 +20,11 @@ return {
 	MaxTransformScale = 1.35,
 	MaxCombinedTransformScale = 1.75,
 	MaxBindDuration = 4,
+	-- Stun binds and blocks attacks/casts; PvP caps it lower (SpellStatCaps).
+	MaxStunDuration = 1.5,
+	-- Silence blocks spell casts and channels (players only).
+	MaxSilenceDuration = 4,
+	MaxCleanseCount = 10,
 	MaxRevealDuration = 15,
 	MaxEffectsPerTarget = 8,
 	-- The same Enchantment (same spell) stacks at most this many times on one

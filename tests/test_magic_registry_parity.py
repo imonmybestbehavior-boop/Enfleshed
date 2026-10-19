@@ -26,7 +26,7 @@ def names_kind(source: str, kind: str) -> bool:
 
 
 BOON = {"Heal", "Restoration", "Shield", "Enhancement", "AerialMovement"}
-BANE = {"Damage", "DamageOverTime", "Slow", "Bind", "ElementalMark"}
+BANE = {"Damage", "DamageOverTime", "Slow", "Bind", "ElementalMark", "Stun", "Silence"}
 
 # Every Schema.Payloads kind must be named by each of these consumers, so a new
 # payload kind fails here until every file handles it.
@@ -262,6 +262,38 @@ class MagicRegistryParity(unittest.TestCase):
 		self.assertIn('"Charge scales power"', lab)
 		self.assertIn('"Extra projectiles at full charge"', lab)
 		self.assertIn('"Scale by"', lab)
+
+	def test_stun_silence_and_cleanse_are_wired(self):
+		status = (ROOT / "src/server/Services/MagicStatusEffectService.luau").read_text(encoding="utf-8")
+		self.assertIn('setAttribute(state.Humanoid, parentModel, "MagicStunned", stunned)', status)
+		self.assertIn('setAttribute(state.Humanoid, parentModel, "MagicSilenced", silenced)', status)
+		self.assertIn("CrowdControl.applyStun(history, os.clock()", status)
+		self.assertIn("function Status.removeWhere(", status)
+		movement = (ROOT / "src/shared/Modules/MagicMovementEffects.luau").read_text(encoding="utf-8")
+		self.assertIn('effect.Kind == "Bind" or effect.Kind == "Stun"', movement)
+		router = (ROOT / "src/server/Networking/ActionRouter.luau").read_text(encoding="utf-8")
+		gate = router.index("local blocked = CrowdControl.blocks(")
+		self.assertLess(gate, router.index("Magic.start(player, state, payload, feedback)"), "gate before casts are routed")
+		self.assertLess(gate, router.index("Combat.request(state, now"), "gate before melee")
+		enemy = (ROOT / "src/server/Services/EnemyService.luau").read_text(encoding="utf-8")
+		self.assertIn("if now < nextHit or not activeAttack or stunned() then", enemy)
+		self.assertIn("if visible(other) and not stunned()", enemy)
+		self.assertNotIn("MagicSilenced", enemy, "Silence never affects monster attacks")
+		self.assertNotIn("Magic", (ROOT / "src/server/Services/NascentAttackSelector.luau").read_text(encoding="utf-8"))
+		summons = (ROOT / "src/server/Services/SummonService.luau").read_text(encoding="utf-8")
+		self.assertIn('if humanoid:GetAttribute("MagicStunned") == true then', summons)
+		service = (ROOT / "src/server/Services/MagicService.luau").read_text(encoding="utf-8")
+		self.assertIn('interruptCasting(player, stats, if stunned then "Stunned" else "Silenced")', service)
+		self.assertIn("ctx.EnchantmentCandidates = function(", service)
+		executors = (ROOT / "src/server/Services/MagicPayloadExecutors.luau").read_text(encoding="utf-8")
+		silence = block(executors, "\n\tSilence = function(", "\n\tend,")
+		self.assertIn("Players:GetPlayerFromCharacter(humanoid.Parent)", silence, "Silence: players only")
+		cleanse = block(executors, "\n\tCleanse = function(", "\n\tend,")
+		for source in ("Status.cleanseCandidates(humanoid)", "periodicEffects", "context.EnchantmentCandidates"):
+			self.assertIn(source, cleanse)
+		self.assertIn("CrowdControl.select(candidates, payload.Remove, payload.Count or 1, payload.Element)", cleanse)
+		policy = (ROOT / "src/shared/Modules/CombatPolicy.luau").read_text(encoding="utf-8")
+		self.assertIn('return payload.Remove ~= "Banes"', policy)
 
 	def test_hud_cooldown_follows_cooldown_rate(self):
 		state = (ROOT / "src/client/UI/HUD/SpellState.luau").read_text(encoding="utf-8")

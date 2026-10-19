@@ -573,6 +573,11 @@ function Enemy.create(
 		)
 	end
 
+	-- Stun stops the Nascent from starting or landing attacks (Silence never
+	-- applies: its attacks are not spells).
+	local function stunned(): boolean
+		return humanoid:GetAttribute("MagicStunned") == true
+	end
 	local function beginAttack(other: BasePart, name: string, now: number)
 		local attacks = Config.Nascent
 		activeAttack = attacks[name]
@@ -812,7 +817,7 @@ function Enemy.create(
 					clearDebug()
 					recoverUntil = now + activeAttack.MissRecovery
 					setState("Vulnerable")
-				elseif attackName == "RushingStrike" and not attackHit and attackSerial % 2 == 0 then
+				elseif attackName == "RushingStrike" and not attackHit and attackSerial % 2 == 0 and not stunned() then
 					clearDebug()
 					beginAttack(other or root, "ReversalSwipe", now)
 				else
@@ -875,7 +880,7 @@ function Enemy.create(
 						debugBox.CFrame = committedBox
 					end
 				end
-				if now < nextHit or not activeAttack then
+				if now < nextHit or not activeAttack or stunned() then
 					return
 				end
 				nextHit = now + hitInterval
@@ -996,7 +1001,9 @@ function Enemy.create(
 			end
 		end
 		if other then
-			local choice = if visible(other) then chooseAttack((other.Position - root.Position).Magnitude) else nil
+			local choice = if visible(other) and not stunned()
+				then chooseAttack((other.Position - root.Position).Magnitude)
+				else nil
 			if choice then
 				beginAttack(other, choice, now)
 			else

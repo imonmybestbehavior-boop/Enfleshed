@@ -1104,6 +1104,36 @@ do
 	assert(math.abs(fullArmor - fullResist) < 1e-6, "full Resistance costs like full armor")
 	-- AerialMovement is an Enchantment OnCast payload.
 	assert(schema.supportsPayload("AerialMovement", "SelfEnhancement", "OnCast"), "AerialMovement on Enchantment")
+	-- Phase 6: Stun, Silence and Cleanse validate within their limits.
+	local function ccDraft(payload)
+		local draft = spec.createDraft("Projectile", "Energy")
+		draft.Triggers.OnImpact = { { Payloads = { payload } } }
+		return draft
+	end
+	assert(spec.validate(ccDraft({ Kind = "Stun", Duration = 1.5 })), "Stun up to 1.5 s against creatures")
+	assert(not spec.validate(ccDraft({ Kind = "Stun", Duration = 1.6 })), "Stun above 1.5 s is rejected")
+	assert(spec.validate(ccDraft({ Kind = "Silence", Duration = 2 })), "Silence validates")
+	assert(not spec.validate(ccDraft({ Kind = "Silence", Duration = 99 })), "Silence has a maximum")
+	assert(spec.validate(ccDraft({ Kind = "Cleanse", Remove = "Banes", Count = 2 })), "Cleanse Banes validates")
+	assert(spec.validate(ccDraft({ Kind = "Cleanse", Remove = "Boons", Count = 1, Element = "Fire" })))
+	assert(not spec.validate(ccDraft({ Kind = "Cleanse", Remove = "Everything", Count = 1 })), "Banes or Boons only")
+	assert(not spec.validate(ccDraft({ Kind = "Cleanse", Remove = "Banes", Count = 1.5 })), "whole numbers only")
+	assert(not spec.validate(ccDraft({ Kind = "Cleanse", Remove = "Banes", Count = 0 })), "at least one")
+	assert(schema.Payloads.Stun.Polarity == "Bane" and schema.Payloads.Silence.Polarity == "Bane")
+	assert(schema.Payloads.Cleanse.Polarity == "Neutral")
+	-- Charge scales the whole estimate, including control: a charged volley of Slows.
+	local volley = spec.createDraft("Projectile", "Energy")
+	volley.Casting.Mode = "Charged"
+	volley.Casting.MinimumCharge = 0.2
+	volley.Casting.MaximumCharge = 2
+	volley.Triggers.OnImpact = { { Payloads = { { Kind = "Slow", Multiplier = 0.5, Duration = 3 } } } }
+	local slowBase = spec.estimate(volley).ManaDemand
+	volley.Casting.ChargeScaling = { MinPotency = 1, MaxPotency = 1, MaxExtraProjectiles = 3 }
+	assert(spec.validate(volley), "charged Slow volley validates")
+	assert(spec.estimate(volley).ManaDemand > slowBase, "extra projectiles of Slow cost more")
+	local volleyCost = spec.estimate(volley).ManaDemand
+	volley.Casting.ChargeScaling.MaxPotency = 3
+	assert(spec.estimate(volley).ManaDemand > volleyCost, "charge potency also prices non-damage payloads")
 	local areaDraft = spec.createDraft("Field", "Matter")
 	assert(areaDraft, "Field draft should be available to Matter")
 	areaDraft.Triggers.OnEnter = { { Payloads = { { Kind = "Damage", Amount = 1 } } } }

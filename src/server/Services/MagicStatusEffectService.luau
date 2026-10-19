@@ -15,6 +15,7 @@ local EffectSpec = require(game:GetService("ReplicatedStorage").Shared.Modules.M
 local ElementalMarkSpec = require(game:GetService("ReplicatedStorage").Shared.Modules.MagicElementalMarkSpec)
 local DamageRules = require(game:GetService("ReplicatedStorage").Shared.Modules.MagicDamageRules)
 local Movement = require(script.Parent.MovementService)
+local CrowdControl = require(game:GetService("ReplicatedStorage").Shared.Modules.MagicCrowdControlSpec)
 local Schema = require(game:GetService("ReplicatedStorage").Shared.Configuration.MagicSchema)
 TemporalRate.configure(Limits.MinTimeRate, Limits.MaxTimeRate)
 
@@ -64,6 +65,7 @@ Status.HandledElsewhere = {
 	AerialMovement = "MagicService (context.ApplyAerialMovement)",
 	Manipulation = "MagicService (context.ApplyManipulation)",
 	Summon = "MagicService (context.Summon)",
+	Cleanse = "Status.cleanseCandidates / removeWhere here; MagicPayloadExecutors adds periodic effects and Enchantments",
 }
 local targets: { [Humanoid]: TargetState } = setmetatable({}, { __mode = "k" }) :: any
 local active: { TargetState } = {}
@@ -220,6 +222,8 @@ local function removeState(state: TargetState)
 		end
 	end
 	setAttribute(state.Humanoid, if model and model:IsA("Model") then model else nil, "MagicMovementBound", false)
+	setAttribute(state.Humanoid, if model and model:IsA("Model") then model else nil, "MagicStunned", false)
+	setAttribute(state.Humanoid, if model and model:IsA("Model") then model else nil, "MagicSilenced", false)
 	setAttribute(state.Humanoid, if model and model:IsA("Model") then model else nil, "MagicShieldExpiresAt", nil)
 	setAttribute(state.Humanoid, if model and model:IsA("Model") then model else nil, "MagicSlowMultiplier", 1)
 	setAttribute(state.Humanoid, if model and model:IsA("Model") then model else nil, "MagicTimeRate", 1)
@@ -314,6 +318,17 @@ local function refreshAttributes(state: TargetState)
 		end
 	end
 	setAttribute(state.Humanoid, parentModel, "MagicMovementBound", bound)
+	-- Read by ActionRouter (player melee and casts), EnemyService, SummonService
+	-- and MagicService (channel cancel); see MagicCrowdControlSpec.blocks.
+	local stunned, silenced = false, false
+	for _, effect in state.Effects do
+		if effect.ExpiresAt > now then
+			stunned = stunned or effect.Kind == "Stun"
+			silenced = silenced or effect.Kind == "Silence"
+		end
+	end
+	setAttribute(state.Humanoid, parentModel, "MagicStunned", stunned)
+	setAttribute(state.Humanoid, parentModel, "MagicSilenced", silenced)
 	local expiresAt = if earliestShield then workspace:GetServerTimeNow() + earliestShield - os.clock() else nil
 	setAttribute(state.Humanoid, parentModel, "MagicShieldExpiresAt", expiresAt)
 	setAttribute(state.Humanoid, parentModel, "MagicSlowMultiplier", slow)
@@ -658,6 +673,126 @@ function Status.bind(
 		nil,
 		onTargetDeath
 	)
+end
+
+-- Stun diminishing returns per target (MagicCrowdControlSpec.applyStun).
+local stunHistory: { [Humanoid]: any } = setmetatable({}, { __mode = "k" }) :: any
+
+function Status.stun(
+	caster: Model,
+	humanoid: Humanoid,
+	spellId: string,
+	duration: number,
+	onTargetDeath: ((Humanoid) -> ())?,
+	requiredElementalMark: string?
+): boolean
+	if humanoid.Health <= 0 then
+		return false
+	end
+	local history = stunHistory[humanoid]
+	if not history then
+		history = CrowdControl.newHistory()
+		stunHistory[humanoid] = history
+	end
+	local effective = CrowdControl.applyStun(history, os.clock(), math.min(duration, Limits.MaxStunDuration))
+	if effective <= 0 then
+		return false -- immune (third stun inside the window)
+	end
+	return putEffect(
+		humanoid,
+		caster,
+		spellId,
+		"Stun",
+		effective,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		onTargetDeath,
+		requiredElementalMark
+	)
+end
+
+function Status.silence(
+	caster: Model,
+	humanoid: Humanoid,
+	spellId: string,
+	duration: number,
+	onTargetDeath: ((Humanoid) -> ())?,
+	requiredElementalMark: string?
+): boolean
+	return putEffect(
+		humanoid,
+		caster,
+		spellId,
+		"Silence",
+		math.min(duration, Limits.MaxSilenceDuration),
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		onTargetDeath,
+		requiredElementalMark
+	)
+end
+
+-- Cleanse candidates among this target's timed statuses, in the shape
+-- MagicCrowdControlSpec.select expects; Remove() takes one off.
+function Status.cleanseCandidates(humanoid: Humanoid): { any }
+	local state = targets[humanoid]
+	local candidates = {}
+	if not state then
+		return candidates
+	end
+	local now = os.clock()
+	for _, effect in state.Effects do
+		if effect.ExpiresAt > now then
+			table.insert(candidates, {
+				Source = "Status",
+				Polarity = effect.Polarity,
+				Element = effect.Element,
+				Remaining = effect.ExpiresAt - now,
+				AppliedAt = effect.LastUpdateAt or 0,
+				Remove = function()
+					Status.removeWhere(humanoid, function(candidate)
+						return candidate == effect
+					end, 1)
+				end,
+			})
+		end
+	end
+	return candidates
+end
+
+-- Removes up to `count` timed statuses for which `predicate(effect)` is true,
+-- then refreshes the target's replicated attributes. Returns how many.
+function Status.removeWhere(humanoid: Humanoid, predicate: (Effect) -> boolean, count: number?): number
+	local state = targets[humanoid]
+	if not state then
+		return 0
+	end
+	local removed = 0
+	for index = #state.Effects, 1, -1 do
+		if count and removed >= count then
+			break
+		end
+		if predicate(state.Effects[index]) then
+			table.remove(state.Effects, index)
+			removed += 1
+		end
+	end
+	if removed > 0 then
+		if #state.Effects == 0 then
+			removeState(state)
+		else
+			refreshAttributes(state)
+		end
+	end
+	return removed
 end
 
 function Status.reveal(

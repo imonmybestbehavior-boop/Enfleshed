@@ -254,6 +254,7 @@ local sharedModules = {
 	SpellStatCapsConfig = load("src/shared/Configuration/SpellStatCaps.luau"),
 	MagicSchema = schema,
 	MagicScaleSpec = scaleSpec,
+	MagicCrowdControlSpec = load("src/shared/Modules/MagicCrowdControlSpec.luau"),
 }
 sharedModules.SpellStatCaps = assert(loadfile(
 	"src/shared/Modules/SpellStatCaps.luau",
@@ -329,6 +330,7 @@ local serverEnv = setmetatable({
 						CombatPolicy = "CombatPolicy",
 						SpellStatCaps = "SpellStatCaps",
 						MagicScaleSpec = "MagicScaleSpec",
+						MagicCrowdControlSpec = "MagicCrowdControlSpec",
 					},
 					Configuration = {
 						MagicLab = "MagicLab",
@@ -1947,6 +1949,55 @@ do
 		d.Casting.ChargeScaling = { MinPotency = 1, MaxPotency = 2 }
 		d.Triggers.OnImpact = { { Payloads = { payload("Damage") } } }
 	end)), "an Instant cast cannot use charge scaling")
+end
+
+---------------------------------------------------------------------------
+-- Cleanse through the real executor: one pool, longest-lasting first
+---------------------------------------------------------------------------
+do
+	local removed = {}
+	local function candidate(id, polarity, remaining)
+		return {
+			Polarity = polarity,
+			Remaining = remaining,
+			AppliedAt = 0,
+			Remove = function()
+				table.insert(removed, id)
+			end,
+		}
+	end
+	rawset(StatusDouble, "cleanseCandidates", function()
+		return { candidate("slow", "Bane", 2), candidate("dot", "Bane", 5), candidate("shield", "Boon", 9) }
+	end)
+	local purge = draft("Projectile", "Energy", function(d)
+		d.Triggers.OnImpact = { { Payloads = { payload("Cleanse", { Remove = "Banes", Count = 2 }) } } }
+	end)
+	local purgeOk, purgeReason = validates(purge)
+	check("CLEANSE", "CAPABILITY", purgeOk, "Cleanse Banes validates: " .. tostring(purgeReason))
+	local e = resetWorld({ vec(0, 0, 0) }, 100)
+	local ctx = makeContext(purge, caster, vec(0, 0, 0), { e[1] }, 0, nil)
+	ctx.EnchantmentCandidates = function()
+		return { candidate("hex", "Bane", math.huge), candidate("blessing", "Boon", math.huge) }
+	end
+	PayloadExec.execute(purge.Triggers.OnImpact[1].Payloads, ctx)
+	check(
+		"CLEANSE",
+		"CAPABILITY",
+		table.concat(removed, ",") == "hex,dot",
+		"Count 2 removes the hex Enchantment, then the longest Bane status; got " .. table.concat(removed, ",")
+	)
+	table.clear(removed)
+	local strip = draft("Projectile", "Energy", function(d)
+		d.Triggers.OnImpact = { { Payloads = { payload("Cleanse", { Remove = "Boons", Count = 5 }) } } }
+	end)
+	PayloadExec.execute(strip.Triggers.OnImpact[1].Payloads, ctx)
+	check(
+		"CLEANSE",
+		"CAPABILITY",
+		table.concat(removed, ",") == "blessing,shield",
+		"Remove Boons strips the Boon Enchantment and Boon statuses only"
+	)
+	rawset(StatusDouble, "cleanseCandidates", nil)
 end
 
 for _, r in ipairs(results) do

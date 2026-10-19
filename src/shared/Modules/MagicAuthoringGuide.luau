@@ -21,7 +21,7 @@ Guide.Intents = {
 		Id = "Healing",
 		Label = "Healing & support",
 		Description = "Restore health or help an ally survive and recover.",
-		Payloads = { "Heal", "Restoration", "Shield", "ModifyAttribute" },
+		Payloads = { "Heal", "Restoration", "Shield", "ModifyAttribute", "Cleanse" },
 		RecommendedForms = { "Aura", "Field", "Beam", "Projectile" },
 	},
 	{
@@ -35,7 +35,7 @@ Guide.Intents = {
 		Id = "Control",
 		Label = "Control",
 		Description = "Slow, bind, pull, push, or otherwise limit a target.",
-		Payloads = { "Slow", "Bind", "Control", "TimeDilation", "Displacement" },
+		Payloads = { "Slow", "Bind", "Stun", "Silence", "Control", "TimeDilation", "Displacement" },
 		RecommendedForms = { "Field", "Wave", "Projectile", "Beam", "Aura" },
 	},
 	{

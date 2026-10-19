@@ -41,6 +41,9 @@ local effectLabels = {
 	TimeDilation = "TIME",
 	ElementalMark = "MARK",
 	ConsumeElementalMark = "BURST",
+	Stun = "STUN",
+	Silence = "HUSH",
+	Cleanse = "PURGE",
 }
 local effectOrder = {
 	Damage = 1,
@@ -59,6 +62,9 @@ local effectOrder = {
 	TimeDilation = 14,
 	ElementalMark = 15,
 	ConsumeElementalMark = 16,
+	Stun = 17,
+	Silence = 18,
+	Cleanse = 19,
 }
 local behaviorLabels = {
 	Homing = "HOME",

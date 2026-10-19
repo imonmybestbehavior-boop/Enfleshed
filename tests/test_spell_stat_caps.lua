@@ -90,6 +90,14 @@ for _, potency in ipairs({ 0.5, 1, 2, 4 }) do
 	assert(tinyResist.Amount == 0.05, "values under the cap are untouched")
 end
 assert(Caps.payload({ Kind = "Bind", Duration = 4 }, ranked, 1).Duration == ranked.MaxBindDuration, "bind cap")
+-- Stun on players: at most 0.5 s in PvP; Silence has its own cap.
+for _, profile in { open, ranked } do
+	assert(profile.MaxStunDuration == 0.5, "PvP stun cap is 0.5 s")
+	assert(Caps.payload({ Kind = "Stun", Duration = 1.5 }, profile, 1).Duration == 0.5)
+	assert(Caps.payload({ Kind = "Silence", Duration = 4 }, profile, 1).Duration == profile.MaxSilenceDuration)
+end
+assert(Caps.payload({ Kind = "Stun", Duration = 1.5 }, Profiles.PvE, 1).Duration == 1.5, "creatures: up to 1.5 s")
+assert(Caps.UncappedKinds.Cleanse, "Cleanse has nothing to cap")
 assert(Caps.payload({ Kind = "Force", Magnitude = 100, Upward = 90 }, open, 1).Magnitude == open.MaxForce, "force cap")
 assert(Caps.payload({ Kind = "TimeDilation", Rate = 0.25, Duration = 9 }, open, 1).Rate == open.MinTimeRate)
 assert(Caps.payload({ Kind = "TimeDilation", Rate = 1.5, Duration = 9 }, open, 1).Rate == 1.5, "haste is not a debuff")

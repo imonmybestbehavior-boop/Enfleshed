@@ -715,6 +715,7 @@ end
 
 local emit: any
 local finishBeamChannel: any
+local cleanseEnchantment: any -- assigned after the enchantment expiry helpers
 local spawnEffect: any
 -- Spends from the cascade budget carried by runtimeState; reports exhaustion once.
 local function spendOperations(runtimeState, cost: number, definition, remote, player): boolean
@@ -852,6 +853,28 @@ local function context(definition, caster, position, targets, direction, remote,
 			end
 		end,
 	}
+	-- Cleanse: every Enchantment on this humanoid, from any owner, as a candidate
+	-- (its type is its Polarity; ongoing ones count as unending).
+	ctx.EnchantmentCandidates = function(humanoid: any)
+		local candidates = {}
+		local now = workspace:GetServerTimeNow()
+		for owner, effects in enhancements do
+			for key, effect in effects do
+				if effect.State.Humanoid == humanoid then
+					table.insert(candidates, {
+						Source = "Enchantment",
+						Polarity = effect.Type,
+						Remaining = effect.ExpiresAt - now,
+						AppliedAt = effect.StartedAt or 0,
+						Remove = function()
+							cleanseEnchantment(owner, key, effect)
+						end,
+					})
+				end
+			end
+		end
+		return candidates
+	end
 	-- ScaleBy sources, read through the condition value adapters; mark stacks
 	-- come from the status service. No extra state is kept.
 	ctx.ScaleRead = function(source: string, humanoid: any, element: string?)
@@ -1586,6 +1609,17 @@ end
 
 -- Ends every enchantment `player` owns for this spell (self and on others) and
 -- refreshes each holder. Returns how many ended.
+cleanseEnchantment = function(owner: Player, key: string, effect: any)
+	local effects = enhancements[owner]
+	if not effects or effects[key] ~= effect then
+		return
+	end
+	expireSelfEnhancement(owner, effect, "Cleansed")
+	Presentation.stopSound(effect.AmbientSound)
+	effects[key] = nil
+	refreshHolder(effect.State)
+end
+
 local function endOwnedEnchantments(player: Player, spellId: string, reason: string?): number
 	local effects = enhancements[player]
 	if not effects then
@@ -3458,6 +3492,37 @@ finishBeamChannel = function(channel)
 	setCastingMovement(channel.Player, channel.State, nil)
 end
 
+-- Stun or Silence: cancel the cast being prepared, the charge and the channel.
+local function interruptCasting(player: Player, stats: any, reason: string)
+	for _, key in { "Charge", "Pending" } do
+		local windup = stats[key]
+		if windup then
+			stats[key] = nil
+			setCastingMovement(player, windup.State, nil)
+			Presentation.cancel(windup.State.Character, windup.Definition)
+			feedback(
+				windup.Remote,
+				player,
+				"IMPOSSIBLE",
+				windup.Definition,
+				{ Reason = "Cast interrupted: " .. reason }
+			)
+		end
+	end
+	local channel = stats.Channel
+	if channel then
+		for index = #active, 1, -1 do
+			if active[index] == channel then
+				finishBeamChannel(channel)
+				table.remove(active, index)
+				break
+			end
+		end
+		stats.Channel = nil
+		feedback(channel.Remote, player, "OFF", channel.Definition, { Reason = "Channel interrupted: " .. reason })
+	end
+end
+
 function Magic.release(player, state, intent, remote)
 	local stats = playerData[player]
 	local spellId = intent and intent.SpellId
@@ -3924,6 +3989,14 @@ RunService.Heartbeat:Connect(function(delta)
 				if cooldown.Remaining <= 0 then
 					stats.Ready[spellId] = nil
 				end
+			end
+		end
+		local character = player.Character
+		if character and (stats.Pending or stats.Charge or stats.Channel) then
+			local stunned = character:GetAttribute("MagicStunned") == true
+			local silenced = character:GetAttribute("MagicSilenced") == true
+			if stunned or silenced then
+				interruptCasting(player, stats, if stunned then "Stunned" else "Silenced")
 			end
 		end
 		local manaBefore, strainBefore = stats.Mana, stats.Strain

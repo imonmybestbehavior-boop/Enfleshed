@@ -128,8 +128,14 @@ local function scanPayloads(payloads, raw, weight)
 				raw.shield += num(p.Amount) * 0.6 * weight
 			elseif kind == "Slow" then
 				raw.slow = math.max(raw.slow, 1 - (if p.Multiplier == nil then 1 else num(p.Multiplier)))
-			elseif kind == "Bind" then
+			elseif kind == "Bind" or kind == "Stun" then
+				-- Stun reads like a bind; it reuses the Bind feature so the
+				-- canonical feature order (and encodings) stay unchanged.
 				raw.bind = math.max(raw.bind, duration)
+			elseif kind == "Silence" then
+				raw.bind = math.max(raw.bind, duration * 0.5)
+			elseif kind == "Cleanse" then
+				-- Removes effects; no visual weight of its own (still counted in Payloads).
 			elseif kind == "Force" then
 				raw.force = math.max(raw.force, num(p.Magnitude) + num(p.Upward) * 0.5)
 			elseif kind == "Control" then

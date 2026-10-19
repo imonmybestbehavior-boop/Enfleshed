@@ -7,6 +7,7 @@ local Config = require(Shared:WaitForChild("Configuration"):WaitForChild("Sandbo
 local Protocol = require(Shared:WaitForChild("Networking"):WaitForChild("Protocol"))
 local Types = require(Shared:WaitForChild("Types"):WaitForChild("CombatTypes"))
 local TargetConsent = require(Shared.Modules.MagicTargetConsentSpec)
+local CrowdControl = require(Shared.Modules.MagicCrowdControlSpec)
 local Services = script.Parent.Parent.Services
 local Movement = require(Services.MovementService)
 local Combat = require(Services.CombatService)
@@ -307,7 +308,15 @@ function Router.start()
 		local now = workspace:GetServerTimeNow()
 		local accepted = false
 		local validPosition = true
-		if action == Protocol.Sprint and typeof(payload.Sprinting) == "boolean" then
+		-- Stun blocks melee, blocking, dashing and casting; Silence blocks casting.
+		local blocked = CrowdControl.blocks(
+			CrowdControl.ActionCategories[action] or "",
+			state.Humanoid:GetAttribute("MagicStunned") == true,
+			state.Humanoid:GetAttribute("MagicSilenced") == true
+		)
+		if blocked then
+			accepted = false
+		elseif action == Protocol.Sprint and typeof(payload.Sprinting) == "boolean" then
 			Movement.sprint(state, payload.Sprinting)
 			accepted = true
 		elseif action == Protocol.Light then

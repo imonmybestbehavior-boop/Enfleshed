@@ -16,6 +16,8 @@ local DURATION_KINDS = {
 	ElementalMark = true,
 	ModifyAttribute = true,
 	DamageOverTime = true,
+	Stun = true,
+	Silence = true,
 }
 
 -- Payload kinds Caps.payload leaves unchanged, and why. Listed so every
@@ -28,6 +30,7 @@ Caps.UncappedKinds = {
 	AerialMovement = "Affects only the caster",
 	Manipulation = "Moves world objects, not players",
 	Summon = "Summon damage is capped by Caps.damage",
+	Cleanse = "Removes effects; it has no number to cap",
 }
 
 -- ModifyAttribute caps by attribute; anything not listed uses MaxAttributeChange.
@@ -73,6 +76,10 @@ function Caps.payload(payload: any, profile: { [string]: number }?, potency: num
 	end
 	if kind == "Bind" and number(out.Duration) and profile.MaxBindDuration then
 		out.Duration = math.min(out.Duration, profile.MaxBindDuration)
+	elseif kind == "Stun" and number(out.Duration) and profile.MaxStunDuration then
+		out.Duration = math.min(out.Duration, profile.MaxStunDuration)
+	elseif kind == "Silence" and number(out.Duration) and profile.MaxSilenceDuration then
+		out.Duration = math.min(out.Duration, profile.MaxSilenceDuration)
 	elseif kind == "Slow" and number(out.Multiplier) and profile.MinSlowMultiplier then
 		-- executor: effective = 1 - (1 - Multiplier) * potency  ≥  MinSlowMultiplier
 		out.Multiplier = math.max(out.Multiplier, 1 - (1 - profile.MinSlowMultiplier) / p)

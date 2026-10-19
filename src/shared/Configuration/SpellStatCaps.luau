@@ -24,6 +24,8 @@ return {
 		MaxAttributeChange = 25, -- armor/strength points and the percent attributes
 		MaxDamageTakenChange = 15, -- DamageTaken percentage points (vulnerability or protection)
 		MaxResistanceChange = 0.25, -- Resistance fraction per element (-1..1 scale)
+		MaxStunDuration = 0.5, -- stuns on players (diminishing returns apply too)
+		MaxSilenceDuration = 1.5,
 	},
 	PvPRanked = {
 		DamageMultiplier = 0.5,
@@ -43,5 +45,7 @@ return {
 		MaxAttributeChange = 20,
 		MaxDamageTakenChange = 10,
 		MaxResistanceChange = 0.2,
+		MaxStunDuration = 0.5,
+		MaxSilenceDuration = 1,
 	},
 }

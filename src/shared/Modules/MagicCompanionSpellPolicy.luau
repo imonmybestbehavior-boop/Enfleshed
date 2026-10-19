@@ -14,10 +14,13 @@ local offensive = {
 	Control = true,
 	Force = true,
 	Displacement = true,
+	Stun = true,
+	Silence = true,
 }
 local supportive = { Heal = true, Restoration = true, Shield = true }
 local auxiliary = { ElementalMark = true, ConsumeElementalMark = true }
-local control = { Slow = true, Bind = true, Control = true, Displacement = true, ElementalMark = true }
+local control =
+	{ Slow = true, Bind = true, Control = true, Displacement = true, ElementalMark = true, Stun = true, Silence = true }
 -- Payload kinds companions never cast, and why. Listed so every Schema.Payloads
 -- kind is accounted for here (test_magic_registry_parity).
 Policy.UnsupportedKinds = {
@@ -25,6 +28,7 @@ Policy.UnsupportedKinds = {
 	AerialMovement = "Steers from the holder's own input, so it only works on yourself",
 	Manipulation = "Needs a material target, which companions cannot select",
 	Summon = "Companions cannot summon further companions",
+	Cleanse = "Helps or harms depending on what it removes, so a companion cannot pick its target safely",
 }
 -- Payloads a companion may put on an ally as an Enchantment: Boons only
 -- (Aerial movement is self-only, so it is not here).

@@ -68,6 +68,8 @@ local hostileKinds = {
 	Transformation = true,
 	ElementalMark = true,
 	ConsumeElementalMark = true,
+	Stun = true,
+	Silence = true,
 }
 
 function Policy.isHostilePayload(payload: any): boolean
@@ -81,6 +83,9 @@ function Policy.isHostilePayload(payload: any): boolean
 		return type(payload.Amount) ~= "number" or payload.Amount < 0
 	elseif kind == "TimeDilation" then
 		return type(payload.Rate) ~= "number" or payload.Rate < 1
+	elseif kind == "Cleanse" then
+		-- Stripping Boons harms the target; removing Banes helps them.
+		return payload.Remove ~= "Banes"
 	end
 	return false
 end

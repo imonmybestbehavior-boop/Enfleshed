@@ -283,7 +283,7 @@ function Lab.start(send, aim, launcher)
 	local function effectCategory(kind: string): string
 		if kind == "Damage" or kind == "DamageOverTime" then
 			return "Damage"
-		elseif kind == "Heal" or kind == "Restoration" then
+		elseif kind == "Heal" or kind == "Restoration" or kind == "Cleanse" then
 			return "Healing"
 		elseif kind == "Shield" or kind == "ModifyAttribute" or kind == "Enhancement" then
 			return "Defense"

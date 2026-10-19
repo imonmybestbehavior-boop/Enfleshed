@@ -716,6 +716,11 @@ local function updateRecord(record: SummonRecord, group: SummonGroup, now: numbe
 		setSpellStatus(record, "BLOCKED", "A world obstacle blocks line of sight")
 		return
 	end
+	if humanoid:GetAttribute("MagicStunned") == true then
+		-- Stunned summons neither attack nor cast (Silence does not apply to them).
+		setSpellStatus(record, "STUNNED", "Stunned")
+		return
+	end
 	if now < record.NextAttack then
 		if record.SpellStatus == "CASTING" and now < record.SpellCastUntil then
 			setSpellStatus(record, "CASTING", record.SpellStatusReason)

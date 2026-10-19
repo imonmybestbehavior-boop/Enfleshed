@@ -18,6 +18,7 @@ local StatCaps = require(game:GetService("ReplicatedStorage").Shared.Modules.Spe
 local CapProfiles = require(game:GetService("ReplicatedStorage").Shared.Configuration.SpellStatCaps)
 local Schema = require(game:GetService("ReplicatedStorage").Shared.Configuration.MagicSchema)
 local ScaleSpec = require(game:GetService("ReplicatedStorage").Shared.Modules.MagicScaleSpec)
+local CrowdControl = require(game:GetService("ReplicatedStorage").Shared.Modules.MagicCrowdControlSpec)
 local Players = game:GetService("Players")
 local Payloads = {}
 local periodicEffects = {}
@@ -282,6 +283,9 @@ Payloads.Metadata = {
 	Enhancement = { TracksHumanoidTargets = true },
 	ElementalMark = { TracksHumanoidTargets = true },
 	ConsumeElementalMark = { TracksHumanoidTargets = true },
+	Stun = { TracksHumanoidTargets = true },
+	Silence = { TracksHumanoidTargets = true },
+	Cleanse = { TracksHumanoidTargets = true },
 }
 
 Payloads.Executors = {
@@ -540,6 +544,76 @@ Payloads.Executors = {
 				)
 			then
 				context.EffectFeedback("Bind", humanoid, payload.Duration)
+			end
+		end
+	end,
+	Stun = function(payload: any, context: any)
+		for _, humanoid in context.Targets or {} do
+			if
+				Status.stun(
+					context.Caster,
+					humanoid,
+					context.SpellId,
+					payload.Duration,
+					context.TargetDeathCallback and context.TargetDeathCallback(humanoid),
+					context.RequiredElementalMark
+				)
+			then
+				context.EffectFeedback("Stun", humanoid, payload.Duration)
+			end
+		end
+	end,
+	Silence = function(payload: any, context: any)
+		for _, humanoid in context.Targets or {} do
+			-- Players only: monster and Nascent attacks are not spells.
+			if
+				Players:GetPlayerFromCharacter(humanoid.Parent)
+				and Status.silence(
+					context.Caster,
+					humanoid,
+					context.SpellId,
+					payload.Duration,
+					context.TargetDeathCallback and context.TargetDeathCallback(humanoid),
+					context.RequiredElementalMark
+				)
+			then
+				context.EffectFeedback("Silence", humanoid, payload.Duration)
+			end
+		end
+	end,
+	Cleanse = function(payload: any, context: any)
+		-- One pool across timed statuses, periodic effects and Enchantments,
+		-- removed longest-lasting first (MagicCrowdControlSpec.select).
+		for _, humanoid in context.Targets or {} do
+			local candidates = Status.cleanseCandidates(humanoid)
+			for _, effect in periodicEffects do
+				if effect.Target == humanoid then
+					table.insert(candidates, {
+						Source = "Periodic",
+						Polarity = effect.Polarity,
+						Element = effect.DamageContext and effect.DamageContext.Element,
+						Remaining = effect.Remaining or 0,
+						AppliedAt = effect.LastUpdateAt or 0,
+						Remove = function()
+							for index, other in periodicEffects do
+								if other == effect then
+									removePeriodicEffect(index)
+									break
+								end
+							end
+						end,
+					})
+				end
+			end
+			for _, candidate in (context.EnchantmentCandidates and context.EnchantmentCandidates(humanoid)) or {} do
+				table.insert(candidates, candidate)
+			end
+			local selected = CrowdControl.select(candidates, payload.Remove, payload.Count or 1, payload.Element)
+			for _, candidate in selected do
+				candidate.Remove()
+			end
+			if #selected > 0 then
+				context.EffectFeedback("Cleanse", humanoid, #selected)
 			end
 		end
 	end,

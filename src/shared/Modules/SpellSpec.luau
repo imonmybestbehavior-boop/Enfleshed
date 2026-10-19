@@ -1554,17 +1554,22 @@ function Spec.estimate(d)
 			end
 			for _, p in ipairs(step.Payloads) do
 				count = count + 1
-				-- Priced at the strongest outcome: full ScaleBy bonus and MaxPotency.
-				local pricedAmount = (
-					math.abs(p.Amount or 0)
+				-- Priced at the strongest outcome: the full ScaleBy bonus (charge is
+				-- applied to the whole spell below).
+				local pricedAmount = math.abs(p.Amount or 0)
 					+ (if type(p.ScaleBy) == "table" then math.abs(p.ScaleBy.Max or 0) else 0)
-				) * chargePotency
 				if p.Kind == "Damage" or p.Kind == "Heal" or p.Kind == "Shield" then
 					burstStrength += pricedAmount
 				elseif p.Kind == "Bind" or p.Kind == "Control" or p.Kind == "TimeDilation" then
 					controlWeight += 4 + (p.Duration or 0)
 				elseif p.Kind == "Slow" then
 					controlWeight += (1 - (p.Multiplier or 1)) * 10 * (p.Duration or 1)
+				elseif p.Kind == "Stun" then
+					controlWeight += 6 + (p.Duration or 0) * 2
+				elseif p.Kind == "Silence" then
+					controlWeight += 4 + (p.Duration or 0)
+				elseif p.Kind == "Cleanse" then
+					controlWeight += 2 * (p.Count or 1)
 				end
 				local amountWeight = if ScaleSpec.ScalableKinds[p.Kind] then pricedAmount else math.abs(p.Amount or 0)
 				local attribute = p.Kind == "ModifyAttribute" and AttributeSpec.Definitions[p.Attribute]
@@ -1600,6 +1605,11 @@ function Spec.estimate(d)
 			curvedPhaseCount += 1
 		end
 	end
+	-- Charge (MaxPotency x every extra projectile) scales everything the spell
+	-- does, including control such as a charged volley of Slows.
+	strength *= chargePotency
+	burstStrength *= chargePotency
+	controlWeight *= chargePotency
 	local area = d.Field or d.Aura
 	local ticks = area and duration / area.Interval or 1
 	local beamExtraStrikes = if d.Beam and d.Beam.Pattern == "Cascade"
