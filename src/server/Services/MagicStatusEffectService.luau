@@ -13,6 +13,7 @@ local TemporalRate = require(game:GetService("ReplicatedStorage").Shared.Modules
 local TransformationSpec = require(game:GetService("ReplicatedStorage").Shared.Modules.MagicTransformationSpec)
 local EffectSpec = require(game:GetService("ReplicatedStorage").Shared.Modules.MagicStatusEffectSpec)
 local ElementalMarkSpec = require(game:GetService("ReplicatedStorage").Shared.Modules.MagicElementalMarkSpec)
+local Interactions = require(game:GetService("ReplicatedStorage").Shared.Modules.MagicElementalInteractionSpec)
 local DamageRules = require(game:GetService("ReplicatedStorage").Shared.Modules.MagicDamageRules)
 local Movement = require(script.Parent.MovementService)
 local CrowdControl = require(game:GetService("ReplicatedStorage").Shared.Modules.MagicCrowdControlSpec)
@@ -337,14 +338,97 @@ local function refreshAttributes(state: TargetState)
 	Movement.setMagicSlow(state.Humanoid, movementMultiplier)
 end
 
+-- Reaction state for a target: element marks, and "Frozen" (an active Stun
+-- applied by the Freeze reaction).
+local FROZEN_SPELL = "Reaction:Freeze"
+local function hasReactionState(state: TargetState, name: string, now: number): boolean
+	if name == "Frozen" then
+		for _, effect in state.Effects do
+			if effect.Kind == "Stun" and effect.SpellId == FROZEN_SPELL and effect.ExpiresAt > now then
+				return true
+			end
+		end
+		return false
+	end
+	return ElementalMarkSpec.stackCount(state.Effects, name, now) > 0
+end
+
+-- Finds the reaction `incoming` (an element, or "Force") triggers on this
+-- target, consumes what it uses (Existing stacks, or the Freeze for Shatter)
+-- and records it for the Status.Reaction condition. Returns the reaction or nil.
+function Status.checkReaction(humanoid: Humanoid, incoming: string): any?
+	local state = targets[humanoid]
+	if not state then
+		return nil
+	end
+	local now = os.clock()
+	local reaction = Interactions.findReaction(incoming, function(name)
+		return hasReactionState(state, name, now)
+	end)
+	if not reaction then
+		return nil
+	end
+	if reaction.Existing == "Frozen" then
+		for index = #state.Effects, 1, -1 do
+			local effect = state.Effects[index]
+			if effect.Kind == "Stun" and effect.SpellId == FROZEN_SPELL then
+				table.remove(state.Effects, index)
+			end
+		end
+	elseif reaction.ConsumeStacks then
+		ElementalMarkSpec.consume(state.Effects, reaction.Existing, reaction.ConsumeStacks, now)
+	end
+	local model = humanoid.Parent
+	setAttribute(humanoid, if model and model:IsA("Model") then model else nil, "MagicLastReaction", reaction.Name)
+	setAttribute(
+		humanoid,
+		if model and model:IsA("Model") then model else nil,
+		"MagicLastReactionAt",
+		workspace:GetServerTimeNow()
+	)
+	-- Refresh only: elementalMark may still stack onto this state. An empty
+	-- state is cleared by the regular sweep.
+	refreshAttributes(state)
+	return reaction
+end
+
+-- Toxic smoke: areas where Reveal cannot land.
+local concealments: { { Position: Vector3, Radius: number, ExpiresAt: number } } = {}
+
+function Status.addConcealment(position: Vector3, radius: number, duration: number)
+	local now = os.clock()
+	for index = #concealments, 1, -1 do
+		if concealments[index].ExpiresAt <= now then
+			table.remove(concealments, index)
+		end
+	end
+	table.insert(concealments, { Position = position, Radius = radius, ExpiresAt = now + duration })
+end
+
+function Status.isConcealed(humanoid: Humanoid): boolean
+	local model = humanoid.Parent
+	local root = model and model:FindFirstChild("HumanoidRootPart")
+	if not root or not root:IsA("BasePart") then
+		return false
+	end
+	local now = os.clock()
+	for _, zone in concealments do
+		if zone.ExpiresAt > now and (root.Position - zone.Position).Magnitude <= zone.Radius then
+			return true
+		end
+	end
+	return false
+end
+
 function Status.elementalMark(
 	caster: Model,
 	humanoid: Humanoid,
 	spellId: string,
 	element: string,
 	stacks: number,
-	duration: number
-): boolean
+	duration: number,
+	allowReaction: boolean?
+): (boolean, any?)
 	if
 		not DamageRules.KnownElements[element]
 		or element == "Neutral"
@@ -365,6 +449,9 @@ function Status.elementalMark(
 		return false
 	end
 	local now = os.clock()
+	-- Reactions are checked when the mark lands, before it stacks. One per
+	-- landing; marks applied by a reaction pass allowReaction = false.
+	local reaction = if allowReaction == false then nil else Status.checkReaction(humanoid, element)
 	for index = #state.Effects, 1, -1 do
 		local effect = state.Effects[index]
 		if
@@ -400,10 +487,10 @@ function Status.elementalMark(
 		if #state.Effects == 0 then
 			removeState(state)
 		end
-		return false
+		return false, reaction
 	end
 	refreshAttributes(state)
-	return true
+	return true, reaction
 end
 
 function Status.consumeElementalMark(humanoid: Humanoid, element: string, stacks: number): number
@@ -804,6 +891,9 @@ function Status.reveal(
 	color: Color3,
 	onTargetDeath: ((Humanoid) -> ())?
 ): boolean
+	if Status.isConcealed(humanoid) then
+		return false -- inside Toxic smoke
+	end
 	return putEffect(
 		humanoid,
 		caster,

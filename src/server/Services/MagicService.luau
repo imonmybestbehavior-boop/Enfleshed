@@ -980,6 +980,37 @@ local function context(definition, caster, position, targets, direction, remote,
 			ctx.DamageContext.EmitEvent("OnTargetDeath", targetHumanoid, { DeathCause = "DiedWhileAffected" })
 		end
 	end
+	-- Elemental reactions: nearby humanoids (Conduct), and short reaction Fields
+	-- (Firestorm, Toxic smoke) spawned through the ordinary SpawnEffect path.
+	ctx.FindHumanoidsNear = function(at: Vector3, radius: number)
+		local candidates = HitDetection.findSphere(caster, CFrame.new(at), radius, {
+			OverlapCollisionGroup = Sandbox.Combat.OverlapCollisionGroup,
+		})
+		return Conditions.targets(definition, caster, at, candidates, {
+			Player = player,
+			Resources = resourceSnapshot(stats),
+			SpellState = runtimeState,
+		})
+	end
+	ctx.SpawnReactionField = function(effect: any, at: Vector3)
+		local triggers = {}
+		if effect.TickDamage then
+			triggers.OnTick = { { Payloads = { { Kind = "Damage", Amount = effect.TickDamage } } } }
+		end
+		local step = {
+			Behavior = "SpawnEffect",
+			Payloads = {},
+			Effect = {
+				Form = "Field",
+				Geometry = "Sphere",
+				Element = effect.Element,
+				Lifetime = { Mode = "FixedDuration", Duration = effect.Duration },
+				Field = { Radius = effect.Radius, Interval = effect.Interval or 0.6 },
+				Triggers = triggers,
+			},
+		}
+		spawnEffect(definition, step, caster, at, direction, remote, player, potency, runtimeState, {})
+	end
 	ctx.ApplySpherePayloads = function(radius, payloads)
 		Presentation.marker(
 			"MagicExplosionDebug",

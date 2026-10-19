@@ -331,6 +331,7 @@ local spawnEffectKeys = {
 	Geometry = true,
 	Lifetime = true,
 	Triggers = true,
+	Element = true, -- optional override (e.g. a burning Field from a Wind spell)
 }
 for _, formName in Spec.SpawnForms do
 	spawnEffectKeys[formName] = true
@@ -404,7 +405,10 @@ function Spec.expandSpawnEffect(parent, effect)
 	child.Name = parent.Name
 	child.Tags = Spec.copy(parent.Tags or {})
 	child.Source = Spec.copy(parent.Source)
-	child.Element = parent.Element
+	if effect.Element ~= nil and not AttributeSpec.validElement(effect.Element) then
+		return nil, "Spawned effect has an unknown element"
+	end
+	child.Element = effect.Element or parent.Element
 	child.Visual = Spec.copy(parent.Visual)
 	if type(parent.Audio) == "table" then
 		child.Audio = Spec.copy(parent.Audio)

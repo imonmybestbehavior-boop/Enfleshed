@@ -33,72 +33,145 @@ return {
 	MaxSameEnchantmentPerHolder = 3,
 	MaxEffectTargets = 256,
 	MaxElementalMarkStacks = 5,
+	-- Elemental interactions, one list (MagicElementalInteractionSpec):
+	--   Starter effects: { Incoming = X, Effects } apply whenever a mark of X lands.
+	--   Reactions: { Name, Existing, Incoming, ConsumeStacks, Effects } fire once when
+	--   Incoming lands on a target that already has Existing (an element mark, or
+	--   "Frozen" from Freeze). First match wins; reactions never trigger reactions.
+	--   Every effect is credited to the incoming caster, spends from the cascade
+	--   budget and goes through SpellStatCaps.
 	ElementalInteractions = {
-		Fire = {
-			{
-				Kind = "DamageOverTime",
-				Amount = 2,
-				Interval = 1,
-				Duration = "Mark",
-				RequiresElementalMark = "Fire",
-			},
-			{
-				Kind = "Slow",
-				Multiplier = 0.9,
-				Duration = "Mark",
-				RequiresElementalMark = "Fire",
-			},
-			{
-				Kind = "ModifyAttribute",
-				Attribute = "MagicStrength",
-				Amount = -20,
-				Duration = "Mark",
-				RequiresElementalMark = "Fire",
-			},
-		},
-		Water = {
-			{
-				Kind = "ConsumeElementalMark",
-				Element = "Fire",
-				Stacks = 5,
-			},
-			{
-				Kind = "Slow",
-				Multiplier = 0.95,
-				Duration = "Mark",
-				RequiresElementalMark = "Water",
+		{
+			Incoming = "Fire",
+			Effects = {
+				{
+					Kind = "DamageOverTime",
+					Amount = 2,
+					Interval = 1,
+					Duration = "Mark",
+					RequiresElementalMark = "Fire",
+				},
+				{
+					Kind = "Slow",
+					Multiplier = 0.9,
+					Duration = "Mark",
+					RequiresElementalMark = "Fire",
+				},
+				{
+					Kind = "ModifyAttribute",
+					Attribute = "MagicStrength",
+					Amount = -20,
+					Duration = "Mark",
+					RequiresElementalMark = "Fire",
+				},
 			},
 		},
-		Ice = {
-			{ Kind = "Slow", Multiplier = 0.8, Duration = "Mark", RequiresElementalMark = "Ice" },
-		},
-		Lightning = {
-			{
-				Kind = "DamageOverTime",
-				Amount = 1,
-				Interval = 0.5,
-				Duration = "Mark",
-				RequiresElementalMark = "Lightning",
+		{
+			Incoming = "Water",
+			Effects = {
+				{
+					Kind = "ConsumeElementalMark",
+					Element = "Fire",
+					Stacks = 5,
+				},
+				{
+					Kind = "Slow",
+					Multiplier = 0.95,
+					Duration = "Mark",
+					RequiresElementalMark = "Water",
+				},
 			},
-			{ Kind = "Slow", Multiplier = 0.9, Duration = "Mark", RequiresElementalMark = "Lightning" },
 		},
-		Earth = {
-			{ Kind = "Slow", Multiplier = 0.85, Duration = "Mark", RequiresElementalMark = "Earth" },
-		},
-		Wind = {
-			{ Kind = "Force", Magnitude = 8, Upward = 0 },
-		},
-		Poison = {
-			{
-				Kind = "DamageOverTime",
-				Amount = 1.5,
-				Interval = 1,
-				Duration = "Mark",
-				RequiresElementalMark = "Poison",
+		{
+			Incoming = "Ice",
+			Effects = {
+				{ Kind = "Slow", Multiplier = 0.8, Duration = "Mark", RequiresElementalMark = "Ice" },
 			},
-			{ Kind = "Slow", Multiplier = 0.95, Duration = "Mark", RequiresElementalMark = "Poison" },
+		},
+		{
+			Incoming = "Lightning",
+			Effects = {
+				{
+					Kind = "DamageOverTime",
+					Amount = 1,
+					Interval = 0.5,
+					Duration = "Mark",
+					RequiresElementalMark = "Lightning",
+				},
+				{ Kind = "Slow", Multiplier = 0.9, Duration = "Mark", RequiresElementalMark = "Lightning" },
+			},
+		},
+		{
+			Incoming = "Earth",
+			Effects = {
+				{ Kind = "Slow", Multiplier = 0.85, Duration = "Mark", RequiresElementalMark = "Earth" },
+			},
+		},
+		{
+			Incoming = "Wind",
+			Effects = {
+				{ Kind = "Force", Magnitude = 8, Upward = 0 },
+			},
+		},
+		{
+			Incoming = "Poison",
+			Effects = {
+				{
+					Kind = "DamageOverTime",
+					Amount = 1.5,
+					Interval = 1,
+					Duration = "Mark",
+					RequiresElementalMark = "Poison",
+				},
+				{ Kind = "Slow", Multiplier = 0.95, Duration = "Mark", RequiresElementalMark = "Poison" },
+			},
+		},
+		{
+			Name = "Conduct", -- Wet + Lightning: the hit chains to Wet targets nearby
+			Existing = "Water",
+			Incoming = "Lightning",
+			ConsumeStacks = 1,
+			Effects = { { Kind = "Chain", Radius = 10, RequiresElementalMark = "Water", Damage = 8 } },
+		},
+		{
+			Name = "Firestorm", -- Burning + Wind: a small burning Field
+			Existing = "Fire",
+			Incoming = "Wind",
+			ConsumeStacks = 1,
+			Effects = {
+				{ Kind = "SpawnField", Radius = 6, Duration = 3, Interval = 0.5, TickDamage = 3, Element = "Fire" },
+			},
+		},
+		{
+			Name = "Freeze", -- Wet + Ice: a 1 s Stun (Phase 6 diminishing returns and PvP cap)
+			Existing = "Water",
+			Incoming = "Ice",
+			ConsumeStacks = 1,
+			Effects = { { Kind = "Stun", Duration = 1 } },
+		},
+		{
+			Name = "Shatter", -- Frozen + Earth or Force: bonus Physical damage, ends the Freeze
+			Existing = "Frozen",
+			Incoming = { "Earth", "Force" },
+			Effects = { { Kind = "Damage", Amount = 15, DamageChannel = "Physical" } },
+		},
+		{
+			Name = "ToxicSmoke", -- Burning + Poison: a Field that blocks Reveal
+			Existing = "Fire",
+			Incoming = "Poison",
+			ConsumeStacks = 1,
+			Effects = { { Kind = "Smoke", Radius = 8, Duration = 5 } },
+		},
+		{
+			Name = "Mire", -- Earth + Water: a strong Slow
+			Existing = "Earth",
+			Incoming = "Water",
+			ConsumeStacks = 1,
+			Effects = { { Kind = "Slow", Multiplier = 0.4, Duration = 3 } },
 		},
 	},
+	-- How long a target's last reaction stays visible to conditions (Status.Reaction).
+	ReactionMemory = 5,
 	MaxPeriodicEffectsGlobal = 256,
 	MaxPeriodicEffectsPerCaster = 32,
 	MinSlowMultiplier = 0.25,

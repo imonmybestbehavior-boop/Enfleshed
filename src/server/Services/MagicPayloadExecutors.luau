@@ -19,6 +19,7 @@ local CapProfiles = require(game:GetService("ReplicatedStorage").Shared.Configur
 local Schema = require(game:GetService("ReplicatedStorage").Shared.Configuration.MagicSchema)
 local ScaleSpec = require(game:GetService("ReplicatedStorage").Shared.Modules.MagicScaleSpec)
 local CrowdControl = require(game:GetService("ReplicatedStorage").Shared.Modules.MagicCrowdControlSpec)
+local OperationBudget = require(game:GetService("ReplicatedStorage").Shared.Modules.MagicOperationBudget)
 local Players = game:GetService("Players")
 local Payloads = {}
 local periodicEffects = {}
@@ -122,6 +123,60 @@ local function applyForce(root, velocity)
 	end)
 	Movement.allowMagicImpulse(root, velocity)
 	root:ApplyImpulse(velocity * root.AssemblyMass)
+end
+
+-- Effects a mark or a reaction applies on its own (starter effects, reaction
+-- effects). They go through Payloads.execute, so they get the same hostility
+-- filter and PvP SpellStatCaps as authored payloads, credited to the caster of
+-- the incoming mark. FromMark/FromReaction stop them triggering reactions.
+local function applySecondary(effect, target, context, reactionSpellId: string?)
+	local effectContext = table.clone(context)
+	effectContext.Targets = { target }
+	effectContext.RequiredElementalMark = effect.RequiresElementalMark
+	effectContext.FromMark = true
+	if reactionSpellId then
+		effectContext.FromReaction = true
+		effectContext.SpellId = reactionSpellId
+	end
+	Payloads.execute({ effect }, effectContext)
+end
+
+-- One elemental reaction on `target` (MagicLab.ElementalInteractions), paid
+-- from the cascade budget of the event that caused it.
+local function applyReaction(reaction, target, context, markDuration)
+	local budget = context.DamageContext and context.DamageContext.OperationBudget
+	if budget and not OperationBudget.spend(budget, 1 + #reaction.Effects) then
+		return
+	end
+	local spellId = ElementalInteractions.spellId(reaction)
+	local model = target.Parent
+	local root = model and model:FindFirstChild("HumanoidRootPart")
+	local position = if root and root:IsA("BasePart") then root.Position else context.Origin
+	for _, effect in ElementalInteractions.reactionEffects(reaction, markDuration) do
+		if effect.Kind == "Chain" then
+			-- Conduct: the hit jumps to other marked targets nearby.
+			for _, other in (context.FindHumanoidsNear and context.FindHumanoidsNear(position, effect.Radius)) or {} do
+				if
+					other ~= target
+					and (
+						not effect.RequiresElementalMark
+						or Status.hasElementalMark(other, effect.RequiresElementalMark)
+					)
+				then
+					applySecondary({ Kind = "Damage", Amount = effect.Damage }, other, context, spellId)
+				end
+			end
+		elseif effect.Kind == "SpawnField" or effect.Kind == "Smoke" then
+			if effect.Kind == "Smoke" then
+				Status.addConcealment(position, effect.Radius, effect.Duration)
+			end
+			if context.SpawnReactionField then
+				context.SpawnReactionField(effect, position)
+			end
+		else
+			applySecondary(effect, target, context, spellId)
+		end
+	end
 end
 
 -- Authored amount -> ScaleBy (per target) -> potency (Locus x charge). Final
@@ -295,19 +350,24 @@ Payloads.Executors = {
 			return
 		end
 		for _, target in context.Targets or {} do
-			if
-				Status.elementalMark(context.Caster, target, context.SpellId, element, payload.Stacks, payload.Duration)
-			then
+			local applied, reaction = Status.elementalMark(
+				context.Caster,
+				target,
+				context.SpellId,
+				element,
+				payload.Stacks,
+				payload.Duration,
+				not context.FromReaction
+			)
+			if applied then
+				-- Starter effects: unchanged behaviour, now through the PvP caps.
 				for _, effect in ElementalInteractions.effectsFor(element, payload.Duration) do
-					local executor = Payloads.Executors[effect.Kind]
-					if executor then
-						local effectContext = table.clone(context)
-						effectContext.Targets = { target }
-						effectContext.RequiredElementalMark = effect.RequiresElementalMark
-						effect.Element = effect.Element or element
-						executor(effect, effectContext)
-					end
+					effect.Element = effect.Element or element
+					applySecondary(effect, target, context)
 				end
+			end
+			if reaction and not context.FromReaction then
+				applyReaction(reaction, target, context, payload.Duration)
 			end
 		end
 	end,
@@ -668,6 +728,14 @@ Payloads.Executors = {
 					direction = if delta.Magnitude > 0.001 then delta.Unit else Vector3.yAxis
 				end
 				applyForce(root, direction * payload.Magnitude + Vector3.new(0, payload.Upward or 0, 0))
+			end
+			-- Shatter: an authored Force hit on a Frozen target (marks' own Force
+			-- effects and reaction effects never trigger reactions).
+			if target:IsA("Humanoid") and not context.FromMark and not context.FromReaction then
+				local reaction = Status.checkReaction(target, "Force")
+				if reaction then
+					applyReaction(reaction, target, context, nil)
+				end
 			end
 		end
 	end,
