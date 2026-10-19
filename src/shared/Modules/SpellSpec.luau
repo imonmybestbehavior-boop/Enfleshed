@@ -539,9 +539,23 @@ function Spec.validate(d, spawnNesting: number?)
 		return false, "UNSUPPORTED Body/Form combination"
 	end
 	-- Which Principles may use SelfEnhancement is owned by MagicPrincipleSpec
-	-- (checked above); this Form always acts on the caster.
-	if d.Form == "SelfEnhancement" and d.Targeting ~= "Self" then
-		return false, "SelfEnhancement must target self"
+	-- (checked above). An Enchantment sits on its caster (Self) or on an aimed
+	-- character (EntityTarget), its holder.
+	if d.Form == "SelfEnhancement" then
+		if d.Targeting ~= "Self" and d.Targeting ~= "EntityTarget" then
+			return false, "An Enchantment targets yourself or an aimed character"
+		end
+		if d.Targeting == "EntityTarget" then
+			if d.TargetPolicy == "MaintainTarget" then
+				return false, "Enchantments use Aim, LockOn or AimOrLockOn to choose their holder"
+			end
+			if d.Casting and d.Casting.Mode == "Channeled" then
+				return false, "Channeled Enchantments can only be held on yourself"
+			end
+			if hasPayload(d, "AerialMovement") then
+				return false, "Aerial movement only works on yourself"
+			end
+		end
 	end
 	if d.Form == "Manipulation" and d.Source.Expression ~= "Earth" then
 		return false, "UNSUPPORTED Manipulation expression: Earth is required for current material interaction"

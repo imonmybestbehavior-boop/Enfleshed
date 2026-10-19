@@ -58,13 +58,6 @@ KNOWN_PAYLOAD_GAPS = {
 		"Manipulation",
 		"Summon",
 	},
-	"src/shared/Modules/MagicCompanionSpellPolicy.luau": {
-		"Transformation",
-		"Enhancement",
-		"AerialMovement",
-		"Manipulation",
-		"Summon",
-	},
 	"src/client/UI/GrimoireSpellVisual.luau": {"Force", "ModifyAttribute", "Transformation", "Control"},
 	"src/shared/SpellVFXSystem/Core/SpellVFXAnalyzer.luau": {"ConsumeElementalMark", "ModifyAttribute", "Transformation"},
 	"src/shared/SpellVFXSystem/Visual/SpellVisualFeatureExtractor.luau": {
@@ -193,6 +186,39 @@ class MagicRegistryParity(unittest.TestCase):
 		self.assertIn("conditions.filter(step.Condition, stepContext)", dispatch)
 		self.assertIn('"OnMeleeHit"', self.schema)
 
+	def test_enchantments_split_owner_and_holder(self):
+		service = (ROOT / "src/server/Services/MagicService.luau").read_text(encoding="utf-8")
+		start = block(service, "local function startSelfEnhancement(", "\nend\n")
+		# Record: State is the holder, OwnerState/Caster/Player the owner.
+		for field in ("State = holder,", "OwnerState = state,", "Owner = player,", "Caster = state.Character,", "IsSelf = isSelf,"):
+			self.assertIn(field, start)
+		self.assertIn("canHoldEnchantment(player, d, holder.Character, isSelf)", start)
+		self.assertIn("Presentation.follow(d, holder.Root", start)
+		# Caps are checked before costs in validate, and again on start.
+		validation = block(service, "local function validate(", "\nlocal function refreshHolder")
+		self.assertIn("canHoldEnchantment(player, definition, selectedTarget, false)", validation)
+		# Movement and the overhead summary are per holder, across all owners.
+		refresh = block(service, "local function refreshHolder(", "\nend\n")
+		self.assertIn('character:SetAttribute("MagicEnchantments"', refresh)
+		self.assertIn('CollectionService:AddTag(character, "MagicEnchanted")', refresh)
+		self.assertIn("if not Players:GetPlayerFromCharacter(character) then", refresh)
+		self.assertIn("EnchantmentSpec.movement(effect.IsSelf ~= false, true)", refresh)
+		# Lifecycle goes through EnchantmentSpec; holder-view events credit the owner.
+		self.assertIn("EnchantmentSpec.endReason(effect, {", service)
+		self.assertIn("EnchantmentSpec.endEvents(endReason, effect.IsSelf ~= false)", service)
+		self.assertIn("TargetDeathSpec.claim(effect, humanoid)", service)
+		listener = block(service, "Damage.Applied:Connect(function(", "\nend)\n")
+		self.assertGreaterEqual(listener.count("effect.Caster or "), 4)
+		self.assertIn('hasEvent(effect.Definition, "OnHolderDealtDamage")', listener)
+		self.assertIn("damageContext.SourceRuntimeState ~= effect", listener)
+		client = (ROOT / "src/client/Controllers/MagicEnchantmentController.luau").read_text(encoding="utf-8")
+		self.assertIn('local TAG = "MagicEnchanted"', client)
+		self.assertIn('startController("MagicEnchantmentController")', (ROOT / "src/client/init.client.luau").read_text(encoding="utf-8"))
+		summons = (ROOT / "src/server/Services/SummonService.luau").read_text(encoding="utf-8")
+		self.assertIn("profile.CanEnchant == true", summons)
+		limits = (ROOT / "src/shared/Configuration/MagicLab.luau").read_text(encoding="utf-8")
+		self.assertIn("MaxEnchantmentsPerHolderType = 3", limits)
+
 	def test_hud_cooldown_follows_cooldown_rate(self):
 		state = (ROOT / "src/client/UI/HUD/SpellState.luau").read_text(encoding="utf-8")
 		self.assertIn('AttributeSpec.multiplier(player.Character, "CooldownRate")', state)
@@ -319,21 +345,27 @@ class MagicRegistryParity(unittest.TestCase):
 		construct = block(self.schema, "Construct = {", "\n\tManipulation = {")
 		self.assertIn('"OnExpire"', construct)
 		self.assertIn('"OnProximity"', construct)
-		self.assertIn('Events = set({ "OnCast", "OnExpire", "OnDamageTaken", "OnMeleeHit", "OnCasterDeath", "OnProximity" })', self.schema)
-		expiry_helper = block(service, "local function expireSelfEnhancement(player: Player, effect: any)", "\nlocal function stopToggledEffect")
+		enchantment = block(self.schema, "\n\tSelfEnhancement = {", "\n\tConstruct = {")
+		enchantment_events = block(enchantment, "\t\tEvents = set({", "})")
+		for event in ("OnCast", "OnExpire", "OnDamageTaken", "OnMeleeHit", "OnHolderDealtDamage", "OnTargetDeath", "OnCasterDeath", "OnProximity"):
+			self.assertIn(f'"{event}"', enchantment_events)
+		expiry_helper = block(service, "local function expireSelfEnhancement(player: Player, effect: any, reason: string?)", "\nlocal function endOwnedEnchantments")
 		self.assertIn("LifetimeSpec.claimExpiry(effect)", expiry_helper)
-		self.assertIn("dispatchClaimedExpiry(effect, position, { humanoid }, nil, character, player)", expiry_helper)
+		# Events run from the owner (caster) at the holder's position, targeting the holder.
+		self.assertIn("dispatchClaimedExpiry(effect, position, { humanoid }, nil, owner, player)", expiry_helper)
 		lifecycle = block(service, "local function dispatchClaimedExpiry(", "\nlifecycleState = function")
 		self.assertIn('hasEvent(effect.Definition, "OnExpire")', lifecycle)
 		self.assertIn('lifecycleState(effect, "OnExpire"', lifecycle)
 		self.assertIn("LifetimeSpec.claimExpiry(effect)", block(service, "local function emitExpiry(", "\nlifecycleState = function"))
 		start = block(service, "function Magic.start(", "\nfunction Magic.release")
-		self.assertIn("expireSelfEnhancement(player, effect)", start, "Toggle-off must run expiry exactly once")
+		self.assertIn('endOwnedEnchantments(player, definition.SpellId, "Toggle")', start, "Toggle-off must run expiry exactly once")
+		owned = block(service, "local function endOwnedEnchantments(", "\nend\n")
+		self.assertIn("expireSelfEnhancement(player, effect, reason)", owned)
 		channel_finish = block(service, "finishBeamChannel = function(channel)", "\nfunction Magic.release")
 		self.assertIn("expireSelfEnhancement(channel.Player, effect)", channel_finish)
 		reset = block(service, "function Magic.reset(player)", "\nfunction Magic.remove")
-		self.assertIn("expireSelfEnhancement(player, effect)", reset, "Reset cleanup must run expiry")
-		self.assertIn("expireSelfEnhancement(player, effect)", service, "Natural termination must run expiry")
+		self.assertIn('expireSelfEnhancement(player, effect, "OwnerDeath")', reset, "Reset cleanup must run expiry")
+		self.assertIn("expireSelfEnhancement(player, effect, reason)", service, "Natural termination must run expiry")
 		self.assertIn("expireConstruct(spell)", service, "Caster cleanup must dispatch Construct expiry")
 		self.assertIn("expireConstruct(channel)", service, "Held Construct cleanup must dispatch expiry")
 
@@ -500,14 +532,14 @@ class MagicRegistryParity(unittest.TestCase):
 			"Active spell OnExpire payloads must not recreate a group after reset cleanup",
 		)
 		self.assertLess(
-			reset.index("expireSelfEnhancement(player, effect)"),
+			reset.index('expireSelfEnhancement(player, effect, "OwnerDeath")'),
 			reset.index("Summons.clearOwner(player)"),
 			"Self Enhancement OnExpire payloads must not recreate a group after reset cleanup",
 		)
 
 	def test_construct_casts_without_a_target_and_attaches_only_when_the_ray_hits(self):
 		service = (ROOT / "src/server/Services/MagicService.luau").read_text(encoding="utf-8")
-		validation = block(service, "local function validate(", "\nlocal function updateEnhancement")
+		validation = block(service, "local function validate(", "\nlocal function refreshHolder")
 		placement = block((ROOT / "src/server/Services/MagicWorldQuery.luau").read_text(encoding="utf-8"), "local function constructPlacement(", "\nend\n")
 		self.assertIn(
 			'local targeting = if definition.Form == "Construct" then "AimDirection" else definition.Targeting',
@@ -686,8 +718,8 @@ class MagicRegistryParity(unittest.TestCase):
 		self.assertIn("finishBeamChannel(spell)", cleanup)
 		self.assertIn("finishInterruptedArea(spell)", cleanup)
 		self.assertIn("expireConstruct(spell)", cleanup)
-		self.assertIn("expireSelfEnhancement(player, effect)", cleanup)
-		self.assertGreater(cleanup.index("Summons.clearSpell(player, spellId)"), cleanup.index("expireSelfEnhancement(player, effect)"))
+		self.assertIn("endOwnedEnchantments(player, spellId)", cleanup)
+		self.assertGreater(cleanup.index("Summons.clearSpell(player, spellId)"), cleanup.index("endOwnedEnchantments(player, spellId)"))
 
 	def test_object_target_physics_rules_use_the_shared_pure_eligibility_spec(self):
 		service = (ROOT / "src/server/Services/MagicService.luau").read_text(encoding="utf-8")

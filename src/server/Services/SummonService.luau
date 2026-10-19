@@ -425,13 +425,17 @@ local function scanSupportTarget(record: SummonRecord, core: BasePart, archetype
 				+ (if type(armorBonus) == "number" then armorBonus else 0)
 			local needsArmor = profile.CanModifyAttribute and armor < profile.ArmorAmount
 			local currentTimeRate = humanoid:GetAttribute("MagicTimeRate")
+			-- Boon Enchantments go to allies that hold no Boon yet (recasts refresh).
+			local enchantments = candidate:GetAttribute("MagicEnchantments")
+			local needsEnchantment = profile.CanEnchant == true
+				and not (type(enchantments) == "string" and string.find(enchantments, "Boon:", 1, true))
 			local needsTimeDilation = profile.CanTimeDilation
 				and math.abs((if type(currentTimeRate) == "number" then currentTimeRate else 1) - profile.TimeRate)
 					> 0.05
 			if
 				distance
 					<= RolePolicy.targetScanRange(profile.Range, archetype.SearchRadius, Config.CommandChaseRange)
-				and (missingHealth or needsShield or needsArmor or needsTimeDilation)
+				and (missingHealth or needsShield or needsArmor or needsTimeDilation or needsEnchantment)
 				and canSee(record, candidate, core.Position, root.Position)
 			then
 				local healthRatio = humanoid.Health / math.max(1, humanoid.MaxHealth)
@@ -439,7 +443,8 @@ local function scanSupportTarget(record: SummonRecord, core: BasePart, archetype
 					then healthRatio
 					elseif needsArmor then 0.9
 					elseif needsTimeDilation then 1
-					else 1.1
+					elseif needsShield then 1.1
+					else 1.2
 				if score < bestScore then
 					best, bestScore = candidate, score
 				end

@@ -164,4 +164,27 @@ invalid.Casting.Mode = "Channeled"
 assert(not policy.classify(invalid))
 invalid.Casting.Mode = "Instant"
 assert(not policy.classify(invalid))
+
+-- Medic companions may cast Boon-only Enchantments on allies.
+local function enchantment(payloads, relationship, targeting, mode)
+	return {
+		Form = "SelfEnhancement",
+		Targeting = targeting or "EntityTarget",
+		Casting = { Mode = mode or "Instant" },
+		TargetRules = { Relationship = relationship or "Ally", Range = 40 },
+		Triggers = { OnCast = { { Payloads = payloads } } },
+	}
+end
+local blessing = policy.classify(enchantment({ { Kind = "Shield", Amount = 20 }, { Kind = "Enhancement" } }))
+assert(blessing and blessing.Mode == "Ally" and blessing.IsEnchantment and blessing.CanEnchant)
+assert(blessing.CanShield and blessing.ShieldAmount == 20 and not blessing.CanDamage, "Boons only")
+local swift = policy.classify(enchantment({ { Kind = "Enhancement", SpeedMultiplier = 1.2 } }))
+assert(swift and swift.CanEnchant and not swift.CanHeal, "a Swiftness-only blessing is still a Boon enchantment")
+local _, baneReason = policy.classify(enchantment({ { Kind = "Shield", Amount = 5 }, { Kind = "Slow" } }))
+assert(baneReason and string.find(baneReason, "only contain Boons", 1, true), "Banes are refused")
+assert(not policy.classify(enchantment({ { Kind = "AerialMovement" } })), "Aerial movement is self-only")
+assert(not policy.classify(enchantment({ { Kind = "Heal", Amount = 5 } }, "Any")), "needs an Ally target rule")
+assert(not policy.classify(enchantment({ { Kind = "Heal", Amount = 5 } }, "Ally", "Self")), "must target an ally")
+assert(not policy.classify(enchantment({ { Kind = "Heal", Amount = 5 } }, "Ally", nil, "Channeled")))
+assert(not policy.classify(enchantment({})), "an empty enchantment is refused")
 print("Magic companion spell policy: hostile/support classification and unsupported cases passed")

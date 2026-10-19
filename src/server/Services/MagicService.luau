@@ -17,6 +17,7 @@ local LocusProfile = if RunService:IsStudio() and DevelopmentSandbox.Enabled
 local LocusModel = require(Shared.Modules.MagicLocusModel)
 local SpecialResourceSpec = require(Shared.Modules.MagicSpecialResourceSpec)
 local AttributeSpec = require(Shared.Modules.MagicAttributeSpec)
+local EnchantmentSpec = require(Shared.Modules.MagicEnchantmentSpec)
 local SpecialResourceDefinitions = LocusConfiguration.SpecialResources
 local specialResourcesValid, specialResourcesReason =
 	SpecialResourceSpec.validateDefinitions(SpecialResourceDefinitions)
@@ -127,6 +128,12 @@ local function isSpellCooling(stats, spellId: string, now: number): boolean
 	-- Accept old in-memory timestamp entries while the service is hot-reloaded.
 	return type(cooldown) == "number" and now < cooldown
 end
+-- Enchantments (SelfEnhancement Form), keyed by owner, then by
+-- EnchantmentSpec.key (the SpellId for self casts, SpellId@holder otherwise).
+--   Owner / OwnerState: the caster. Pays costs, owns the cascade budget, gets
+--     feedback, is credited as `Caster` for the enchantment's own effects.
+--   State: the HOLDER the enchantment is on (the owner's own state for self casts).
+--     Movement, visuals, proximity and holder-view events use it.
 local enhancements: {
 	[Player]: {
 		[string]: {
@@ -139,6 +146,45 @@ local enhancements: {
 	},
 } =
 	{}
+
+local holderIds: { [Model]: string } = setmetatable({}, { __mode = "k" }) :: any
+local nextHolderId = 0
+local function holderKey(model: Model): string
+	local id = holderIds[model]
+	if not id then
+		nextHolderId += 1
+		id = tostring(nextHolderId)
+		holderIds[model] = id
+	end
+	return id
+end
+
+local function enchantmentType(definition: any): string
+	return EnchantmentSpec.typeOf(definition, function(kind)
+		local payload = Spec.Schema.Payloads[kind]
+		return payload and payload.Polarity
+	end)
+end
+
+-- Whether `owner` may put `definition` on `holder` (refresh, or within the per-type caps).
+local function canHoldEnchantment(owner: Player, definition: any, holder: Model, isSelf: boolean): (boolean, string?)
+	local existing = {}
+	for otherOwner, effects in enhancements do
+		for key, effect in effects do
+			if effect.State.Character == holder then
+				table.insert(existing, { Key = tostring(otherOwner.UserId) .. ":" .. key, Type = effect.Type })
+			end
+		end
+	end
+	local key = tostring(owner.UserId) .. ":" .. EnchantmentSpec.key(definition.SpellId, holderKey(holder), isSelf)
+	return EnchantmentSpec.canAdd(
+		existing,
+		key,
+		enchantmentType(definition),
+		Limits.MaxEnchantmentsPerHolderType,
+		Limits.MaxEnchantmentsPerHolder
+	)
+end
 
 local function feedback(remote: RemoteEvent, player: Player, result: string, spell: any?, data: { [string]: any }?)
 	remote:FireClient(player, {
@@ -372,6 +418,13 @@ local function validate(
 		if not selectedTarget then
 			return "IMPOSSIBLE", targetReason or "No valid target in the aim cone"
 		end
+		if definition.Form == "SelfEnhancement" then
+			-- Check the holder's enchantment caps before any cost is paid.
+			local allowed, capReason = canHoldEnchantment(player, definition, selectedTarget, false)
+			if not allowed then
+				return "IMPOSSIBLE", capReason
+			end
+		end
 		direction = targetDirection or direction
 	elseif targeting == "WorldPoint" or targeting == "Area" then
 		if
@@ -580,26 +633,65 @@ local function validate(
 	return result, reason, material, direction, selectedTarget, objectPosition
 end
 
-local function updateEnhancement(player: Player, fallbackState: any?)
+-- Recomputes everything one holder gets from every owner's enchantments on it:
+-- the replicated overhead summary (all holders) and movement (player holders only).
+local function refreshHolder(holderState: any)
+	local character = holderState and holderState.Character
+	if not character then
+		return
+	end
 	local walkSpeedBonus, jumpPowerBonus = 0, 0
 	local multiplier = 1
 	local aerialSpeed = 0
-	for _, effect in enhancements[player] or {} do
-		walkSpeedBonus += effect.WalkSpeedBonus
-		jumpPowerBonus += effect.JumpPowerBonus
-		multiplier = math.max(multiplier, effect.SpeedMultiplier)
-		aerialSpeed = math.max(aerialSpeed, effect.AerialSpeed or 0)
+	local types = {}
+	for _, effects in enhancements do
+		for _, effect in effects do
+			if effect.State.Character == character then
+				table.insert(types, effect.Type or "Neutral")
+				local allowed = EnchantmentSpec.movement(effect.IsSelf ~= false, true)
+				if allowed.Swiftness then
+					walkSpeedBonus += effect.WalkSpeedBonus
+					jumpPowerBonus += effect.JumpPowerBonus
+					multiplier = math.max(multiplier, effect.SpeedMultiplier)
+				end
+				if allowed.Aerial then
+					aerialSpeed = math.max(aerialSpeed, effect.AerialSpeed or 0)
+				end
+			end
+		end
+	end
+	-- Overhead icon: same replicated attribute + tag path Reveal uses.
+	local summary = EnchantmentSpec.encode(types)
+	if character:IsDescendantOf(workspace) then
+		character:SetAttribute("MagicEnchantments", if summary == "" then nil else summary)
+		if summary == "" then
+			CollectionService:RemoveTag(character, "MagicEnchanted")
+		else
+			CollectionService:AddTag(character, "MagicEnchanted")
+		end
+	end
+	if not Players:GetPlayerFromCharacter(character) then
+		return -- Swiftness and Aerial movement apply to player holders only.
 	end
 	walkSpeedBonus = math.min(walkSpeedBonus, 30)
 	jumpPowerBonus = math.min(jumpPowerBonus, Limits.MaxJumpBonus)
 	multiplier = math.min(multiplier, Limits.MaxMultiplier)
-	local _, effect = next(enhancements[player] or {})
-	if effect then
-		Movement.setMagicEnhancement(effect.State, walkSpeedBonus, jumpPowerBonus, multiplier)
-		Movement.setMagicAerial(effect.State, aerialSpeed)
-	elseif fallbackState then
-		Movement.setMagicEnhancement(fallbackState, 0, 0, 1)
-		Movement.setMagicAerial(fallbackState, 0)
+	Movement.setMagicEnhancement(holderState, walkSpeedBonus, jumpPowerBonus, multiplier)
+	Movement.setMagicAerial(holderState, aerialSpeed)
+end
+
+-- Refreshes every holder this owner's enchantments sit on, plus `fallbackState`
+-- (a holder whose enchantment was just removed).
+local function updateEnhancement(player: Player, fallbackState: any?)
+	local seen = {}
+	for _, effect in enhancements[player] or {} do
+		if not seen[effect.State.Character] then
+			seen[effect.State.Character] = true
+			refreshHolder(effect.State)
+		end
+	end
+	if fallbackState and not seen[fallbackState.Character] then
+		refreshHolder(fallbackState)
 	end
 end
 
@@ -645,6 +737,7 @@ local function context(definition, caster, position, targets, direction, remote,
 				AllowCasterTarget = runtimeState
 					and (
 						runtimeState.EventName == "OnDamageTaken"
+						or runtimeState.EventName == "OnHolderDealtDamage"
 						or runtimeState.EventName == "OnBreak"
 						or runtimeState.EventName == "OnThreshold"
 						or runtimeState.EventName == "OnCasterDeath"
@@ -1046,10 +1139,11 @@ Damage.Applied:Connect(function(attacker: Model, target: Humanoid, amount: numbe
 				and effect.Definition
 				and hasEvent(effect.Definition, "OnDamageTaken")
 			then
+				-- Holder view: the holder took damage; the owner casts the reaction.
 				emit(
 					effect.Definition,
 					"OnDamageTaken",
-					targetModel,
+					effect.Caster or targetModel,
 					effect.State.Root.Position,
 					{ target },
 					effect.Direction,
@@ -1058,6 +1152,37 @@ Damage.Applied:Connect(function(attacker: Model, target: Humanoid, amount: numbe
 					nil,
 					damageTakenState(effect)
 				)
+			end
+		end
+	end
+	-- OnHolderDealtDamage: the holder of an enchantment dealt damage with one of
+	-- their own spells. Continues that spell's chain (depth + 1, shared budget);
+	-- damage from the enchantment itself never counts.
+	if fromSpell then
+		for player, effects in enhancements do
+			for _, effect in effects do
+				if
+					effect.State.Character == attacker
+					and effect.State.Humanoid.Health > 0
+					and effect.Definition
+					and damageContext.SourceRuntimeState ~= effect
+					and hasEvent(effect.Definition, "OnHolderDealtDamage")
+				then
+					local eventState = lifecycleState(effect, "OnHolderDealtDamage", reactionDepth)
+					eventState.OperationBudget = damageContext.OperationBudget
+					emit(
+						effect.Definition,
+						"OnHolderDealtDamage",
+						effect.Caster or attacker,
+						effect.State.Root.Position,
+						{ effect.State.Humanoid },
+						effect.Direction,
+						effect.Remote,
+						player,
+						nil,
+						eventState
+					)
+				end
 			end
 		end
 	end
@@ -1102,7 +1227,7 @@ Damage.Applied:Connect(function(attacker: Model, target: Humanoid, amount: numbe
 					emit(
 						effect.Definition,
 						"OnMeleeHit",
-						attacker,
+						effect.Caster or attacker,
 						hitPosition,
 						{ target },
 						effect.Direction,
@@ -1166,7 +1291,7 @@ Damage.Applied:Connect(function(attacker: Model, target: Humanoid, amount: numbe
 					emit(
 						effect.Definition,
 						"OnTargetDeath",
-						effect.State.Character,
+						effect.Caster or effect.State.Character,
 						position,
 						{ target },
 						effect.Direction or Vector3.zero,
@@ -1361,33 +1486,85 @@ local function finishInterruptedArea(spell)
 	end
 end
 
-local function expireSelfEnhancement(player: Player, effect: any)
+-- Ends an enchantment once. `reason` comes from EnchantmentSpec.endReason
+-- (nil: "Duration", or "HolderDeath" if the holder is already dead). Events
+-- run from the owner (caster) at the holder's position, targeting the holder.
+local function expireSelfEnhancement(player: Player, effect: any, reason: string?)
 	if not LifetimeSpec.claimExpiry(effect) then
 		return
 	end
-	local state = effect.State
-	local humanoid = state.Humanoid
-	local character = state.Character
-	local position = state.Root.Position
-	if humanoid.Health <= 0 and not effect.CasterDeathEventFired and hasEvent(effect.Definition, "OnCasterDeath") then
-		effect.CurrentPhase = "CasterDeath"
-		emit(
-			effect.Definition,
-			"OnCasterDeath",
-			character,
-			position,
-			{ humanoid },
-			effect.Direction,
-			effect.Remote,
-			player,
-			nil,
-			lifecycleState(effect, "OnCasterDeath", 0)
-		)
+	local holder = effect.State
+	local humanoid = holder.Humanoid
+	local owner = effect.Caster or holder.Character
+	local position = if holder.Root and holder.Root.Parent then holder.Root.Position else effect.LastPosition
+	position = position or holder.Character:GetPivot().Position
+	local endReason = reason or (if humanoid.Health <= 0 then "HolderDeath" else "Duration")
+	for _, event in EnchantmentSpec.endEvents(endReason, effect.IsSelf ~= false) do
+		if event == "OnCasterDeath" then
+			if not effect.CasterDeathEventFired and hasEvent(effect.Definition, "OnCasterDeath") then
+				effect.CasterDeathEventFired = true
+				effect.CurrentPhase = "CasterDeath"
+				emit(
+					effect.Definition,
+					"OnCasterDeath",
+					owner,
+					position,
+					{ humanoid },
+					effect.Direction,
+					effect.Remote,
+					player,
+					nil,
+					lifecycleState(effect, "OnCasterDeath", 0)
+				)
+			end
+		elseif event == "OnTargetDeath" then
+			-- claim: the damage listener may already have reported this death.
+			if hasEvent(effect.Definition, "OnTargetDeath") and TargetDeathSpec.claim(effect, humanoid) then
+				-- The owner learns their holder died while enchanted.
+				local eventState = lifecycleState(effect, "OnTargetDeath", 0)
+				eventState.DeathCause = "DiedWhileAffected"
+				emit(
+					effect.Definition,
+					"OnTargetDeath",
+					owner,
+					position,
+					{ humanoid },
+					effect.Direction,
+					effect.Remote,
+					player,
+					nil,
+					eventState
+				)
+			end
+		end
 	end
 	if effect.ComposedVisual then
 		Presentation.finish(effect.ComposedVisual)
 	end
-	dispatchClaimedExpiry(effect, position, { humanoid }, nil, character, player)
+	dispatchClaimedExpiry(effect, position, { humanoid }, nil, owner, player)
+end
+
+-- Ends every enchantment `player` owns for this spell (self and on others) and
+-- refreshes each holder. Returns how many ended.
+local function endOwnedEnchantments(player: Player, spellId: string, reason: string?): number
+	local effects = enhancements[player]
+	if not effects then
+		return 0
+	end
+	local ended = {}
+	for key, effect in effects do
+		if effect.Definition and effect.Definition.SpellId == spellId then
+			table.insert(ended, key)
+		end
+	end
+	for _, key in ended do
+		local effect = effects[key]
+		expireSelfEnhancement(player, effect, reason)
+		Presentation.stopSound(effect.AmbientSound)
+		effects[key] = nil
+		refreshHolder(effect.State)
+	end
+	return #ended
 end
 
 local function stopToggledEffect(player: Player, caster: Model, definition: any): boolean
@@ -1834,8 +2011,18 @@ end
 -- Applies a SelfEnhancement to the caster's combat state: runs its OnCast
 -- payloads, records the enhancement, and refreshes movement. Shared by the
 -- cast path (formContext.ApplySelf) and spawned effects.
-local function startSelfEnhancement(d, state, direction, remote, player)
-	local ctx = context(d, state.Character, state.Root.Position, { state.Humanoid }, direction, remote, player)
+-- `state` is the owner (caster); `holderState` the character it goes on
+-- (defaults to the owner). Returns false and a reason when the holder's
+-- enchantment caps are full.
+local function startSelfEnhancement(d, state, direction, remote, player, holderState: any?): (boolean, string?)
+	local holder = holderState or state
+	local isSelf = holder.Character == state.Character
+	local allowed, capReason = canHoldEnchantment(player, d, holder.Character, isSelf)
+	if not allowed then
+		return false, capReason
+	end
+	local key = EnchantmentSpec.key(d.SpellId, holderKey(holder.Character), isSelf)
+	local ctx = context(d, state.Character, holder.Root.Position, { holder.Humanoid }, direction, remote, player)
 	local combined = { WalkSpeedBonus = 0, JumpPowerBonus = 0, SpeedMultiplier = 1, AerialSpeed = 0 }
 	ctx.ApplyEnhancement = function(payload)
 		combined.WalkSpeedBonus += payload.WalkSpeedBonus or 0
@@ -1847,12 +2034,23 @@ local function startSelfEnhancement(d, state, direction, remote, player)
 	end
 	Triggers.execute(d, "OnCast", ctx)
 	enhancements[player] = enhancements[player] or {}
-	local previousVisual = enhancements[player][d.SpellId] and enhancements[player][d.SpellId].ComposedVisual
-	if previousVisual then
-		Presentation.finish(previousVisual)
+	local previous = enhancements[player][key]
+	if previous then
+		-- Recasting on the same holder refreshes the enchantment.
+		if previous.ComposedVisual then
+			Presentation.finish(previous.ComposedVisual)
+		end
+		Presentation.stopSound(previous.AmbientSound)
 	end
-	enhancements[player][d.SpellId] = {
-		State = state,
+	enhancements[player][key] = {
+		State = holder,
+		OwnerState = state,
+		Owner = player,
+		Player = player,
+		Caster = state.Character,
+		IsSelf = isSelf,
+		Key = key,
+		Type = enchantmentType(d),
 		Definition = d,
 		Remote = remote,
 		Direction = direction,
@@ -1871,10 +2069,11 @@ local function startSelfEnhancement(d, state, direction, remote, player)
 		AerialSpeed = combined.AerialSpeed,
 		ProximityState = if d.Proximity then ProximitySpec.newState(workspace:GetServerTimeNow()) else nil,
 		IsChannel = d.Casting.Mode == "Channeled",
-		AmbientSound = Presentation.attachLoop(d, "AmbientLoopSoundId", state.Root),
-		ComposedVisual = Presentation.follow(d, state.Root, Vector3.new(5, 6, 5)),
+		AmbientSound = Presentation.attachLoop(d, "AmbientLoopSoundId", holder.Root),
+		ComposedVisual = Presentation.follow(d, holder.Root, Vector3.new(5, 6, 5)),
 	}
 	updateEnhancement(player)
+	return true, nil
 end
 
 -- Latest combat state per player, so a spawned SelfEnhancement can reach the
@@ -2813,7 +3012,21 @@ local function execute(
 		end
 	end
 	formContext.ApplySelf = function(d)
-		startSelfEnhancement(d, state, direction, remote, player)
+		local holderState = nil
+		if d.Targeting == "EntityTarget" and selectedTarget then
+			local holderHumanoid = selectedTarget:FindFirstChildOfClass("Humanoid")
+			local holderRoot = selectedTarget:FindFirstChild("HumanoidRootPart")
+			if not holderHumanoid or not holderRoot or not holderRoot:IsA("BasePart") then
+				feedback(remote, player, "IMPOSSIBLE", d, { Reason = "Target is no longer a living character" })
+				return
+			end
+			holderState = { Character = selectedTarget, Humanoid = holderHumanoid, Root = holderRoot }
+		end
+		local started, startReason = startSelfEnhancement(d, state, direction, remote, player, holderState)
+		if not started then
+			feedback(remote, player, "IMPOSSIBLE", d, { Reason = startReason })
+			return
+		end
 		if d.Casting.Mode == "Channeled" then
 			local channel = {
 				Kind = "SelfEnhancementChannel",
@@ -3049,13 +3262,10 @@ function Magic.start(player, state, intent, remote, castContext, temporaryDefini
 		feedback(remote, player, "IMPOSSIBLE", definition, { Reason = "Locus resources are still loading" })
 		return false, "Locus resources are still loading"
 	end
-	local effects = enhancements[player]
 	if definition.Lifetime.Mode == "UntilToggledOff" then
-		if definition.Form == "SelfEnhancement" and effects and effects[definition.SpellId] then
-			local effect = effects[definition.SpellId]
-			expireSelfEnhancement(player, effect)
-			Presentation.stopSound(effect.AmbientSound)
-			effects[definition.SpellId] = nil
+		-- The owner recasting a toggled Enchantment turns off every copy they own
+		-- (on themselves and on others).
+		if definition.Form == "SelfEnhancement" and endOwnedEnchantments(player, definition.SpellId, "Toggle") > 0 then
 			updateEnhancement(player, state)
 			feedback(remote, player, "OFF", definition, nil)
 			return true
@@ -3294,13 +3504,8 @@ function Magic.clearTemporary(player, state, spellId)
 		end
 		table.remove(active, index)
 	end
-	local playerEnhancements = enhancements[player]
-	local effect = playerEnhancements and playerEnhancements[spellId]
-	if effect then
-		expireSelfEnhancement(player, effect)
-		Presentation.stopSound(effect.AmbientSound)
-		playerEnhancements[spellId] = nil
-		updateEnhancement(player, state or effect.State)
+	if endOwnedEnchantments(player, spellId) > 0 and state then
+		updateEnhancement(player, state)
 	end
 	-- Expiry triggers can create summons, so dismiss after all old-definition
 	-- callbacks have run.
@@ -3536,13 +3741,16 @@ function Magic.bind(player)
 end
 function Magic.reset(player)
 	clearActive(player)
+	local holders = {}
 	for _, effect in enhancements[player] or {} do
-		expireSelfEnhancement(player, effect)
+		expireSelfEnhancement(player, effect, "OwnerDeath")
 		Presentation.stopSound(effect.AmbientSound)
-		Movement.setMagicEnhancement(effect.State, 0, 0, 1)
-		Movement.setMagicAerial(effect.State, 0)
+		table.insert(holders, effect.State)
 	end
 	enhancements[player] = nil
+	for _, holder in holders do
+		refreshHolder(holder)
+	end
 	-- Active spell and Enchantment expiry triggers can contain Summon
 	-- payloads, so dismiss groups after every final event has run.
 	Summons.clearOwner(player)
@@ -4598,7 +4806,7 @@ RunService.Heartbeat:Connect(function(delta)
 		end
 	end
 	for player, effects in enhancements do
-		local fallback = nil
+		local fallback: { any }? = nil
 		for id, effect in effects do
 			effect.Age += delta
 			local manaRate = effect.Definition.Casting.ManaUpkeepPerSecond or 0
@@ -4629,26 +4837,37 @@ RunService.Heartbeat:Connect(function(delta)
 				effect.EndConditionEnded = true
 				effect.ExpiresAt = now
 			end
-			if
-				now < effect.ExpiresAt
-				and effect.State.Character == player.Character
-				and effect.State.Humanoid.Health > 0
-			then
-				updateActiveProximity(effect, effect.State.Root.Position, now)
-			end
-			if
-				now >= effect.ExpiresAt
-				or effect.State.Character ~= player.Character
-				or effect.State.Humanoid.Health <= 0
-			then
-				expireSelfEnhancement(player, effect)
+			-- Lifecycle (EnchantmentSpec.endReason): duration, holder death or
+			-- departure, and owner death or respawn all end it.
+			local holder, owner = effect.State, effect.OwnerState or effect.State
+			local ownerIsPlayerCharacter = owner.Character == player.Character
+				or Players:GetPlayerFromCharacter(owner.Character) == player
+			local reason = EnchantmentSpec.endReason(effect, {
+				Now = now,
+				HolderAlive = holder.Humanoid.Health > 0 and holder.Humanoid.Parent ~= nil,
+				HolderPresent = holder.Character:IsDescendantOf(workspace)
+					and (effect.IsSelf == false or holder.Character == player.Character),
+				OwnerAlive = owner.Humanoid.Health > 0,
+				-- Player owners must still be on the same character; companion
+				-- (summon) owners just need to still exist.
+				OwnerPresent = owner.Character:IsDescendantOf(workspace)
+					and (not ownerIsPlayerCharacter or owner.Character == player.Character),
+			})
+			if not reason then
+				effect.LastPosition = holder.Root.Position
+				updateActiveProximity(effect, holder.Root.Position, now)
+			else
+				expireSelfEnhancement(player, effect, reason)
 				Presentation.stopSound(effect.AmbientSound)
-				fallback = effect.State
+				fallback = fallback or {}
+				table.insert(fallback, effect.State)
 				effects[id] = nil
 			end
 		end
 		if fallback then
-			updateEnhancement(player, fallback)
+			for _, holderState in fallback do
+				updateEnhancement(player, holderState)
+			end
 		end
 	end
 end)

@@ -20,6 +20,10 @@ return {
 	MaxBindDuration = 4,
 	MaxRevealDuration = 15,
 	MaxEffectsPerTarget = 8,
+	-- Enchantments on one character: up to 3 Boons, 3 Banes and 3 Neutral ones,
+	-- one per spell; recasting the same spell on the same character refreshes it.
+	MaxEnchantmentsPerHolderType = 3,
+	MaxEnchantmentsPerHolder = 9,
 	MaxEffectTargets = 256,
 	MaxElementalMarkStacks = 5,
 	ElementalInteractions = {

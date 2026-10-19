@@ -60,6 +60,7 @@ end
 local hud = startController("UIController", launcher)
 local debug = startController("DebugController")
 startController("MagicRevealController")
+startController("MagicEnchantmentController")
 startController("SpellVFXController", remotes)
 startController("SpellVFXShowcase")
 startController("LanternController")

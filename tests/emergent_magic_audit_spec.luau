@@ -1634,6 +1634,183 @@ do
 	check("MELEE", "CAPABILITY", followOk, "a following Field can use OnMeleeHit: " .. tostring(followReason))
 end
 
+---------------------------------------------------------------------------
+-- Enchantments on others: owner (caster) vs holder (the character it is on)
+---------------------------------------------------------------------------
+do
+	local Enchantment = load("src/shared/Modules/MagicEnchantmentSpec.luau")
+	-- MagicService emits holder-view events with the OWNER as caster, at the
+	-- HOLDER's position, targeting the holder; this helper mirrors that.
+	local function emitForHolder(definition, event, record, data)
+		local holderRoot = record.Holder.Parent.Children.HumanoidRootPart
+		emit(definition, event, record.Owner, holderRoot.Position, { record.Holder }, 0, data, nil, record)
+	end
+	local function marksOn(name)
+		return count(function(x)
+			return x.Op == "Status.elementalMark" and x.Target == name
+		end)
+	end
+
+	-- Hex: on an enemy; when the hexed enemy takes damage, Poison-mark its neighbours.
+	local hex = draft("SelfEnhancement", "Body", function(d)
+		d.Element = "Poison"
+		d.Targeting = "EntityTarget"
+		d.TargetPolicy = "LockOn"
+		d.TargetRules.Relationship = "Hostile"
+		d.Triggers = {
+			OnDamageTaken = {
+				{
+					Behavior = "Explode",
+					Radius = 6,
+					Payloads = { payload("ElementalMark", { Stacks = 1, Duration = 6 }) },
+				},
+			},
+		}
+	end)
+	local hexOk, hexReason = validates(hex)
+	check("ENCHANT", "CAPABILITY", hexOk, "hex (Enchantment on an enemy) validates: " .. tostring(hexReason))
+	local e = resetWorld({ vec(0, 0, 0), vec(3, 0, 0), vec(30, 0, 0) }, 100)
+	local hexRecord = { Owner = caster, Holder = e[1], ExpiresAt = 10, IsSelf = false }
+	check(
+		"ENCHANT",
+		"CAPABILITY",
+		hexRecord.Owner ~= hexRecord.Holder.Parent and Enchantment.key("Hex", "1", false) == "Hex@1",
+		"owner and holder are different characters with a per-holder key"
+	)
+	emitForHolder(hex, "OnDamageTaken", hexRecord, { Attackers = {} })
+	check("ENCHANT", "CAPABILITY", marksOn("Enemy2") == 1, "hexed enemy taking damage marks its neighbour")
+	check("ENCHANT", "CAPABILITY", marksOn("Enemy3") == 0, "enemies outside the radius are not marked")
+	check("ENCHANT", "CAPABILITY", marksOn("Caster") == 0, "the owner, far away, is not marked")
+
+	-- Guardian: on an ally; when they drop below 30% health, shield them.
+	local guardian = draft("SelfEnhancement", "Body", function(d)
+		d.Targeting = "EntityTarget"
+		d.TargetPolicy = "Aim"
+		d.TargetRules.Relationship = "Ally"
+		d.Triggers = {
+			OnDamageTaken = {
+				{
+					Condition = {
+						Operator = "ALL",
+						Conditions = { { Family = "Target", Property = "HealthPercent", Operator = "<", Value = 0.3 } },
+					},
+					Payloads = { payload("Shield", { Amount = 25 }) },
+				},
+			},
+		}
+	end)
+	local guardianOk, guardianReason = validates(guardian)
+	check(
+		"ENCHANT",
+		"CAPABILITY",
+		guardianOk,
+		"guardian (Enchantment on an ally) validates: " .. tostring(guardianReason)
+	)
+	resetWorld({}, 100)
+	local allyHumanoid = makeCharacter("Ally", vec(5, 0, 0), 100)
+	local guardRecord = { Owner = caster, Holder = allyHumanoid, ExpiresAt = 10, IsSelf = false }
+	local function shieldsOnAlly()
+		return count(function(x)
+			return x.Op == "Status.shield" and x.Target == "Ally"
+		end)
+	end
+	allyHumanoid.Health = 50
+	emitForHolder(guardian, "OnDamageTaken", guardRecord, { Attackers = {} })
+	check("ENCHANT", "CAPABILITY", shieldsOnAlly() == 0, "no shield while the ally is above 30%")
+	allyHumanoid.Health = 20
+	emitForHolder(guardian, "OnDamageTaken", guardRecord, { Attackers = {} })
+	check("ENCHANT", "CAPABILITY", shieldsOnAlly() == 1, "the ally is shielded once below 30%")
+	check("ENCHANT", "CAPABILITY", count(function(x)
+		return x.Op == "Status.shield" and x.Target == "Caster"
+	end) == 0, "the owner is not the one shielded")
+
+	-- Cleanup: holder death tells the owner (OnTargetDeath) and ends it (OnExpire);
+	-- owner death ends it too; a self-caster respawning only expires.
+	local alive = { Now = 1, HolderAlive = true, HolderPresent = true, OwnerAlive = true, OwnerPresent = true }
+	local function with(overrides)
+		local f = table.clone(alive)
+		for key, value in pairs(overrides) do
+			f[key] = value
+		end
+		return f
+	end
+	local holderDied = Enchantment.endReason(hexRecord, with({ HolderAlive = false }))
+	local events = Enchantment.endEvents(holderDied, false)
+	check(
+		"ENCHANT",
+		"CAPABILITY",
+		holderDied == "HolderDeath" and events[1] == "OnTargetDeath" and events[2] == "OnExpire",
+		"holder death fires OnTargetDeath for the owner, then OnExpire"
+	)
+	local ownerDied = Enchantment.endReason(hexRecord, with({ OwnerAlive = false }))
+	events = Enchantment.endEvents(ownerDied, false)
+	check(
+		"ENCHANT",
+		"CAPABILITY",
+		ownerDied == "OwnerDeath" and events[1] == "OnCasterDeath" and events[2] == "OnExpire",
+		"owner death ends the enchantment on the holder"
+	)
+	check(
+		"ENCHANT",
+		"CAPABILITY",
+		Enchantment.endReason(hexRecord, with({})) == nil
+			and Enchantment.endReason(hexRecord, with({ Now = 10 })) == "Duration",
+		"it lasts until its duration ends while both are alive"
+	)
+	-- The holder-death events run the enchantment's own steps with the holder as target.
+	local reporter = draft("SelfEnhancement", "Body", function(d)
+		d.Element = "Poison"
+		d.Targeting = "EntityTarget"
+		d.TargetPolicy = "Aim"
+		d.Triggers = {
+			OnTargetDeath = { { Behavior = "Explode", Radius = 6, Payloads = { payload("ElementalMark") } } },
+			OnExpire = { { Behavior = "Explode", Radius = 6, Payloads = { payload("Bind") } } },
+		}
+	end)
+	local reporterOk, reporterReason = validates(reporter)
+	check(
+		"ENCHANT",
+		"CAPABILITY",
+		reporterOk,
+		"OnTargetDeath/OnExpire on an Enchantment validate: " .. tostring(reporterReason)
+	)
+	e = resetWorld({ vec(0, 0, 0), vec(2, 0, 0) }, 100)
+	local doomed = { Owner = caster, Holder = e[1], ExpiresAt = 10, IsSelf = false }
+	e[1].Health = 0
+	for _, event in Enchantment.endEvents(Enchantment.endReason(doomed, with({ HolderAlive = false })), false) do
+		emitForHolder(reporter, event, doomed, { DeathCause = "DiedWhileAffected" })
+	end
+	check("ENCHANT", "CAPABILITY", marksOn("Enemy2") == 1, "holder death bursts on the neighbours (OnTargetDeath)")
+	check("ENCHANT", "CAPABILITY", count(function(x)
+		return x.Op == "Status.bind" and x.Target == "Enemy2"
+	end) == 1, "and the enchantment's OnExpire still runs once (the dead holder is skipped)")
+
+	-- Where an Enchantment may go.
+	check("ENCHANT", "CAPABILITY", not validates(draft("SelfEnhancement", "Body", function(d)
+		d.Targeting = "EntityTarget"
+		d.TargetPolicy = "MaintainTarget"
+	end)), "MaintainTarget is not an Enchantment policy")
+	check("ENCHANT", "CAPABILITY", not validates(draft("SelfEnhancement", "Body", function(d)
+		d.Targeting = "EntityTarget"
+		d.TargetPolicy = "Aim"
+		d.Triggers = { OnCast = { { Payloads = { payload("AerialMovement") } } } }
+	end)), "Aerial movement stays self-only")
+	check("ENCHANT", "CAPABILITY", not validates(draft("SelfEnhancement", "Body", function(d)
+		d.Targeting = "EntityTarget"
+		d.TargetPolicy = "Aim"
+		d.Casting.Mode = "Channeled"
+	end)), "a Channeled Enchantment can only be held on yourself")
+	local selfDefault = draft("SelfEnhancement", "Body", function(d)
+		d.Triggers = { OnCast = { { Payloads = { payload("Enhancement") } } } }
+	end)
+	check(
+		"ENCHANT",
+		"CAPABILITY",
+		selfDefault.Targeting == "Self" and validates(selfDefault),
+		"Self stays the default target"
+	)
+end
+
 for _, r in ipairs(results) do
 	kinds[r.Kind] += 1
 	print(string.format("[%s] %-8s %-10s %s", r.Ok and "ok" or "FAIL", r.Test, r.Kind, r.Message))
