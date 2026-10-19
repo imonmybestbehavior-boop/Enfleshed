@@ -161,7 +161,36 @@ function Spec.validateScaleBy(
 	return true, nil
 end
 
-function Spec.validateChargeScaling(scaling: any, chargeMode: boolean): (boolean, string?)
+-- Extra projectiles a charged Projectile fires on release:
+-- floor(charge fraction x MaxExtraProjectiles).
+function Spec.extraProjectiles(scaling: any, fraction: number): number
+	local maximum = type(scaling) == "table" and scaling.MaxExtraProjectiles
+	if not finite(maximum) or not finite(fraction) then
+		return 0
+	end
+	return math.max(0, math.floor(math.clamp(fraction, 0, 1) * maximum + 1e-9))
+end
+
+-- Yaw offsets (degrees) for `count` extra projectiles, fanned out in pairs
+-- like the Spread behavior: +a, -a, +2a, -2a, ... `skipPairs` starts the fan
+-- outside a Spread behavior's own side pairs so they never overlap.
+function Spec.extraOffsets(count: number, angleDegrees: number, skipPairs: number?): { number }
+	local offsets = {}
+	for index = 1, count do
+		local step = math.ceil(index / 2) + (skipPairs or 0)
+		local side = if index % 2 == 1 then 1 else -1
+		table.insert(offsets, side * step * angleDegrees)
+	end
+	return offsets
+end
+
+-- maxExtra: the projectile count limit (Limits.MaxSpawnCount); form: the spell's Form.
+function Spec.validateChargeScaling(
+	scaling: any,
+	chargeMode: boolean,
+	form: string?,
+	maxExtra: number?
+): (boolean, string?)
 	if scaling == nil then
 		return true, nil
 	end
@@ -172,7 +201,7 @@ function Spec.validateChargeScaling(scaling: any, chargeMode: boolean): (boolean
 		return false, "Invalid charge scaling"
 	end
 	for key in pairs(scaling) do
-		if key ~= "MinPotency" and key ~= "MaxPotency" then
+		if key ~= "MinPotency" and key ~= "MaxPotency" and key ~= "MaxExtraProjectiles" then
 			return false, "Unsupported charge scaling field"
 		end
 	end
@@ -184,6 +213,16 @@ function Spec.validateChargeScaling(scaling: any, chargeMode: boolean): (boolean
 	end
 	if scaling.MinPotency > scaling.MaxPotency then
 		return false, "Charge scaling minimum cannot exceed its maximum"
+	end
+	local extra = scaling.MaxExtraProjectiles
+	if extra ~= nil then
+		if form ~= "Projectile" then
+			return false, "Extra projectiles from charge need a Projectile"
+		end
+		local limit = maxExtra or 0
+		if not finite(extra) or extra % 1 ~= 0 or extra < 0 or extra > limit then
+			return false, "Extra projectiles must be a whole number from 0 to " .. limit
+		end
 	end
 	return true, nil
 end

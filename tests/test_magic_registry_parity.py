@@ -253,8 +253,14 @@ class MagicRegistryParity(unittest.TestCase):
 		self.assertIn("definition._ChargePotency =", service)
 		self.assertIn("Conditions.scaleValue(source, {", service)
 		self.assertIn("StatusEffects.elementalMarkStacks(humanoid, element)", service)
+		launch = block(service, "formContext.CreateProjectile = function(d)", "\n\tend\n")
+		self.assertIn("ScaleSpec.extraProjectiles(d.Casting.ChargeScaling, d._ChargeFraction or 0)", launch)
+		self.assertIn("ScaleSpec.extraOffsets(extras, spreadAngle, spreadPairs)", launch)
+		self.assertIn("if not hasCapacity(player) then", launch)
+		self.assertLess(launch.index("ScaleSpec.extraProjectiles("), launch.index("ProjectileBehaviors.spawn(projectile"))
 		lab = (ROOT / "src/client/Controllers/MagicLabController.luau").read_text(encoding="utf-8")
 		self.assertIn('"Charge scales power"', lab)
+		self.assertIn('"Extra projectiles at full charge"', lab)
 		self.assertIn('"Scale by"', lab)
 
 	def test_hud_cooldown_follows_cooldown_rate(self):

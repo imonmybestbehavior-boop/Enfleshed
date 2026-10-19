@@ -3196,6 +3196,38 @@ local function execute(
 			stats.Channel = channel
 			registerActiveEffect(channel)
 		end
+		-- ChargeScaling.MaxExtraProjectiles: floor(charge x max) more projectiles,
+		-- fanned out like the Spread behavior (its angle, past its side pairs).
+		local extras = ScaleSpec.extraProjectiles(d.Casting.ChargeScaling, d._ChargeFraction or 0)
+		if extras > 0 and d.Casting.Mode ~= "Channeled" then
+			local spreadAngle, spreadPairs = 16, 0
+			for _, behavior in d.Projectile.Behaviors or {} do
+				if behavior.Kind == "Spread" then
+					spreadAngle = behavior.SpreadAngle or spreadAngle
+					spreadPairs = behavior.SidePairs or 0
+				end
+			end
+			local axis = if math.abs(direction:Dot(Vector3.yAxis)) > 0.95 then Vector3.xAxis else Vector3.yAxis
+			for _, offset in ScaleSpec.extraOffsets(extras, spreadAngle, spreadPairs) do
+				if not hasCapacity(player) then
+					break
+				end
+				local extraDirection = CFrame.fromAxisAngle(axis, math.rad(offset)):VectorToWorldSpace(direction).Unit
+				local extra = table.clone(projectile)
+				extra.Age = 0
+				extra.TargetsHit = {}
+				extra.HitHumanoids = {}
+				extra.IgnoredTargetModels = {}
+				extra.StartedAt = os.clock()
+				extra.Direction = extraDirection
+				extra.Velocity = extraDirection * d.Projectile.Speed
+				extra.Distance = 0
+				extra.Visual = Presentation.projectile(d, start)
+				initializeProjectileMotion(extra, d)
+				registerActiveEffect(extra)
+				emit(d, "OnSpawn", state.Character, start, {}, extraDirection, remote, player)
+			end
+		end
 		ProjectileBehaviors.spawn(projectile, projectileBehaviorContext(projectile))
 	end
 	Forms.execute(definition.Form, definition, formContext)

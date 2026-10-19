@@ -680,7 +680,7 @@ function Spec.validate(d, spawnNesting: number?)
 		return false, "Charge timing is only valid for Charged or HoldAndRelease casting"
 	end
 	local chargeScalingOk, chargeScalingReason =
-		ScaleSpec.validateChargeScaling(c.ChargeScaling, CastingSpec.isChargeMode(c.Mode))
+		ScaleSpec.validateChargeScaling(c.ChargeScaling, CastingSpec.isChargeMode(c.Mode), d.Form, Limits.MaxSpawnCount)
 	if not chargeScalingOk then
 		return false, chargeScalingReason
 	end
@@ -1506,9 +1506,12 @@ function Spec.estimate(d)
 	local duration = d.Lifetime.Duration or (d.Lifetime.Mode ~= "FixedDuration" and 15 or 1)
 	local strength, count, behaviors, constructComponents, additionalBehaviorTargets = 0, 0, 0, 0, 0
 	local chargeScaling = d.Casting and d.Casting.ChargeScaling
-	local chargePotency = if type(chargeScaling) == "table" and type(chargeScaling.MaxPotency) == "number"
-		then chargeScaling.MaxPotency
-		else 1
+	-- Priced at full charge: MaxPotency and every extra projectile.
+	local chargePotency = (
+		if type(chargeScaling) == "table" and type(chargeScaling.MaxPotency) == "number"
+			then chargeScaling.MaxPotency
+			else 1
+	) * (1 + ScaleSpec.extraProjectiles(chargeScaling, 1))
 	local burstStrength, controlWeight = 0, 0
 	local environmentRequirementCount = 0
 	local environmentRequirements = d.EnvironmentRequirements or {}

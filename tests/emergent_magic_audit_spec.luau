@@ -1928,6 +1928,21 @@ do
 	local chargedOk, chargedReason = validates(charged)
 	check("SCALE", "CAPABILITY", chargedOk, "5x charge scaling validates: " .. tostring(chargedReason))
 	check("SCALE", "CAPABILITY", spec.estimate(charged).ManaDemand > base, "a 5x charge costs more than no scaling")
+	-- Extra projectiles at full charge: priced at the full count, Projectile only.
+	local fiveX = spec.estimate(charged).ManaDemand
+	charged.Casting.ChargeScaling = { MinPotency = 1, MaxPotency = 5, MaxExtraProjectiles = limits.MaxSpawnCount }
+	local volleyOk, volleyReason = validates(charged)
+	check("SCALE", "CAPABILITY", volleyOk, "charged volley (extra projectiles) validates: " .. tostring(volleyReason))
+	check("SCALE", "CAPABILITY", spec.estimate(charged).ManaDemand > fiveX, "extra projectiles raise the cost")
+	charged.Casting.ChargeScaling.MaxExtraProjectiles = limits.MaxSpawnCount + 1
+	check("SCALE", "CAPABILITY", not validates(charged), "extra projectiles respect the projectile count limit")
+	check("SCALE", "CAPABILITY", not validates(draft("Field", "Energy", function(d)
+		d.Casting.Mode = "Charged"
+		d.Casting.MinimumCharge = 0.2
+		d.Casting.MaximumCharge = 2
+		d.Casting.ChargeScaling = { MinPotency = 1, MaxPotency = 1, MaxExtraProjectiles = 1 }
+		d.Triggers.OnTick = { { Payloads = { payload("Damage") } } }
+	end)), "only Projectiles can fire extra projectiles")
 	check("SCALE", "CAPABILITY", not validates(draft("Projectile", "Energy", function(d)
 		d.Casting.ChargeScaling = { MinPotency = 1, MaxPotency = 2 }
 		d.Triggers.OnImpact = { { Payloads = { payload("Damage") } } }

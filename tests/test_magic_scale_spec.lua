@@ -100,4 +100,33 @@ assert(
 assert(
 	not Spec.validateScaleBy({ Source = "TriggerCount", PerUnit = 1, Max = 20, Other = 1 }, "Damage", 100, validElement)
 )
+
+-- Extra projectiles: floor(charge x MaxExtraProjectiles).
+local extra = { MinPotency = 1, MaxPotency = 1, MaxExtraProjectiles = 3 }
+assert(Spec.extraProjectiles(extra, 0) == 0)
+assert(Spec.extraProjectiles(extra, 0.32) == 0, "floor(0.96) = 0")
+assert(Spec.extraProjectiles(extra, 1 / 3) == 1, "a third of the way: 1 extra")
+assert(Spec.extraProjectiles(extra, 0.7) == 2)
+assert(Spec.extraProjectiles(extra, 1) == 3, "full charge: all extras")
+assert(Spec.extraProjectiles(extra, 5) == 3, "fraction clamps")
+assert(Spec.extraProjectiles({ MinPotency = 1, MaxPotency = 2 }, 1) == 0, "default 0 extras")
+assert(Spec.extraProjectiles(nil, 1) == 0)
+-- Fan like Spread: alternate sides, and start past Spread's own side pairs.
+assert(table.concat(Spec.extraOffsets(3, 16), ",") == "16,-16,32")
+assert(table.concat(Spec.extraOffsets(2, 10, 1), ",") == "20,-20", "skips one Spread pair")
+assert(#Spec.extraOffsets(0, 16) == 0)
+-- Validation: Projectile only, whole number, 0..limit.
+assert(Spec.validateChargeScaling(extra, true, "Projectile", 3))
+assert(Spec.validateChargeScaling({ MinPotency = 1, MaxPotency = 1, MaxExtraProjectiles = 0 }, true, "Projectile", 3))
+local okForm, formReason = Spec.validateChargeScaling(extra, true, "Beam", 3)
+assert(not okForm and string.find(formReason, "Projectile", 1, true), "Projectile forms only")
+assert(
+	not Spec.validateChargeScaling({ MinPotency = 1, MaxPotency = 1, MaxExtraProjectiles = 4 }, true, "Projectile", 3)
+)
+assert(
+	not Spec.validateChargeScaling({ MinPotency = 1, MaxPotency = 1, MaxExtraProjectiles = 1.5 }, true, "Projectile", 3)
+)
+assert(
+	not Spec.validateChargeScaling({ MinPotency = 1, MaxPotency = 1, MaxExtraProjectiles = -1 }, true, "Projectile", 3)
+)
 print("Magic scale spec: charge potency mapping, ScaleBy sources, amounts and validation passed")

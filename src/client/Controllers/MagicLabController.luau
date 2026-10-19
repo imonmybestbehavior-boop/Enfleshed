@@ -2525,6 +2525,16 @@ function Lab.start(send, aim, launcher)
 							"MaxPotency",
 							"Multiplier at the maximum charge time. Allowed: 0.25 to 5; the cost is priced at this value."
 						)
+						if draft.Form == "Projectile" then
+							numeric(
+								"Extra projectiles at full charge",
+								draft.Casting.ChargeScaling,
+								"MaxExtraProjectiles",
+								"Fires floor(charge x this) more projectiles, fanned out like Spread. Whole number, 0 to "
+									.. Config.MaxSpawnCount
+									.. "; the cost is priced at the full count."
+							)
+						end
 					end
 				end
 				if
