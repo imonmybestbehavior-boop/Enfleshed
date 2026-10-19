@@ -551,6 +551,24 @@ end
 
 -- Trigger-step condition adapter: filters the event's targets with the step's
 -- rule tree. Values come from the same whitelisted resolver as cast rules.
+-- Raw values for ScaleBy (MagicScaleSpec), read through the same value adapters
+-- conditions use. Elemental mark stacks and charge come from MagicService.
+local scaleReads = {
+	TargetMissingHealthPercent = { "Target", "HealthPercent" },
+	DistanceFromCaster = { "DistancePosition", "Distance" },
+	AreaOccupants = { "SpellState", "AreaOccupants" },
+	TriggerCount = { "SpellState", "TriggerCount" },
+}
+function Conditions.scaleValue(source: string, context: any): any
+	local path = scaleReads[source]
+	if not path then
+		return nil
+	end
+	context.EnvironmentZone = false -- not a scaling source; skip the zone lookup
+	local family = values(context)[path[1]]
+	return family and family[path[2]]
+end
+
 function Conditions.stepTargets(condition: any, context: any): { Humanoid }?
 	local spellState = table.clone(context.SpellState or {})
 	spellState.SpellTags = context.SpellTags or {}

@@ -11,6 +11,8 @@ return {
 	MaxHeal = 100,
 	MaxShield = 100,
 	MaxShieldPerTarget = 150,
+	-- Largest ScaleBy bonus per unit and in total (MagicScaleSpec).
+	MaxScaleBonus = 100,
 	MaxArmorModifier = 100,
 	MinMagicStrengthModifier = -75,
 	MaxMagicStrengthModifier = 100,

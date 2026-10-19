@@ -406,6 +406,14 @@ function Status.consumeElementalMark(humanoid: Humanoid, element: string, stacks
 	return consumed
 end
 
+function Status.elementalMarkStacks(humanoid: Humanoid, element: string?): number
+	local state = targets[humanoid]
+	if not state or type(element) ~= "string" then
+		return 0
+	end
+	return ElementalMarkSpec.stackCount(state.Effects, element, os.clock())
+end
+
 function Status.hasElementalMark(humanoid: Humanoid, element: string): boolean
 	local state = targets[humanoid]
 	return state ~= nil and ElementalMarkSpec.stackCount(state.Effects, element, os.clock()) > 0
@@ -536,14 +544,16 @@ local function putEffect(
 	return true
 end
 
-function Status.heal(caster: Model, humanoid: Humanoid, amount: number): number
+-- `cap` (optional): a final per-hit cap such as the PvP MaxHealPerHit.
+function Status.heal(caster: Model, humanoid: Humanoid, amount: number, cap: number?): number
 	if humanoid.Health <= 0 or not humanoid:IsDescendantOf(workspace) or not caster:IsDescendantOf(workspace) then
 		return 0
 	end
 	local before = humanoid.Health
 	-- HealingReceived scales every heal, including Restoration ticks.
 	local received = amount * AttributeSpec.multiplier(humanoid, "HealingReceived")
-	humanoid.Health = math.min(humanoid.MaxHealth, before + math.clamp(received, 0, Limits.MaxHeal))
+	local limit = if cap then math.min(cap, Limits.MaxHeal) else Limits.MaxHeal
+	humanoid.Health = math.min(humanoid.MaxHealth, before + math.clamp(received, 0, limit))
 	return math.max(0, humanoid.Health - before)
 end
 

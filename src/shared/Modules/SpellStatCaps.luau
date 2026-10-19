@@ -76,12 +76,6 @@ function Caps.payload(payload: any, profile: { [string]: number }?, potency: num
 	elseif kind == "Slow" and number(out.Multiplier) and profile.MinSlowMultiplier then
 		-- executor: effective = 1 - (1 - Multiplier) * potency  ≥  MinSlowMultiplier
 		out.Multiplier = math.max(out.Multiplier, 1 - (1 - profile.MinSlowMultiplier) / p)
-	elseif kind == "DamageOverTime" and number(out.Amount) then
-		out.Amount = capScaled(out.Amount, profile.MaxDotPerTick, p)
-	elseif kind == "Heal" and number(out.Amount) then
-		out.Amount = capScaled(out.Amount, profile.MaxHealPerHit, p)
-	elseif kind == "Shield" and number(out.Amount) then
-		out.Amount = capScaled(out.Amount, profile.MaxShield, p)
 	elseif kind == "Control" and number(out.Acceleration) then
 		out.Acceleration = capScaled(out.Acceleration, profile.MaxControlAcceleration, p)
 	elseif kind == "Displacement" and number(out.Distance) then
@@ -108,6 +102,21 @@ function Caps.payload(payload: any, profile: { [string]: number }?, potency: num
 		end
 	end
 	return out
+end
+
+-- DamageOverTime, Heal and Shield amounts are capped once, on the final value
+-- (after ScaleBy and potency): MaxDotPerTick in DamageService, MaxHealPerHit in
+-- Status.heal, MaxShield in the Shield executor. See Caps.finalAmount.
+function Caps.finalAmount(kind: string, amount: number, profile: { [string]: number }?): number
+	if not profile or not number(amount) then
+		return amount
+	end
+	local cap = if kind == "DamageOverTime"
+		then profile.MaxDotPerTick
+		elseif kind == "Heal" then profile.MaxHealPerHit
+		elseif kind == "Shield" then profile.MaxShield
+		else nil
+	return if cap then math.min(amount, cap) else amount
 end
 
 -- Final damage against a target under a profile (applies to every damage source).

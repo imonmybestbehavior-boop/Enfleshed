@@ -136,6 +136,7 @@ env.require = function(v)
 	return schemaRequire(v)
 end
 local schema = load("src/shared/Configuration/MagicSchema.luau")
+local scaleSpec = load("src/shared/Modules/MagicScaleSpec.luau")
 assert(#schema.Principles == 6, "Magic Lab should expose all six Principles")
 assert(schema.supportsPrincipleForm("Matter", "Manipulation"))
 assert(not schema.supportsPrincipleForm("Energy", "Manipulation"))
@@ -251,6 +252,7 @@ env.script = {
 		MagicSpecialResourceSpec = "specialResourceSpec",
 		MagicVisualSpec = "visualSpec",
 		MagicAttributeSpec = "attributeSpec",
+		MagicScaleSpec = "scaleSpec",
 		Parent = {
 			Configuration = {
 				MagicLab = "limits",
@@ -306,6 +308,8 @@ env.require = function(v)
 		return visualSpec
 	elseif v == "attributeSpec" then
 		return attributeSpec
+	elseif v == "scaleSpec" then
+		return scaleSpec
 	end
 	error(v)
 end

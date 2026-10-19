@@ -122,7 +122,7 @@ class WorkflowWiring(unittest.TestCase):
         service = read('src/server/Services/MagicService.luau')
         context = service[service.index('local function context('):service.index('\n\treturn ctx\nend', service.index('local function context('))]
         summon_callback = context[context.index('Summon = function(payload)'):context.index('\n\t\tend,', context.index('Summon = function(payload)'))]
-        self.assertIn('local resolvedPotency = potency or', context)
+        self.assertIn('local resolvedPotency = (potency or', context)
         self.assertIn('resolvedPotency,\n\t\t\t\tposition', summon_callback)
         self.assertNotIn('ctx.Potency', summon_callback)
         self.assertNotIn('ctx.Origin', summon_callback)

@@ -48,10 +48,15 @@ for _, potency in ipairs({ 0.5, 1, 2, 4 }) do
 	local capped = Caps.payload(payload, open, potency)
 	assert(slowEffective(capped, potency) >= open.MinSlowMultiplier - 1e-9, "slow floor at potency " .. potency)
 	assert(capped.Duration == open.MaxEffectDuration, "duration capped")
+	-- DamageOverTime, Heal and Shield are capped once, on the final amount
+	-- (after ScaleBy and potency), never on the authored amount.
 	local dot = Caps.payload({ Kind = "DamageOverTime", Amount = 50, Duration = 10 }, ranked, potency)
-	assert(dot.Amount * potency <= ranked.MaxDotPerTick + 1e-9, "dot per tick capped")
+	assert(dot.Amount == 50, "authored dot amount is left for the final cap")
+	assert(Caps.finalAmount("DamageOverTime", 50 * potency, ranked) <= ranked.MaxDotPerTick, "dot per tick capped")
 	local heal = Caps.payload({ Kind = "Heal", Amount = 100 }, open, potency)
-	assert(heal.Amount * potency <= open.MaxHealPerHit + 1e-9, "heal capped")
+	assert(heal.Amount == 100, "authored heal amount is left for the final cap")
+	assert(Caps.finalAmount("Heal", 100 * potency, open) <= open.MaxHealPerHit, "heal capped")
+	assert(Caps.finalAmount("Shield", 500 * potency, open) <= open.MaxShield, "shield capped")
 	local disp = Caps.payload({ Kind = "Displacement", Distance = 24 }, open, potency)
 	assert(disp.Distance * potency <= open.MaxDisplacement + 1e-9, "displacement capped")
 	local grow = Caps.payload({ Kind = "Transformation", Multiplier = 1.35, Duration = 6 }, open, potency)
@@ -89,6 +94,9 @@ assert(Caps.payload({ Kind = "Force", Magnitude = 100, Upward = 90 }, open, 1).M
 assert(Caps.payload({ Kind = "TimeDilation", Rate = 0.25, Duration = 9 }, open, 1).Rate == open.MinTimeRate)
 assert(Caps.payload({ Kind = "TimeDilation", Rate = 1.5, Duration = 9 }, open, 1).Rate == 1.5, "haste is not a debuff")
 assert(Caps.payload({ Kind = "Heal", Amount = 5 }, open, 1).Amount == 5, "values under the cap are unchanged")
+assert(Caps.finalAmount("Heal", 5, open) == 5, "final values under the cap are unchanged")
+assert(Caps.finalAmount("Heal", 500, nil) == 500, "PvE has no final heal cap")
+assert(Caps.finalAmount("Damage", 500, open) == 500, "damage uses Caps.damage instead")
 local original = { Kind = "Heal", Amount = 100 }
 Caps.payload(original, open, 1)
 assert(original.Amount == 100, "input payload never mutated")

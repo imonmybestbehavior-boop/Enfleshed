@@ -253,6 +253,7 @@ local sharedModules = {
 	CombatPolicy = load("src/shared/Modules/CombatPolicy.luau"),
 	SpellStatCapsConfig = load("src/shared/Configuration/SpellStatCaps.luau"),
 	MagicSchema = schema,
+	MagicScaleSpec = scaleSpec,
 }
 sharedModules.SpellStatCaps = assert(loadfile(
 	"src/shared/Modules/SpellStatCaps.luau",
@@ -327,6 +328,7 @@ local serverEnv = setmetatable({
 						MagicElementalInteractionSpec = "MagicElementalInteractionSpec",
 						CombatPolicy = "CombatPolicy",
 						SpellStatCaps = "SpellStatCaps",
+						MagicScaleSpec = "MagicScaleSpec",
 					},
 					Configuration = {
 						MagicLab = "MagicLab",
@@ -453,6 +455,18 @@ local function makeContext(definition, caster, position, targets, depth, budget)
 			record({ Op = "Summon", Archetype = p.Archetype, Depth = depth })
 		end,
 	}
+	-- Mirrors MagicService's ScaleRead: mark stacks from the status service,
+	-- everything else from the same values the step-condition double uses.
+	ctx.ScaleRead = function(source, humanoid, element)
+		if source == "ElementalMarkStacks" then
+			return StatusDouble.elementalMarkStacks(humanoid, element)
+		elseif source == "TargetMissingHealthPercent" then
+			return humanoid.Health / humanoid.MaxHealth
+		elseif source == "TriggerCount" then
+			return ctx.SpellState and ctx.SpellState.TriggerCount
+		end
+		return nil
+	end
 	ctx.DamageContext = {
 		Depth = depth,
 		Element = definition.Element or "Neutral",
@@ -1809,6 +1823,115 @@ do
 		selfDefault.Targeting == "Self" and validates(selfDefault),
 		"Self stays the default target"
 	)
+end
+
+---------------------------------------------------------------------------
+-- Scaling: ScaleBy and charge potency
+---------------------------------------------------------------------------
+do
+	-- Consume all burn stacks for 10 damage each: the Damage step reads the
+	-- Fire stacks first, then the same step consumes them.
+	local markStacks = {}
+	rawset(StatusDouble, "elementalMarkStacks", function(humanoid, element)
+		local byElement = markStacks[humanoid]
+		return byElement and byElement[element] or 0
+	end)
+	rawset(StatusDouble, "consumeElementalMark", function(humanoid, element, stacks)
+		local byElement = markStacks[humanoid] or {}
+		local consumed = math.min(byElement[element] or 0, stacks)
+		byElement[element] = (byElement[element] or 0) - consumed
+		markStacks[humanoid] = byElement
+		record({ Op = "Status.consumeElementalMark", Target = humanoid.Parent.Name, Consumed = consumed })
+		return consumed
+	end)
+	local detonate = draft("Projectile", "Energy", function(d)
+		d.Element = "Fire"
+		d.Triggers.OnImpact = {
+			{
+				Payloads = {
+					payload("Damage", {
+						Amount = 0,
+						ScaleBy = { Source = "ElementalMarkStacks", Element = "Fire", PerUnit = 10, Max = 100 },
+					}),
+					payload("ConsumeElementalMark", { Stacks = limits.MaxElementalMarkStacks }),
+				},
+			},
+		}
+	end)
+	local detonateOk, detonateReason = validates(detonate)
+	check(
+		"SCALE",
+		"CAPABILITY",
+		detonateOk,
+		"burn detonation (ScaleBy mark stacks + consume) validates: " .. tostring(detonateReason)
+	)
+	local e = resetWorld({ vec(0, 0, 0) }, 1000)
+	markStacks[e[1]] = { Fire = 4, Ice = 2 }
+	emit(detonate, "OnImpact", caster, vec(0, 0, 0), { e[1] }, 0)
+	check(
+		"SCALE",
+		"CAPABILITY",
+		totalDamageTo("Enemy1") == 40,
+		"4 burn stacks deal 40, got " .. totalDamageTo("Enemy1")
+	)
+	check(
+		"SCALE",
+		"CAPABILITY",
+		markStacks[e[1]].Fire == 0 and markStacks[e[1]].Ice == 2,
+		"all Fire stacks consumed, Ice kept"
+	)
+	log = {}
+	emit(detonate, "OnImpact", caster, vec(0, 0, 0), { e[1] }, 0)
+	check("SCALE", "CAPABILITY", totalDamageTo("Enemy1") == 0, "with no stacks left it deals nothing")
+	-- Execute: more damage the more health the target is missing.
+	local execute = draft("Projectile", "Energy", function(d)
+		d.Triggers.OnImpact = {
+			{
+				Payloads = {
+					payload("Damage", {
+						Amount = 10,
+						ScaleBy = { Source = "TargetMissingHealthPercent", PerUnit = 0.5, Max = 30 },
+					}),
+				},
+			},
+		}
+	end)
+	check("SCALE", "CAPABILITY", validates(execute), "missing-health scaling validates")
+	e = resetWorld({ vec(0, 0, 0) }, 100)
+	e[1].Health = 60
+	emit(execute, "OnImpact", caster, vec(0, 0, 0), { e[1] }, 0)
+	check("SCALE", "CAPABILITY", totalDamageTo("Enemy1") == 30, "40% missing: 10 + 20 = 30")
+	e = resetWorld({ vec(0, 0, 0) }, 100)
+	e[1].Health = 10
+	emit(execute, "OnImpact", caster, vec(0, 0, 0), { e[1] }, 0)
+	check(
+		"SCALE",
+		"CAPABILITY",
+		totalDamageTo("Enemy1") == 40,
+		"90% missing: the bonus is capped at 30, so 10 + 30 = 40"
+	)
+	-- ScaleBy is only offered on damage, damage over time, healing and shields.
+	check("SCALE", "CAPABILITY", not validates(draft("Projectile", "Energy", function(d)
+		d.Triggers.OnImpact = {
+			{ Payloads = { payload("Slow", { ScaleBy = { Source = "TriggerCount", PerUnit = 1, Max = 5 } }) } },
+		}
+	end)), "Slow cannot scale")
+	-- Charge scaling is valid only on Charged / HoldAndRelease and priced at MaxPotency.
+	local charged = draft("Projectile", "Energy", function(d)
+		d.Casting.Mode = "Charged"
+		d.Casting.MinimumCharge = 0.2
+		d.Casting.MaximumCharge = 2
+		d.Triggers.OnImpact = { { Payloads = { payload("Damage", { Amount = 20 }) } } }
+	end)
+	local base = spec.estimate(charged).ManaDemand
+	charged.Casting.ChargeScaling = { MinPotency = 1, MaxPotency = 5 }
+	local chargedOk, chargedReason = validates(charged)
+	check("SCALE", "CAPABILITY", chargedOk, "5x charge scaling validates: " .. tostring(chargedReason))
+	check("SCALE", "CAPABILITY", spec.estimate(charged).ManaDemand > base, "a 5x charge costs more than no scaling")
+	check("SCALE", "CAPABILITY", not validates(draft("Projectile", "Energy", function(d)
+		d.Casting.ChargeScaling = { MinPotency = 1, MaxPotency = 2 }
+		d.Triggers.OnImpact = { { Payloads = { payload("Damage") } } }
+	end)), "an Instant cast cannot use charge scaling")
 end
 
 for _, r in ipairs(results) do

@@ -15,6 +15,8 @@ local ProjectileBehaviorSpec = require(Shared.Modules.ProjectileBehaviorSpec)
 local ConditionSpec = require(Shared.Modules.MagicConditionSpec)
 local ConditionTree = require(Shared.Modules.MagicConditionTree)
 local LifetimeSpec = require(Shared.Modules.MagicLifetimeSpec)
+local ScaleSpec = require(Shared.Modules.MagicScaleSpec)
+local AttributeSpec = require(Shared.Modules.MagicAttributeSpec)
 local CastingSpec = require(Shared.Modules.MagicCastingSpec)
 local MaterialSpec = require(Shared.Modules.MagicMaterialSpec)
 local ConstructGeometrySpec = require(Shared.Modules.MagicConstructGeometrySpec)
@@ -1561,6 +1563,7 @@ function Lab.start(send, aim, launcher)
 			nextDraft.Casting.Mode = "Instant"
 			nextDraft.Casting.MinimumCharge = nil
 			nextDraft.Casting.MaximumCharge = nil
+			nextDraft.Casting.ChargeScaling = nil
 			nextDraft.Casting.ManaUpkeepPerSecond = nil
 			nextDraft.Casting.StrainPerSecond = nil
 		end
@@ -2322,12 +2325,14 @@ function Lab.start(send, aim, launcher)
 						elseif value == "Channeled" then
 							draft.Casting.MinimumCharge = nil
 							draft.Casting.MaximumCharge = nil
+							draft.Casting.ChargeScaling = nil
 							draft.Casting.ManaUpkeepPerSecond = 45
 							draft.Lifetime = { Mode = "FixedDuration", Duration = 5 }
 						elseif value == "Toggle" then
 							local endWhen = draft.Lifetime.EndWhen
 							draft.Casting.MinimumCharge = nil
 							draft.Casting.MaximumCharge = nil
+							draft.Casting.ChargeScaling = nil
 							if CastingSpec.isHeldMode(previousMode) then
 								draft.Casting.ManaUpkeepPerSecond = nil
 								draft.Casting.StrainPerSecond = nil
@@ -2336,6 +2341,7 @@ function Lab.start(send, aim, launcher)
 						elseif value == "CommandCast" then
 							draft.Casting.MinimumCharge = nil
 							draft.Casting.MaximumCharge = nil
+							draft.Casting.ChargeScaling = nil
 							if CastingSpec.isHeldMode(previousMode) then
 								draft.Casting.ManaUpkeepPerSecond = nil
 								draft.Casting.StrainPerSecond = nil
@@ -2346,6 +2352,7 @@ function Lab.start(send, aim, launcher)
 						elseif value == "Sustained" then
 							draft.Casting.MinimumCharge = nil
 							draft.Casting.MaximumCharge = nil
+							draft.Casting.ChargeScaling = nil
 							if CastingSpec.isHeldMode(previousMode) then
 								draft.Casting.ManaUpkeepPerSecond = nil
 								draft.Casting.StrainPerSecond = nil
@@ -2355,6 +2362,7 @@ function Lab.start(send, aim, launcher)
 						else
 							draft.Casting.MinimumCharge = nil
 							draft.Casting.MaximumCharge = nil
+							draft.Casting.ChargeScaling = nil
 							if CastingSpec.isHeldMode(previousMode) then
 								draft.Casting.ManaUpkeepPerSecond = nil
 								draft.Casting.StrainPerSecond = nil
@@ -2492,6 +2500,32 @@ function Lab.start(send, aim, launcher)
 						"MaximumCharge",
 						"Charged releases at this time; HoldAndRelease waits here until you release the key."
 					)
+					select(
+						"Charge scales power",
+						if draft.Casting.ChargeScaling then "On" else "Off",
+						{ "Off", "On" },
+						function(choice)
+							draft.Casting.ChargeScaling = if choice == "On"
+								then (draft.Casting.ChargeScaling or { MinPotency = 1, MaxPotency = 2 })
+								else nil
+						end,
+						nil,
+						"Holding longer multiplies the spell's power, from the minimum at minimum charge to the maximum at full charge (0.25x to 5x)."
+					)
+					if draft.Casting.ChargeScaling then
+						numeric(
+							"Power at minimum charge",
+							draft.Casting.ChargeScaling,
+							"MinPotency",
+							"Multiplier when released at the minimum charge time. Allowed: 0.25 to 5."
+						)
+						numeric(
+							"Power at full charge",
+							draft.Casting.ChargeScaling,
+							"MaxPotency",
+							"Multiplier at the maximum charge time. Allowed: 0.25 to 5; the cost is priced at this value."
+						)
+					end
 				end
 				if
 					LifetimeSpec.supports(draft.Form, "UntilToggledOff")
@@ -3796,6 +3830,65 @@ function Lab.start(send, aim, launcher)
 										end
 									else
 										showFields(value, definition.Fields)
+										if ScaleSpec.ScalableKinds[kind] then
+											-- ScaleBy: Amount + Per unit x measure (up to Max), per target.
+											local options = { "None" }
+											for _, source in ScaleSpec.SourceOrder do
+												table.insert(options, source)
+											end
+											local scaleBy = value.ScaleBy
+											select(
+												"Scale by",
+												if scaleBy then scaleBy.Source else "None",
+												options,
+												function(choice)
+													if choice == "None" then
+														value.ScaleBy = nil
+														return
+													end
+													local updated = value.ScaleBy or { PerUnit = 1, Max = 20 }
+													updated.Source = choice
+													updated.Element = if ScaleSpec.Sources[choice].NeedsElement
+														then (updated.Element or (if draft.Element ~= "Neutral"
+															then draft.Element
+															else AttributeSpec.Elements[1]))
+														else nil
+													value.ScaleBy = updated
+												end,
+												function(choice)
+													return if choice == "None"
+														then "None"
+														else ScaleSpec.Sources[choice].Label
+												end,
+												"Adds Per unit times the chosen measure to this amount, up to Max. Measured on each target when the effect lands."
+											)
+											if scaleBy then
+												numeric(
+													"Scale per unit",
+													scaleBy,
+													"PerUnit",
+													"Added per unit of the measure."
+												)
+												numeric(
+													"Scale maximum bonus",
+													scaleBy,
+													"Max",
+													"The most the scaling can add."
+												)
+												if ScaleSpec.Sources[scaleBy.Source].NeedsElement then
+													select(
+														"Scale element",
+														scaleBy.Element or AttributeSpec.Elements[1],
+														AttributeSpec.Elements,
+														function(choice)
+															scaleBy.Element = choice
+														end,
+														nil,
+														"Which element's mark stacks to count."
+													)
+												end
+											end
+										end
 									end
 								end
 							end

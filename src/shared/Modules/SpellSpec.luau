@@ -22,6 +22,7 @@ local SpecialResources = require(script.Parent.Parent.Configuration.MagicLocus).
 local SpellIdentitySpec = require(script.Parent.MagicSpellIdentitySpec)
 local TriggerSpec = require(script.Parent.MagicTriggerSpec)
 local AttributeSpec = require(script.Parent.MagicAttributeSpec)
+local ScaleSpec = require(script.Parent.MagicScaleSpec)
 local Spec = {}
 Spec.Principles = Schema.Principles
 Spec.PresentationProfiles = Schema.PresentationProfiles
@@ -623,6 +624,7 @@ function Spec.validate(d, spawnNesting: number?)
 			RecoveryTime = true,
 			MinimumCharge = true,
 			MaximumCharge = true,
+			ChargeScaling = true,
 			ManaUpkeepPerSecond = true,
 			StrainPerSecond = true,
 			InterruptOnDamage = true,
@@ -676,6 +678,11 @@ function Spec.validate(d, spawnNesting: number?)
 	end
 	if not CastingSpec.isChargeMode(c.Mode) and (c.MinimumCharge ~= nil or c.MaximumCharge ~= nil) then
 		return false, "Charge timing is only valid for Charged or HoldAndRelease casting"
+	end
+	local chargeScalingOk, chargeScalingReason =
+		ScaleSpec.validateChargeScaling(c.ChargeScaling, CastingSpec.isChargeMode(c.Mode))
+	if not chargeScalingOk then
+		return false, chargeScalingReason
 	end
 	if c.Mode == "Channeled" or c.Mode == "Sustained" then
 		if
@@ -1363,7 +1370,7 @@ function Spec.validate(d, spawnNesting: number?)
 				if behavior and not table.find(behavior.PayloadKinds or {}, p.Kind) then
 					return false, "Payload is not supported by this behavior"
 				end
-				local allowedFields = { Kind = true }
+				local allowedFields = { Kind = true, ScaleBy = ScaleSpec.ScalableKinds[p.Kind] == true }
 				for _, field in definition.Fields do
 					allowedFields[field.Key] = true
 				end
@@ -1397,6 +1404,11 @@ function Spec.validate(d, spawnNesting: number?)
 				end
 				if (p.Kind == "ElementalMark" or p.Kind == "ConsumeElementalMark") and d.Element == "Neutral" then
 					return false, "Elemental marks require a non-neutral selected Element"
+				end
+				local scaleOk, scaleReason =
+					ScaleSpec.validateScaleBy(p.ScaleBy, p.Kind, Limits.MaxScaleBonus, AttributeSpec.validElement)
+				if not scaleOk then
+					return false, scaleReason
 				end
 				if p.Kind == "ModifyAttribute" then
 					-- Element is required for Resistance and rejected for every other attribute;
@@ -1493,6 +1505,10 @@ function Spec.estimate(d)
 	local speed = d.Projectile and d.Projectile.Speed or 0
 	local duration = d.Lifetime.Duration or (d.Lifetime.Mode ~= "FixedDuration" and 15 or 1)
 	local strength, count, behaviors, constructComponents, additionalBehaviorTargets = 0, 0, 0, 0, 0
+	local chargeScaling = d.Casting and d.Casting.ChargeScaling
+	local chargePotency = if type(chargeScaling) == "table" and type(chargeScaling.MaxPotency) == "number"
+		then chargeScaling.MaxPotency
+		else 1
 	local burstStrength, controlWeight = 0, 0
 	local environmentRequirementCount = 0
 	local environmentRequirements = d.EnvironmentRequirements or {}
@@ -1535,14 +1551,19 @@ function Spec.estimate(d)
 			end
 			for _, p in ipairs(step.Payloads) do
 				count = count + 1
+				-- Priced at the strongest outcome: full ScaleBy bonus and MaxPotency.
+				local pricedAmount = (
+					math.abs(p.Amount or 0)
+					+ (if type(p.ScaleBy) == "table" then math.abs(p.ScaleBy.Max or 0) else 0)
+				) * chargePotency
 				if p.Kind == "Damage" or p.Kind == "Heal" or p.Kind == "Shield" then
-					burstStrength += math.abs(p.Amount or 0)
+					burstStrength += pricedAmount
 				elseif p.Kind == "Bind" or p.Kind == "Control" or p.Kind == "TimeDilation" then
 					controlWeight += 4 + (p.Duration or 0)
 				elseif p.Kind == "Slow" then
 					controlWeight += (1 - (p.Multiplier or 1)) * 10 * (p.Duration or 1)
 				end
-				local amountWeight = math.abs(p.Amount or 0)
+				local amountWeight = if ScaleSpec.ScalableKinds[p.Kind] then pricedAmount else math.abs(p.Amount or 0)
 				local attribute = p.Kind == "ModifyAttribute" and AttributeSpec.Definitions[p.Attribute]
 				if attribute then
 					-- Weigh every attribute on the same 0-100 scale as armor, so a full

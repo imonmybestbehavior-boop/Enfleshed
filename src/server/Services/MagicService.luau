@@ -18,6 +18,7 @@ local LocusModel = require(Shared.Modules.MagicLocusModel)
 local SpecialResourceSpec = require(Shared.Modules.MagicSpecialResourceSpec)
 local AttributeSpec = require(Shared.Modules.MagicAttributeSpec)
 local EnchantmentSpec = require(Shared.Modules.MagicEnchantmentSpec)
+local ScaleSpec = require(Shared.Modules.MagicScaleSpec)
 local SpecialResourceDefinitions = LocusConfiguration.SpecialResources
 local specialResourcesValid, specialResourcesReason =
 	SpecialResourceSpec.validateDefinitions(SpecialResourceDefinitions)
@@ -731,7 +732,10 @@ end
 local function context(definition, caster, position, targets, direction, remote, player, potency, runtimeState)
 	local stats = playerData[player]
 	local eventDepth = runtimeState and runtimeState.EventDepth or 0
-	local resolvedPotency = potency or (if stats then stats.Potency else LocusProfile.Potency)
+	-- Charge potency (ChargeScaling) multiplies every event of a charged cast;
+	-- execute stores it on that cast's own copy of the definition.
+	local resolvedPotency = (potency or (if stats then stats.Potency else LocusProfile.Potency))
+		* (definition._ChargePotency or 1)
 	local ctx = {
 		Caster = caster,
 		Player = player,
@@ -769,6 +773,7 @@ local function context(definition, caster, position, targets, direction, remote,
 		SpellState = runtimeState,
 		SpellTags = definition.Tags,
 		HealthThreshold = runtimeState and runtimeState.HealthThreshold or nil,
+		ChargeFraction = definition._ChargeFraction or 0,
 		-- OnDamageTaken: the attacker, filtered like any target (relationship, consent,
 		-- spell conditions). Steps with TargetFrom = "Attacker" use this instead of Targets.
 		EventAttackers = if runtimeState and runtimeState.EventAttacker
@@ -847,6 +852,24 @@ local function context(definition, caster, position, targets, direction, remote,
 			end
 		end,
 	}
+	-- ScaleBy sources, read through the condition value adapters; mark stacks
+	-- come from the status service. No extra state is kept.
+	ctx.ScaleRead = function(source: string, humanoid: any, element: string?)
+		if source == "ElementalMarkStacks" then
+			return if humanoid then StatusEffects.elementalMarkStacks(humanoid, element) else 0
+		elseif source == "ChargePercent" then
+			return ctx.ChargeFraction
+		end
+		local model = humanoid and humanoid.Parent
+		return Conditions.scaleValue(source, {
+			Caster = caster,
+			Target = if model and model:IsA("Model") then model else nil,
+			Player = player,
+			SpellId = definition.SpellId,
+			Resources = ctx.Resources,
+			SpellState = runtimeState,
+		})
+	end
 	ctx.ApplyManipulation = function(operation)
 		local target = runtimeState and runtimeState.ObjectTarget
 		if
@@ -2415,6 +2438,15 @@ local function execute(
 	objectPosition
 )
 	local stats = playerData[player]
+	if CastingSpec.isChargeMode(definition.Casting.Mode) then
+		-- This cast's own copy carries how long it was held: ChargePercent for
+		-- ScaleBy and the ChargeScaling potency used by every event it causes.
+		local casting = definition.Casting
+		definition = table.clone(definition)
+		definition._ChargeFraction = ScaleSpec.chargeFraction(charge, casting.MinimumCharge, casting.MaximumCharge)
+		definition._ChargePotency =
+			ScaleSpec.chargePotency(casting.ChargeScaling, charge, casting.MinimumCharge, casting.MaximumCharge)
+	end
 	local channelProjectile = definition.Form == "Projectile" and definition.Casting.Mode == "Channeled"
 	local persistentConstruct = definition.Form == "Construct" and definition.Lifetime.Mode == "Persistent"
 	if not stats or (not persistentConstruct and not hasCapacity(player, if channelProjectile then 2 else 1)) then

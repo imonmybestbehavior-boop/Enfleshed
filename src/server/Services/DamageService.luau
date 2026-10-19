@@ -64,6 +64,10 @@ local function apply(
 	local capProfile =
 		StatCaps.profileName(CombatPolicy.owner(attacker, Players), CombatPolicy.owner(targetModel, Players))
 	incoming = StatCaps.damage(incoming, CapProfiles[capProfile])
+	-- Per-hit cap carried by the hit (PvP damage-over-time ticks), applied last.
+	if eventContext and type(eventContext.PerHitCap) == "number" then
+		incoming = math.min(incoming, eventContext.PerHitCap)
+	end
 	local remaining, absorbed, brokenShields = Status.absorb(target, incoming)
 	local dealt = 0
 	local killed = false

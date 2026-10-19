@@ -221,6 +221,42 @@ class MagicRegistryParity(unittest.TestCase):
 		self.assertIn("MaxSameEnchantmentPerHolder = 3", limits)
 		self.assertNotIn("MaxEnchantmentsPerHolder", limits)
 
+	def test_scaling_clamps_once_in_order(self):
+		# authored amount -> ScaleBy -> charge potency -> outgoing strength -> mitigation -> final caps
+		executors = (ROOT / "src/server/Services/MagicPayloadExecutors.luau").read_text(encoding="utf-8")
+		helper = block(executors, "local function scaledAmount(", "\nend\n")
+		self.assertIn("ScaleSpec.amount(amount, payload.ScaleBy, units)", helper)
+		self.assertIn("return amount * context.Potency", helper)
+		for kind in ("Damage", "Heal", "Shield"):
+			executor = block(executors, f"\n\t{kind} = function(", "\n\tend,")
+			self.assertIn("scaledAmount(payload, context, humanoid)", executor, kind)
+		self.assertEqual(executors.count("scaledAmount(payload, context, target)"), 2, "DamageOverTime apply and refresh")
+		for kind in ("Damage", "Heal", "Shield"):
+			self.assertNotIn("payload.Amount * context.Potency", block(executors, f"\n\t{kind} = function(", "\n\tend,"))
+		self.assertIn("groupContext.CapProfile = CapProfiles[profile]", executors)
+		caps = (ROOT / "src/shared/Modules/SpellStatCaps.luau").read_text(encoding="utf-8")
+		payload_caps = block(caps, "function Caps.payload(", "\nend\n")
+		for cap in ("MaxDotPerTick", "MaxHealPerHit", "MaxShield"):
+			self.assertNotIn(cap, payload_caps, f"{cap} is applied once, on the final amount")
+		damage = (ROOT / "src/server/Services/DamageService.luau").read_text(encoding="utf-8")
+		order = [
+			damage.index("DamageRules.applyOutgoingStrength(incoming"),
+			damage.index("DamageRules.applyChannel(incoming"),
+			damage.index("StatCaps.damage(incoming"),
+			damage.index("incoming = math.min(incoming, eventContext.PerHitCap)"),
+		]
+		self.assertEqual(order, sorted(order), "strength -> mitigation -> PvP caps")
+		status = (ROOT / "src/server/Services/MagicStatusEffectService.luau").read_text(encoding="utf-8")
+		self.assertIn("local limit = if cap then math.min(cap, Limits.MaxHeal) else Limits.MaxHeal", status)
+		service = (ROOT / "src/server/Services/MagicService.luau").read_text(encoding="utf-8")
+		self.assertIn("* (definition._ChargePotency or 1)", service)
+		self.assertIn("definition._ChargePotency =", service)
+		self.assertIn("Conditions.scaleValue(source, {", service)
+		self.assertIn("StatusEffects.elementalMarkStacks(humanoid, element)", service)
+		lab = (ROOT / "src/client/Controllers/MagicLabController.luau").read_text(encoding="utf-8")
+		self.assertIn('"Charge scales power"', lab)
+		self.assertIn('"Scale by"', lab)
+
 	def test_hud_cooldown_follows_cooldown_rate(self):
 		state = (ROOT / "src/client/UI/HUD/SpellState.luau").read_text(encoding="utf-8")
 		self.assertIn('AttributeSpec.multiplier(player.Character, "CooldownRate")', state)

@@ -17,6 +17,7 @@ local CombatPolicy = require(game:GetService("ReplicatedStorage").Shared.Modules
 local StatCaps = require(game:GetService("ReplicatedStorage").Shared.Modules.SpellStatCaps)
 local CapProfiles = require(game:GetService("ReplicatedStorage").Shared.Configuration.SpellStatCaps)
 local Schema = require(game:GetService("ReplicatedStorage").Shared.Configuration.MagicSchema)
+local ScaleSpec = require(game:GetService("ReplicatedStorage").Shared.Modules.MagicScaleSpec)
 local Players = game:GetService("Players")
 local Payloads = {}
 local periodicEffects = {}
@@ -122,6 +123,19 @@ local function applyForce(root, velocity)
 	root:ApplyImpulse(velocity * root.AssemblyMass)
 end
 
+-- Authored amount -> ScaleBy (per target) -> potency (Locus x charge). Final
+-- caps come later: DamageService for damage, Status.heal for healing.
+local function scaledAmount(payload, context, humanoid): number
+	local amount = payload.Amount
+	if payload.ScaleBy and context.ScaleRead then
+		local units = ScaleSpec.units(payload.ScaleBy, function(source, element)
+			return context.ScaleRead(source, humanoid, element)
+		end)
+		amount = ScaleSpec.amount(amount, payload.ScaleBy, units)
+	end
+	return amount * context.Potency
+end
+
 local function payloadDamageContext(payload, context, target)
 	if not context.DamageContext then
 		return nil
@@ -142,6 +156,10 @@ local function payloadDamageContext(payload, context, target)
 	damageContext.HitPart = hitPart
 	damageContext.DamageRegion = region
 	damageContext.RegionMultiplier = multiplier
+	-- PvP per-tick cap for damage over time, applied last in DamageService.
+	if payload.Kind == "DamageOverTime" and context.CapProfile then
+		damageContext.PerHitCap = context.CapProfile.MaxDotPerTick
+	end
 	return damageContext
 end
 
@@ -321,7 +339,7 @@ Payloads.Executors = {
 				-- Refresh duration/strength, never postpone the already scheduled next tick.
 				existing.Remaining = payload.Duration
 				existing.LastUpdateAt = now
-				existing.Amount = payload.Amount * context.Potency
+				existing.Amount = scaledAmount(payload, context, target)
 				existing.Interval = payload.Interval
 				existing.Feedback = context.HitFeedback
 				existing.EffectFeedback = context.EffectFeedback
@@ -338,7 +356,7 @@ Payloads.Executors = {
 					Target = target,
 					SpellId = context.SpellId,
 					Polarity = Schema.Payloads.DamageOverTime.Polarity,
-					Amount = payload.Amount * context.Potency,
+					Amount = scaledAmount(payload, context, target),
 					Interval = payload.Interval,
 					UntilNext = payload.Interval,
 					Remaining = payload.Duration,
@@ -403,7 +421,7 @@ Payloads.Executors = {
 		for _, humanoid in context.Targets or {} do
 			local damageContext = payloadDamageContext(payload, context, humanoid)
 			local dealt, absorbed =
-				Damage.apply(context.Caster, humanoid, payload.Amount * context.Potency, damageContext)
+				Damage.apply(context.Caster, humanoid, scaledAmount(payload, context, humanoid), damageContext)
 			if dealt > 0 then
 				context.HitFeedback(humanoid, dealt)
 			end
@@ -414,7 +432,12 @@ Payloads.Executors = {
 	end,
 	Heal = function(payload: any, context: any)
 		for _, humanoid in context.Targets or {} do
-			local restored = Status.heal(context.Caster, humanoid, payload.Amount * context.Potency)
+			local restored = Status.heal(
+				context.Caster,
+				humanoid,
+				scaledAmount(payload, context, humanoid),
+				context.CapProfile and context.CapProfile.MaxHealPerHit
+			)
 			if restored > 0 then
 				context.EffectFeedback("Heal", humanoid, restored)
 			end
@@ -427,17 +450,22 @@ Payloads.Executors = {
 					context.DamageContext.EmitEvent("OnBreak", target)
 				end
 				else nil
+			local amount = scaledAmount(payload, context, humanoid)
+			local shieldCap = context.CapProfile and context.CapProfile.MaxShield
+			if shieldCap then
+				amount = math.min(amount, shieldCap)
+			end
 			local added = Status.shield(
 				context.Caster,
 				humanoid,
 				context.SpellId,
-				payload.Amount * context.Potency,
+				amount,
 				payload.Duration,
 				onBreak,
 				context.TargetDeathCallback and context.TargetDeathCallback(humanoid)
 			)
 			if added then
-				context.EffectFeedback("Shield", humanoid, payload.Amount * context.Potency)
+				context.EffectFeedback("Shield", humanoid, amount)
 			end
 		end
 	end,
@@ -640,6 +668,8 @@ function Payloads.execute(payloads: { any }, context: any)
 			for profile, targets in groups do
 				local groupContext = table.clone(context)
 				groupContext.Targets = targets
+				-- Final per-hit caps for this target group (damage over time, heal, shield).
+				groupContext.CapProfile = CapProfiles[profile]
 				executor(StatCaps.payload(payload, CapProfiles[profile], context.Potency), groupContext)
 			end
 		end
