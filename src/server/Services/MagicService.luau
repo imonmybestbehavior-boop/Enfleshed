@@ -166,23 +166,40 @@ local function enchantmentType(definition: any): string
 	end)
 end
 
--- Whether `owner` may put `definition` on `holder` (refresh, or within the per-type caps).
-local function canHoldEnchantment(owner: Player, definition: any, holder: Model, isSelf: boolean): (boolean, string?)
+-- Gameplay identity per definition table (the same spell in two casters'
+-- libraries has the same identity).
+local enchantmentIdentities: { [any]: string } = setmetatable({}, { __mode = "k" }) :: any
+local function enchantmentIdentity(definition: any): string
+	local identity = enchantmentIdentities[definition]
+	if not identity then
+		identity = EnchantmentSpec.identity(definition)
+		enchantmentIdentities[definition] = identity
+	end
+	return identity
+end
+
+-- Whether `owner` may put `definition` on `holder`. The same caster recasting
+-- the same Enchantment refreshes it (refreshKey: their record to replace);
+-- different casters may stack the same Enchantment at most
+-- MaxSameEnchantmentPerHolder times. There is no other cap.
+local function canHoldEnchantment(owner: Player, definition: any, holder: Model): (boolean, string?, string?)
 	local existing = {}
 	for otherOwner, effects in enhancements do
 		for key, effect in effects do
 			if effect.State.Character == holder then
-				table.insert(existing, { Key = tostring(otherOwner.UserId) .. ":" .. key, Type = effect.Type })
+				table.insert(existing, {
+					Owner = tostring(otherOwner.UserId),
+					Key = key,
+					Identity = effect.Identity or enchantmentIdentity(effect.Definition),
+				})
 			end
 		end
 	end
-	local key = tostring(owner.UserId) .. ":" .. EnchantmentSpec.key(definition.SpellId, holderKey(holder), isSelf)
 	return EnchantmentSpec.canAdd(
 		existing,
-		key,
-		enchantmentType(definition),
-		Limits.MaxEnchantmentsPerHolderType,
-		Limits.MaxEnchantmentsPerHolder
+		tostring(owner.UserId),
+		enchantmentIdentity(definition),
+		Limits.MaxSameEnchantmentPerHolder
 	)
 end
 
@@ -420,7 +437,7 @@ local function validate(
 		end
 		if definition.Form == "SelfEnhancement" then
 			-- Check the holder's enchantment caps before any cost is paid.
-			local allowed, capReason = canHoldEnchantment(player, definition, selectedTarget, false)
+			local allowed, capReason = canHoldEnchantment(player, definition, selectedTarget)
 			if not allowed then
 				return "IMPOSSIBLE", capReason
 			end
@@ -2017,7 +2034,7 @@ end
 local function startSelfEnhancement(d, state, direction, remote, player, holderState: any?): (boolean, string?)
 	local holder = holderState or state
 	local isSelf = holder.Character == state.Character
-	local allowed, capReason = canHoldEnchantment(player, d, holder.Character, isSelf)
+	local allowed, capReason, refreshKey = canHoldEnchantment(player, d, holder.Character)
 	if not allowed then
 		return false, capReason
 	end
@@ -2034,13 +2051,17 @@ local function startSelfEnhancement(d, state, direction, remote, player, holderS
 	end
 	Triggers.execute(d, "OnCast", ctx)
 	enhancements[player] = enhancements[player] or {}
-	local previous = enhancements[player][key]
-	if previous then
-		-- Recasting on the same holder refreshes the enchantment.
-		if previous.ComposedVisual then
-			Presentation.finish(previous.ComposedVisual)
+	-- Recasting the same Enchantment on the same holder refreshes it, even from
+	-- another library slot with identical content (refreshKey).
+	for _, oldKey in { key, refreshKey } do
+		local previous = enhancements[player][oldKey]
+		if previous then
+			if previous.ComposedVisual then
+				Presentation.finish(previous.ComposedVisual)
+			end
+			Presentation.stopSound(previous.AmbientSound)
+			enhancements[player][oldKey] = nil
 		end
-		Presentation.stopSound(previous.AmbientSound)
 	end
 	enhancements[player][key] = {
 		State = holder,
@@ -2051,6 +2072,7 @@ local function startSelfEnhancement(d, state, direction, remote, player, holderS
 		IsSelf = isSelf,
 		Key = key,
 		Type = enchantmentType(d),
+		Identity = enchantmentIdentity(d),
 		Definition = d,
 		Remote = remote,
 		Direction = direction,

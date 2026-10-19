@@ -32,20 +32,37 @@ assert(Spec.key("Slot1", "7", true) == "Slot1")
 assert(Spec.key("Slot1", "7", false) == "Slot1@7")
 assert(Spec.key("Slot1", "8", false) ~= Spec.key("Slot1", "7", false))
 
--- Caps: 3 per type, refresh always allowed, total cap.
+-- Identity: the same spell from two casters is the same Enchantment; cosmetic
+-- fields (slot id, name, visuals, audio, tags) and runtime "_" keys do not count.
+local blessA = def("Heal", "Shield")
+blessA.SpellId, blessA.Name, blessA.Visual = "MagicLabSlot1", "Blessing", { Color = "gold" }
+local blessB = def("Heal", "Shield")
+blessB.SpellId, blessB.Name, blessB._VFXCaster = "MagicLabSlot4", "My blessing", {}
+assert(Spec.identity(blessA) == Spec.identity(blessB), "same content, different slots and names")
+local stronger = def("Heal", "Shield")
+stronger.Triggers.OnCast[1].Payloads[1].Amount = 40
+assert(Spec.identity(stronger) ~= Spec.identity(blessA), "different numbers are a different Enchantment")
+
+-- Caps: the same Enchantment stacks 3 times from different casters; the same
+-- caster refreshes; different Enchantments never limit each other.
+local bless, hex = Spec.identity(blessA), Spec.identity(def("Slow"))
 local existing = {
-	{ Key = "1:A@7", Type = "Boon" },
-	{ Key = "2:B@7", Type = "Boon" },
-	{ Key = "3:C@7", Type = "Boon" },
-	{ Key = "1:D@7", Type = "Bane" },
+	{ Owner = "1", Key = "Slot1@7", Identity = bless },
+	{ Owner = "2", Key = "Slot4@7", Identity = bless },
+	{ Owner = "3", Key = "Slot2@7", Identity = bless },
+	{ Owner = "1", Key = "Slot3@7", Identity = hex },
 }
-local ok, reason = Spec.canAdd(existing, "4:E@7", "Boon", 3, 9)
-assert(not ok and string.find(reason, "3 Boon", 1, true), "a fourth Boon is refused")
-assert(Spec.canAdd(existing, "1:A@7", "Boon", 3, 9), "recasting the same spell on the same holder refreshes")
-assert(Spec.canAdd(existing, "4:E@7", "Bane", 3, 9), "a second Bane fits")
-assert(Spec.canAdd(existing, "4:E@7", "Neutral", 3, 9), "different types stack separately")
-ok, reason = Spec.canAdd(existing, "4:E@7", "Neutral", 3, 4)
-assert(not ok and string.find(reason, "4 enchantments", 1, true), "total cap")
+local ok, reason, refreshKey = Spec.canAdd(existing, "4", bless, 3)
+assert(not ok and string.find(reason, "3 times", 1, true), "a fourth caster's copy is refused")
+ok, reason, refreshKey = Spec.canAdd(existing, "2", bless, 3)
+assert(ok and refreshKey == "Slot4@7", "the same caster recasting refreshes their copy")
+ok, reason, refreshKey = Spec.canAdd(existing, "4", hex, 3)
+assert(ok and refreshKey == nil, "a different Enchantment is not limited by the blessings")
+local many = {}
+for owner = 1, 20 do
+	table.insert(many, { Owner = tostring(owner), Key = "S@7", Identity = "spell" .. owner })
+end
+assert(Spec.canAdd(many, "99", bless, 3), "no total cap per character")
 
 -- Lifecycle: holder death first, then holder gone, owner death, duration.
 local record = { ExpiresAt = 10 }

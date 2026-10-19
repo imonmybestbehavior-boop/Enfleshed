@@ -192,11 +192,12 @@ class MagicRegistryParity(unittest.TestCase):
 		# Record: State is the holder, OwnerState/Caster/Player the owner.
 		for field in ("State = holder,", "OwnerState = state,", "Owner = player,", "Caster = state.Character,", "IsSelf = isSelf,"):
 			self.assertIn(field, start)
-		self.assertIn("canHoldEnchantment(player, d, holder.Character, isSelf)", start)
+		self.assertIn("canHoldEnchantment(player, d, holder.Character)", start)
+		self.assertIn("Identity = enchantmentIdentity(d),", start)
 		self.assertIn("Presentation.follow(d, holder.Root", start)
 		# Caps are checked before costs in validate, and again on start.
 		validation = block(service, "local function validate(", "\nlocal function refreshHolder")
-		self.assertIn("canHoldEnchantment(player, definition, selectedTarget, false)", validation)
+		self.assertIn("canHoldEnchantment(player, definition, selectedTarget)", validation)
 		# Movement and the overhead summary are per holder, across all owners.
 		refresh = block(service, "local function refreshHolder(", "\nend\n")
 		self.assertIn('character:SetAttribute("MagicEnchantments"', refresh)
@@ -217,7 +218,8 @@ class MagicRegistryParity(unittest.TestCase):
 		summons = (ROOT / "src/server/Services/SummonService.luau").read_text(encoding="utf-8")
 		self.assertIn("profile.CanEnchant == true", summons)
 		limits = (ROOT / "src/shared/Configuration/MagicLab.luau").read_text(encoding="utf-8")
-		self.assertIn("MaxEnchantmentsPerHolderType = 3", limits)
+		self.assertIn("MaxSameEnchantmentPerHolder = 3", limits)
+		self.assertNotIn("MaxEnchantmentsPerHolder", limits)
 
 	def test_hud_cooldown_follows_cooldown_rate(self):
 		state = (ROOT / "src/client/UI/HUD/SpellState.luau").read_text(encoding="utf-8")

@@ -37,27 +37,72 @@ function Spec.key(spellId: string, holderId: string, isSelf: boolean): string
 	return if isSelf then spellId else spellId .. "@" .. holderId
 end
 
--- `existing` lists the enchantments already on this holder as { Key, Type }.
--- Recasting the same spell on the same holder refreshes it; otherwise at most
--- `perType` of each type and `total` overall may sit on one holder.
-function Spec.canAdd(existing: { any }, key: string, kind: string, perType: number, total: number): (boolean, string?)
-	local sameType, count = 0, 0
+-- Keys that do not change what an Enchantment does, so two casters' copies of
+-- the same spell count as the same Enchantment.
+local cosmetic = {
+	SpellId = true,
+	Name = true,
+	Description = true,
+	Visual = true,
+	Audio = true,
+	Tags = true,
+	Development = true,
+	Cost = true,
+	EstimatedCost = true,
+}
+
+local function canonical(value: any, depth: number): string
+	local kind = type(value)
+	if kind == "number" then
+		return string.format("%.6g", value)
+	elseif kind == "string" then
+		return string.format("%q", value)
+	elseif kind == "boolean" then
+		return tostring(value)
+	elseif kind ~= "table" or depth > 12 then
+		return "_"
+	end
+	local keys = {}
+	for key in pairs(value) do
+		if type(key) == "number" or (type(key) == "string" and not cosmetic[key] and string.sub(key, 1, 1) ~= "_") then
+			table.insert(keys, key)
+		end
+	end
+	table.sort(keys, function(a, b)
+		return tostring(a) < tostring(b)
+	end)
+	local parts = {}
+	for _, key in ipairs(keys) do
+		table.insert(parts, tostring(key) .. "=" .. canonical(value[key], depth + 1))
+	end
+	return "{" .. table.concat(parts, ",") .. "}"
+end
+
+-- Identity of an Enchantment: its gameplay content, independent of whose
+-- library slot it came from.
+function Spec.identity(definition: any): string
+	return canonical(definition, 0)
+end
+
+-- `existing` lists the enchantments already on this holder as
+-- { Owner, Key, Identity }. A recast of the same Enchantment by the same owner
+-- refreshes it (refreshKey is that owner's record to replace). Different owners
+-- may stack the same Enchantment at most `perSpell` times. Different
+-- Enchantments never limit each other.
+function Spec.canAdd(existing: { any }, owner: string, identity: string, perSpell: number): (boolean, string?, string?)
+	local others = 0
 	for _, record in ipairs(existing) do
-		if record.Key == key then
-			return true, nil
+		if record.Identity == identity then
+			if record.Owner == owner then
+				return true, nil, record.Key
+			end
+			others += 1
 		end
-		count += 1
-		if record.Type == kind then
-			sameType += 1
-		end
 	end
-	if sameType >= perType then
-		return false, "Target already holds " .. perType .. " " .. kind .. " enchantments"
+	if others >= perSpell then
+		return false, "This Enchantment is already on them " .. perSpell .. " times", nil
 	end
-	if count >= total then
-		return false, "Target already holds " .. total .. " enchantments"
-	end
-	return true, nil
+	return true, nil, nil
 end
 
 -- Why an enchantment should end now, or nil. Facts are sampled each frame.
