@@ -170,6 +170,42 @@ class MagicRegistryParity(unittest.TestCase):
 			self.assertIn("SpellId = context.SpellId,", periodic)
 			self.assertIn(f"Polarity = Schema.Payloads.{kind}.Polarity,", periodic)
 
+	def test_melee_hits_and_damage_taken_reactions_are_wired_and_bounded(self):
+		service = (ROOT / "src/server/Services/MagicService.luau").read_text(encoding="utf-8")
+		listener = block(service, "Damage.Applied:Connect(function(", "\nend)\n")
+		# OnDamageTaken: attacker passed as event data; non-spell hits start a root at
+		# depth 0, spell hits continue the chain so thorns cannot ping-pong forever.
+		self.assertIn("local reactionDepth = if fromSpell then depth + 1 else 0", listener)
+		self.assertIn("eventState.EventAttacker = attackerHumanoid", listener)
+		self.assertIn("eventState.OperationBudget = damageContext.OperationBudget", listener)
+		self.assertEqual(listener.count("damageTakenState(spell)") + listener.count("damageTakenState(effect)"), 2)
+		# OnMeleeHit: only real melee hits (no spell context), new root at depth 0.
+		self.assertIn("if melee == true and damageContext == nil then", listener)
+		self.assertIn('lifecycleState(spell, "OnMeleeHit", 0)', listener)
+		self.assertIn('lifecycleState(effect, "OnMeleeHit", 0)', listener)
+		self.assertIn("spell.FollowTargetModel == attacker", listener)
+		self.assertIn("EventAttackers = if runtimeState and runtimeState.EventAttacker", service)
+		damage = (ROOT / "src/server/Services/DamageService.luau").read_text(encoding="utf-8")
+		self.assertIn("applied:Fire(attacker, target, dealt, killed, eventContext, melee)", damage)
+		self.assertIn("return apply(attacker, target, amount, nil, true)", damage)
+		dispatch = (ROOT / "src/server/Services/MagicTriggerDispatch.luau").read_text(encoding="utf-8")
+		self.assertIn('step.TargetFrom == "Attacker"', dispatch)
+		self.assertIn("conditions.filter(step.Condition, stepContext)", dispatch)
+		self.assertIn('"OnMeleeHit"', self.schema)
+
+	def test_hud_cooldown_follows_cooldown_rate(self):
+		state = (ROOT / "src/client/UI/HUD/SpellState.luau").read_text(encoding="utf-8")
+		self.assertIn('AttributeSpec.multiplier(player.Character, "CooldownRate")', state)
+		self.assertIn("State.CooldownDurations[slot] = duration", state)
+		self.assertIn("definition.Casting.RecoveryTime", state)
+		bar = (ROOT / "src/client/UI/HUD/SpellBar.luau").read_text(encoding="utf-8")
+		self.assertIn("SpellState.CooldownDurations[index]", bar)
+		service = (ROOT / "src/server/Services/MagicService.luau").read_text(encoding="utf-8")
+		self.assertIn("/ cooldownRate", service)
+		# Charge and wind-up visuals are timed by the server, already scaled by CastSpeed.
+		self.assertIn("definition.Casting.MaximumCharge / chargeRate", service)
+		self.assertIn("definition.Casting.CastTime / castSpeed", service)
+
 	def test_elemental_marks_use_the_selected_element_and_shared_status_path(self):
 		payloads = block(self.schema, "Schema.Payloads = {", "\nfor kind, payload in Schema.Payloads")
 		self.assertIn("ElementalMark = {", payloads)
@@ -283,7 +319,7 @@ class MagicRegistryParity(unittest.TestCase):
 		construct = block(self.schema, "Construct = {", "\n\tManipulation = {")
 		self.assertIn('"OnExpire"', construct)
 		self.assertIn('"OnProximity"', construct)
-		self.assertIn('Events = set({ "OnCast", "OnExpire", "OnDamageTaken", "OnCasterDeath", "OnProximity" })', self.schema)
+		self.assertIn('Events = set({ "OnCast", "OnExpire", "OnDamageTaken", "OnMeleeHit", "OnCasterDeath", "OnProximity" })', self.schema)
 		expiry_helper = block(service, "local function expireSelfEnhancement(player: Player, effect: any)", "\nlocal function stopToggledEffect")
 		self.assertIn("LifetimeSpec.claimExpiry(effect)", expiry_helper)
 		self.assertIn("dispatchClaimedExpiry(effect, position, { humanoid }, nil, character, player)", expiry_helper)

@@ -106,6 +106,7 @@ local EventPhrase = {
 	OnProximity = "When a target comes close",
 	OnDamageDealt = "After it deals damage",
 	OnDamageTaken = "When you take damage",
+	OnMeleeHit = "When your melee hit lands",
 	OnThreshold = "When a target's health drops past a threshold",
 	OnBreak = "When the shield breaks",
 	OnTargetDeath = "When a target dies",

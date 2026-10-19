@@ -3541,6 +3541,21 @@ function Lab.start(send, aim, launcher)
 					info("Add a payload to create a command-trigger step, then optionally filter by command.", 34)
 				end
 			end
+			if configuring and event == "OnDamageTaken" then
+				local damageStep = primary()
+				if damageStep then
+					select(
+						"Applies to",
+						damageStep.TargetFrom or "Holder",
+						Schema.TargetFromOptions,
+						function(value)
+							damageStep.TargetFrom = if value == "Holder" then nil else value
+						end,
+						nil,
+						"Holder applies the effect to you. Attacker applies it to whoever damaged you (thorns), if this spell's relationship allows them."
+					)
+				end
+			end
 			if configuring and event == "OnTargetDeath" then
 				local deathStep = primary()
 				if deathStep then

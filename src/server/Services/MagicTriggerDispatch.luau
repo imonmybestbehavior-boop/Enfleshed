@@ -17,10 +17,21 @@ function Dispatch.execute(definition, event, context, payloads, behaviors, comma
 		end
 
 		local stepContext = context
-		if matches and step.Condition ~= nil then
-			local passing = conditions and conditions.filter(step.Condition, context)
-			if passing then
+		-- TargetFrom = "Attacker" (OnDamageTaken): act on whoever dealt the damage,
+		-- already filtered by the spell's relationship. No eligible attacker: skip.
+		if matches and step.TargetFrom == "Attacker" then
+			local attackers = context.EventAttackers
+			if type(attackers) == "table" and #attackers > 0 then
 				stepContext = table.clone(context)
+				stepContext.Targets = attackers
+			else
+				matches = false
+			end
+		end
+		if matches and step.Condition ~= nil then
+			local passing = conditions and conditions.filter(step.Condition, stepContext)
+			if passing then
+				stepContext = table.clone(stepContext)
 				stepContext.Targets = passing
 			else
 				matches = false

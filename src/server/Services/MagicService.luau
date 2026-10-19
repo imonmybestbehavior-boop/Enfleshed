@@ -659,6 +659,16 @@ local function context(definition, caster, position, targets, direction, remote,
 		SpellState = runtimeState,
 		SpellTags = definition.Tags,
 		HealthThreshold = runtimeState and runtimeState.HealthThreshold or nil,
+		-- OnDamageTaken: the attacker, filtered like any target (relationship, consent,
+		-- spell conditions). Steps with TargetFrom = "Attacker" use this instead of Targets.
+		EventAttackers = if runtimeState and runtimeState.EventAttacker
+			then Conditions.targets(definition, caster, position, { runtimeState.EventAttacker }, {
+				Player = player,
+				Resources = resourceSnapshot(stats),
+				SpellState = runtimeState,
+				AllowDeadTargets = true,
+			})
+			else {},
 		Command = runtimeState and runtimeState.Command or nil,
 		DeathCause = runtimeState and runtimeState.DeathCause or nil,
 		TrackAffected = function(humanoid)
@@ -742,6 +752,9 @@ local function context(definition, caster, position, targets, direction, remote,
 	end
 	ctx.DamageContext = {
 		Depth = eventDepth,
+		-- Reactions to this damage (OnDamageTaken) share the chain's cascade budget.
+		OperationBudget = runtimeState and runtimeState.OperationBudget or nil,
+		OriginEvent = runtimeState and runtimeState.EventName or nil,
 		SourceRuntimeState = runtimeState and runtimeState.RuntimeOrigin or nil,
 		HitPart = runtimeState and runtimeState.HitPart or nil,
 		Element = definition.Element or "Neutral",
@@ -963,7 +976,7 @@ local function interruptWindupForDamage(target: Humanoid, amount: number)
 	end
 end
 
-Damage.Applied:Connect(function(attacker: Model, target: Humanoid, amount: number, killed: boolean, damageContext: any?)
+Damage.Applied:Connect(function(attacker: Model, target: Humanoid, amount: number, killed, damageContext: any?, melee)
 	interruptWindupForDamage(target, amount)
 	if damageContext and type(damageContext.EmitEvent) == "function" then
 		local maxHealth = target.MaxHealth
@@ -994,6 +1007,21 @@ Damage.Applied:Connect(function(attacker: Model, target: Humanoid, amount: numbe
 	if depth >= Limits.MaxMagicEventDepth then
 		return
 	end
+	-- A hit that did not come from a spell (melee, enemy, guard) starts a new root
+	-- reaction at depth 0 with its own budget. A hit dealt by a spell continues
+	-- that spell's chain (depth + 1, shared budget) so two thorns spells cannot
+	-- reflect damage back and forth forever.
+	local fromSpell = damageContext ~= nil and type(damageContext.Depth) == "number"
+	local reactionDepth = if fromSpell then depth + 1 else 0
+	local attackerHumanoid = attacker:FindFirstChildOfClass("Humanoid")
+	local function damageTakenState(source: any): any
+		local eventState = lifecycleState(source, "OnDamageTaken", reactionDepth)
+		eventState.EventAttacker = attackerHumanoid
+		if fromSpell then
+			eventState.OperationBudget = damageContext.OperationBudget
+		end
+		return eventState
+	end
 	for _, spell in active do
 		if spell.Caster == targetModel and hasEvent(spell.Definition, "OnDamageTaken") then
 			emit(
@@ -1006,7 +1034,7 @@ Damage.Applied:Connect(function(attacker: Model, target: Humanoid, amount: numbe
 				spell.Remote,
 				spell.Player,
 				nil,
-				lifecycleState(spell, "OnDamageTaken", depth + 1)
+				damageTakenState(spell)
 			)
 		end
 	end
@@ -1028,8 +1056,62 @@ Damage.Applied:Connect(function(attacker: Model, target: Humanoid, amount: numbe
 					effect.Remote,
 					player,
 					nil,
-					lifecycleState(effect, "OnDamageTaken", depth + 1)
+					damageTakenState(effect)
 				)
+			end
+		end
+	end
+	-- OnMeleeHit: a landed weapon/claw hit (DamageService.applyMelee) fires on every
+	-- active spell or enchantment the attacker holds. Spell damage never carries
+	-- IsMelee, so damage from an OnMeleeHit step cannot re-trigger it.
+	if melee == true and damageContext == nil then
+		local targetRoot = targetModel:FindFirstChild("HumanoidRootPart")
+		local hitPosition = if targetRoot and targetRoot:IsA("BasePart")
+			then targetRoot.Position
+			else targetModel:GetPivot().Position
+		for _, spell in table.clone(active) do
+			local holds = spell.Caster == attacker
+				and (spell.Kind ~= "Field" or (spell.FollowTarget == true and spell.FollowTargetModel == attacker))
+			if holds and hasEvent(spell.Definition, "OnMeleeHit") then
+				local eventState = lifecycleState(spell, "OnMeleeHit", 0)
+				eventState.Position = hitPosition
+				emit(
+					spell.Definition,
+					"OnMeleeHit",
+					spell.Caster,
+					hitPosition,
+					{ target },
+					spell.Direction or Vector3.zero,
+					spell.Remote,
+					spell.Player,
+					nil,
+					eventState
+				)
+			end
+		end
+		for player, effects in enhancements do
+			for _, effect in effects do
+				if
+					effect.State.Character == attacker
+					and effect.State.Humanoid.Health > 0
+					and effect.Definition
+					and hasEvent(effect.Definition, "OnMeleeHit")
+				then
+					local eventState = lifecycleState(effect, "OnMeleeHit", 0)
+					eventState.Position = hitPosition
+					emit(
+						effect.Definition,
+						"OnMeleeHit",
+						attacker,
+						hitPosition,
+						{ target },
+						effect.Direction,
+						effect.Remote,
+						player,
+						nil,
+						eventState
+					)
+				end
 			end
 		end
 	end

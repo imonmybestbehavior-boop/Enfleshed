@@ -1835,6 +1835,24 @@ function Forge.mount(parent, draft, schema, spec, callbacks)
 			end)
 		end
 	end
+	-- OnDamageTaken steps can act on you (the holder) or on whoever hit you.
+	local function targetFromField(step, eventName)
+		if eventName ~= "OnDamageTaken" then
+			return
+		end
+		choiceField(
+			"Applies to",
+			"You: the effect lands on you. Attacker: it lands on whoever damaged you (thorns), if the spell's relationship allows them.",
+			schema.TargetFromOptions,
+			step.TargetFrom or "Holder",
+			function(choice)
+				step.TargetFrom = if choice == "Holder" then nil else choice
+			end,
+			function(choice)
+				return if choice == "Attacker" then "THE ATTACKER" else "YOU"
+			end
+		)
+	end
 	local function matches(label)
 		local query = string.lower(state.Search or "")
 		return query == "" or string.find(string.lower(tostring(label)), query, 1, true) ~= nil
@@ -2232,6 +2250,7 @@ function Forge.mount(parent, draft, schema, spec, callbacks)
 			if payload.Kind == "Damage" and (payload.DamageChannel or "Elemental") == "Elemental" then
 				note("Elemental damage uses the spell's element: " .. tostring(draft.Element) .. ".")
 			end
+			targetFromField(s.Step, s.Event)
 			section("PROPERTIES")
 			fieldGroup(payload, definition.Fields, "payload:" .. payload.Kind)
 			section("")
@@ -2252,6 +2271,7 @@ function Forge.mount(parent, draft, schema, spec, callbacks)
 			if step.Condition then
 				note("IF · Runs only when its condition passes. Edit the condition in Advanced view.", C.Arcane)
 			end
+			targetFromField(step, s.Event)
 			section("PROPERTIES")
 			fieldGroup(step, definition.Fields, "behavior:" .. tostring(step.Behavior))
 			section("AFFECTS EVERYTHING INSIDE WITH")

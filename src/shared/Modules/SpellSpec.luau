@@ -1241,6 +1241,14 @@ function Spec.validate(d, spawnNesting: number?)
 		if event == "OnBreak" and not hasShieldSource then
 			return false, "OnBreak requires a Shield payload on another trigger"
 		end
+		if
+			event == "OnMeleeHit"
+			and d.Form == "Field"
+			and not (type(d.Field) == "table" and d.Field.FollowTarget == true)
+		then
+			-- At runtime it also fires only while the Field follows its own caster.
+			return false, "OnMeleeHit on a Field requires a Field that follows you"
+		end
 		local usedThresholds = {}
 		for _, step in ipairs(steps) do
 			if type(step) ~= "table" then
@@ -1263,6 +1271,12 @@ function Spec.validate(d, spawnNesting: number?)
 				stepFields.Command = true
 				if step.Command ~= nil and not table.find(Schema.CommandOrder, step.Command) then
 					return false, "OnCommand has an unsupported command filter"
+				end
+			end
+			if event == "OnDamageTaken" then
+				stepFields.TargetFrom = true
+				if step.TargetFrom ~= nil and not table.find(Schema.TargetFromOptions, step.TargetFrom) then
+					return false, "OnDamageTaken target must be Holder or Attacker"
 				end
 			end
 			if event == "OnTargetDeath" then

@@ -305,8 +305,9 @@ function SpellBar.new(gui: ScreenGui, openSpellbook: () -> ())
 			local info = SpellState.Slots[index]
 			local ends = SpellState.CooldownEnds[index]
 			local remaining = if ends then ends - now else 0
-			if info and remaining > 0 and info.Cooldown > 0 then
-				slot.Sweep.Size = UDim2.fromScale(1, math.clamp(remaining / info.Cooldown, 0, 1))
+			local duration = SpellState.CooldownDurations[index] or (info and info.Cooldown) or 0
+			if info and remaining > 0 and duration > 0 then
+				slot.Sweep.Size = UDim2.fromScale(1, math.clamp(remaining / duration, 0, 1))
 				slot.Seconds.Text = if remaining >= 10
 					then string.format("%d", math.ceil(remaining))
 					else string.format("%.1f", remaining)

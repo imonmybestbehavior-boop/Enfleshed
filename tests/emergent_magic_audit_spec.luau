@@ -522,6 +522,8 @@ emit = function(definition, event, caster, position, targets, depth, data, inher
 	ctx.SpellState = eventState
 	ctx.HealthThreshold = data and data.HealthThreshold
 	ctx.DeathCause = event == "OnTargetDeath" and (data and data.DeathCause or "KilledByThisSpell") or nil
+	-- MagicService passes the (relationship-filtered) attacker for OnDamageTaken.
+	ctx.EventAttackers = data and data.Attackers or {}
 	Dispatch.execute(definition, event, ctx, PayloadExec, BehaviorExec, Commands, TargetDeath, StepConditions)
 end
 
@@ -1519,6 +1521,119 @@ end
 
 ---------------------------------------------------------------------------
 local kinds = { CAPABILITY = 0, LIMITATION = 0 }
+---------------------------------------------------------------------------
+-- Melee and damage-taken reactions: thorns and weapon imbues
+---------------------------------------------------------------------------
+do
+	-- Thorns: an Enchantment that hurts whoever damages its holder.
+	local thorns = draft("SelfEnhancement", "Body", function(d)
+		d.Triggers = {
+			OnDamageTaken = { { TargetFrom = "Attacker", Payloads = { payload("Damage", { Amount = 6 }) } } },
+		}
+	end)
+	local thornsOk, thornsReason = validates(thorns)
+	check(
+		"MELEE",
+		"CAPABILITY",
+		thornsOk,
+		"thorns (OnDamageTaken -> Attacker -> Damage) validates: " .. tostring(thornsReason)
+	)
+	local e = resetWorld({ vec(2, 0, 0) }, 100)
+	emit(thorns, "OnDamageTaken", caster, vec(0, 0, -50), { casterHumanoid }, 0, { Attackers = { e[1] } })
+	check("MELEE", "CAPABILITY", totalDamageTo("Enemy1") == 6, "thorns damages the attacker")
+	check("MELEE", "CAPABILITY", totalDamageTo("Caster") == 0, "thorns never damages its holder")
+	resetWorld({ vec(2, 0, 0) }, 100)
+	emit(thorns, "OnDamageTaken", caster, vec(0, 0, -50), { casterHumanoid }, 0, { Attackers = {} })
+	check(
+		"MELEE",
+		"CAPABILITY",
+		damageOps == 0,
+		"no eligible attacker (filtered out, or environment damage): step skipped"
+	)
+	-- Default TargetFrom (Holder) keeps acting on the holder.
+	local guard = draft("SelfEnhancement", "Body", function(d)
+		d.Triggers = { OnDamageTaken = { { Payloads = { payload("Shield", { Amount = 10 }) } } } }
+	end)
+	resetWorld({ vec(2, 0, 0) }, 100)
+	emit(guard, "OnDamageTaken", caster, vec(0, 0, -50), { casterHumanoid }, 0, { Attackers = { enemies[1] } })
+	check("MELEE", "CAPABILITY", count(function(x)
+		return x.Op == "Status.shield" and x.Target == "Caster"
+	end) == 1, "a Holder step still shields the holder")
+	check("MELEE", "CAPABILITY", not validates(draft("SelfEnhancement", "Body", function(d)
+		d.Triggers = { OnCast = { { TargetFrom = "Attacker", Payloads = { payload("Damage") } } } }
+	end)), "TargetFrom is only accepted on OnDamageTaken")
+	check("MELEE", "CAPABILITY", not validates(draft("SelfEnhancement", "Body", function(d)
+		d.Triggers = { OnDamageTaken = { { TargetFrom = "Bystander", Payloads = { payload("Damage") } } } }
+	end)), "TargetFrom must be Holder or Attacker")
+
+	-- Fire imbue: every melee hit marks the target with Fire; every third hit
+	-- also bursts a Wave where it landed.
+	local function rule(property, operator, value)
+		return {
+			Operator = "ALL",
+			Conditions = { { Family = "SpellState", Property = property, Operator = operator, Value = value } },
+		}
+	end
+	local burst = spec.defaultSpawnEffect("Wave")
+	burst.Geometry = "Sphere"
+	burst.Wave.Range = 6
+	burst.Triggers = { OnCast = { { Payloads = { payload("Damage", { Amount = 4 }) } } } }
+	local imbue = draft("SelfEnhancement", "Body", function(d)
+		d.Element = "Fire"
+		d.Triggers = {
+			OnMeleeHit = {
+				{ Payloads = { payload("ElementalMark", { Stacks = 1, Duration = 5 }) } },
+				{
+					Condition = rule("TriggerCount", "MultipleOf", 3),
+					Behavior = "SpawnEffect",
+					Payloads = {},
+					Effect = burst,
+				},
+			},
+		}
+	end)
+	local imbueOk, imbueReason = validates(imbue)
+	check(
+		"MELEE",
+		"CAPABILITY",
+		imbueOk,
+		"fire imbue (OnMeleeHit mark + every 3rd hit Wave) validates: " .. tostring(imbueReason)
+	)
+	e = resetWorld({ vec(0, 0, 0) }, 1000)
+	local enchantment = {}
+	for _ = 1, 6 do
+		emit(imbue, "OnMeleeHit", caster, vec(0, 0, 0), { e[1] }, 0, nil, nil, enchantment)
+	end
+	check("MELEE", "CAPABILITY", count(function(x)
+		return x.Op == "Status.elementalMark" and x.Target == "Enemy1"
+	end) == 6, "each of 6 melee hits applies a Fire mark")
+	check("MELEE", "CAPABILITY", count(function(x)
+		return x.Op == "Spawn" and x.Form == "Wave"
+	end) == 2, "hits 3 and 6 burst a Wave")
+	check("MELEE", "CAPABILITY", totalDamageTo("Enemy1") == 8, "both Waves damage the target (2 x 4)")
+	-- Spell damage from an OnMeleeHit step is not a melee hit, so it never
+	-- re-emits OnMeleeHit: only the 6 driven events appear.
+	check("MELEE", "CAPABILITY", count(function(x)
+		return x.Op == "Event" and x.Event == "OnMeleeHit"
+	end) == 6, "Wave damage does not trigger OnMeleeHit again")
+
+	-- Where OnMeleeHit is offered: Enchantment, Aura, and Fields that follow.
+	check("MELEE", "CAPABILITY", schema.supportsEvent("Aura", "OnMeleeHit"), "Aura supports OnMeleeHit")
+	check("MELEE", "CAPABILITY", not schema.supportsEvent("Projectile", "OnMeleeHit"), "Projectile does not")
+	local stillField = draft("Field", "Energy", function(d)
+		d.Triggers = { OnMeleeHit = { { Payloads = { payload("Damage") } } } }
+	end)
+	check("MELEE", "CAPABILITY", not validates(stillField), "a stationary Field cannot use OnMeleeHit")
+	local followField = draft("Field", "Energy", function(d)
+		d.Targeting = "EntityTarget"
+		d.TargetPolicy = "LockOn"
+		d.Field.FollowTarget = true
+		d.Triggers = { OnMeleeHit = { { Payloads = { payload("Damage") } } } }
+	end)
+	local followOk, followReason = validates(followField)
+	check("MELEE", "CAPABILITY", followOk, "a following Field can use OnMeleeHit: " .. tostring(followReason))
+end
+
 for _, r in ipairs(results) do
 	kinds[r.Kind] += 1
 	print(string.format("[%s] %-8s %-10s %s", r.Ok and "ok" or "FAIL", r.Test, r.Kind, r.Message))

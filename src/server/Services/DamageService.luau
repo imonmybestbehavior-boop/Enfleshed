@@ -74,7 +74,8 @@ local function apply(
 		killed = before > 0 and target.Health <= 0
 	end
 	if dealt > 0 then
-		applied:Fire(attacker, target, dealt, killed, eventContext)
+		-- Last argument: IsMelee, true only for DamageService.applyMelee hits (OnMeleeHit).
+		applied:Fire(attacker, target, dealt, killed, eventContext, melee)
 	end
 	for _, effect in brokenShields do
 		if effect.OnBreak then
