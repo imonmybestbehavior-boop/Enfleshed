@@ -17,7 +17,7 @@ Zones are the server-owned Player attribute `PvPZone` (`"Open"` / `"Ranked"`); p
 - **Every damage hit** (spells, DoT ticks, melee, summons) in `DamageService.apply`, after armor/block and before shields: `× DamageMultiplier`, then `≤ MaxDamagePerHit`.
 - **Every spell payload** in `MagicPayloadExecutors.execute`: targets are grouped by profile and each group gets a capped copy of the payload (durations, slow strength, bind, control, displacement, force, time dilation, size, stat changes, heal, shield, DoT). Caps are on the *final* value after potency, so potency boosts (absorb, ranks) cannot exceed them. Saved spells are never modified.
 
-Known gap: secondary effects triggered by elemental marks run inside the mark executor; their damage is capped (it goes through `DamageService`) but their slow strength/duration use the mark's own values.
+- **Mark-triggered effects**: an elemental mark's starter effects (for example Burning's DoT and Slow) and every elemental reaction effect (Conduct, Firestorm, Freeze, Shatter, Toxic smoke, Mire) go through the same `Payloads.execute` path (`applySecondary` in `MagicPayloadExecutors`). They get the hostility filter and the target's profile caps like any authored payload, and are credited to the caster of the incoming mark. Freeze's Stun also gets Stun's diminishing returns and the 0.5 s PvP cap. Reaction Fields (Firestorm, Toxic smoke) are ordinary spawned effects, so their ticks are capped the same way.
 
 ## Tuning
 Values in `Configuration/SpellStatCaps.luau` are starting points. Tune from PvP playtests and the `SpellUsage` analytics event ([ANALYTICS.md](ANALYTICS.md)); disable a broken part entirely with the kill switches in [FEATURE_FLAGS.md](FEATURE_FLAGS.md).

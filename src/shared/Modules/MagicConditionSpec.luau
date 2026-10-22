@@ -116,6 +116,12 @@ ConditionSpec.Properties = {
 		},
 		MagicArmorBonus = { Kind = "Number", Min = -100, Max = 100, Operators = numeric },
 		MagicStrengthBonus = { Kind = "Number", Min = -75, Max = 100, Operators = numeric },
+		Reaction = {
+			Kind = "String",
+			MaxLength = 24,
+			Operators = stringComparison,
+			Help = 'The last elemental reaction on the target within 5 s, such as "Freeze" or "Conduct"; empty otherwise.',
+		},
 		-- ModifyAttribute bonuses (ranges match MagicAttributeSpec).
 		PhysicalArmorBonus = { Kind = "Number", Min = -100, Max = 100, Operators = numeric },
 		SoulArmorBonus = { Kind = "Number", Min = -100, Max = 100, Operators = numeric },

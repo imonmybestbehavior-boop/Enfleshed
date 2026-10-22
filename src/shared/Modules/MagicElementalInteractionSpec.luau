@@ -67,6 +67,16 @@ function Spec.reactionNames(interactions: { any }?): { string }
 	return names
 end
 
+-- The Status.Reaction condition value: the target's last reaction name while
+-- it is within ReactionMemory seconds, otherwise "".
+function Spec.recentReaction(name: any, at: any, now: number, memory: number?): string
+	local window = memory or MagicLab.ReactionMemory or 0
+	if type(name) ~= "string" or type(at) ~= "number" or now - at > window or now < at then
+		return ""
+	end
+	return name
+end
+
 -- SpellId given to effects a reaction applies; Frozen = an active Stun from Freeze.
 function Spec.spellId(reaction: any): string
 	return "Reaction:" .. tostring(reaction.Name)

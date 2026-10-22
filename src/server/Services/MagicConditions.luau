@@ -6,6 +6,7 @@ local CollectionService = game:GetService("CollectionService")
 local Lighting = game:GetService("Lighting")
 local Players = game:GetService("Players")
 local Spec = require(game:GetService("ReplicatedStorage").Shared.Modules.MagicConditionSpec)
+local Interactions = require(game:GetService("ReplicatedStorage").Shared.Modules.MagicElementalInteractionSpec)
 local Evaluator = require(game:GetService("ReplicatedStorage").Shared.Modules.MagicConditionEvaluator)
 local LifetimeCondition = require(game:GetService("ReplicatedStorage").Shared.Modules.MagicLifetimeConditionSpec)
 local Relationships = require(game:GetService("ReplicatedStorage").Shared.Modules.MagicRelationship)
@@ -257,6 +258,11 @@ local function values(context: any): { [string]: any }
 			IsBound = targetBound == true,
 			IsRevealed = statusModel ~= nil and CollectionService:HasTag(statusModel, "MagicRevealedTarget"),
 			ElementalMarks = if type(targetElementalMarks) == "string" then targetElementalMarks else "||",
+			Reaction = Interactions.recentReaction(
+				if statusHumanoid then statusHumanoid:GetAttribute("MagicLastReaction") else nil,
+				if statusHumanoid then statusHumanoid:GetAttribute("MagicLastReactionAt") else nil,
+				workspace:GetServerTimeNow()
+			),
 			IsBurning = ElementalMarkSpec.hasEncoded(encodedElementalMarks, "Fire"),
 			IsWet = ElementalMarkSpec.hasEncoded(encodedElementalMarks, "Water"),
 			MagicArmorBonus = if type(targetArmorBonus) == "number" then targetArmorBonus else 0,

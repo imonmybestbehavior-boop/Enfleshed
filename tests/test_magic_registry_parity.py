@@ -314,13 +314,32 @@ class MagicRegistryParity(unittest.TestCase):
 		self.assertIn("ConsumeElementalMark = {", payloads)
 		self.assertIn("MaxElementalMarkStacks = 5", (ROOT / "src/shared/Configuration/MagicLab.luau").read_text(encoding="utf-8"))
 		limits = (ROOT / "src/shared/Configuration/MagicLab.luau").read_text(encoding="utf-8")
+		# ElementalInteractions is one list: starter entries have Incoming and no Existing.
+		interactions = block(limits, "\tElementalInteractions = {", "\n\t},\n")
 		for element in ("Fire", "Water", "Ice", "Lightning", "Earth", "Wind", "Poison"):
-			self.assertIn(element + " = {", limits, "Every authored element should have a starter interaction")
+			self.assertRegex(
+				interactions,
+				rf'\{{\n\t\t\tIncoming = "{element}",\n\t\t\tEffects = \{{',
+				"Every authored element should have a starter interaction",
+			)
 		executors = (ROOT / "src/server/Services/MagicPayloadExecutors.luau").read_text(encoding="utf-8")
 		self.assertIn("context.DamageContext.Element", executors)
 		self.assertIn("Status.elementalMark(", executors)
 		self.assertIn("Status.consumeElementalMark(", executors)
 		self.assertIn("ElementalInteractions.effectsFor(element", executors)
+		# Starter and reaction effects go through Payloads.execute (hostility filter + PvP caps).
+		secondary = block(executors, "local function applySecondary(", "\nend\n")
+		self.assertIn("Payloads.execute({ effect }, effectContext)", secondary)
+		# Reaction effects: credited to the incoming caster, paid from the cascade
+		# budget, and capped (Chain damage and plain effects via applySecondary).
+		reaction = block(executors, "local function applyReaction(", "\nend\n")
+		self.assertIn("OperationBudget.spend(budget, 1 + #reaction.Effects)", reaction)
+		self.assertEqual(reaction.count("applySecondary("), 2, "Chain damage and plain effects")
+		self.assertIn('if target:IsA("Humanoid") and not context.FromMark and not context.FromReaction then', executors)
+		# Reactions are checked when the mark lands, before it stacks.
+		status_source = (ROOT / "src/server/Services/MagicStatusEffectService.luau").read_text(encoding="utf-8")
+		mark = block(status_source, "function Status.elementalMark(", "\nfunction ")
+		self.assertLess(mark.index("Status.checkReaction(humanoid, element)"), mark.index("ElementalMarkSpec.apply("))
 		status = (ROOT / "src/server/Services/MagicStatusEffectService.luau").read_text(encoding="utf-8")
 		self.assertIn("ElementalMarkSpec.apply(", status)
 		self.assertIn('"MagicElementalMarks"', status)

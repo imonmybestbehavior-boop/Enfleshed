@@ -203,6 +203,7 @@ local DamageService = {
 			Target = humanoid.Parent.Name,
 			Amount = amount,
 			Depth = damageContext and damageContext.Depth,
+			Channel = damageContext and damageContext.DamageChannel,
 		})
 		-- Mirrors MagicService's Damage.Applied listener (MagicService.luau ~1084-1106).
 		if damageContext and type(damageContext.EmitEvent) == "function" then
@@ -236,6 +237,16 @@ local StatusDouble = setmetatable({}, {
 		end
 	end,
 })
+-- Mirrors the real signatures: elementalMark returns (applied, reaction?) and
+-- checkReaction returns a reaction or nil. No reactions unless a scenario
+-- installs its own versions.
+rawset(StatusDouble, "elementalMark", function(_, target)
+	record({ Op = "Status.elementalMark", Target = target and target.Parent and target.Parent.Name })
+	return true, nil
+end)
+rawset(StatusDouble, "checkReaction", function()
+	return nil
+end)
 local ControlDouble = {
 	apply = function()
 		return true, true
@@ -255,6 +266,7 @@ local sharedModules = {
 	MagicSchema = schema,
 	MagicScaleSpec = scaleSpec,
 	MagicCrowdControlSpec = load("src/shared/Modules/MagicCrowdControlSpec.luau"),
+	MagicOperationBudget = load("src/shared/Modules/MagicOperationBudget.luau"),
 }
 sharedModules.SpellStatCaps = assert(loadfile(
 	"src/shared/Modules/SpellStatCaps.luau",
@@ -331,6 +343,7 @@ local serverEnv = setmetatable({
 						SpellStatCaps = "SpellStatCaps",
 						MagicScaleSpec = "MagicScaleSpec",
 						MagicCrowdControlSpec = "MagicCrowdControlSpec",
+						MagicOperationBudget = "MagicOperationBudget",
 					},
 					Configuration = {
 						MagicLab = "MagicLab",
@@ -459,6 +472,14 @@ local function makeContext(definition, caster, position, targets, depth, budget)
 	}
 	-- Mirrors MagicService's ScaleRead: mark stacks from the status service,
 	-- everything else from the same values the step-condition double uses.
+	-- Mirrors MagicService's reaction helpers: a sphere query (Conduct) and a
+	-- reaction Field spawn (Firestorm, Toxic smoke), recorded instead of built.
+	ctx.FindHumanoidsNear = function(at, radius)
+		return sphereQuery(at, radius)
+	end
+	ctx.SpawnReactionField = function(effect, at)
+		record({ Op = "ReactionField", Element = effect.Element, Radius = effect.Radius, Kind = effect.Kind })
+	end
 	ctx.ScaleRead = function(source, humanoid, element)
 		if source == "ElementalMarkStacks" then
 			return StatusDouble.elementalMarkStacks(humanoid, element)
@@ -1998,6 +2019,180 @@ do
 		"Remove Boons strips the Boon Enchantment and Boon statuses only"
 	)
 	rawset(StatusDouble, "cleanseCandidates", nil)
+end
+
+---------------------------------------------------------------------------
+-- Elemental reactions (real executors; status doubles use the real rules)
+---------------------------------------------------------------------------
+do
+	local Interactions = load("src/shared/Modules/MagicElementalInteractionSpec.luau")
+	-- Marks and Frozen per target, kept by these doubles the way the status
+	-- service keeps them: a reaction is checked before the new mark stacks.
+	local marks, frozen = {}, {}
+	local function has(humanoid)
+		return function(name)
+			if name == "Frozen" then
+				return frozen[humanoid] == true
+			end
+			return (marks[humanoid] and marks[humanoid][name] or 0) > 0
+		end
+	end
+	local function react(humanoid, incoming, allow)
+		if allow == false then
+			return nil
+		end
+		local reaction = Interactions.findReaction(incoming, has(humanoid))
+		if not reaction then
+			return nil
+		end
+		if reaction.Existing == "Frozen" then
+			frozen[humanoid] = nil
+		elseif reaction.ConsumeStacks then
+			marks[humanoid][reaction.Existing] =
+				math.max(0, marks[humanoid][reaction.Existing] - reaction.ConsumeStacks)
+		end
+		record({ Op = "Reaction", Name = reaction.Name, Target = humanoid.Parent.Name })
+		return reaction
+	end
+	rawset(StatusDouble, "elementalMark", function(_, humanoid, _, element, stacks, _, allow)
+		local reaction = react(humanoid, element, allow)
+		marks[humanoid] = marks[humanoid] or {}
+		marks[humanoid][element] = (marks[humanoid][element] or 0) + (stacks or 1)
+		record({ Op = "Status.elementalMark", Target = humanoid.Parent.Name, Element = element })
+		return true, reaction
+	end)
+	rawset(StatusDouble, "checkReaction", function(humanoid, incoming)
+		return react(humanoid, incoming, true)
+	end)
+	rawset(StatusDouble, "hasElementalMark", function(humanoid, element)
+		return has(humanoid)(element)
+	end)
+	rawset(StatusDouble, "addConcealment", function(position, radius, duration)
+		record({ Op = "Status.addConcealment", Radius = radius, Duration = duration })
+	end)
+	rawset(StatusDouble, "stun", function(_, humanoid, spellId)
+		if spellId == "Reaction:Freeze" then
+			frozen[humanoid] = true
+		end
+		record({ Op = "Status.stun", Target = humanoid.Parent.Name, SpellId = spellId })
+		return true
+	end)
+	local function markSpell(element)
+		return draft("Projectile", "Energy", function(d)
+			d.Element = element
+			d.Triggers.OnImpact = { { Payloads = { payload("ElementalMark", { Stacks = 1, Duration = 4 }) } } }
+		end)
+	end
+	local function setup(positions)
+		local e = resetWorld(positions, 1000)
+		table.clear(marks)
+		table.clear(frozen)
+		return e
+	end
+	local function ops(op, target)
+		return count(function(x)
+			return x.Op == op and (target == nil or x.Target == target)
+		end)
+	end
+	local function reactions(name)
+		return count(function(x)
+			return x.Op == "Reaction" and x.Name == name
+		end)
+	end
+
+	-- Conduct: Wet + Lightning chains 8 damage to other Wet targets within 10 studs.
+	local e = setup({ vec(0, 0, 0), vec(4, 0, 0), vec(30, 0, 0) })
+	marks[e[1]] = { Water = 1 }
+	marks[e[2]] = { Water = 1 }
+	marks[e[3]] = { Water = 1 }
+	emit(markSpell("Lightning"), "OnImpact", caster, vec(0, 0, 0), { e[1] }, 0)
+	check("REACT", "CAPABILITY", reactions("Conduct") == 1, "Wet + Lightning conducts")
+	check("REACT", "CAPABILITY", totalDamageTo("Enemy2") == 8, "the hit chains to the Wet neighbour (8)")
+	check("REACT", "CAPABILITY", totalDamageTo("Enemy3") == 0, "but not beyond 10 studs")
+	check("REACT", "CAPABILITY", marks[e[1]].Water == 0, "Conduct consumes a Wet stack")
+	check("REACT", "LIMITATION", reactions("Conduct") == 1, "chained hits never conduct again (no reaction chains)")
+
+	-- Firestorm: Burning + Wind spawns a small burning Field.
+	e = setup({ vec(0, 0, 0) })
+	marks[e[1]] = { Fire = 1 }
+	emit(markSpell("Wind"), "OnImpact", caster, vec(0, 0, 0), { e[1] }, 0)
+	check("REACT", "CAPABILITY", reactions("Firestorm") == 1, "Burning + Wind becomes a firestorm")
+	check("REACT", "CAPABILITY", count(function(x)
+		return x.Op == "ReactionField" and x.Element == "Fire" and x.Radius == 6
+	end) == 1, "a small burning Field is spawned")
+
+	-- Freeze: Wet + Ice stuns for 1 s through Phase 6 Stun (DR and PvP cap apply there).
+	e = setup({ vec(0, 0, 0) })
+	marks[e[1]] = { Water = 1 }
+	emit(markSpell("Ice"), "OnImpact", caster, vec(0, 0, 0), { e[1] }, 0)
+	check("REACT", "CAPABILITY", reactions("Freeze") == 1, "Wet + Ice freezes")
+	check("REACT", "CAPABILITY", count(function(x)
+		return x.Op == "Status.stun" and x.SpellId == "Reaction:Freeze"
+	end) == 1, "Freeze is a Stun tagged Reaction:Freeze")
+
+	-- Shatter: Frozen + Earth, or Frozen + a Force hit: 15 Physical damage, ends the Freeze.
+	emit(markSpell("Earth"), "OnImpact", caster, vec(0, 0, 0), { e[1] }, 0)
+	check("REACT", "CAPABILITY", reactions("Shatter") == 1, "Frozen + Earth shatters")
+	check("REACT", "CAPABILITY", count(function(x)
+		return x.Op == "Damage" and x.Target == "Enemy1" and x.Amount == 15 and x.Channel == "Physical"
+	end) == 1, "Shatter deals 15 Physical damage")
+	check("REACT", "CAPABILITY", frozen[e[1]] == nil, "Shatter ends the Freeze")
+	e = setup({ vec(0, 0, 0) })
+	frozen[e[1]] = true
+	local shove = draft("Projectile", "Energy", function(d)
+		d.Triggers.OnImpact = { { Payloads = { payload("Force", { Magnitude = 20 }) } } }
+	end)
+	emit(shove, "OnImpact", caster, vec(0, 0, 0), { e[1] }, 0)
+	check("REACT", "CAPABILITY", reactions("Shatter") == 1, "a Force spell shatters a Frozen target")
+	-- Wind's own starter Force (a mark effect) must not shatter: no reaction chains.
+	e = setup({ vec(0, 0, 0) })
+	frozen[e[1]] = true
+	emit(markSpell("Wind"), "OnImpact", caster, vec(0, 0, 0), { e[1] }, 0)
+	check(
+		"REACT",
+		"LIMITATION",
+		reactions("Shatter") == 0 and frozen[e[1]] == true,
+		"a mark's own Force effect never shatters"
+	)
+
+	-- Toxic smoke: Burning + Poison spawns a Field and a zone that blocks Reveal.
+	e = setup({ vec(0, 0, 0) })
+	marks[e[1]] = { Fire = 1 }
+	emit(markSpell("Poison"), "OnImpact", caster, vec(0, 0, 0), { e[1] }, 0)
+	check("REACT", "CAPABILITY", reactions("ToxicSmoke") == 1, "Burning + Poison makes toxic smoke")
+	check("REACT", "CAPABILITY", ops("Status.addConcealment") == 1, "the smoke blocks Reveal")
+	check("REACT", "CAPABILITY", count(function(x)
+		return x.Op == "ReactionField" and x.Kind == "Smoke" and x.Radius == 8
+	end) == 1, "and shows as an 8-stud Field")
+
+	-- Mire: Earth + Water is a strong Slow.
+	e = setup({ vec(0, 0, 0) })
+	marks[e[1]] = { Earth = 1 }
+	emit(markSpell("Water"), "OnImpact", caster, vec(0, 0, 0), { e[1] }, 0)
+	check("REACT", "CAPABILITY", reactions("Mire") == 1, "Earth + Water mires")
+	check("REACT", "CAPABILITY", ops("Status.slow", "Enemy1") >= 2, "Mire adds a Slow on top of Water's own")
+
+	-- One reaction per landing, and the incoming mark still lands.
+	e = setup({ vec(0, 0, 0) })
+	marks[e[1]] = { Water = 1, Earth = 1 }
+	emit(markSpell("Ice"), "OnImpact", caster, vec(0, 0, 0), { e[1] }, 0)
+	check(
+		"REACT",
+		"CAPABILITY",
+		ops("Reaction") == 1 and marks[e[1]].Ice == 1,
+		"one reaction per landing; the mark still stacks"
+	)
+
+	-- Starter effects are unchanged: a mark with nothing to react to applies only its starters.
+	e = setup({ vec(0, 0, 0) })
+	emit(markSpell("Fire"), "OnImpact", caster, vec(0, 0, 0), { e[1] }, 0)
+	check("REACT", "CAPABILITY", ops("Reaction") == 0, "no reaction without an existing state")
+	check(
+		"REACT",
+		"CAPABILITY",
+		ops("Status.slow", "Enemy1") == 1 and ops("Status.modifyAttribute", "Enemy1") == 1,
+		"Fire's starters still apply"
+	)
 end
 
 for _, r in ipairs(results) do
