@@ -775,6 +775,13 @@ local function context(definition, caster, position, targets, direction, remote,
 		SpellTags = definition.Tags,
 		HealthThreshold = runtimeState and runtimeState.HealthThreshold or nil,
 		ChargeFraction = definition._ChargeFraction or 0,
+		-- OnDamageDealt: how much the triggering hit dealt (PercentDamageDealt).
+		DamageDealt = runtimeState and runtimeState.DamageDealt or nil,
+		-- TargetFrom = "Caster" (OnDamageDealt): the caster, if alive.
+		CasterTargets = (function()
+			local casterHumanoid = caster and caster:FindFirstChildOfClass("Humanoid")
+			return if casterHumanoid and casterHumanoid.Health > 0 then { casterHumanoid } else {}
+		end)(),
 		-- OnDamageTaken: the attacker, filtered like any target (relationship, consent,
 		-- spell conditions). Steps with TargetFrom = "Attacker" use this instead of Targets.
 		EventAttackers = if runtimeState and runtimeState.EventAttacker
@@ -942,6 +949,7 @@ local function context(definition, caster, position, targets, direction, remote,
 					then (eventData and eventData.DeathCause or "KilledByThisSpell")
 					else nil,
 				HealthThreshold = eventData and eventData.HealthThreshold or nil,
+				DamageDealt = eventData and eventData.DamageDealt or nil,
 				UsePreviousTargetSet = eventName == "OnBreak",
 			}
 			local eventPosition = position
@@ -979,6 +987,54 @@ local function context(definition, caster, position, targets, direction, remote,
 		return function()
 			ctx.DamageContext.EmitEvent("OnTargetDeath", targetHumanoid, { DeathCause = "DiedWhileAffected" })
 		end
+	end
+	-- DrainResource / RestoreResource: players only (creatures have no mana).
+	-- Drain moves from the target to this caster's owner; Restore adds to the
+	-- target. Returns the amount moved.
+	ctx.TransferResource = function(mode: string, humanoid: any, resource: string, amount: number): number
+		local targetPlayer = humanoid and humanoid.Parent and Players:GetPlayerFromCharacter(humanoid.Parent)
+		local targetStats = targetPlayer and playerData[targetPlayer]
+		if not targetStats then
+			return 0
+		end
+		local special = resource ~= "Mana" and SpecialResourceDefinitions[resource] or nil
+		if resource ~= "Mana" and (not special or type(targetStats.SpecialResources) ~= "table") then
+			return 0
+		end
+		local function read(stats: any): number
+			return if special then stats.SpecialResources[resource] or 0 else stats.Mana
+		end
+		local function capacity(stats: any): number
+			return if special then special.Capacity else stats.Capacity
+		end
+		local function write(stats: any, value: number)
+			if special then
+				stats.SpecialResources[resource] = value
+			else
+				stats.Mana = value
+			end
+		end
+		local moved = 0
+		if mode == "Drain" then
+			local casterStats = playerData[player]
+			if not casterStats or targetPlayer == player then
+				return 0
+			end
+			local targetAfter, casterAfter, taken =
+				SpecialResourceSpec.drain(read(targetStats), read(casterStats), capacity(casterStats), amount)
+			write(targetStats, targetAfter)
+			write(casterStats, casterAfter)
+			moved = taken
+			syncHUDResourceAttributes(player, casterStats)
+			syncSpecialResourceAttributes(player)
+		else
+			local targetAfter, added = SpecialResourceSpec.restore(read(targetStats), capacity(targetStats), amount)
+			write(targetStats, targetAfter)
+			moved = added
+		end
+		syncHUDResourceAttributes(targetPlayer, targetStats)
+		syncSpecialResourceAttributes(targetPlayer)
+		return moved
 	end
 	-- Elemental reactions: nearby humanoids (Conduct), and short reaction Fields
 	-- (Firestorm, Toxic smoke) spawned through the ordinary SpawnEffect path.
@@ -1173,7 +1229,7 @@ Damage.Applied:Connect(function(attacker: Model, target: Humanoid, amount: numbe
 			healthBefore = math.min(maxHealth, target.Health + amount) / maxHealth * 100
 			healthAfter = target.Health / maxHealth * 100
 		end
-		damageContext.EmitEvent("OnDamageDealt", target)
+		damageContext.EmitEvent("OnDamageDealt", target, { DamageDealt = amount })
 		if maxHealth > 0 then
 			for _, step in ipairs(damageContext.ThresholdSteps or {}) do
 				local threshold = step.HealthPercent

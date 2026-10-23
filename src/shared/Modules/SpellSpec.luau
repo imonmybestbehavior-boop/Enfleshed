@@ -1298,10 +1298,16 @@ function Spec.validate(d, spawnNesting: number?)
 					return false, "OnCommand has an unsupported command filter"
 				end
 			end
-			if event == "OnDamageTaken" then
+			local targetFromOptions = Schema.TargetFromByEvent[event]
+			if targetFromOptions then
 				stepFields.TargetFrom = true
-				if step.TargetFrom ~= nil and not table.find(Schema.TargetFromOptions, step.TargetFrom) then
-					return false, "OnDamageTaken target must be Holder or Attacker"
+				if step.TargetFrom ~= nil and not table.find(targetFromOptions, step.TargetFrom) then
+					return false, event .. " target must be " .. table.concat(targetFromOptions, " or ")
+				end
+			end
+			for _, p in ipairs(type(step.Payloads) == "table" and step.Payloads or {}) do
+				if type(p) == "table" and p.Mode == "PercentDamageDealt" and event ~= "OnDamageDealt" then
+					return false, "Percent of damage dealt only works On damage dealt"
 				end
 			end
 			if event == "OnTargetDeath" then

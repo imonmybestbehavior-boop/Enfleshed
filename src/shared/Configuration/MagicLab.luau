@@ -25,6 +25,12 @@ return {
 	-- Silence blocks spell casts and channels (players only).
 	MaxSilenceDuration = 4,
 	MaxCleanseCount = 10,
+	-- Taunt / Fear (creatures only). Provisional.
+	MaxTauntDuration = 6,
+	MaxFearDuration = 4,
+	MaxStealthDuration = 8, -- provisional
+	MaxResourceTransfer = 50, -- DrainResource / RestoreResource per target, provisional
+	HealOverflowShieldDuration = 5, -- Heal Overflow = "Shield", provisional
 	MaxRevealDuration = 15,
 	MaxEffectsPerTarget = 8,
 	-- The same Enchantment (same spell) stacks at most this many times on one

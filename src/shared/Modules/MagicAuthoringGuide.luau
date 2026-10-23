@@ -7,7 +7,7 @@ Guide.Intents = {
 		Id = "Attack",
 		Label = "Attack",
 		Description = "Hurt a target or pressure an area with damaging effects.",
-		Payloads = { "Damage", "DamageOverTime", "Force" },
+		Payloads = { "Damage", "DamageOverTime", "Force", "DrainResource" },
 		RecommendedForms = { "Projectile", "Beam", "Wave", "Field" },
 	},
 	{
@@ -21,7 +21,7 @@ Guide.Intents = {
 		Id = "Healing",
 		Label = "Healing & support",
 		Description = "Restore health or help an ally survive and recover.",
-		Payloads = { "Heal", "Restoration", "Shield", "ModifyAttribute", "Cleanse" },
+		Payloads = { "Heal", "Restoration", "Shield", "ModifyAttribute", "Cleanse", "Stealth", "RestoreResource" },
 		RecommendedForms = { "Aura", "Field", "Beam", "Projectile" },
 	},
 	{
@@ -35,7 +35,7 @@ Guide.Intents = {
 		Id = "Control",
 		Label = "Control",
 		Description = "Slow, bind, pull, push, or otherwise limit a target.",
-		Payloads = { "Slow", "Bind", "Stun", "Silence", "Control", "TimeDilation", "Displacement" },
+		Payloads = { "Slow", "Bind", "Stun", "Silence", "Taunt", "Fear", "Control", "TimeDilation", "Displacement" },
 		RecommendedForms = { "Field", "Wave", "Projectile", "Beam", "Aura" },
 	},
 	{

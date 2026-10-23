@@ -208,7 +208,7 @@ local DamageService = {
 		-- Mirrors MagicService's Damage.Applied listener (MagicService.luau ~1084-1106).
 		if damageContext and type(damageContext.EmitEvent) == "function" then
 			local maxHealth = humanoid.MaxHealth
-			damageContext.EmitEvent("OnDamageDealt", humanoid)
+			damageContext.EmitEvent("OnDamageDealt", humanoid, { DamageDealt = before - humanoid.Health })
 			for _, step in ipairs(damageContext.ThresholdSteps or {}) do
 				local t = step.HealthPercent
 				if t and before / maxHealth * 100 > t and humanoid.Health / maxHealth * 100 <= t then
@@ -247,6 +247,17 @@ end)
 rawset(StatusDouble, "checkReaction", function()
 	return nil
 end)
+-- Heal and shield record their amounts; heal reports what the missing health
+-- allowed (Status.heal's return), without changing health.
+rawset(StatusDouble, "heal", function(_, target, amount)
+	local restored = math.min(amount, math.max(0, target.MaxHealth - target.Health))
+	record({ Op = "Status.heal", Target = target.Parent.Name, Amount = amount, Restored = restored })
+	return restored
+end)
+rawset(StatusDouble, "shield", function(_, target, _, amount, duration)
+	record({ Op = "Status.shield", Target = target.Parent.Name, Amount = amount, Duration = duration })
+	return true
+end)
 local ControlDouble = {
 	apply = function()
 		return true, true
@@ -267,6 +278,7 @@ local sharedModules = {
 	MagicScaleSpec = scaleSpec,
 	MagicCrowdControlSpec = load("src/shared/Modules/MagicCrowdControlSpec.luau"),
 	MagicOperationBudget = load("src/shared/Modules/MagicOperationBudget.luau"),
+	MagicHealSpec = load("src/shared/Modules/MagicHealSpec.luau"),
 }
 sharedModules.SpellStatCaps = assert(loadfile(
 	"src/shared/Modules/SpellStatCaps.luau",
@@ -344,6 +356,7 @@ local serverEnv = setmetatable({
 						MagicScaleSpec = "MagicScaleSpec",
 						MagicCrowdControlSpec = "MagicCrowdControlSpec",
 						MagicOperationBudget = "MagicOperationBudget",
+						MagicHealSpec = "MagicHealSpec",
 					},
 					Configuration = {
 						MagicLab = "MagicLab",
@@ -561,6 +574,10 @@ emit = function(definition, event, caster, position, targets, depth, data, inher
 	ctx.DeathCause = event == "OnTargetDeath" and (data and data.DeathCause or "KilledByThisSpell") or nil
 	-- MagicService passes the (relationship-filtered) attacker for OnDamageTaken.
 	ctx.EventAttackers = data and data.Attackers or {}
+	-- OnDamageDealt: the hit's damage and the caster (TargetFrom = "Caster").
+	ctx.DamageDealt = data and data.DamageDealt
+	local casterHumanoid = caster:FindFirstChildOfClass("Humanoid")
+	ctx.CasterTargets = if casterHumanoid and casterHumanoid.Health > 0 then { casterHumanoid } else {}
 	Dispatch.execute(definition, event, ctx, PayloadExec, BehaviorExec, Commands, TargetDeath, StepConditions)
 end
 
@@ -1602,6 +1619,76 @@ do
 	check("MELEE", "CAPABILITY", not validates(draft("SelfEnhancement", "Body", function(d)
 		d.Triggers = { OnDamageTaken = { { TargetFrom = "Bystander", Payloads = { payload("Damage") } } } }
 	end)), "TargetFrom must be Holder or Attacker")
+
+	-- Lifesteal: OnDamageDealt -> Caster -> Heal 50% of the damage dealt.
+	local lifesteal = draft("Projectile", "Body", function(d)
+		d.Triggers.OnImpact = { { Payloads = { payload("Damage", { Amount = 20 }) } } }
+		d.Triggers.OnDamageDealt = {
+			{
+				TargetFrom = "Caster",
+				Payloads = { payload("Heal", { Amount = 50, Mode = "PercentDamageDealt" }) },
+			},
+		}
+	end)
+	local lifestealOk, lifestealReason = validates(lifesteal)
+	check(
+		"MELEE",
+		"CAPABILITY",
+		lifestealOk,
+		"lifesteal (OnDamageDealt -> Caster -> Heal 50% of damage) validates: " .. tostring(lifestealReason)
+	)
+	local victims = resetWorld({ vec(2, 0, 0) }, 100)
+	casterHumanoid.Health = 50
+	emit(lifesteal, "OnImpact", caster, vec(0, 0, -50), { victims[1] }, 0)
+	local dealt = totalDamageTo("Enemy1")
+	local lifestealHeals = {}
+	for _, entry in ipairs(log) do
+		if entry.Op == "Status.heal" then
+			table.insert(lifestealHeals, entry)
+		end
+	end
+	check(
+		"MELEE",
+		"CAPABILITY",
+		dealt > 0
+			and #lifestealHeals == 1
+			and lifestealHeals[1].Target == "Caster"
+			and math.abs(lifestealHeals[1].Amount - dealt * 0.5) < 1e-6,
+		"lifesteal heals the caster for half the damage the hit dealt"
+	)
+	casterHumanoid.Health = casterHumanoid.MaxHealth
+	check("MELEE", "CAPABILITY", not validates(draft("Projectile", "Body", function(d)
+		d.Triggers.OnImpact = { { Payloads = { payload("Heal", { Amount = 50, Mode = "PercentDamageDealt" }) } } }
+	end)), "PercentDamageDealt is only accepted on OnDamageDealt")
+	check("MELEE", "CAPABILITY", not validates(draft("SelfEnhancement", "Body", function(d)
+		d.Triggers = { OnDamageTaken = { { TargetFrom = "Caster", Payloads = { payload("Heal") } } } }
+	end)), "TargetFrom Caster is only accepted on OnDamageDealt")
+
+	-- Overflow: a heal larger than the missing health shields the rest.
+	local overheal = draft("SelfEnhancement", "Body", function(d)
+		d.Triggers = {
+			OnCast = { { Payloads = { payload("Heal", { Amount = 30, Overflow = "Shield" }) } } },
+		}
+	end)
+	check("MELEE", "CAPABILITY", (validates(overheal)), "Heal with Overflow = Shield validates")
+	resetWorld({}, 100)
+	casterHumanoid.Health = casterHumanoid.MaxHealth - 10
+	emit(overheal, "OnCast", caster, vec(0, 0, -50), { casterHumanoid }, 0)
+	casterHumanoid.Health = casterHumanoid.MaxHealth
+	local overflowShield
+	for _, entry in ipairs(log) do
+		if entry.Op == "Status.shield" then
+			overflowShield = entry
+		end
+	end
+	check(
+		"MELEE",
+		"CAPABILITY",
+		overflowShield ~= nil
+			and overflowShield.Amount == 20
+			and overflowShield.Duration == limits.HealOverflowShieldDuration,
+		"heal overflow becomes a short shield for the part that could not be healed"
+	)
 
 	-- Fire imbue: every melee hit marks the target with Fire; every third hit
 	-- also bursts a Wave where it landed.

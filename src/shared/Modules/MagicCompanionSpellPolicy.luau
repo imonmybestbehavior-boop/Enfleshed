@@ -16,11 +16,22 @@ local offensive = {
 	Displacement = true,
 	Stun = true,
 	Silence = true,
+	Taunt = true,
+	Fear = true,
 }
 local supportive = { Heal = true, Restoration = true, Shield = true }
 local auxiliary = { ElementalMark = true, ConsumeElementalMark = true }
-local control =
-	{ Slow = true, Bind = true, Control = true, Displacement = true, ElementalMark = true, Stun = true, Silence = true }
+local control = {
+	Slow = true,
+	Bind = true,
+	Control = true,
+	Displacement = true,
+	ElementalMark = true,
+	Stun = true,
+	Silence = true,
+	Taunt = true,
+	Fear = true,
+}
 -- Payload kinds companions never cast, and why. Listed so every Schema.Payloads
 -- kind is accounted for here (test_magic_registry_parity).
 Policy.UnsupportedKinds = {
@@ -29,6 +40,9 @@ Policy.UnsupportedKinds = {
 	Manipulation = "Needs a material target, which companions cannot select",
 	Summon = "Companions cannot summon further companions",
 	Cleanse = "Helps or harms depending on what it removes, so a companion cannot pick its target safely",
+	Stealth = "Hiding an ally from monsters is a player decision, not a companion behaviour",
+	DrainResource = "Moves player resources; companions only use combat and support spells",
+	RestoreResource = "Moves player resources; companions only use combat and support spells",
 }
 -- Payloads a companion may put on an ally as an Enchantment: Boons only
 -- (Aerial movement is self-only, so it is not here).

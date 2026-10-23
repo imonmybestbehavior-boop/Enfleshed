@@ -11,6 +11,8 @@ local Config = Sandbox.Enemy
 local Damage = require(script.Parent.DamageService)
 local HitDetection = require(script.Parent.HitDetectionService)
 local AttackSelector = require(script.Parent.NascentAttackSelector)
+local ControlState = require(Shared:WaitForChild("Modules"):WaitForChild("MagicControlStateSpec"))
+local StealthSpec = require(Shared:WaitForChild("Modules"):WaitForChild("MagicStealthSpec"))
 local Enemy = {}
 local hitReactions: { [Humanoid]: (string) -> () } = {}
 
@@ -963,35 +965,70 @@ function Enemy.create(
 		local other = targetRoot(target)
 		local order = model:FindFirstChild("ObjectiveTarget")
 		local objective = if order and order:IsA("ObjectValue") then order.Value else nil
+		-- Taunt / Fear from spells (MagicControlStateSpec), before the player scan.
+		-- Fear reuses the disengage path below; Taunt pins the target to the caster.
+		local forcedValue = model:FindFirstChild("MagicForcedTarget")
+		local forcedModel = if forcedValue and forcedValue:IsA("ObjectValue") then forcedValue.Value else nil
+		local control = ControlState.decide(
+			workspace:GetServerTimeNow(),
+			model:GetAttribute("MagicForcedTargetUntil"),
+			forcedModel ~= nil and targetRoot(forcedModel) ~= nil,
+			model:GetAttribute("MagicFearUntil")
+		)
+		local feared = control == "Fear"
+		if control == "Forced" then
+			target = forcedModel
+			other = targetRoot(forcedModel)
+		end
 		if
-			not other or (target ~= objective and (other.Position - root.Position).Magnitude > Config.DisengageRange)
+			feared
+			or not other
+			or (
+				target ~= objective
+				and not (control == "Forced" and target == forcedModel)
+				and (
+					(other.Position - root.Position).Magnitude > Config.DisengageRange
+					-- A target that turns stealthed is lost.
+					or (other.Parent and StealthSpec.hiddenFromMonsters(other.Parent:GetAttribute("MagicStealthed")))
+				)
+			)
 		then
 			target = nil
 			other = nil
 			clearPath()
 			stopMoving()
 			setState("Idle")
-			local nearest = Config.DetectionRange
-			local candidates: { Instance } = {}
-			for _, player in Players:GetPlayers() do
-				table.insert(candidates, player)
-			end
-			for _, human in Collection:GetTagged("CityHuman") do
-				table.insert(candidates, human)
-			end
-			for _, player in candidates do
-				local candidate = targetRoot(player)
-				if candidate then
-					local distance = (candidate.Position - root.Position).Magnitude
-					if distance <= nearest and visible(candidate) then
-						nearest = distance
-						target = player
-						other = candidate
+			-- A frightened monster stays disengaged: no scan, no objective.
+			if not feared then
+				local nearest = Config.DetectionRange
+				local candidates: { Instance } = {}
+				for _, player in Players:GetPlayers() do
+					table.insert(candidates, player)
+				end
+				for _, human in Collection:GetTagged("CityHuman") do
+					table.insert(candidates, human)
+				end
+				for _, player in candidates do
+					local candidate = targetRoot(player)
+					-- Stealthed characters are skipped (MagicStealthSpec).
+					if
+						candidate
+						and not (
+							candidate.Parent
+							and StealthSpec.hiddenFromMonsters(candidate.Parent:GetAttribute("MagicStealthed"))
+						)
+					then
+						local distance = (candidate.Position - root.Position).Magnitude
+						if distance <= nearest and visible(candidate) then
+							nearest = distance
+							target = player
+							other = candidate
+						end
 					end
 				end
-			end
-			if not other and objective then
-				target, other = objective, targetRoot(objective)
+				if not other and objective then
+					target, other = objective, targetRoot(objective)
+				end
 			end
 			if other then
 				progressAt = now

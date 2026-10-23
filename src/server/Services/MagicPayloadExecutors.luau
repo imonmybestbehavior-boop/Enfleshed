@@ -20,6 +20,7 @@ local Schema = require(game:GetService("ReplicatedStorage").Shared.Configuration
 local ScaleSpec = require(game:GetService("ReplicatedStorage").Shared.Modules.MagicScaleSpec)
 local CrowdControl = require(game:GetService("ReplicatedStorage").Shared.Modules.MagicCrowdControlSpec)
 local OperationBudget = require(game:GetService("ReplicatedStorage").Shared.Modules.MagicOperationBudget)
+local HealSpec = require(game:GetService("ReplicatedStorage").Shared.Modules.MagicHealSpec)
 local Players = game:GetService("Players")
 local Payloads = {}
 local periodicEffects = {}
@@ -189,6 +190,10 @@ local function scaledAmount(payload, context, humanoid): number
 		end)
 		amount = ScaleSpec.amount(amount, payload.ScaleBy, units)
 	end
+	-- Ratio modes on Heal and Shield (MagicHealSpec): Amount becomes a percent.
+	if (payload.Kind == "Heal" or payload.Kind == "Shield") and payload.Mode and payload.Mode ~= "Flat" then
+		amount = HealSpec.base(payload.Mode, amount, humanoid and humanoid.MaxHealth, context.DamageDealt)
+	end
 	return amount * context.Potency
 end
 
@@ -340,6 +345,11 @@ Payloads.Metadata = {
 	ConsumeElementalMark = { TracksHumanoidTargets = true },
 	Stun = { TracksHumanoidTargets = true },
 	Silence = { TracksHumanoidTargets = true },
+	Taunt = { TracksHumanoidTargets = true },
+	Fear = { TracksHumanoidTargets = true },
+	Stealth = { TracksHumanoidTargets = true },
+	DrainResource = { TracksHumanoidTargets = true },
+	RestoreResource = { TracksHumanoidTargets = true },
 	Cleanse = { TracksHumanoidTargets = true },
 }
 
@@ -496,12 +506,32 @@ Payloads.Executors = {
 	end,
 	Heal = function(payload: any, context: any)
 		for _, humanoid in context.Targets or {} do
-			local restored = Status.heal(
-				context.Caster,
-				humanoid,
-				scaledAmount(payload, context, humanoid),
-				context.CapProfile and context.CapProfile.MaxHealPerHit
-			)
+			local amount = scaledAmount(payload, context, humanoid)
+			local healCap = context.CapProfile and context.CapProfile.MaxHealPerHit
+			local restored = Status.heal(context.Caster, humanoid, amount, healCap)
+			-- Overflow = "Shield": what could not be healed becomes a short shield.
+			if payload.Overflow == "Shield" then
+				local limit = if healCap then math.min(healCap, MagicLab.MaxHeal) else MagicLab.MaxHeal
+				local excess = HealSpec.overflow(amount, restored, limit)
+				local shieldCap = context.CapProfile and context.CapProfile.MaxShield
+				if shieldCap then
+					excess = math.min(excess, shieldCap)
+				end
+				if
+					excess > 0
+					and Status.shield(
+						context.Caster,
+						humanoid,
+						context.SpellId,
+						excess,
+						MagicLab.HealOverflowShieldDuration,
+						nil,
+						context.TargetDeathCallback and context.TargetDeathCallback(humanoid)
+					)
+				then
+					context.EffectFeedback("Shield", humanoid, excess)
+				end
+			end
 			if restored > 0 then
 				context.EffectFeedback("Heal", humanoid, restored)
 			end
@@ -638,6 +668,76 @@ Payloads.Executors = {
 				)
 			then
 				context.EffectFeedback("Silence", humanoid, payload.Duration)
+			end
+		end
+	end,
+	Taunt = function(payload: any, context: any)
+		-- Creatures only (players are skipped inside Status.taunt).
+		for _, humanoid in context.Targets or {} do
+			if
+				Status.taunt(
+					context.Caster,
+					humanoid,
+					context.SpellId,
+					payload.Duration,
+					context.TargetDeathCallback and context.TargetDeathCallback(humanoid),
+					context.RequiredElementalMark
+				)
+			then
+				context.EffectFeedback("Taunt", humanoid, payload.Duration)
+			end
+		end
+	end,
+	Fear = function(payload: any, context: any)
+		for _, humanoid in context.Targets or {} do
+			if
+				Status.fear(
+					context.Caster,
+					humanoid,
+					context.SpellId,
+					payload.Duration,
+					context.TargetDeathCallback and context.TargetDeathCallback(humanoid),
+					context.RequiredElementalMark
+				)
+			then
+				context.EffectFeedback("Fear", humanoid, payload.Duration)
+			end
+		end
+	end,
+	Stealth = function(payload: any, context: any)
+		for _, humanoid in context.Targets or {} do
+			if
+				Status.stealth(
+					context.Caster,
+					humanoid,
+					context.SpellId,
+					payload.Duration,
+					context.TargetDeathCallback and context.TargetDeathCallback(humanoid),
+					context.RequiredElementalMark
+				)
+			then
+				context.EffectFeedback("Stealth", humanoid, payload.Duration)
+			end
+		end
+	end,
+	DrainResource = function(payload: any, context: any)
+		-- Players only; MagicService moves the resource (creatures have none).
+		for _, humanoid in context.Targets or {} do
+			local moved = if context.TransferResource
+				then context.TransferResource("Drain", humanoid, payload.Resource, payload.Amount * context.Potency)
+				else 0
+			if moved > 0 then
+				context.EffectFeedback("DrainResource", humanoid, moved)
+			end
+		end
+	end,
+	RestoreResource = function(payload: any, context: any)
+		for _, humanoid in context.Targets or {} do
+			local moved = if context.TransferResource
+				then context.TransferResource("Restore", humanoid, payload.Resource, payload.Amount * context.Potency)
+				else 0
+			if moved > 0 then
+				context.EffectFeedback("RestoreResource", humanoid, moved)
 			end
 		end
 	end,

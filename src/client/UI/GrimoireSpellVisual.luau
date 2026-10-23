@@ -44,6 +44,11 @@ local effectLabels = {
 	Stun = "STUN",
 	Silence = "HUSH",
 	Cleanse = "PURGE",
+	Taunt = "TAUNT",
+	Fear = "FEAR",
+	Stealth = "HIDE",
+	DrainResource = "DRAIN",
+	RestoreResource = "MANA",
 }
 local effectOrder = {
 	Damage = 1,
@@ -65,6 +70,11 @@ local effectOrder = {
 	Stun = 17,
 	Silence = 18,
 	Cleanse = 19,
+	Taunt = 20,
+	Fear = 21,
+	Stealth = 22,
+	DrainResource = 23,
+	RestoreResource = 24,
 }
 local behaviorLabels = {
 	Homing = "HOME",

@@ -19,7 +19,16 @@ function Dispatch.execute(definition, event, context, payloads, behaviors, comma
 		local stepContext = context
 		-- TargetFrom = "Attacker" (OnDamageTaken): act on whoever dealt the damage,
 		-- already filtered by the spell's relationship. No eligible attacker: skip.
-		if matches and step.TargetFrom == "Attacker" then
+		if matches and step.TargetFrom == "Caster" then
+			-- OnDamageDealt: act on the caster instead of the damaged target (lifesteal).
+			local casters = context.CasterTargets
+			if type(casters) == "table" and #casters > 0 then
+				stepContext = table.clone(context)
+				stepContext.Targets = casters
+			else
+				matches = false
+			end
+		elseif matches and step.TargetFrom == "Attacker" then
 			local attackers = context.EventAttackers
 			if type(attackers) == "table" and #attackers > 0 then
 				stepContext = table.clone(context)

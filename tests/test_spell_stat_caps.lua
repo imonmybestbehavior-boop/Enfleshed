@@ -98,6 +98,14 @@ for _, profile in { open, ranked } do
 end
 assert(Caps.payload({ Kind = "Stun", Duration = 1.5 }, Profiles.PvE, 1).Duration == 1.5, "creatures: up to 1.5 s")
 assert(Caps.UncappedKinds.Cleanse, "Cleanse has nothing to cap")
+-- DrainResource against players is capped per hit (on the final amount after potency).
+for _, profile in { open, ranked } do
+	assert(profile.MaxResourceDrainPerHit, "drain cap in every PvP profile")
+	local drained = Caps.payload({ Kind = "DrainResource", Resource = "Mana", Amount = 50 }, profile, 2)
+	assert(drained.Amount * 2 <= profile.MaxResourceDrainPerHit + 1e-9, "drain capped")
+end
+assert(Caps.payload({ Kind = "DrainResource", Resource = "Mana", Amount = 50 }, Profiles.PvE, 1).Amount == 50)
+assert(Caps.UncappedKinds.RestoreResource, "Restore is support")
 assert(Caps.payload({ Kind = "Force", Magnitude = 100, Upward = 90 }, open, 1).Magnitude == open.MaxForce, "force cap")
 assert(Caps.payload({ Kind = "TimeDilation", Rate = 0.25, Duration = 9 }, open, 1).Rate == open.MinTimeRate)
 assert(Caps.payload({ Kind = "TimeDilation", Rate = 1.5, Duration = 9 }, open, 1).Rate == 1.5, "haste is not a debuff")

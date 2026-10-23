@@ -31,6 +31,10 @@ Caps.UncappedKinds = {
 	Manipulation = "Moves world objects, not players",
 	Summon = "Summon damage is capped by Caps.damage",
 	Cleanse = "Removes effects; it has no number to cap",
+	Taunt = "Creatures only; never applies to players, so no PvP cap",
+	Fear = "Creatures only; never applies to players, so no PvP cap",
+	Stealth = "Hides from monsters only while StealthHidesFromPlayers is off; nothing to cap",
+	RestoreResource = "Support; PvP profiles apply only between opponents",
 }
 
 -- ModifyAttribute caps by attribute; anything not listed uses MaxAttributeChange.
@@ -80,6 +84,8 @@ function Caps.payload(payload: any, profile: { [string]: number }?, potency: num
 		out.Duration = math.min(out.Duration, profile.MaxStunDuration)
 	elseif kind == "Silence" and number(out.Duration) and profile.MaxSilenceDuration then
 		out.Duration = math.min(out.Duration, profile.MaxSilenceDuration)
+	elseif kind == "DrainResource" and number(out.Amount) then
+		out.Amount = capScaled(out.Amount, profile.MaxResourceDrainPerHit, p)
 	elseif kind == "Slow" and number(out.Multiplier) and profile.MinSlowMultiplier then
 		-- executor: effective = 1 - (1 - Multiplier) * potency  ≥  MinSlowMultiplier
 		out.Multiplier = math.max(out.Multiplier, 1 - (1 - profile.MinSlowMultiplier) / p)

@@ -70,6 +70,9 @@ local hostileKinds = {
 	ConsumeElementalMark = true,
 	Stun = true,
 	Silence = true,
+	Taunt = true,
+	Fear = true,
+	DrainResource = true,
 }
 
 function Policy.isHostilePayload(payload: any): boolean

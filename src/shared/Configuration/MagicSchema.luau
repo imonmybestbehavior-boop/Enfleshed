@@ -8,6 +8,19 @@ local SummonLimits = require(script.Parent.MagicSummons)
 local PrincipleSpec = require(script.Parent.Parent.Modules.MagicPrincipleSpec)
 local DamageRules = require(script.Parent.Parent.Modules.MagicDamageRules)
 local AttributeSpec = require(script.Parent.Parent.Modules.MagicAttributeSpec)
+local LocusConfiguration = require(script.Parent.MagicLocus)
+-- DrainResource / RestoreResource: Mana plus every configured special resource.
+local resourceOptions = { "Mana" }
+do
+	local ids = {}
+	for id in pairs(LocusConfiguration.SpecialResources or {}) do
+		table.insert(ids, id)
+	end
+	table.sort(ids)
+	for _, id in ids do
+		table.insert(resourceOptions, id)
+	end
+end
 local ConstructGeometrySpec = require(script.Parent.Parent.Modules.MagicConstructGeometrySpec)
 local TargetDeathSpec = require(script.Parent.Parent.Modules.MagicTargetDeathSpec)
 local AudioSpec = require(script.Parent.Parent.Modules.MagicAudioSpec)
@@ -123,6 +136,12 @@ Schema.EventOrder = {
 }
 -- Who an OnDamageTaken step acts on: the spell's holder (default) or the attacker.
 Schema.TargetFromOptions = { "Holder", "Attacker" }
+-- Which TargetFrom values each event allows. OnDamageDealt: Holder = the
+-- damaged target (default), Caster = the spell's caster (e.g. lifesteal).
+Schema.TargetFromByEvent = {
+	OnDamageTaken = Schema.TargetFromOptions,
+	OnDamageDealt = { "Holder", "Caster" },
+}
 Schema.EventLabels = {
 	OnCast = "On cast",
 	OnSpawn = "On spawn",
@@ -1257,7 +1276,21 @@ Schema.Payloads = {
 				Min = 0,
 				Max = Limits.MaxHeal,
 				Required = true,
-				Help = "Health restored, up to the target's maximum health.",
+				Help = "Health restored, up to the target's maximum health. A percent (0-100) in the percent modes.",
+			},
+			{
+				Key = "Mode",
+				Label = "Healing mode",
+				Options = { "Flat", "PercentMaxHealth", "PercentDamageDealt" },
+				Required = false,
+				Help = "Flat: Amount is health. PercentMaxHealth: percent of the target's max health. PercentDamageDealt: percent of the damage just dealt (On damage dealt only).",
+			},
+			{
+				Key = "Overflow",
+				Label = "Overflow",
+				Options = { "Shield" },
+				Required = false,
+				Help = "Shield: healing beyond max health becomes a short shield.",
 			},
 		},
 	},
@@ -1305,6 +1338,13 @@ Schema.Payloads = {
 		Events = HumanoidTargetEvents,
 		Defaults = { Amount = 25, Duration = 8 },
 		Fields = {
+			{
+				Key = "Mode",
+				Label = "Shield mode",
+				Options = { "Flat", "PercentMaxHealth", "PercentDamageDealt" },
+				Required = false,
+				Help = "Flat: Amount is shield points. PercentMaxHealth / PercentDamageDealt: Amount is a percent (On damage dealt only for the latter).",
+			},
 			{
 				Key = "Amount",
 				Label = "Shield points",
@@ -1514,6 +1554,131 @@ Schema.Payloads = {
 				Max = Limits.MaxSilenceDuration,
 				Required = true,
 				Help = "How long the target cannot cast or channel spells.",
+			},
+		},
+	},
+	Taunt = {
+		Label = "Taunt",
+		Category = "Control",
+		Polarity = "Bane",
+		Description = "Forces a creature to attack you. It has no effect on players.",
+		Forms = set({ "Projectile", "Beam", "Wave", "Field", "Aura", "Construct", "SelfEnhancement" }),
+		Events = {
+			Projectile = set({ "OnImpact", "OnTick" }),
+			Beam = set({ "OnCast", "OnTick" }),
+			Wave = set({ "OnCast", "OnTick" }),
+			Field = set({ "OnCast", "OnSpawn", "OnEnter", "OnExit", "OnTick", "OnExpire" }),
+			Aura = set({ "OnCast", "OnSpawn", "OnEnter", "OnExit", "OnTick", "OnExpire" }),
+			Construct = set({ "OnProximity" }),
+			SelfEnhancement = set({ "OnProximity" }),
+		},
+		Defaults = { Duration = 3 },
+		Fields = {
+			{
+				Key = "Duration",
+				Label = "Taunt duration",
+				Min = 0.1,
+				Max = Limits.MaxTauntDuration,
+				Required = true,
+				Help = "How long the creature must target you; up to 6 s.",
+			},
+		},
+	},
+	Fear = {
+		Label = "Fear",
+		Category = "Control",
+		Polarity = "Bane",
+		Description = "Makes a creature drop its target and hold back. It has no effect on players.",
+		Forms = set({ "Projectile", "Beam", "Wave", "Field", "Aura", "Construct", "SelfEnhancement" }),
+		Events = {
+			Projectile = set({ "OnImpact", "OnTick" }),
+			Beam = set({ "OnCast", "OnTick" }),
+			Wave = set({ "OnCast", "OnTick" }),
+			Field = set({ "OnCast", "OnSpawn", "OnEnter", "OnExit", "OnTick", "OnExpire" }),
+			Aura = set({ "OnCast", "OnSpawn", "OnEnter", "OnExit", "OnTick", "OnExpire" }),
+			Construct = set({ "OnProximity" }),
+			SelfEnhancement = set({ "OnProximity" }),
+		},
+		Defaults = { Duration = 2 },
+		Fields = {
+			{
+				Key = "Duration",
+				Label = "Fear duration",
+				Min = 0.1,
+				Max = Limits.MaxFearDuration,
+				Required = true,
+				Help = "How long the creature stays disengaged; up to 4 s.",
+			},
+		},
+	},
+	Stealth = {
+		Label = "Stealth",
+		Category = "Support",
+		Polarity = "Boon",
+		Description = "Creatures cannot see or target the holder until it ends, the holder deals damage, or someone Reveals them.",
+		Forms = HumanoidTargetForms,
+		Events = HumanoidTargetEvents,
+		Defaults = { Duration = 4 },
+		Fields = {
+			{
+				Key = "Duration",
+				Label = "Stealth duration",
+				Min = 0.1,
+				Max = Limits.MaxStealthDuration,
+				Required = true,
+				Help = "Ends early when the holder deals damage or is Revealed.",
+			},
+		},
+	},
+	DrainResource = {
+		Label = "Drain resource",
+		Category = "Impact",
+		Polarity = "Bane",
+		Description = "Takes Mana or a special resource from a player and gives it to you. Creatures have no mana, so it does nothing to them.",
+		Forms = HumanoidTargetForms,
+		Events = HumanoidTargetEvents,
+		Defaults = { Resource = "Mana", Amount = 10 },
+		Fields = {
+			{
+				Key = "Resource",
+				Label = "Resource",
+				Options = resourceOptions,
+				Required = true,
+				Help = "Mana or a special resource. Players only: creatures have no mana.",
+			},
+			{
+				Key = "Amount",
+				Label = "Amount",
+				Min = 1,
+				Max = Limits.MaxResourceTransfer,
+				Required = true,
+				Help = "How much to move per target.",
+			},
+		},
+	},
+	RestoreResource = {
+		Label = "Restore resource",
+		Category = "Support",
+		Polarity = "Boon",
+		Description = "Gives a player Mana or a special resource, up to their capacity. Creatures have no mana, so it does nothing to them.",
+		Forms = HumanoidTargetForms,
+		Events = HumanoidTargetEvents,
+		Defaults = { Resource = "Mana", Amount = 10 },
+		Fields = {
+			{
+				Key = "Resource",
+				Label = "Resource",
+				Options = resourceOptions,
+				Required = true,
+				Help = "Mana or a special resource. Players only: creatures have no mana.",
+			},
+			{
+				Key = "Amount",
+				Label = "Amount",
+				Min = 1,
+				Max = Limits.MaxResourceTransfer,
+				Required = true,
+				Help = "How much to move per target.",
 			},
 		},
 	},
@@ -1931,6 +2096,11 @@ Schema.PayloadOrder = {
 	"Bind",
 	"Stun",
 	"Silence",
+	"Taunt",
+	"Fear",
+	"Stealth",
+	"DrainResource",
+	"RestoreResource",
 	"Cleanse",
 	"Reveal",
 	"Control",

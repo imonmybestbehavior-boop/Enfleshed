@@ -134,6 +134,15 @@ local function scanPayloads(payloads, raw, weight)
 				raw.bind = math.max(raw.bind, duration)
 			elseif kind == "Silence" then
 				raw.bind = math.max(raw.bind, duration * 0.5)
+			elseif
+				kind == "Taunt"
+				or kind == "Fear"
+				or kind == "Stealth"
+				or kind == "DrainResource"
+				or kind == "RestoreResource"
+			then
+				-- Creature control with no visual feature of its own (keeps the
+				-- canonical feature order unchanged).
 			elseif kind == "Cleanse" then
 				-- Removes effects; no visual weight of its own (still counted in Payloads).
 			elseif kind == "Force" then

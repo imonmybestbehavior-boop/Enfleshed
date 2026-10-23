@@ -25,8 +25,8 @@ def names_kind(source: str, kind: str) -> bool:
 	return f'"{kind}"' in source or re.search(rf'(?<![A-Za-z0-9_."]){kind}\s*=(?!=)', source) is not None
 
 
-BOON = {"Heal", "Restoration", "Shield", "Enhancement", "AerialMovement"}
-BANE = {"Damage", "DamageOverTime", "Slow", "Bind", "ElementalMark", "Stun", "Silence"}
+BOON = {"Heal", "Restoration", "Shield", "Enhancement", "AerialMovement", "Stealth", "RestoreResource"}
+BANE = {"Damage", "DamageOverTime", "Slow", "Bind", "ElementalMark", "Stun", "Silence", "Taunt", "Fear", "DrainResource"}
 
 # Every Schema.Payloads kind must be named by each of these consumers, so a new
 # payload kind fails here until every file handles it.
@@ -57,6 +57,8 @@ KNOWN_PAYLOAD_GAPS = {
 		"AerialMovement",
 		"Manipulation",
 		"Summon",
+		"Stealth",
+		"RestoreResource",
 	},
 	"src/client/UI/GrimoireSpellVisual.luau": {"Force", "ModifyAttribute", "Transformation", "Control"},
 	"src/shared/SpellVFXSystem/Core/SpellVFXAnalyzer.luau": {"ConsumeElementalMark", "ModifyAttribute", "Transformation"},
@@ -294,6 +296,32 @@ class MagicRegistryParity(unittest.TestCase):
 		self.assertIn("CrowdControl.select(candidates, payload.Remove, payload.Count or 1, payload.Element)", cleanse)
 		policy = (ROOT / "src/shared/Modules/CombatPolicy.luau").read_text(encoding="utf-8")
 		self.assertIn('return payload.Remove ~= "Banes"', policy)
+
+	def test_taunt_and_fear_are_creature_only_and_gate_enemy_targeting(self):
+		enemy = (ROOT / "src/server/Services/EnemyService.luau").read_text(encoding="utf-8")
+		decide = enemy.index("local control = ControlState.decide(")
+		self.assertLess(decide, enemy.index("for _, player in Players:GetPlayers() do"), "checked before the player scan")
+		self.assertIn("if not feared then", enemy, "Fear reuses the disengage path and skips the scan")
+		status = (ROOT / "src/server/Services/MagicStatusEffectService.luau").read_text(encoding="utf-8")
+		helper = block(status, "local function npcControl(", "\nend\n")
+		self.assertIn("Players:GetPlayerFromCharacter(model)", helper, "players are never taunted or feared")
+		self.assertIn('parentModel:SetAttribute("MagicForcedTargetUntil"', status)
+		self.assertIn('parentModel:SetAttribute("MagicFearUntil"', status)
+		self.assertNotIn("Taunt", (ROOT / "src/server/Services/NascentAttackSelector.luau").read_text(encoding="utf-8"))
+
+	def test_stealth_hides_from_monsters_and_player_path_is_behind_the_setting(self):
+		enemy = (ROOT / "src/server/Services/EnemyService.luau").read_text(encoding="utf-8")
+		self.assertEqual(enemy.count("StealthSpec.hiddenFromMonsters("), 2, "scan skip + lose a target that stealths")
+		damage = (ROOT / "src/server/Services/DamageService.luau").read_text(encoding="utf-8")
+		self.assertIn("Status.breakStealth(attackerHumanoid)", damage, "dealing damage ends Stealth")
+		status = (ROOT / "src/server/Services/MagicStatusEffectService.luau").read_text(encoding="utf-8")
+		reveal = block(status, "function Status.reveal(", "\nend\n")
+		self.assertIn("Status.breakStealth(humanoid)", reveal, "a Reveal ends Stealth")
+		caps = (ROOT / "src/shared/Configuration/SpellStatCaps.luau").read_text(encoding="utf-8")
+		self.assertEqual(caps.count("StealthHidesFromPlayers = false"), 2, "off in both PvP profiles")
+		controller = (ROOT / "src/client/Controllers/MagicStealthController.luau").read_text(encoding="utf-8")
+		self.assertIn("if not StealthSpec.hidesFromPlayers(CapProfiles) then", controller)
+		self.assertIn('startController("MagicStealthController")', (ROOT / "src/client/init.client.luau").read_text(encoding="utf-8"))
 
 	def test_hud_cooldown_follows_cooldown_rate(self):
 		state = (ROOT / "src/client/UI/HUD/SpellState.luau").read_text(encoding="utf-8")

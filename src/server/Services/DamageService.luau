@@ -78,6 +78,11 @@ local function apply(
 		killed = before > 0 and target.Health <= 0
 	end
 	if dealt > 0 then
+		-- Dealing damage ends the attacker's Stealth.
+		local attackerHumanoid = attacker:FindFirstChildOfClass("Humanoid")
+		if attackerHumanoid then
+			Status.breakStealth(attackerHumanoid)
+		end
 		-- Last argument: IsMelee, true only for DamageService.applyMelee hits (OnMeleeHit).
 		applied:Fire(attacker, target, dealt, killed, eventContext, melee)
 	end

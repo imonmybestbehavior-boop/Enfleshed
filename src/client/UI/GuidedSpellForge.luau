@@ -1835,21 +1835,30 @@ function Forge.mount(parent, draft, schema, spec, callbacks)
 			end)
 		end
 	end
-	-- OnDamageTaken steps can act on you (the holder) or on whoever hit you.
+	-- OnDamageTaken steps can act on you (the holder) or on whoever hit you;
+	-- OnDamageDealt steps on the damaged target or on you (lifesteal).
 	local function targetFromField(step, eventName)
-		if eventName ~= "OnDamageTaken" then
+		local options = schema.TargetFromByEvent[eventName]
+		if not options then
 			return
 		end
+		local dealt = eventName == "OnDamageDealt"
 		choiceField(
 			"Applies to",
-			"You: the effect lands on you. Attacker: it lands on whoever damaged you (thorns), if the spell's relationship allows them.",
-			schema.TargetFromOptions,
+			if dealt
+				then "The target: the creature that was hit. You: the caster, for example to heal from damage dealt."
+				else "You: the effect lands on you. Attacker: it lands on whoever damaged you (thorns), if the spell's relationship allows them.",
+			options,
 			step.TargetFrom or "Holder",
 			function(choice)
 				step.TargetFrom = if choice == "Holder" then nil else choice
 			end,
 			function(choice)
-				return if choice == "Attacker" then "THE ATTACKER" else "YOU"
+				return if choice == "Attacker"
+					then "THE ATTACKER"
+					elseif choice == "Caster" then "YOU"
+					elseif dealt then "THE TARGET"
+					else "YOU"
 			end
 		)
 	end

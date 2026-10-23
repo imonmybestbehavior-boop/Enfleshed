@@ -128,10 +128,13 @@ env.script = { Parent = { MagicDamageRules = "damageRules", Parent = { Configura
 local attributeSpec = load("src/shared/Modules/MagicAttributeSpec.luau")
 env.script = schemaScript
 env.script.Parent.Parent.Modules.MagicAttributeSpec = "attributeSpec"
+env.script.Parent.MagicLocus = "locusConfig"
 local schemaRequire = env.require
 env.require = function(v)
 	if v == "attributeSpec" then
 		return attributeSpec
+	elseif v == "locusConfig" then
+		return locusConfig
 	end
 	return schemaRequire(v)
 end
@@ -1121,6 +1124,21 @@ do
 	assert(not spec.validate(ccDraft({ Kind = "Cleanse", Remove = "Banes", Count = 0 })), "at least one")
 	assert(schema.Payloads.Stun.Polarity == "Bane" and schema.Payloads.Silence.Polarity == "Bane")
 	assert(schema.Payloads.Cleanse.Polarity == "Neutral")
+	-- Phase 8: Taunt and Fear (creatures only) validate within their limits.
+	assert(spec.validate(ccDraft({ Kind = "Taunt", Duration = 6 })), "Taunt up to 6 s")
+	assert(not spec.validate(ccDraft({ Kind = "Taunt", Duration = 6.5 })), "Taunt has a maximum")
+	assert(spec.validate(ccDraft({ Kind = "Fear", Duration = 4 })), "Fear up to 4 s")
+	assert(not spec.validate(ccDraft({ Kind = "Fear", Duration = 5 })), "Fear has a maximum")
+	assert(schema.Payloads.Taunt.Polarity == "Bane" and schema.Payloads.Fear.Polarity == "Bane")
+	assert(spec.validate(ccDraft({ Kind = "Stealth", Duration = 8 })), "Stealth up to 8 s")
+	assert(not spec.validate(ccDraft({ Kind = "Stealth", Duration = 9 })), "Stealth has a maximum")
+	assert(schema.Payloads.Stealth.Polarity == "Boon", "Stealth is a Boon")
+	-- DrainResource / RestoreResource: Mana or a configured special resource.
+	assert(spec.validate(ccDraft({ Kind = "DrainResource", Resource = "Mana", Amount = 50 })), "drain mana")
+	assert(spec.validate(ccDraft({ Kind = "RestoreResource", Resource = "Focus", Amount = 10 })), "restore Focus")
+	assert(not spec.validate(ccDraft({ Kind = "DrainResource", Resource = "Gold", Amount = 10 })), "unknown resource")
+	assert(not spec.validate(ccDraft({ Kind = "RestoreResource", Resource = "Mana", Amount = 51 })), "transfer limit")
+	assert(schema.Payloads.DrainResource.Polarity == "Bane" and schema.Payloads.RestoreResource.Polarity == "Boon")
 	-- Charge scales the whole estimate, including control: a charged volley of Slows.
 	local volley = spec.createDraft("Projectile", "Energy")
 	volley.Casting.Mode = "Charged"
@@ -1298,6 +1316,30 @@ do
 	}
 	assert(spec.validate(eventDraft), "Damage reaction trigger was rejected")
 	assert(table.find(schema.eventsForEffects("Projectile"), "OnDamageDealt"), "Lab hides OnDamageDealt")
+	-- Ratio heals: lifesteal on the caster; PercentDamageDealt only on OnDamageDealt.
+	eventDraft.Triggers.OnDamageDealt = {
+		{ TargetFrom = "Caster", Payloads = { { Kind = "Heal", Amount = 50, Mode = "PercentDamageDealt" } } },
+	}
+	assert(spec.validate(eventDraft), "Lifesteal heal was rejected")
+	eventDraft.Triggers.OnDamageDealt[1].TargetFrom = "Attacker"
+	assert(not spec.validate(eventDraft), "Attacker is not an OnDamageDealt target")
+	eventDraft.Triggers.OnDamageDealt = nil
+	eventDraft.Triggers.OnImpact = {
+		{ Payloads = { { Kind = "Heal", Amount = 50, Mode = "PercentDamageDealt" } } },
+	}
+	assert(not spec.validate(eventDraft), "PercentDamageDealt accepted outside OnDamageDealt")
+	eventDraft.Triggers.OnImpact[1].Payloads = {
+		{ Kind = "Heal", Amount = 20, Mode = "PercentMaxHealth", Overflow = "Shield" },
+		{ Kind = "Shield", Amount = 10, Duration = 3, Mode = "PercentMaxHealth" },
+	}
+	assert(spec.validate(eventDraft), "PercentMaxHealth heal/shield with overflow was rejected")
+	eventDraft.Triggers.OnImpact[1].Payloads = { { Kind = "Heal", Amount = 20, Mode = "Half" } }
+	assert(not spec.validate(eventDraft), "Unknown heal mode was accepted")
+	eventDraft.Triggers.OnImpact[1].Payloads = { { Kind = "Heal", Amount = 20, Overflow = "Mana" } }
+	assert(not spec.validate(eventDraft), "Unknown heal overflow was accepted")
+	eventDraft.Triggers.OnImpact[1].Payloads = { { Kind = "Shield", Amount = 10, Duration = 3, Overflow = "Shield" } }
+	assert(not spec.validate(eventDraft), "Overflow accepted on Shield")
+	eventDraft = spec.createDraft("Projectile", "Energy")
 	eventDraft = spec.createDraft("Aura", "Energy")
 	eventDraft.Triggers.OnDamageTaken = {
 		{ Payloads = { { Kind = "Shield", Amount = 10, Duration = 3 } } },

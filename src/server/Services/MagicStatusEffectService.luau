@@ -17,6 +17,7 @@ local Interactions = require(game:GetService("ReplicatedStorage").Shared.Modules
 local DamageRules = require(game:GetService("ReplicatedStorage").Shared.Modules.MagicDamageRules)
 local Movement = require(script.Parent.MovementService)
 local CrowdControl = require(game:GetService("ReplicatedStorage").Shared.Modules.MagicCrowdControlSpec)
+local ControlState = require(game:GetService("ReplicatedStorage").Shared.Modules.MagicControlStateSpec)
 local Schema = require(game:GetService("ReplicatedStorage").Shared.Configuration.MagicSchema)
 TemporalRate.configure(Limits.MinTimeRate, Limits.MaxTimeRate)
 
@@ -66,6 +67,8 @@ Status.HandledElsewhere = {
 	AerialMovement = "MagicService (context.ApplyAerialMovement)",
 	Manipulation = "MagicService (context.ApplyManipulation)",
 	Summon = "MagicService (context.Summon)",
+	DrainResource = "MagicService (context.TransferResource), players only",
+	RestoreResource = "MagicService (context.TransferResource), players only",
 	Cleanse = "Status.cleanseCandidates / removeWhere here; MagicPayloadExecutors adds periodic effects and Enchantments",
 }
 local targets: { [Humanoid]: TargetState } = setmetatable({}, { __mode = "k" }) :: any
@@ -225,6 +228,16 @@ local function removeState(state: TargetState)
 	setAttribute(state.Humanoid, if model and model:IsA("Model") then model else nil, "MagicMovementBound", false)
 	setAttribute(state.Humanoid, if model and model:IsA("Model") then model else nil, "MagicStunned", false)
 	setAttribute(state.Humanoid, if model and model:IsA("Model") then model else nil, "MagicSilenced", false)
+	setAttribute(state.Humanoid, if model and model:IsA("Model") then model else nil, "MagicStealthed", false)
+	if model and model:IsA("Model") then
+		local forced = model:FindFirstChild("MagicForcedTarget")
+		if forced then
+			forced:Destroy()
+		end
+		model:SetAttribute("MagicForcedTargetUntil", nil)
+		model:SetAttribute("MagicFearSource", nil)
+		model:SetAttribute("MagicFearUntil", nil)
+	end
 	setAttribute(state.Humanoid, if model and model:IsA("Model") then model else nil, "MagicShieldExpiresAt", nil)
 	setAttribute(state.Humanoid, if model and model:IsA("Model") then model else nil, "MagicSlowMultiplier", 1)
 	setAttribute(state.Humanoid, if model and model:IsA("Model") then model else nil, "MagicTimeRate", 1)
@@ -321,15 +334,56 @@ local function refreshAttributes(state: TargetState)
 	setAttribute(state.Humanoid, parentModel, "MagicMovementBound", bound)
 	-- Read by ActionRouter (player melee and casts), EnemyService, SummonService
 	-- and MagicService (channel cancel); see MagicCrowdControlSpec.blocks.
-	local stunned, silenced = false, false
+	local stunned, silenced, stealthed = false, false, false
 	for _, effect in state.Effects do
 		if effect.ExpiresAt > now then
 			stunned = stunned or effect.Kind == "Stun"
 			silenced = silenced or effect.Kind == "Silence"
+			stealthed = stealthed or effect.Kind == "Stealth"
 		end
 	end
+	-- Read by EnemyService's target scan (MagicStealthSpec) and the client.
+	setAttribute(state.Humanoid, parentModel, "MagicStealthed", stealthed)
 	setAttribute(state.Humanoid, parentModel, "MagicStunned", stunned)
 	setAttribute(state.Humanoid, parentModel, "MagicSilenced", silenced)
+	-- Taunt / Fear: NPCs only, written on the model for EnemyService
+	-- (MagicControlStateSpec). The longest-lasting effect of each kind decides.
+	if parentModel and not Players:GetPlayerFromCharacter(parentModel) then
+		local taunts, fears = {}, {}
+		for _, effect in state.Effects do
+			if effect.Kind == "Taunt" then
+				table.insert(taunts, effect)
+			elseif effect.Kind == "Fear" then
+				table.insert(fears, effect)
+			end
+		end
+		local serverNow = workspace:GetServerTimeNow()
+		local taunt = ControlState.strongest(taunts, now)
+		local forced = parentModel:FindFirstChild("MagicForcedTarget")
+		if taunt then
+			if not forced or not forced:IsA("ObjectValue") then
+				forced = Instance.new("ObjectValue")
+				forced.Name = "MagicForcedTarget"
+				forced.Parent = parentModel
+			end
+			(forced :: ObjectValue).Value = taunt.Caster
+			parentModel:SetAttribute("MagicForcedTargetUntil", serverNow + taunt.ExpiresAt - now)
+		else
+			if forced then
+				forced:Destroy()
+			end
+			parentModel:SetAttribute("MagicForcedTargetUntil", nil)
+		end
+		local fear = ControlState.strongest(fears, now)
+		if fear then
+			local root = fear.Caster:FindFirstChild("HumanoidRootPart")
+			parentModel:SetAttribute("MagicFearSource", if root and root:IsA("BasePart") then root.Position else nil)
+			parentModel:SetAttribute("MagicFearUntil", serverNow + fear.ExpiresAt - now)
+		else
+			parentModel:SetAttribute("MagicFearSource", nil)
+			parentModel:SetAttribute("MagicFearUntil", nil)
+		end
+	end
 	local expiresAt = if earliestShield then workspace:GetServerTimeNow() + earliestShield - os.clock() else nil
 	setAttribute(state.Humanoid, parentModel, "MagicShieldExpiresAt", expiresAt)
 	setAttribute(state.Humanoid, parentModel, "MagicSlowMultiplier", slow)
@@ -802,6 +856,110 @@ function Status.stun(
 	)
 end
 
+-- Taunt / Fear: creatures only; a player target is never affected.
+local function npcControl(
+	kind: string,
+	limit: number,
+	caster: Model,
+	humanoid: Humanoid,
+	spellId: string,
+	duration: number,
+	onTargetDeath: ((Humanoid) -> ())?,
+	requiredElementalMark: string?
+): boolean
+	local model = humanoid.Parent
+	if not model or Players:GetPlayerFromCharacter(model) then
+		return false
+	end
+	return putEffect(
+		humanoid,
+		caster,
+		spellId,
+		kind,
+		math.min(duration, limit),
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		onTargetDeath,
+		requiredElementalMark
+	)
+end
+
+function Status.taunt(
+	caster: Model,
+	humanoid: Humanoid,
+	spellId: string,
+	duration: number,
+	onTargetDeath: ((Humanoid) -> ())?,
+	requiredElementalMark: string?
+): boolean
+	return npcControl(
+		"Taunt",
+		Limits.MaxTauntDuration,
+		caster,
+		humanoid,
+		spellId,
+		duration,
+		onTargetDeath,
+		requiredElementalMark
+	)
+end
+
+function Status.fear(
+	caster: Model,
+	humanoid: Humanoid,
+	spellId: string,
+	duration: number,
+	onTargetDeath: ((Humanoid) -> ())?,
+	requiredElementalMark: string?
+): boolean
+	return npcControl(
+		"Fear",
+		Limits.MaxFearDuration,
+		caster,
+		humanoid,
+		spellId,
+		duration,
+		onTargetDeath,
+		requiredElementalMark
+	)
+end
+
+function Status.stealth(
+	caster: Model,
+	humanoid: Humanoid,
+	spellId: string,
+	duration: number,
+	onTargetDeath: ((Humanoid) -> ())?,
+	requiredElementalMark: string?
+): boolean
+	return putEffect(
+		humanoid,
+		caster,
+		spellId,
+		"Stealth",
+		math.min(duration, Limits.MaxStealthDuration),
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		onTargetDeath,
+		requiredElementalMark
+	)
+end
+
+-- Stealth ends early when the holder deals damage or is Revealed.
+function Status.breakStealth(humanoid: Humanoid): boolean
+	return Status.removeWhere(humanoid, function(effect)
+		return effect.Kind == "Stealth"
+	end) > 0
+end
+
 function Status.silence(
 	caster: Model,
 	humanoid: Humanoid,
@@ -894,6 +1052,7 @@ function Status.reveal(
 	if Status.isConcealed(humanoid) then
 		return false -- inside Toxic smoke
 	end
+	Status.breakStealth(humanoid) -- a Reveal ends Stealth
 	return putEffect(
 		humanoid,
 		caster,

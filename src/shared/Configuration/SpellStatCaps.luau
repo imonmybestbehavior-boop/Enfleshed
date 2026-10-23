@@ -26,6 +26,10 @@ return {
 		MaxResistanceChange = 0.25, -- Resistance fraction per element (-1..1 scale)
 		MaxStunDuration = 0.5, -- stuns on players (diminishing returns apply too)
 		MaxSilenceDuration = 1.5,
+		-- Stealth hides only from monsters for now. Turning this on hides stealthed
+		-- players from opponents (MagicStealthSpec / MagicStealthController).
+		StealthHidesFromPlayers = false,
+		MaxResourceDrainPerHit = 15, -- DrainResource against players (Mana or a special resource)
 	},
 	PvPRanked = {
 		DamageMultiplier = 0.5,
@@ -47,5 +51,7 @@ return {
 		MaxResistanceChange = 0.2,
 		MaxStunDuration = 0.5,
 		MaxSilenceDuration = 1,
+		StealthHidesFromPlayers = false,
+		MaxResourceDrainPerHit = 10,
 	},
 }
