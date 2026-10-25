@@ -79,6 +79,7 @@ export type PlayerState = {
 	DashAllowance: number,
 	CorrectionUntil: number,
 	SpawnGraceUntil: number,
+	MagicRushUntil: number?, -- server-driven Rush (Dash/Blink) in progress, plus grace
 	Combo: number,
 	ReadyAt: number,
 	ComboExpires: number,

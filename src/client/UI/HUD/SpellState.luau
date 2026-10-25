@@ -127,7 +127,13 @@ function State.start()
 	end
 	if feedback then
 		feedback.OnClientEvent:Connect(function(message)
-			if type(message) ~= "table" or message.Kind ~= "Magic" or message.Result == "IMPOSSIBLE" then
+			-- A recast is free and starts no cooldown (MagicRecastSpec).
+			if
+				type(message) ~= "table"
+				or message.Kind ~= "Magic"
+				or message.Result == "IMPOSSIBLE"
+				or message.Result == "RECAST"
+			then
 				return
 			end
 			-- The server divides the cooldown by the caster's CooldownRate multiplier.

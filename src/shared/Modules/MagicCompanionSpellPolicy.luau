@@ -3,6 +3,7 @@
 -- Companion casting accepts bounded target spells whose payloads imply one
 -- unambiguous target relationship. Charged spells auto-release at full charge.
 local Policy = {}
+-- Rush is left out: it moves its caster, and companions cast from their own body.
 local forms = { Projectile = true, Beam = true, Wave = true, Field = true, Aura = true, Construct = true }
 local offensive = {
 	Damage = true,

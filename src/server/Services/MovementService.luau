@@ -338,6 +338,7 @@ function Movement.dash(state: Types.PlayerState, now: number): boolean
 		or now < state.DashReadyAt
 		or now < state.ReadyAt
 		or now < state.CorrectionUntil
+		or now < (state.MagicRushUntil or 0)
 	then
 		return false
 	end
@@ -348,6 +349,23 @@ function Movement.dash(state: Types.PlayerState, now: number): boolean
 	state.DashCheckUntil = state.DashUntil + Config.DashReplicationGrace
 	state.DashAllowance += Config.DashDistance
 	return true
+end
+
+-- Whether a magic Rush may start now (not during a correction or another rush).
+function Movement.canMagicRush(state: Types.PlayerState, now: number): boolean
+	return now >= state.CorrectionUntil and now >= (state.MagicRushUntil or 0) and now >= state.SpawnGraceUntil
+end
+
+-- A magic Rush (Dash or Blink) is moved by the server, which owns the root
+-- meanwhile: the speed and dash checks stand down until it ends plus the
+-- replication grace, and any predicted dash is dropped. The character
+-- attribute tells the client to stop predicting (MovementController).
+function Movement.magicRush(state: Types.PlayerState, untilTime: number)
+	state.MagicRushUntil = untilTime + Config.DashReplicationGrace
+	state.DashOrigin = nil
+	state.DashUntil = 0
+	state.DashAllowance = 0
+	state.Character:SetAttribute("MagicRushUntil", untilTime)
 end
 
 local function correct(state: Types.PlayerState, position: Vector3, now: number, player: Player, feedback: RemoteEvent)
@@ -376,6 +394,13 @@ function Movement.update(player: Player, state: Types.PlayerState, now: number, 
 		if state.DashOrigin then
 			state.DashOrigin = state.Root.Position
 		end
+		return true
+	end
+	if now < (state.MagicRushUntil or 0) then
+		-- The server is moving this root (magic Rush): follow it, check nothing.
+		state.LastPosition = state.Root.Position
+		state.LastFramePosition = state.Root.Position
+		state.LastCheck = now
 		return true
 	end
 	if state.CorrectionUntil > 0 then

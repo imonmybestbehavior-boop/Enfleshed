@@ -492,6 +492,7 @@ function Spec.validate(d, spawnNesting: number?)
 			Beam = true,
 			Field = true,
 			Wave = true,
+			Rush = true,
 			Material = true,
 			Proximity = true,
 		})
@@ -614,7 +615,7 @@ function Spec.validate(d, spawnNesting: number?)
 	elseif d.TargetPolicy ~= nil then
 		return false, "Target policy requires EntityTarget"
 	end
-	for _, f in ipairs({ "Projectile", "Beam", "Wave", "Field", "Aura", "Construct" }) do
+	for _, f in ipairs({ "Projectile", "Beam", "Wave", "Field", "Aura", "Construct", "Rush" }) do
 		if d[f] and f ~= d.Form then
 			return false, f .. " mechanics do not apply to " .. d.Form
 		end
@@ -637,12 +638,27 @@ function Spec.validate(d, spawnNesting: number?)
 			MovementPenalty = true,
 			CanRotateWhileCasting = true,
 			RequiresFreeHand = true,
+			MaxRecasts = true,
 		})
 		or not bounded(c.Cooldown, Limits.MinCooldown, 30)
 		or not bounded(c.CastTime, 0, 3)
 		or not bounded(c.RecoveryTime, 0, 3)
 	then
 		return false, "Invalid casting timing (cooldown minimum 0.15s)"
+	end
+	-- Recast: pressing the slot again while the effect is active runs OnRecast.
+	local recastSteps = d.Triggers and d.Triggers.OnRecast
+	local hasRecast = type(recastSteps) == "table" and #recastSteps > 0
+	if c.MaxRecasts ~= nil and (not bounded(c.MaxRecasts, 1, Limits.MaxRecasts) or c.MaxRecasts % 1 ~= 0) then
+		return false, "Recasts must be a whole number from 1 to " .. Limits.MaxRecasts
+	end
+	if hasRecast then
+		if CastingSpec.isHeldMode(c.Mode) then
+			return false, "Held spells end when released; they cannot be recast"
+		end
+		if d.Lifetime and d.Lifetime.Mode == "UntilToggledOff" then
+			return false, "Pressing a toggled spell again turns it off; it cannot also recast"
+		end
 	end
 	if
 		(c.InterruptOnDamage ~= nil and type(c.InterruptOnDamage) ~= "boolean")
@@ -1034,6 +1050,28 @@ function Spec.validate(d, spawnNesting: number?)
 		end
 		if d.Field.FollowTarget == true and d.Targeting ~= "EntityTarget" and d.Targeting ~= "ObjectTarget" then
 			return false, "Following Fields require an entity or object target"
+		end
+	elseif d.Form == "Rush" then
+		local rush = d.Rush
+		if
+			type(rush) ~= "table"
+			or not keys(rush, { Mode = true, Distance = true, Speed = true, Radius = true, StopOnHit = true })
+			or (rush.Mode ~= "Dash" and rush.Mode ~= "Blink")
+			or not bounded(rush.Distance, 2, Limits.MaxRushDistance)
+			or not bounded(rush.Speed, 20, Limits.MaxRushSpeed)
+			or not bounded(rush.Radius, 0.5, Limits.MaxRushRadius)
+			or (rush.StopOnHit ~= nil and type(rush.StopOnHit) ~= "boolean")
+		then
+			return false, "Invalid Rush mode, distance, speed or radius"
+		end
+		if c.Mode ~= "Instant" then
+			return false, "Rush requires an Instant cast"
+		end
+		if d.Lifetime.Mode ~= "Instantaneous" then
+			return false, "Rush lasts as long as its movement"
+		end
+		if rush.Mode == "Blink" and d.Triggers.OnImpact and #d.Triggers.OnImpact > 0 then
+			return false, "Blink hits nothing on the way; use On cast or On expire"
 		end
 	elseif d.Form == "Wave" then
 		if

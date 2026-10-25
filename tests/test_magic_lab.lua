@@ -1357,6 +1357,92 @@ do
 		{ Payloads = { { Kind = "Damage", Amount = 3 } } },
 	}
 	assert(not spec.validate(eventDraft), "Unsupported lifecycle trigger was accepted")
+	do
+		-- Rush Form: Dash sweeps (OnImpact), Blink does not; Instant casts on the aim only.
+		local rush = spec.createDraft("Rush", "Body")
+		assert(rush and rush.Rush.Mode == "Dash" and rush.Targeting == "AimDirection", "Rush draft defaults")
+		rush.Triggers.OnImpact = { { Payloads = { { Kind = "Damage", Amount = 10 } } } }
+		rush.Triggers.OnExpire = { { Payloads = { { Kind = "Damage", Amount = 5 } } } }
+		local rushOk, rushReason = spec.validate(rush)
+		assert(rushOk, "Dash with impact and arrival effects was rejected: " .. tostring(rushReason))
+		local function rushVariant(mutate)
+			local copy = spec.copy(rush)
+			mutate(copy)
+			return spec.validate(copy)
+		end
+		assert(not rushVariant(function(d)
+			d.Rush.Mode = "Blink"
+		end), "Blink accepted OnImpact effects")
+		assert(
+			rushVariant(function(d)
+				d.Rush.Mode = "Blink"
+				d.Triggers.OnImpact = nil
+			end),
+			"Blink with arrival effects was rejected"
+		)
+		assert(not rushVariant(function(d)
+			d.Rush.Mode = "Teleport"
+		end), "Unknown Rush mode accepted")
+		assert(not rushVariant(function(d)
+			d.Rush.Distance = limits.MaxRushDistance + 1
+		end), "Rush distance limit")
+		assert(not rushVariant(function(d)
+			d.Rush.Speed = limits.MaxRushSpeed + 1
+		end), "Rush speed limit")
+		assert(not rushVariant(function(d)
+			d.Rush.Radius = limits.MaxRushRadius + 1
+		end), "Rush radius limit")
+		assert(not rushVariant(function(d)
+			d.Rush.StopOnHit = "yes"
+		end), "StopOnHit must be a boolean")
+		assert(
+			rushVariant(function(d)
+				d.Rush.StopOnHit = true
+			end),
+			"StopOnHit was rejected"
+		)
+		assert(not rushVariant(function(d)
+			d.Casting.Mode = "Channeled"
+		end), "Rush accepted a non-Instant cast")
+		assert(not rushVariant(function(d)
+			d.Targeting = "EntityTarget"
+		end), "Rush accepted EntityTarget")
+		assert(not rushVariant(function(d)
+			d.Triggers.OnTick = { { Payloads = { { Kind = "Damage", Amount = 1 } } } }
+		end), "Rush accepted OnTick")
+		-- Recast (OnRecast + Casting.MaxRecasts) on Forms that leave an active effect.
+		local recast = spec.createDraft("Field", "Energy")
+		recast.Casting.MaxRecasts = 2
+		recast.Triggers.OnRecast = { { Payloads = { { Kind = "Damage", Amount = 5 } } } }
+		local recastOk, recastReason = spec.validate(recast)
+		assert(recastOk, "Field recast was rejected: " .. tostring(recastReason))
+		assert(table.find(schema.eventsForEffects("Field"), "OnRecast"), "Lab hides OnRecast")
+		assert(not table.find(schema.eventsForEffects("Wave"), "OnRecast"), "Wave leaves nothing to recast")
+		for _, formName in schema.RecastForms do
+			assert(schema.Forms[formName].Events.OnRecast, formName .. " lacks OnRecast")
+		end
+		local badRecast = spec.copy(recast)
+		badRecast.Casting.MaxRecasts = 1.5
+		assert(not spec.validate(badRecast), "fractional MaxRecasts accepted")
+		badRecast = spec.copy(recast)
+		badRecast.Casting.MaxRecasts = 0
+		assert(not spec.validate(badRecast), "MaxRecasts 0 accepted")
+		badRecast = spec.copy(recast)
+		badRecast.Lifetime = { Mode = "UntilToggledOff" }
+		badRecast.Casting.Mode = "Toggle"
+		assert(not spec.validate(badRecast), "toggled spell accepted OnRecast")
+		assert(
+			rushVariant(function(d)
+				d.Triggers.OnRecast = { { Payloads = { { Kind = "Shield", Amount = 10, Duration = 2 } } } }
+			end),
+			"Rush recast was rejected"
+		)
+		assert(not schema.supportsPrincipleForm("Matter", "Rush"), "Matter has no Rush")
+		assert(schema.supportsPrincipleForm("Space", "Rush") and schema.supportsPrincipleForm("Energy", "Rush"))
+		assert(
+			schema.supportsPayload("Damage", "Rush", "OnImpact") and schema.supportsPayload("Stun", "Rush", "OnExpire")
+		)
+	end
 	reject(function(d)
 		d.Source = nil
 	end)
@@ -1840,7 +1926,8 @@ do
 			if form.CanIncludeCaster then
 				formDraft.TargetRules.IncludeCaster = true
 			end
-			assert(spec.validate(formDraft), formName .. " support payloads failed validation")
+			local supportOk, supportReason = spec.validate(formDraft)
+			assert(supportOk, formName .. " support payloads failed validation: " .. tostring(supportReason))
 			humanoidFormCount = humanoidFormCount + 1
 		end
 	end

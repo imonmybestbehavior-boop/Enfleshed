@@ -128,6 +128,7 @@ Schema.EventOrder = {
 	"OnTargetDeath",
 	"OnCasterDeath",
 	"OnCommand",
+	"OnRecast",
 	"OnEnter",
 	"OnExit",
 	"OnInterval",
@@ -159,6 +160,7 @@ Schema.EventLabels = {
 	OnTick = "On each pulse",
 	OnExpire = "On expire",
 	OnCommand = "On command",
+	OnRecast = "On recast",
 }
 Schema.EventDescriptions = {
 	OnCast = "Runs immediately when this spell is cast.",
@@ -179,6 +181,7 @@ Schema.EventDescriptions = {
 	OnTick = "Runs at the configured interval while a Channeled Beam/Wave/Field/Aura, area, traveling Pulse, or lingering projectile is active.",
 	OnExpire = "Runs once when the spell's active duration ends.",
 	OnCommand = "Runs when the owner gives this spell's active summon group a validated Follow, Protect, Attack, Hold, Support, or Dismiss order. A step may be limited to one command.",
+	OnRecast = "Runs when you press this spell's slot again while its effect is still active, instead of casting it again. Free, up to the spell's recast limit; the trigger count (1, 2, 3) tells the stages apart.",
 }
 
 Schema.TargetingModes = {
@@ -946,9 +949,70 @@ Schema.Forms = {
 		TargetRules = false,
 		Mechanics = {},
 	},
+	Rush = {
+		Label = "Rush",
+		Description = "Moves you along your aim. Dash travels and hits what it passes through; Blink appears at the end instantly. The server stops you short of walls and ledges.",
+		Geometry = "Sphere",
+		Motion = "Dash",
+		Draft = {
+			Targeting = "AimDirection",
+			Lifetime = { Mode = "Instantaneous" },
+			Mechanics = { Mode = "Dash", Distance = 16, Speed = 80, Radius = 3, StopOnHit = false },
+		},
+		Targeting = set({ "AimDirection" }),
+		TargetTypes = set({ "Humanoid" }),
+		-- OnCast: around you where the rush starts. OnImpact: each target a Dash
+		-- passes through (once each). OnExpire: around you where you arrive.
+		Events = set({ "OnCast", "OnImpact", "OnExpire", "OnDamageDealt", "OnTargetDeath" }),
+		EffectEvents = set({ "OnCast", "OnImpact", "OnExpire", "OnDamageDealt", "OnTargetDeath" }),
+		DefaultEvent = "OnImpact",
+		TargetRules = true,
+		Mechanics = {
+			{
+				Object = "Rush",
+				Key = "Mode",
+				Label = "Rush mode",
+				Options = { "Dash", "Blink" },
+				Help = "Dash travels along the path and hits targets it passes. Blink appears at the end instantly and hits nothing on the way.",
+			},
+			{
+				Object = "Rush",
+				Key = "Distance",
+				Label = "Rush distance",
+				Min = 2,
+				Max = Limits.MaxRushDistance,
+				Help = "How far you move. Walls, ledges, steep slopes and tall steps stop you sooner.",
+			},
+			{
+				Object = "Rush",
+				Key = "Speed",
+				Label = "Dash speed",
+				Min = 20,
+				Max = Limits.MaxRushSpeed,
+				ShowWhen = { Key = "Mode", Values = { "Dash" } },
+				Help = "Studs per second while dashing.",
+			},
+			{
+				Object = "Rush",
+				Key = "Radius",
+				Label = "Hit radius",
+				Min = 0.5,
+				Max = Limits.MaxRushRadius,
+				Help = "How close a target must be to the dash path to be hit, and the reach of effects at the start and end.",
+			},
+			{
+				Object = "Rush",
+				Key = "StopOnHit",
+				Label = "Stop at the first hit",
+				ShowWhen = { Key = "Mode", Values = { "Dash" } },
+				Help = "On: the Dash ends at the first target it hits. Off: it passes through and hits each target once.",
+			},
+		},
+	},
 }
 
-Schema.FormOrder = { "Projectile", "Beam", "Wave", "Field", "Aura", "SelfEnhancement", "Construct", "Manipulation" }
+Schema.FormOrder =
+	{ "Projectile", "Beam", "Wave", "Field", "Aura", "SelfEnhancement", "Construct", "Manipulation", "Rush" }
 
 -- Commands are lifecycle events on summon-producing spell definitions. A
 -- group retains the validated definition independently of the original cast.
@@ -963,6 +1027,14 @@ end
 
 Schema.Forms.Projectile.Events.OnProximity = true
 Schema.Forms.Projectile.EffectEvents.OnProximity = true
+
+-- OnRecast: Forms whose cast leaves an active effect a slot press can reach
+-- (same list as MagicRecastSpec.Forms).
+Schema.RecastForms = { "Projectile", "Field", "Aura", "Construct", "Rush" }
+for _, formName in Schema.RecastForms do
+	Schema.Forms[formName].Events.OnRecast = true
+	Schema.Forms[formName].EffectEvents.OnRecast = true
+end
 
 -- A shield-break event is available only to Forms that can target Humanoids.
 for _, form in Schema.Forms do
@@ -2055,6 +2127,14 @@ for kind, payload in Schema.Payloads do
 	end
 end
 
+-- Rush: effects that reach Humanoids on a Wave also run on a Rush's events.
+for kind, payload in Schema.Payloads do
+	if kind ~= "Summon" and payload.Forms ~= HumanoidTargetForms and payload.Forms.Wave and payload.Events.Wave then
+		payload.Forms.Rush = true
+		payload.Events.Rush = table.clone(Schema.Forms.Rush.EffectEvents)
+	end
+end
+
 -- Reactive events are shared by payloads on Forms that actually own the
 -- corresponding runtime lifecycle. Instantaneous Forms receive damage events
 -- during their resolving payload; lifetime Forms additionally observe damage
@@ -2069,6 +2149,7 @@ local reactiveEvents = {
 	"OnTargetDeath",
 	"OnCasterDeath",
 	"OnCommand",
+	"OnRecast",
 }
 for kind, payload in Schema.Payloads do
 	if kind ~= "Summon" then
@@ -2224,6 +2305,10 @@ Schema.Behaviors = {
 for formName, events in Schema.Behaviors.Explode.Events do
 	if Schema.Forms[formName] and Schema.Forms[formName].Events.OnBreak then
 		events.OnBreak = true
+	end
+	-- Recast to detonate: Explode where the active effect is now.
+	if Schema.Forms[formName] and Schema.Forms[formName].Events.OnRecast then
+		events.OnRecast = true
 	end
 end
 

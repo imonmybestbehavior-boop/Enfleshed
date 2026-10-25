@@ -56,6 +56,20 @@ function Caps.profileName(attacker: Policy.Owner?, target: Policy.Owner?): strin
 	return "PvPOpen"
 end
 
+-- Profile for effects on the caster's own movement (Rush), which have no
+-- target: PvP rules apply while the caster could be fighting players (inside a
+-- PvP zone or in a duel).
+function Caps.selfProfileName(owner: Policy.Owner?): string
+	if owner == nil then
+		return "PvE"
+	elseif owner.Zone == Caps.RankedZone then
+		return "PvPRanked"
+	elseif owner.Zone == Policy.OpenZone or owner.DuelOpponent ~= nil then
+		return "PvPOpen"
+	end
+	return "PvE"
+end
+
 local function number(value: any): boolean
 	return type(value) == "number" and value == value
 end

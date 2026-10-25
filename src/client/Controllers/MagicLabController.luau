@@ -1475,7 +1475,11 @@ function Lab.start(send, aim, launcher)
 		end
 		field = Schema.resolveField(object, field)
 		local options = field.Options
-		if options then
+		if type(object[field.Key]) == "boolean" then
+			select(field.Label, if object[field.Key] then "On" else "Off", { "On", "Off" }, function(value)
+				object[field.Key] = value == "On"
+			end, nil, field.Help)
+		elseif options then
 			select(field.Label, object[field.Key] or options[1], options, function(value)
 				object[field.Key] = value
 				Schema.normalizePayload(object)
@@ -4342,6 +4346,16 @@ function Lab.start(send, aim, launcher)
 				"Delay before the spell resolves after activation."
 			)
 			numeric("Recovery (seconds)", draft.Casting, "RecoveryTime", "Brief lockout after resolving.")
+			if draft.Triggers.OnRecast and #draft.Triggers.OnRecast > 0 then
+				draft.Casting.MaxRecasts = draft.Casting.MaxRecasts or 1
+				numeric(
+					"Recasts",
+					draft.Casting,
+					"MaxRecasts",
+					"How many times pressing this spell's slot again (while its effect is active) runs On recast instead of casting. Free. Allowed: 1 to "
+						.. Config.MaxRecasts
+				)
+			end
 			if draft.Lifetime.Mode ~= "Instantaneous" then
 				heading("ONGOING RESOURCE USE")
 				info(

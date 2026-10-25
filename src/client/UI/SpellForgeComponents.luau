@@ -42,6 +42,7 @@ local FormIcon = {
 	SelfEnhancement = "▲",
 	Construct = "■",
 	Manipulation = "◇",
+	Rush = "»",
 }
 local FormVerb = {
 	Projectile = "Launch a projectile",
@@ -52,6 +53,7 @@ local FormVerb = {
 	SelfEnhancement = "Empower yourself",
 	Construct = "Build a construct",
 	Manipulation = "Manipulate the world",
+	Rush = "Dash or blink along your aim",
 }
 
 local PayloadIcon = {
@@ -129,6 +131,7 @@ local EventPhrase = {
 	OnTargetDeath = "When a target dies",
 	OnCasterDeath = "When you die",
 	OnCommand = "When you give a command",
+	OnRecast = "When you press it again",
 	OnEnter = "When a target enters",
 	OnExit = "When a target leaves",
 	OnInterval = "Every interval",

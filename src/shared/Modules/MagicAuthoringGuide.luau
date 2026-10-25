@@ -27,9 +27,9 @@ Guide.Intents = {
 	{
 		Id = "Movement",
 		Label = "Movement",
-		Description = "Fly yourself, improve movement, or move a target through space.",
+		Description = "Dash or blink yourself, fly, improve movement, or move a target through space.",
 		Payloads = { "Enhancement", "AerialMovement", "Displacement", "Control" },
-		RecommendedForms = { "SelfEnhancement", "Wave", "Aura", "Projectile" },
+		RecommendedForms = { "Rush", "SelfEnhancement", "Wave", "Aura", "Projectile" },
 	},
 	{
 		Id = "Control",

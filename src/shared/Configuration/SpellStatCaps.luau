@@ -30,6 +30,7 @@ return {
 		-- players from opponents (MagicStealthSpec / MagicStealthController).
 		StealthHidesFromPlayers = false,
 		MaxResourceDrainPerHit = 15, -- DrainResource against players (Mana or a special resource)
+		MaxRushDistance = 24, -- Rush (Dash/Blink) while the caster can fight players
 	},
 	PvPRanked = {
 		DamageMultiplier = 0.5,
@@ -53,5 +54,6 @@ return {
 		MaxSilenceDuration = 1,
 		StealthHidesFromPlayers = false,
 		MaxResourceDrainPerHit = 10,
+		MaxRushDistance = 18,
 	},
 }

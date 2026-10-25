@@ -22,6 +22,11 @@ function Movement.start(send: (string, Types.ActionOptions?) -> number)
 	local boundConnection: RBXScriptConnection? = nil
 	local castingConnection: RBXScriptConnection? = nil
 	local blockingConnection: RBXScriptConnection? = nil
+	local rushConnection: RBXScriptConnection? = nil
+	-- A magic Rush (Dash/Blink) is moved by the server, which owns the root until
+	-- this server time (MovementService.magicRush): predict nothing meanwhile.
+	local rushingUntil = 0
+	local cancel: () -> ()
 
 	local function applyPredictedSpeed()
 		local character = player.Character
@@ -64,12 +69,24 @@ function Movement.start(send: (string, Types.ActionOptions?) -> number)
 		if blockingConnection then
 			blockingConnection:Disconnect()
 		end
+		if rushConnection then
+			rushConnection:Disconnect()
+		end
 		speedConnection = character:GetAttributeChangedSignal("MagicWalkSpeedBonus"):Connect(applyPredictedSpeed)
 		multiplierConnection = character:GetAttributeChangedSignal("MagicSpeedMultiplier"):Connect(applyPredictedSpeed)
 		slowConnection = character:GetAttributeChangedSignal("MagicSlowMultiplier"):Connect(applyPredictedSpeed)
 		boundConnection = character:GetAttributeChangedSignal("MagicMovementBound"):Connect(applyPredictedSpeed)
 		castingConnection = character:GetAttributeChangedSignal("MagicCastingMultiplier"):Connect(applyPredictedSpeed)
 		blockingConnection = character:GetAttributeChangedSignal("MeleeBlocking"):Connect(applyPredictedSpeed)
+		rushingUntil = 0
+		rushConnection = character:GetAttributeChangedSignal("MagicRushUntil"):Connect(function()
+			local untilTime = character:GetAttribute("MagicRushUntil")
+			rushingUntil = if typeof(untilTime) == "number" then untilTime else 0
+			if workspace:GetServerTimeNow() < rushingUntil then
+				-- The server's move replaces any predicted dash; it is not a correction.
+				cancel()
+			end
+		end)
 		applyPredictedSpeed()
 	end
 	player.CharacterAdded:Connect(bindCharacter)
@@ -77,7 +94,7 @@ function Movement.start(send: (string, Types.ActionOptions?) -> number)
 		bindCharacter(player.Character)
 	end
 
-	local function cancel()
+	cancel = function()
 		if stopDash then
 			stopDash()
 		end
@@ -98,7 +115,7 @@ function Movement.start(send: (string, Types.ActionOptions?) -> number)
 
 	local function dash(): boolean
 		local now = workspace:GetServerTimeNow()
-		if now < readyAt or stopDash then
+		if now < readyAt or stopDash or now < rushingUntil then
 			return false
 		end
 		local character = player.Character
@@ -194,6 +211,9 @@ function Movement.start(send: (string, Types.ActionOptions?) -> number)
 		Cancel = cancel,
 		IsDashing = function(): boolean
 			return stopDash ~= nil
+		end,
+		IsRushing = function(): boolean
+			return workspace:GetServerTimeNow() < rushingUntil
 		end,
 		GetCooldown = function(): number
 			return math.max(0, readyAt - workspace:GetServerTimeNow())

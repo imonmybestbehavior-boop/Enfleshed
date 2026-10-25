@@ -122,4 +122,13 @@ assert(Caps.damage(100, Profiles.PvE) == 100, "PvE damage unchanged")
 assert(Caps.damage(20, open) == 20 * open.DamageMultiplier)
 assert(Caps.damage(1000, ranked) == ranked.MaxDamagePerHit)
 
+-- Rush: the caster's own zone picks the profile (no target).
+assert(Caps.selfProfileName(nil) == "PvE")
+assert(Caps.selfProfileName({ UserId = 1 }) == "PvE", "outside PvP: PvE")
+assert(Caps.selfProfileName({ UserId = 1, Zone = "Open" }) == "PvPOpen")
+assert(Caps.selfProfileName({ UserId = 1, Zone = "Ranked" }) == "PvPRanked")
+assert(Caps.selfProfileName({ UserId = 1, DuelOpponent = 2 }) == "PvPOpen", "dueling counts as PvP")
+assert(open.MaxRushDistance and ranked.MaxRushDistance and ranked.MaxRushDistance <= open.MaxRushDistance)
+assert(Profiles.PvE.MaxRushDistance == nil, "PvE Rush uses the MagicLab limit")
+
 print("Spell stat caps: profile selection, PvE identity, potency-aware payload caps and damage caps passed")

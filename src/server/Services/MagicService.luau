@@ -66,6 +66,13 @@ local LoadBudget = require(Shared.Modules.MagicLoadBudget)
 local Telemetry = require(script.Parent.TelemetryService)
 local MagicWorldQuery = require(script.Parent.MagicWorldQuery)
 local MagicConstructBuilder = require(script.Parent.MagicConstructBuilder)
+local MagicRush = require(script.Parent.MagicRush)
+local Ownership = require(script.Parent.MagicPhysicsOwnership)
+local RushSpec = require(Shared.Modules.MagicRushSpec)
+local RecastSpec = require(Shared.Modules.MagicRecastSpec)
+local CombatPolicy = require(Shared.Modules.CombatPolicy)
+local StatCaps = require(Shared.Modules.SpellStatCaps)
+local CapProfiles = require(Shared.Configuration.SpellStatCaps)
 local buildConstructModel, watchPersistentConstruct, persistentConstructRecord, restorePersistentConstruct =
 	MagicConstructBuilder.buildConstructModel,
 	MagicConstructBuilder.watchPersistentConstruct,
@@ -344,6 +351,17 @@ local function hasPayloadAnywhere(definition, kind: string): boolean
 		end
 	end
 	return false
+end
+
+-- Rush: authored distance within the hard limit and, while the caster can
+-- fight players, the PvP MaxRushDistance of their zone.
+local function rushDistance(state: State, definition: any): number
+	local profile = CapProfiles[StatCaps.selfProfileName(CombatPolicy.owner(state.Character, Players))]
+	return RushSpec.distance(definition.Rush.Distance, 1, profile and profile.MaxRushDistance, Limits.MaxRushDistance)
+end
+
+local function rushPath(state: State, definition: any, direction: Vector3): MagicRush.Path?
+	return MagicRush.plan(state.Character, state.Humanoid, state.Root, direction, rushDistance(state, definition))
 end
 
 local function validate(
@@ -628,6 +646,18 @@ local function validate(
 		local hit = workspace:Raycast(origin, delta, ray)
 		if hit and (hit.Position - worldPoint).Magnitude > 2 then
 			return "IMPOSSIBLE", "Target is obstructed"
+		end
+	end
+	if definition.Form == "Rush" then
+		-- Refused before any cost is paid.
+		if state.Humanoid:GetAttribute("MagicMovementBound") == true then
+			return "IMPOSSIBLE", "You cannot move right now"
+		end
+		if not Movement.canMagicRush(state, workspace:GetServerTimeNow()) then
+			return "IMPOSSIBLE", "Already moving"
+		end
+		if not rushPath(state, definition, direction) then
+			return "IMPOSSIBLE", "No safe space to rush"
 		end
 	end
 	local stats = playerData[player]
@@ -1478,6 +1508,73 @@ local function areaTargets(spell, position, radius)
 			SpellState = spell,
 		}
 	)
+end
+
+-- Rush (Dash/Blink). The record moves the caster's root while the server owns
+-- it; OnImpact fires once per target a Dash sweeps, OnExpire on arrival.
+local function finishRush(rush, silent: boolean?)
+	if rush.Finished then
+		return
+	end
+	rush.Finished = true
+	local root = rush.Root
+	if root.Parent then
+		local velocity = root.AssemblyLinearVelocity
+		root.AssemblyLinearVelocity = Vector3.new(0, math.min(0, velocity.Y), 0)
+		rush.Position = root.Position
+	end
+	-- End the movement grace now (a StopOnHit Dash ends early).
+	Movement.magicRush(rush.State, workspace:GetServerTimeNow())
+	task.delay(0.1, function()
+		Ownership.release(root, rush.OwnershipToken)
+	end)
+	if not silent then
+		emitExpiry(rush, rush.Position, areaTargets(rush, rush.Position, rush.Definition.Rush.Radius))
+	end
+end
+
+local function stepRush(rush, delta: number): boolean
+	local d = rush.Definition
+	if rush.Finished or not rush.Root.Parent then
+		finishRush(rush, true)
+		return true
+	end
+	local from = MagicRush.positionAt(rush.Path, rush.Travelled)
+	local travelled, arrived = RushSpec.advance(rush.Travelled, rush.Path.Distance, d.Rush.Speed, delta)
+	local to = MagicRush.positionAt(rush.Path, travelled)
+	rush.Travelled = travelled
+	rush.Position = to
+	MagicRush.place(rush.Root, to, rush.Path.Direction, if arrived then 0 else d.Rush.Speed)
+	local candidates, seen = {}, {}
+	for _, center in MagicRush.sweepCenters(from, to, d.Rush.Radius) do
+		for _, humanoid in areaTargets(rush, center, d.Rush.Radius) do
+			if not seen[humanoid] then
+				seen[humanoid] = true
+				table.insert(candidates, humanoid)
+			end
+		end
+	end
+	local hits, stop = RushSpec.impacts(candidates, rush.HitHumanoids, d.Rush.StopOnHit)
+	for _, humanoid in hits do
+		local hitRoot = humanoid.Parent and humanoid.Parent:FindFirstChild("HumanoidRootPart")
+		emit(
+			d,
+			"OnImpact",
+			rush.Caster,
+			if hitRoot and hitRoot:IsA("BasePart") then hitRoot.Position else to,
+			{ humanoid },
+			rush.Direction,
+			rush.Remote,
+			rush.Player,
+			nil,
+			rush
+		)
+	end
+	if arrived or stop or rush.Finished then
+		finishRush(rush)
+		return true
+	end
+	return false
 end
 
 local function expireProjectile(spell)
@@ -3226,6 +3323,63 @@ local function execute(
 			registerActiveEffect(channel)
 		end
 	end
+	formContext.ExecuteRush = function(d)
+		local path = rushPath(state, d, direction)
+		local token = {}
+		if not path or not Ownership.claim(state.Root, token) then
+			feedback(remote, player, "IMPOSSIBLE", d, { Reason = "No safe space to rush" })
+			return
+		end
+		local now = workspace:GetServerTimeNow()
+		local dash = d.Rush.Mode == "Dash"
+		local duration = if dash then RushSpec.duration(path.Distance, d.Rush.Speed) else 0
+		Movement.magicRush(state, now + duration)
+		local rush = {
+			Kind = "Rush",
+			SpellId = d.SpellId,
+			Caster = state.Character,
+			State = state,
+			Root = state.Root,
+			Player = player,
+			Remote = remote,
+			Definition = d,
+			Age = 0,
+			CurrentPhase = "Active",
+			TargetsHit = {},
+			HitHumanoids = {},
+			StartedAt = now,
+			RemainingLifetime = duration + 1,
+			Position = path.Origin,
+			Direction = path.Direction,
+			Path = path,
+			Travelled = 0,
+			OwnershipToken = token,
+		}
+		emit(
+			d,
+			"OnCast",
+			state.Character,
+			path.Origin,
+			areaTargets(rush, path.Origin, d.Rush.Radius),
+			path.Direction,
+			remote,
+			player,
+			nil,
+			rush
+		)
+		if dash then
+			registerActiveEffect(rush)
+			return
+		end
+		-- Blink: one validated move to the destination, like displaceTarget.
+		pcall(function()
+			state.Character:PivotTo(
+				CFrame.lookAt(path.Destination, path.Destination + path.Direction)
+					* (state.Root.CFrame:ToObjectSpace(state.Character:GetPivot()))
+			)
+		end)
+		finishRush(rush)
+	end
 	formContext.ApplyManipulation = function(d)
 		local target = if material and material:IsA("BasePart") then material else nil
 		local ctx = context(
@@ -3446,6 +3600,32 @@ local function movementInterrupted(windup): boolean
 		and CastInterruption.movement(windup.Definition.Casting, (root.Position - windup.StartPosition).Magnitude)
 end
 
+-- OnRecast on an active effect: free, counted on the record so
+-- SpellState.TriggerCount is the stage (1, 2, 3).
+local function recastActive(record, now: number)
+	RecastSpec.use(record, now)
+	local position = record.Position or record.Caster:GetPivot().Position
+	local targets = {}
+	if record.Kind == "Field" or record.Kind == "Aura" then
+		targets = formAreaTargets(record, position)
+	elseif record.Kind == "Rush" then
+		local humanoid = record.Caster:FindFirstChildOfClass("Humanoid")
+		targets = if humanoid then { humanoid } else {}
+	end
+	emit(
+		record.Definition,
+		"OnRecast",
+		record.Caster,
+		position,
+		targets,
+		record.Direction or Vector3.zero,
+		record.Remote,
+		record.Player,
+		nil,
+		lifecycleState(record, "OnRecast", record.EventDepth or 0)
+	)
+end
+
 function Magic.start(player, state, intent, remote, castContext, temporaryDefinition): (boolean, string?)
 	castStates[player] = state
 	local definition = temporaryDefinition or getDefinition(intent.SpellId)
@@ -3482,6 +3662,17 @@ function Magic.start(player, state, intent, remote, castContext, temporaryDefini
 		end
 	end
 	local now = workspace:GetServerTimeNow()
+	-- Recast: a press while this spell's effect is active runs OnRecast on it
+	-- instead of a new cast (before the cooldown gate; costs nothing).
+	local maxRecasts = if castContext then 0 else RecastSpec.allowed(definition)
+	if maxRecasts > 0 then
+		local record = RecastSpec.pick(active, player, definition.SpellId, maxRecasts, now, Limits.MinRecastInterval)
+		if record then
+			recastActive(record, now)
+			feedback(remote, player, "RECAST", definition, nil)
+			return true
+		end
+	end
 	if stats.Pending or stats.Channel or isSpellCooling(stats, definition.SpellId, now) then
 		local reason = if stats.Pending
 			then "Owner is already completing another cast"
@@ -4236,6 +4427,8 @@ RunService.Heartbeat:Connect(function(delta)
 				if spell.Visual then
 					Presentation.finish(spell.Visual)
 				end
+			elseif spell.Kind == "Rush" then
+				finishRush(spell, true)
 			elseif spell.Visual then
 				Presentation.finish(spell.Visual)
 			end
@@ -4292,6 +4485,10 @@ RunService.Heartbeat:Connect(function(delta)
 							else "Enchantment channel limit reached",
 					})
 				end
+				table.remove(active, i)
+			end
+		elseif spell.Kind == "Rush" then
+			if stepRush(spell, step) then
 				table.remove(active, i)
 			end
 		elseif spell.Kind == "BeamCascade" then

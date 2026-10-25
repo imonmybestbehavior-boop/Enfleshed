@@ -389,6 +389,19 @@ function Visual.render(parent, spell, compact)
 				0.1 + i * 0.13
 			)
 		end
+	elseif form == "Rush" then
+		-- Three speed streaks and the arrival point.
+		for i = 1, 3 do
+			shape(
+				parent,
+				UDim2.fromScale(0.42 - i * 0.06, 0.05),
+				UDim2.fromScale(0.38, 0.28 + i * 0.1),
+				color,
+				true,
+				0.2 * i
+			)
+		end
+		shape(parent, UDim2.fromScale(0.2, 0.2), UDim2.fromScale(0.72, 0.43), accent, true)
 	else
 		ring(parent, 0.55, color, 0)
 	end

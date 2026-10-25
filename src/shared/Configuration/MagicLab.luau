@@ -31,6 +31,18 @@ return {
 	MaxStealthDuration = 8, -- provisional
 	MaxResourceTransfer = 50, -- DrainResource / RestoreResource per target, provisional
 	HealOverflowShieldDuration = 5, -- Heal Overflow = "Shield", provisional
+	-- Rush Form (Dash / Blink), provisional. Path checks mirror displaceTarget.
+	MaxRushDistance = 30,
+	MaxRushSpeed = 120,
+	MaxRushRadius = 6,
+	RushSampleStep = 2,
+	RushWallPadding = 1.5,
+	RushMaxStepHeight = 4,
+	RushMinGroundNormalY = 0.55,
+	RushMinDistance = 1,
+	-- Recast (OnRecast), provisional.
+	MaxRecasts = 3,
+	MinRecastInterval = 0.2,
 	MaxRevealDuration = 15,
 	MaxEffectsPerTarget = 8,
 	-- The same Enchantment (same spell) stacks at most this many times on one

@@ -1690,6 +1690,93 @@ do
 		"heal overflow becomes a short shield for the part that could not be healed"
 	)
 
+	-- Rush: the server's Dash calls OnImpact once per swept target and OnExpire
+	-- at arrival (MagicService.stepRush); payloads resolve like any other Form.
+	local dash = draft("Rush", "Energy", function(d)
+		d.Rush.StopOnHit = false
+		d.Triggers = {
+			OnImpact = { { Payloads = { payload("Damage", { Amount = 7 }) } } },
+			OnExpire = { { Payloads = { payload("Slow", { Multiplier = 0.5, Duration = 1 }) } } },
+		}
+	end)
+	local dashOk, dashReason = validates(dash)
+	check("RUSH", "CAPABILITY", dashOk, "dash with impact damage and arrival slow validates: " .. tostring(dashReason))
+	local swept = resetWorld({ vec(0, 0, 4), vec(0, 0, 8) }, 100)
+	for _, target in swept do
+		emit(dash, "OnImpact", caster, vec(0, 0, 0), { target }, 0)
+	end
+	emit(dash, "OnExpire", caster, vec(0, 0, 10), { swept[2] }, 0)
+	check(
+		"RUSH",
+		"CAPABILITY",
+		totalDamageTo("Enemy1") == 7 and totalDamageTo("Enemy2") == 7 and totalDamageTo("Caster") == 0,
+		"each swept target takes the dash's impact damage once; the caster takes none"
+	)
+	check("RUSH", "CAPABILITY", count(function(x)
+		return x.Op == "Status.slow" and x.Target == "Enemy2"
+	end) == 1, "arrival effects land on targets around the destination")
+	local blink = draft("Rush", "Space", function(d)
+		d.Rush.Mode = "Blink"
+		d.Triggers = { OnExpire = { { Payloads = { payload("Damage", { Amount = 9 }) } } } }
+	end)
+	check("RUSH", "CAPABILITY", (validates(blink)), "blink-and-burst (Blink -> OnExpire damage) validates")
+	check("RUSH", "CAPABILITY", not validates(draft("Rush", "Space", function(d)
+		d.Rush.Mode = "Blink"
+		d.Triggers = { OnImpact = { { Payloads = { payload("Damage") } } } }
+	end)), "Blink never hits on the way")
+
+	-- Recast: three stages on one active Field, branched on TriggerCount
+	-- (MagicService.recastActive counts OnRecast on the effect's record).
+	local function stage(n, amount)
+		return {
+			Condition = {
+				Operator = "ALL",
+				Conditions = { { Family = "SpellState", Property = "TriggerCount", Operator = "==", Value = n } },
+			},
+			Payloads = { payload("Damage", { Amount = amount }) },
+		}
+	end
+	local staged = draft("Field", "Energy", function(d)
+		d.Casting.MaxRecasts = 3
+		d.Triggers = { OnRecast = { stage(1, 3), stage(2, 5), stage(3, 11) } }
+	end)
+	local stagedOk, stagedReason = validates(staged)
+	check("RECAST", "CAPABILITY", stagedOk, "three-stage recast Field validates: " .. tostring(stagedReason))
+	local inside = resetWorld({ vec(0, 0, 0) }, 100)
+	local fieldRecord = {}
+	local stageDamage = {}
+	for _ = 1, 3 do
+		local before = totalDamageTo("Enemy1")
+		emit(staged, "OnRecast", caster, vec(0, 0, 0), { inside[1] }, 0, nil, nil, fieldRecord)
+		table.insert(stageDamage, totalDamageTo("Enemy1") - before)
+	end
+	check(
+		"RECAST",
+		"CAPABILITY",
+		stageDamage[1] == 3 and stageDamage[2] == 5 and stageDamage[3] == 11,
+		"each recast runs only its own stage (3, 5, 11)"
+	)
+	local detonate = draft("Projectile", "Energy", function(d)
+		d.Triggers = { OnRecast = { { Behavior = "Explode", Radius = 6, Payloads = { payload("Damage") } } } }
+	end)
+	check(
+		"RECAST",
+		"CAPABILITY",
+		(validates(detonate)),
+		"recast-to-detonate (Projectile OnRecast -> Explode) validates"
+	)
+	check("RECAST", "CAPABILITY", not validates(draft("Beam", "Energy", function(d)
+		d.Triggers = { OnRecast = { { Payloads = { payload("Damage") } } } }
+	end)), "instant Forms leave nothing to recast")
+	check("RECAST", "CAPABILITY", not validates(draft("Field", "Energy", function(d)
+		d.Casting.MaxRecasts = 4
+		d.Triggers = { OnRecast = { stage(1, 3) } }
+	end)), "MaxRecasts is at most 3")
+	check("RECAST", "CAPABILITY", not validates(draft("Field", "Energy", function(d)
+		d.Casting.Mode = "Channeled"
+		d.Triggers = { OnRecast = { stage(1, 3) } }
+	end)), "held spells cannot recast")
+
 	-- Fire imbue: every melee hit marks the target with Fire; every third hit
 	-- also bursts a Wave where it landed.
 	local function rule(property, operator, value)
