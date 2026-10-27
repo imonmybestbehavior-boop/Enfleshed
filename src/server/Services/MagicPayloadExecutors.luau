@@ -326,7 +326,8 @@ end
 -- Payload metadata stays beside the executor registry so cross-cutting runtime
 -- behavior does not need to grow a payload-kind conditional list.
 Payloads.Metadata = {
-	Damage = { TracksHumanoidTargets = true },
+	-- DamagesStructures: an impact on a Construct part with health takes Amount.
+	Damage = { TracksHumanoidTargets = true, DamagesStructures = true },
 	DamageOverTime = { TracksHumanoidTargets = true },
 	Heal = { TracksHumanoidTargets = true },
 	Restoration = { TracksHumanoidTargets = true },
@@ -903,6 +904,12 @@ function Payloads.execute(payloads: { any }, context: any)
 			for _, target in allowed do
 				context.TrackAffected(target)
 			end
+		end
+		-- An impact on a Construct part with health (MagicConstructHealth):
+		-- once per payload, flat Amount x potency, owner and PvP rules there.
+		local hitPart = context.DamageContext and context.DamageContext.HitPart
+		if metadata and metadata.DamagesStructures and hitPart and context.DamageStructure then
+			context.DamageStructure(hitPart, payload.Amount * (context.Potency or 1))
 		end
 		if not context.Targets or (not split and #allowed == #context.Targets) then
 			executor(payload, context) -- common case: no PvP targets, nothing filtered

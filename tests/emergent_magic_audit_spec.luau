@@ -578,6 +578,12 @@ emit = function(definition, event, caster, position, targets, depth, data, inher
 	ctx.DamageDealt = data and data.DamageDealt
 	local casterHumanoid = caster:FindFirstChildOfClass("Humanoid")
 	ctx.CasterTargets = if casterHumanoid and casterHumanoid.Health > 0 then { casterHumanoid } else {}
+	-- MagicService: impacts carry the struck part; Damage on a Construct part
+	-- with health goes to MagicConstructHealth (recorded here).
+	ctx.DamageContext.HitPart = data and data.HitPart
+	ctx.DamageStructure = function(part, amount)
+		record({ Op = "Structure", Part = part.Name, Amount = amount })
+	end
 	Dispatch.execute(definition, event, ctx, PayloadExec, BehaviorExec, Commands, TargetDeath, StepConditions)
 end
 
@@ -1776,6 +1782,79 @@ do
 		d.Casting.Mode = "Channeled"
 		d.Triggers = { OnRecast = { stage(1, 3) } }
 	end)), "held spells cannot recast")
+
+	-- Construct pulse: a turret Construct spawns a Projectile on each pulse.
+	local bolt = spec.defaultSpawnEffect("Projectile")
+	bolt.Triggers = { OnImpact = { { Payloads = { payload("Damage", { Amount = 4 }) } } } }
+	local turret = draft("Construct", "Energy", function(d)
+		d.Construct.Interval = 1
+		d.Triggers = { OnTick = { { Behavior = "SpawnEffect", Payloads = {}, Effect = bolt } } }
+	end)
+	local turretOk, turretReason = validates(turret)
+	check(
+		"CONSTRUCT",
+		"CAPABILITY",
+		turretOk,
+		"turret (Construct OnTick -> SpawnEffect Projectile) validates: " .. tostring(turretReason)
+	)
+	resetWorld({ vec(0, 0, 10) }, 100)
+	local turretRecord = {}
+	for _ = 1, 3 do
+		emit(turret, "OnTick", caster, vec(0, 0, 0), {}, 0, nil, nil, turretRecord)
+	end
+	check("CONSTRUCT", "CAPABILITY", count(function(x)
+		return x.Op == "Spawn" and x.Form == "Projectile"
+	end) == 3 and turretRecord.EventCounts.OnTick == 3, "each pulse spawns one projectile")
+	local totem = draft("Construct", "Body", function(d)
+		d.Construct.Interval = 2
+		d.Triggers = { OnTick = { { Payloads = { payload("Heal", { Amount = 5 }) } } } }
+	end)
+	check("CONSTRUCT", "CAPABILITY", (validates(totem)), "healing totem (Construct OnTick -> Heal) validates")
+	check("CONSTRUCT", "CAPABILITY", not validates(draft("Construct", "Body", function(d)
+		d.Triggers = { OnTick = { { Payloads = { payload("Heal", { Amount = 5 }) } } } }
+	end)), "pulses need an interval")
+
+	-- Construct health: a Damage impact on a construct part reaches the
+	-- structure once per payload; character hits never do.
+	local breaker = draft("Projectile", "Energy", function(d)
+		d.Triggers = { OnImpact = { { Payloads = { payload("Damage", { Amount = 12 }) } } } }
+	end)
+	resetWorld({ vec(0, 0, 10) }, 100)
+	emit(breaker, "OnImpact", caster, vec(0, 0, 5), {}, 0, { HitPart = { Name = "ConstructPart01" } })
+	local structureHits = {}
+	for _, entry in ipairs(log) do
+		if entry.Op == "Structure" then
+			table.insert(structureHits, entry)
+		end
+	end
+	check(
+		"CONSTRUCT",
+		"CAPABILITY",
+		#structureHits == 1 and structureHits[1].Amount == 12 and structureHits[1].Part == "ConstructPart01",
+		"a Damage impact on a construct part damages the structure once"
+	)
+	local struck = resetWorld({ vec(0, 0, 10) }, 100)
+	emit(breaker, "OnImpact", caster, vec(0, 0, 10), { struck[1] }, 0)
+	check("CONSTRUCT", "CAPABILITY", count(function(x)
+		return x.Op == "Structure"
+	end) == 0 and totalDamageTo("Enemy1") == 12, "hitting a character never touches structures")
+	local bastion = draft("Construct", "Matter", function(d)
+		d.Construct.Health = 120
+		d.Triggers = { OnDestroyed = { { Behavior = "Explode", Radius = 8, Payloads = { payload("Damage") } } } }
+	end)
+	local bastionOk, bastionReason = validates(bastion)
+	check(
+		"CONSTRUCT",
+		"CAPABILITY",
+		bastionOk,
+		"breakable wall that explodes when destroyed validates: " .. tostring(bastionReason)
+	)
+	resetWorld({ vec(0, 0, 3) }, 100)
+	emit(bastion, "OnDestroyed", caster, vec(0, 0, 0), {}, 0)
+	check("CONSTRUCT", "CAPABILITY", totalDamageTo("Enemy1") == 20, "OnDestroyed explosion hits nearby enemies")
+	check("CONSTRUCT", "CAPABILITY", not validates(draft("Construct", "Matter", function(d)
+		d.Triggers = { OnDestroyed = { { Payloads = { payload("Damage") } } } }
+	end)), "On destroyed needs Construct health")
 
 	-- Fire imbue: every melee hit marks the target with Fire; every third hit
 	-- also bursts a Wave where it landed.

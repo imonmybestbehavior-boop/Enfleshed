@@ -40,6 +40,11 @@ return {
 	RushMaxStepHeight = 4,
 	RushMinGroundNormalY = 0.55,
 	RushMinDistance = 1,
+	-- Constructs and traps (Phase 10), provisional.
+	MaxConstructInterval = 10,
+	MaxConstructHealth = 500,
+	MaxTrapArmDelay = 10,
+	PersistentHealthSaveInterval = 30,
 	-- Recast (OnRecast), provisional.
 	MaxRecasts = 3,
 	MinRecastInterval = 0.2,

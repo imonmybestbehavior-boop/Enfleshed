@@ -23,6 +23,7 @@ for _, name in
 		"TrainingDummyRequest",
 		"TrainingDummyResponse",
 		"MagicPresentation",
+		"MagicHiddenMarkers",
 		"SpellVFX",
 		"MissionRemote",
 		Protocol.Inventory,

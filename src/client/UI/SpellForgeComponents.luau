@@ -128,6 +128,7 @@ local EventPhrase = {
 	OnHolderDealtDamage = "When the holder deals spell damage",
 	OnThreshold = "When a target's health drops past a threshold",
 	OnBreak = "When the shield breaks",
+	OnDestroyed = "When it is destroyed",
 	OnTargetDeath = "When a target dies",
 	OnCasterDeath = "When you die",
 	OnCommand = "When you give a command",

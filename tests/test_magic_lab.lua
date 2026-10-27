@@ -1438,6 +1438,60 @@ do
 			"Rush recast was rejected"
 		)
 		assert(not schema.supportsPrincipleForm("Matter", "Rush"), "Matter has no Rush")
+		-- Construct pulses (Construct.Interval + OnTick).
+		local totem = spec.createDraft("Construct", "Body")
+		totem.Construct.Interval = 2
+		totem.Triggers.OnTick = { { Payloads = { { Kind = "Heal", Amount = 5 } } } }
+		local totemOk, totemReason = spec.validate(totem)
+		assert(totemOk, "Construct pulse was rejected: " .. tostring(totemReason))
+		assert(table.find(schema.eventsForEffects("Construct"), "OnTick"), "Lab hides Construct OnTick")
+		local badTotem = spec.copy(totem)
+		badTotem.Construct.Interval = nil
+		assert(not spec.validate(badTotem), "Construct OnTick without an interval")
+		badTotem = spec.copy(totem)
+		badTotem.Construct.Interval = limits.MaxConstructInterval + 1
+		assert(not spec.validate(badTotem), "Construct interval limit")
+		assert(schema.supportsPayload("Damage", "Construct", "OnTick"), "Damage on Construct pulses")
+		-- Construct health and OnDestroyed.
+		local wall = spec.createDraft("Construct", "Matter")
+		wall.Construct.Health = 200
+		wall.Triggers.OnDestroyed = { { Payloads = { { Kind = "Damage", Amount = 10 } } } }
+		local wallOk, wallReason = spec.validate(wall)
+		assert(wallOk, "breakable wall was rejected: " .. tostring(wallReason))
+		local badWall = spec.copy(wall)
+		badWall.Construct.Health = limits.MaxConstructHealth + 1
+		assert(not spec.validate(badWall), "Construct health limit")
+		badWall = spec.copy(wall)
+		badWall.Construct.Health = nil
+		assert(not spec.validate(badWall), "OnDestroyed without health")
+		assert(table.find(schema.eventsForEffects("Construct"), "OnDestroyed"), "Lab hides OnDestroyed")
+		-- Field traps.
+		local trap = spec.createDraft("Field", "Energy")
+		assert(trap.Field.ArmDelay == 0 and trap.Field.Hidden == false and trap.Field.ConsumeOnTrigger == false)
+		trap.Field.ArmDelay = 2
+		trap.Field.Hidden = true
+		trap.Field.ConsumeOnTrigger = true
+		trap.Triggers.OnEnter = { { Payloads = { { Kind = "Damage", Amount = 30 } } } }
+		local trapOk, trapReason = spec.validate(trap)
+		assert(trapOk, "hidden trap was rejected: " .. tostring(trapReason))
+		local function trapVariant(mutate)
+			local copy = spec.copy(trap)
+			mutate(copy)
+			return spec.validate(copy)
+		end
+		assert(not trapVariant(function(d)
+			d.Field.ArmDelay = limits.MaxTrapArmDelay + 1
+		end), "arm delay limit")
+		assert(not trapVariant(function(d)
+			d.Field.Hidden = "yes"
+		end), "Hidden must be a boolean")
+		assert(not trapVariant(function(d)
+			d.Field.GrowthStartScale, d.Field.GrowthEndScale, d.Field.GrowthDuration = 0.5, 1, 2
+			d.Casting.Mode = "Channeled"
+		end), "a hidden Field cannot grow")
+		assert(not trapVariant(function(d)
+			d.Lifetime = { Mode = "UntilDestroyed" }
+		end), "a hidden Field needs a duration")
 		assert(schema.supportsPrincipleForm("Space", "Rush") and schema.supportsPrincipleForm("Energy", "Rush"))
 		assert(
 			schema.supportsPayload("Damage", "Rush", "OnImpact") and schema.supportsPayload("Stun", "Rush", "OnExpire")

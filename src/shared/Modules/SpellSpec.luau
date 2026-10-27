@@ -888,9 +888,33 @@ function Spec.validate(d, spawnNesting: number?)
 				GrowthEndScale = true,
 				GrowthDuration = true,
 				Components = true,
+				Interval = true,
+				Health = true,
 			})
 		then
 			return false, "Invalid Construct"
+		end
+		local pulses = (d.Triggers.OnTick and #d.Triggers.OnTick > 0)
+			or (d.Triggers.OnInterval and #d.Triggers.OnInterval > 0)
+		if
+			d.Construct.Interval ~= nil
+			and not bounded(d.Construct.Interval, Limits.MinInterval, Limits.MaxConstructInterval)
+		then
+			return false,
+				"Construct pulse interval must be "
+					.. Limits.MinInterval
+					.. "–"
+					.. Limits.MaxConstructInterval
+					.. " seconds"
+		end
+		if pulses and d.Construct.Interval == nil then
+			return false, "Set the Construct's pulse interval to use On each pulse"
+		end
+		if d.Construct.Health ~= nil and not bounded(d.Construct.Health, 1, Limits.MaxConstructHealth) then
+			return false, "Construct health must be 1–" .. Limits.MaxConstructHealth
+		end
+		if d.Triggers.OnDestroyed and #d.Triggers.OnDestroyed > 0 and d.Construct.Health == nil then
+			return false, "Give the Construct health to use On destroyed"
 		end
 		for _, axis in ipairs({ "Width", "Height", "Depth" }) do
 			if not bounded(d.Construct[axis], 0.5, 20) then
@@ -1050,6 +1074,25 @@ function Spec.validate(d, spawnNesting: number?)
 		end
 		if d.Field.FollowTarget == true and d.Targeting ~= "EntityTarget" and d.Targeting ~= "ObjectTarget" then
 			return false, "Following Fields require an entity or object target"
+		end
+		local field = d.Field
+		if
+			(field.ArmDelay ~= nil and not bounded(field.ArmDelay, 0, Limits.MaxTrapArmDelay))
+			or (field.Hidden ~= nil and type(field.Hidden) ~= "boolean")
+			or (field.ConsumeOnTrigger ~= nil and type(field.ConsumeOnTrigger) ~= "boolean")
+		then
+			return false, "Invalid trap options (arm delay, hidden, ends when triggered)"
+		end
+		if field.Hidden == true then
+			local grows = (field.GrowthStartScale ~= nil and field.GrowthStartScale ~= 0)
+				or (field.GrowthEndScale ~= nil and field.GrowthEndScale ~= 0)
+				or (field.GrowthDuration ~= nil and field.GrowthDuration ~= 0)
+			if field.FollowTarget == true or grows then
+				return false, "A hidden Field cannot follow a target or grow"
+			end
+			if d.Lifetime.Mode == "UntilDestroyed" then
+				return false, "A hidden Field needs a duration"
+			end
 		end
 	elseif d.Form == "Rush" then
 		local rush = d.Rush

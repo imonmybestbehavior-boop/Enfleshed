@@ -5,6 +5,7 @@ local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
 local AreaGrowth = require(Shared.Modules.MagicAreaGrowth)
 local Presentation = require(script.Parent.MagicPresentation)
 local PersistentConstructStore = require(script.Parent.MagicPersistentConstructStore)
+local ConstructHealth = require(script.Parent.MagicConstructHealth)
 local MagicConstructBuilder = {}
 
 local function watchPersistentConstruct(model: Model, id: string)
@@ -35,7 +36,29 @@ local function watchPersistentConstruct(model: Model, id: string)
 	end)
 end
 
-local function persistentConstructRecord(player: Player, frame: CFrame, components: { any }, definition: any)
+-- Health for a world-persistent Construct: damage queues a save; at zero the
+-- model is destroyed, which removes its saved record (watchPersistentConstruct).
+local function trackPersistentHealth(model: Model, id: string, ownerUserId: number, maxHealth: number?, health: number?)
+	if not maxHealth then
+		return
+	end
+	ConstructHealth.register({ Persistent = true, Id = id }, model, ownerUserId, maxHealth, health, {
+		OnChanged = function(entry)
+			PersistentConstructStore.updateHealth(id, entry.Health)
+		end,
+		OnDestroyed = function()
+			model:Destroy()
+		end,
+	})
+end
+
+local function persistentConstructRecord(
+	player: Player,
+	frame: CFrame,
+	components: { any },
+	definition: any,
+	maxHealth: number?
+)
 	local rx, ry, rz = frame:ToOrientation()
 	local serializedComponents = {}
 	for index, component in ipairs(components) do
@@ -53,6 +76,8 @@ local function persistentConstructRecord(player: Player, frame: CFrame, componen
 	local visual = definition.Visual
 	return {
 		OwnerUserId = player.UserId,
+		MaxHealth = maxHealth,
+		Health = maxHealth,
 		Position = { frame.Position.X, frame.Position.Y, frame.Position.Z },
 		RotationDegrees = { math.deg(rx), math.deg(ry), math.deg(rz) },
 		Components = serializedComponents,
@@ -169,11 +194,13 @@ local function restorePersistentConstruct(record)
 	model:SetAttribute("MagicPersistentConstructOwner", record.OwnerUserId)
 	model.Parent = workspace
 	watchPersistentConstruct(model, record.Id)
+	trackPersistentHealth(model, record.Id, record.OwnerUserId, record.MaxHealth, record.Health)
 end
 
 MagicConstructBuilder.buildConstructModel = buildConstructModel
 MagicConstructBuilder.watchPersistentConstruct = watchPersistentConstruct
 MagicConstructBuilder.persistentConstructRecord = persistentConstructRecord
 MagicConstructBuilder.restorePersistentConstruct = restorePersistentConstruct
+MagicConstructBuilder.trackPersistentHealth = trackPersistentHealth
 
 return MagicConstructBuilder

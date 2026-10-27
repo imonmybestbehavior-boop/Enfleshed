@@ -73,6 +73,9 @@ local RecastSpec = require(Shared.Modules.MagicRecastSpec)
 local CombatPolicy = require(Shared.Modules.CombatPolicy)
 local StatCaps = require(Shared.Modules.SpellStatCaps)
 local CapProfiles = require(Shared.Configuration.SpellStatCaps)
+local ConstructHealth = require(script.Parent.MagicConstructHealth)
+local ConstructHealthSpec = require(Shared.Modules.MagicConstructHealthSpec)
+local TrapSpec = require(Shared.Modules.MagicTrapSpec)
 local buildConstructModel, watchPersistentConstruct, persistentConstructRecord, restorePersistentConstruct =
 	MagicConstructBuilder.buildConstructModel,
 	MagicConstructBuilder.watchPersistentConstruct,
@@ -358,6 +361,16 @@ end
 local function rushDistance(state: State, definition: any): number
 	local profile = CapProfiles[StatCaps.selfProfileName(CombatPolicy.owner(state.Character, Players))]
 	return RushSpec.distance(definition.Rush.Distance, 1, profile and profile.MaxRushDistance, Limits.MaxRushDistance)
+end
+
+-- Construct.Health within the hard limit and, in PvP, MaxConstructHealth.
+local function constructMaxHealth(state: State, definition: any): number?
+	local profile = CapProfiles[StatCaps.selfProfileName(CombatPolicy.owner(state.Character, Players))]
+	return ConstructHealthSpec.maxHealth(
+		definition.Construct and definition.Construct.Health,
+		profile and profile.MaxConstructHealth,
+		Limits.MaxConstructHealth
+	)
 end
 
 local function rushPath(state: State, definition: any, direction: Vector3): MagicRush.Path?
@@ -942,6 +955,10 @@ local function context(definition, caster, position, targets, direction, remote,
 		then
 			Manipulation.execute(operation.Operation, target, operation.Distance)
 		end
+	end
+	-- Damage on a Construct part with health (MagicPayloadExecutors.execute).
+	ctx.DamageStructure = function(part: Instance, amount: number)
+		ConstructHealth.damage(part, amount, caster)
 	end
 	ctx.DamageContext = {
 		Depth = eventDepth,
@@ -1677,6 +1694,11 @@ local function updateAreaMembership(spell, targets)
 	end
 	for _, humanoid in ipairs(exited) do
 		emitAreaTransition(spell, "OnExit", humanoid)
+	end
+	-- Trap: ConsumeOnTrigger ends the Field after its first entry.
+	if spell.Kind == "Field" and TrapSpec.consumes(spell.Definition.Field.ConsumeOnTrigger, #entered) then
+		spell.Consumed = true
+		spell.RemainingLifetime = 0
 	end
 end
 
@@ -2414,10 +2436,22 @@ spawnEffect = function(parent, step, caster, position, direction, remote, player
 			child.Field.DebugHeight,
 			child
 		)
-		Presentation.attachLoop(child, "AmbientLoopSoundId", marker)
+		local hidden = child.Field.Hidden == true
+		if hidden then
+			Presentation.hideMarker(marker, player)
+		else
+			Presentation.attachLoop(child, "AmbientLoopSoundId", marker)
+		end
+		local trapProfile = CapProfiles[StatCaps.selfProfileName(CombatPolicy.owner(caster, Players))]
 		local targets = formAreaCandidates(child, caster, position, 0)
 		local field = {
 			Kind = "Field",
+			Hidden = hidden,
+			ArmDelay = TrapSpec.armDelay(
+				child.Field.ArmDelay,
+				hidden,
+				trapProfile and trapProfile.MinHiddenTrapArmDelay
+			),
 			Caster = caster,
 			Player = player,
 			Remote = remote,
@@ -2773,7 +2807,13 @@ local function execute(
 		stats.PersistentConstructCastInProgress = true
 		local saved, id, saveReason = pcall(
 			PersistentConstructStore.add,
-			persistentConstructRecord(player, constructFrame, constructComponents, definition)
+			persistentConstructRecord(
+				player,
+				constructFrame,
+				constructComponents,
+				definition,
+				constructMaxHealth(state, definition)
+			)
 		)
 		stats.PersistentConstructCastInProgress = nil
 		if not saved or not id then
@@ -2879,6 +2919,13 @@ local function execute(
 			model:SetAttribute("MagicPersistentConstructId", persistentRecordId)
 			model:SetAttribute("MagicPersistentConstructOwner", player.UserId)
 			watchPersistentConstruct(model, persistentRecordId)
+			MagicConstructBuilder.trackPersistentHealth(
+				model,
+				persistentRecordId,
+				player.UserId,
+				constructMaxHealth(state, d),
+				nil
+			)
 			return
 		end
 		Presentation.attachLoop(d, "AmbientLoopSoundId", pivot)
@@ -2924,6 +2971,16 @@ local function execute(
 		}
 		registerActiveEffect(construct)
 		formContext.RegisterChannel(construct)
+		-- Construct.Health: hits on its parts can break it (OnDestroyed).
+		local maxHealth = constructMaxHealth(state, d)
+		if maxHealth then
+			ConstructHealth.register(construct, model, player.UserId, maxHealth, nil, {
+				OnDestroyed = function(_, attacker)
+					construct.Destroyed = true
+					construct.DestroyedBy = attacker
+				end,
+			})
+		end
 	end
 	formContext.CreateAura = function(d)
 		local followPart = if d.Targeting == "ObjectTarget"
@@ -3248,10 +3305,20 @@ local function execute(
 			d.Field.DebugHeight,
 			d
 		)
-		Presentation.attachLoop(d, "AmbientLoopSoundId", marker)
+		-- Trap options: a Hidden marker never replicates (only non-opponents are
+		-- sent a local copy) and has no ambient sound.
+		local hidden = d.Field.Hidden == true
+		if hidden then
+			Presentation.hideMarker(marker, player)
+		else
+			Presentation.attachLoop(d, "AmbientLoopSoundId", marker)
+		end
+		local trapProfile = CapProfiles[StatCaps.selfProfileName(CombatPolicy.owner(state.Character, Players))]
 		local targets = formAreaCandidates(d, state.Character, point, 0)
 		local field = {
 			Kind = "Field",
+			Hidden = hidden,
+			ArmDelay = TrapSpec.armDelay(d.Field.ArmDelay, hidden, trapProfile and trapProfile.MinHiddenTrapArmDelay),
 			Caster = state.Character,
 			Player = player,
 			Remote = remote,
@@ -3719,6 +3786,72 @@ function Magic.start(player, state, intent, remote, castContext, temporaryDefini
 		return true
 	end
 	return queueCast(player, state, intent, remote, definition, 0, castContext)
+end
+
+-- Construct.Interval: OnTick every interval while it stands. Pulses reach
+-- characters within its proximity radius, else the attached character.
+local function pulseConstruct(spell, step: number)
+	local d = spell.Definition
+	local interval = d.Construct and d.Construct.Interval
+	if not interval or not hasEvent(d, "OnTick") then
+		return
+	end
+	spell.PulseElapsed = (spell.PulseElapsed or 0) + step
+	if spell.PulseElapsed < interval then
+		return
+	end
+	spell.PulseElapsed -= interval
+	local targets
+	if d.Proximity then
+		targets = areaTargets(spell, spell.Position, d.Proximity.Radius)
+	else
+		local attached = spell.AttachedHumanoid
+		targets = if attached and attached.Health > 0 then { attached } else {}
+	end
+	emit(
+		d,
+		"OnTick",
+		spell.Caster,
+		spell.Position,
+		targets,
+		spell.Direction or Vector3.zero,
+		spell.Remote,
+		spell.Player,
+		nil,
+		lifecycleState(spell, "OnTick", spell.EventDepth or 0)
+	)
+end
+
+-- Health reached zero: OnDestroyed where it stood (targeting whoever broke
+-- it, if eligible). The expiry is claimed so OnExpire never also runs.
+local function destroyConstruct(spell)
+	local d = spell.Definition
+	LifetimeSpec.claimExpiry(spell)
+	if not hasEvent(d, "OnDestroyed") then
+		return
+	end
+	local attacker = spell.DestroyedBy
+	local humanoid = attacker and attacker:FindFirstChildOfClass("Humanoid")
+	local targets = if humanoid and humanoid.Health > 0
+		then Conditions.targets(d, spell.Caster, spell.Position, { humanoid }, {
+			Player = spell.Player,
+			Resources = resourceSnapshot(playerData[spell.Player]),
+			SpellState = spell,
+		})
+		else {}
+	spell.CurrentPhase = "Destroyed"
+	emit(
+		d,
+		"OnDestroyed",
+		spell.Caster,
+		spell.Position,
+		targets,
+		spell.Direction or Vector3.zero,
+		spell.Remote,
+		spell.Player,
+		nil,
+		lifecycleState(spell, "OnDestroyed", spell.EventDepth or 0)
+	)
 end
 
 local function expireConstruct(spell)
@@ -4776,9 +4909,15 @@ RunService.Heartbeat:Connect(function(delta)
 			if not gone and not dead then
 				spell.Position = spell.Visual:GetPivot().Position
 				updateActiveProximity(spell, spell.Position, now)
+				pulseConstruct(spell, step)
 			end
-			if spell.RemainingLifetime <= 0 or gone or dead then
-				expireConstruct(spell)
+			if spell.Destroyed or spell.RemainingLifetime <= 0 or gone or dead then
+				if spell.Destroyed then
+					destroyConstruct(spell)
+				else
+					expireConstruct(spell)
+				end
+				ConstructHealth.unregister(spell)
 				if spell.IsChannel then
 					spell.IsChannel = false
 					if stats and stats.Channel == spell then
@@ -4867,27 +5006,33 @@ RunService.Heartbeat:Connect(function(delta)
 				if spell.Kind == "Field" then d.Field.DebugHeight else nil
 			)
 			local targets = nil
-			if spell.RemainingLifetime > 0 and now >= spell.NextInterval then
+			-- Trap ArmDelay: no entry, exit or pulse effects until armed.
+			local armed = TrapSpec.armed(spell.Age, spell.ArmDelay or 0)
+			if spell.RemainingLifetime > 0 and armed and now >= spell.NextInterval then
 				spell.NextInterval = now + area.Interval
 				targets = formAreaTargets(spell, spell.Position)
 				updateAreaMembership(spell, targets)
-				emit(
-					d,
-					"OnTick",
-					spell.Caster,
-					spell.Position,
-					targets,
-					spell.Direction,
-					spell.Remote,
-					spell.Player,
-					nil,
-					spell
-				)
+				if not spell.Consumed then
+					emit(
+						d,
+						"OnTick",
+						spell.Caster,
+						spell.Position,
+						targets,
+						spell.Direction,
+						spell.Remote,
+						spell.Player,
+						nil,
+						spell
+					)
+				end
 			end
 			if spell.RemainingLifetime <= 0 then
 				if not targets then
 					targets = formAreaTargets(spell, spell.Position)
-					updateAreaMembership(spell, targets)
+					if armed then
+						updateAreaMembership(spell, targets)
+					end
 				end
 				local wasChannel = spell.IsChannel == true
 				spell.IsChannel = false
@@ -5320,6 +5465,17 @@ task.spawn(function()
 	if not ready then
 		warn("Persistent Construct storage unavailable: " .. tostring(reason))
 	end
+end)
+
+-- Damaged persistent Constructs: save remaining health in one batched write.
+task.spawn(function()
+	while true do
+		task.wait(Limits.PersistentHealthSaveInterval)
+		PersistentConstructStore.flushHealth()
+	end
+end)
+game:BindToClose(function()
+	PersistentConstructStore.flushHealth()
 end)
 
 return Magic

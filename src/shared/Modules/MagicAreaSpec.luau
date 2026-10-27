@@ -34,6 +34,8 @@ function Spec.validate(form, shape, area, maxRadius, minInterval)
 	}
 	if form == "Field" then
 		allowed.DebugHeight, allowed.FollowTarget = true, true
+		-- Trap options (MagicTrapSpec); validated in SpellSpec.
+		allowed.ArmDelay, allowed.Hidden, allowed.ConsumeOnTrigger = true, true, true
 	end
 	if shape == "Sphere" then
 		allowed.Radius = true

@@ -130,5 +130,9 @@ assert(Caps.selfProfileName({ UserId = 1, Zone = "Ranked" }) == "PvPRanked")
 assert(Caps.selfProfileName({ UserId = 1, DuelOpponent = 2 }) == "PvPOpen", "dueling counts as PvP")
 assert(open.MaxRushDistance and ranked.MaxRushDistance and ranked.MaxRushDistance <= open.MaxRushDistance)
 assert(Profiles.PvE.MaxRushDistance == nil, "PvE Rush uses the MagicLab limit")
+-- Constructs and traps: tighter in ranked; PvE has neither cap.
+assert(ranked.MaxConstructHealth <= open.MaxConstructHealth and open.MaxConstructHealth > 0)
+assert(ranked.MinHiddenTrapArmDelay >= open.MinHiddenTrapArmDelay and open.MinHiddenTrapArmDelay > 0)
+assert(Profiles.PvE.MaxConstructHealth == nil and Profiles.PvE.MinHiddenTrapArmDelay == nil)
 
 print("Spell stat caps: profile selection, PvE identity, potency-aware payload caps and damage caps passed")

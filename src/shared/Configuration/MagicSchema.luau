@@ -125,6 +125,7 @@ Schema.EventOrder = {
 	"OnHolderDealtDamage",
 	"OnThreshold",
 	"OnBreak",
+	"OnDestroyed",
 	"OnTargetDeath",
 	"OnCasterDeath",
 	"OnCommand",
@@ -157,6 +158,7 @@ Schema.EventLabels = {
 	OnExit = "On target exits",
 	OnInterval = "On interval",
 	OnBreak = "On shield break",
+	OnDestroyed = "On destroyed",
 	OnTick = "On each pulse",
 	OnExpire = "On expire",
 	OnCommand = "On command",
@@ -173,6 +175,7 @@ Schema.EventDescriptions = {
 	OnHolderDealtDamage = "Runs when the Enchantment's holder deals damage with one of their own spells. Its target is the holder.",
 	OnThreshold = "Runs when this spell's health damage moves a target from above its configured health percentage to that percentage or lower.",
 	OnBreak = "Runs when a shield created by this spell absorbs damage and its remaining shield points reach zero.",
+	OnDestroyed = "Runs when this Construct's health reaches zero, where it stood. Its target is whoever broke it, if the spell's relationship allows them. A destroyed Construct does not also run On expire.",
 	OnTargetDeath = "Runs when this spell defeats a target or an active effect it applied is on the target when it dies. Each step can filter which cause should run it.",
 	OnCasterDeath = "Runs when the active spell's caster dies.",
 	OnEnter = "Runs when a valid target first enters an active Field or Aura, sampled at its pulse interval.",
@@ -542,7 +545,16 @@ Schema.Forms = {
 		Draft = {
 			Targeting = "WorldPoint",
 			Lifetime = { Mode = "FixedDuration", Duration = 8 },
-			Mechanics = { Radius = 8, Interval = 0.6, DebugHeight = 0.2, Yaw = 0, FollowTarget = false },
+			Mechanics = {
+				Radius = 8,
+				Interval = 0.6,
+				DebugHeight = 0.2,
+				Yaw = 0,
+				FollowTarget = false,
+				ArmDelay = 0,
+				Hidden = false,
+				ConsumeOnTrigger = false,
+			},
 		},
 		-- A Field may be placed on a world point or centered on a living entity.
 		-- It remains at cast-time position by default; FollowTarget opts into attachment.
@@ -673,6 +685,29 @@ Schema.Forms = {
 				Min = 0.1,
 				Max = 30,
 				Help = "Time to reach the end scale; the area holds that size afterward.",
+			},
+			{
+				Object = "Field",
+				Key = "ArmDelay",
+				Label = "Arm delay (seconds)",
+				Min = 0,
+				Max = Limits.MaxTrapArmDelay,
+				Required = false,
+				Help = "Trap option. Entering, leaving and pulse effects wait this long after placement; anyone already inside counts as entering when it arms.",
+			},
+			{
+				Object = "Field",
+				Key = "Hidden",
+				Label = "Hidden from opponents",
+				Required = false,
+				Help = "Trap option. Players who can fight you are never sent its marker; you and your allies still see it. Cannot follow a target or grow.",
+			},
+			{
+				Object = "Field",
+				Key = "ConsumeOnTrigger",
+				Label = "Ends when triggered",
+				Required = false,
+				Help = "Trap option. The first time a target enters (after arming), its entering effects run and then the Field ends.",
 			},
 		},
 	},
@@ -868,8 +903,26 @@ Schema.Forms = {
 		-- Air placement is the default; explicit object/entity attachment is optional.
 		Targeting = set({ "AimDirection", "WorldPoint", "EntityTarget", "ObjectTarget" }),
 		TargetTypes = set({ "Humanoid" }),
-		Events = set({ "OnCast", "OnExpire", "OnProximity", "OnDamageTaken", "OnCasterDeath" }),
-		EffectEvents = set({ "OnCast", "OnExpire", "OnProximity", "OnDamageTaken", "OnCasterDeath" }),
+		-- OnTick runs every Construct.Interval seconds when an interval is set.
+		-- OnDestroyed needs Construct.Health.
+		Events = set({
+			"OnCast",
+			"OnTick",
+			"OnExpire",
+			"OnDestroyed",
+			"OnProximity",
+			"OnDamageTaken",
+			"OnCasterDeath",
+		}),
+		EffectEvents = set({
+			"OnCast",
+			"OnTick",
+			"OnExpire",
+			"OnDestroyed",
+			"OnProximity",
+			"OnDamageTaken",
+			"OnCasterDeath",
+		}),
 		DefaultEvent = nil,
 		TargetRules = true,
 		Mechanics = {
@@ -928,6 +981,24 @@ Schema.Forms = {
 				Min = 0.1,
 				Max = 30,
 				Help = "Time to reach the end scale. Growth pauses if the expanded geometry would overlap another solid or character.",
+			},
+			{
+				Object = "Construct",
+				Key = "Interval",
+				Label = "Pulse interval",
+				Min = Limits.MinInterval,
+				Max = Limits.MaxConstructInterval,
+				Required = false,
+				Help = "Optional. Runs On each pulse at this interval while the Construct stands (a turret, a healing totem). Pulses reach characters within its proximity radius, or the character it is attached to.",
+			},
+			{
+				Object = "Construct",
+				Key = "Health",
+				Label = "Health",
+				Min = 1,
+				Max = Limits.MaxConstructHealth,
+				Required = false,
+				Help = "Optional. Spell damage and melee hits on its parts lower this; at zero it breaks and runs On destroyed. Your own attacks never damage it. Leave empty for an unbreakable Construct.",
 			},
 		},
 	},
@@ -2127,6 +2198,14 @@ for kind, payload in Schema.Payloads do
 	end
 end
 
+-- Construct pulses: effects that run on a Construct also run on its OnTick.
+for kind, payload in Schema.Payloads do
+	if kind ~= "Summon" and payload.Forms ~= HumanoidTargetForms and payload.Events.Construct then
+		payload.Events.Construct.OnTick = true
+		payload.Events.Construct.OnDestroyed = true
+	end
+end
+
 -- Rush: effects that reach Humanoids on a Wave also run on a Rush's events.
 for kind, payload in Schema.Payloads do
 	if kind ~= "Summon" and payload.Forms ~= HumanoidTargetForms and payload.Forms.Wave and payload.Events.Wave then
@@ -2146,6 +2225,7 @@ local reactiveEvents = {
 	"OnHolderDealtDamage",
 	"OnThreshold",
 	"OnBreak",
+	"OnDestroyed",
 	"OnTargetDeath",
 	"OnCasterDeath",
 	"OnCommand",
@@ -2305,6 +2385,10 @@ Schema.Behaviors = {
 for formName, events in Schema.Behaviors.Explode.Events do
 	if Schema.Forms[formName] and Schema.Forms[formName].Events.OnBreak then
 		events.OnBreak = true
+	end
+	if formName == "Construct" then
+		events.OnTick = true
+		events.OnDestroyed = true
 	end
 	-- Recast to detonate: Explode where the active effect is now.
 	if Schema.Forms[formName] and Schema.Forms[formName].Events.OnRecast then

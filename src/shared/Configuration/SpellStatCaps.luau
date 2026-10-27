@@ -31,6 +31,8 @@ return {
 		StealthHidesFromPlayers = false,
 		MaxResourceDrainPerHit = 15, -- DrainResource against players (Mana or a special resource)
 		MaxRushDistance = 24, -- Rush (Dash/Blink) while the caster can fight players
+		MaxConstructHealth = 150, -- Construct.Health cast while the caster can fight players
+		MinHiddenTrapArmDelay = 1, -- a Hidden Field trap arms no sooner than this in PvP
 	},
 	PvPRanked = {
 		DamageMultiplier = 0.5,
@@ -55,5 +57,7 @@ return {
 		StealthHidesFromPlayers = false,
 		MaxResourceDrainPerHit = 10,
 		MaxRushDistance = 18,
+		MaxConstructHealth = 100,
+		MinHiddenTrapArmDelay = 1.5,
 	},
 }

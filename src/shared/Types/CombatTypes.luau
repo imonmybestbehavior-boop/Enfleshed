@@ -87,6 +87,7 @@ export type PlayerState = {
 	ActiveAt: number,
 	ActiveUntil: number,
 	HitTargets: { [Humanoid]: boolean },
+	HitConstructs: { [any]: boolean }?, -- Construct records hit by this swing
 	Heavy: boolean,
 	Blocking: boolean,
 	AttackFacing: Vector3?, -- Flat facing the client swung toward, once checked against the server's.

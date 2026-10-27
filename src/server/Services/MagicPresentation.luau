@@ -22,6 +22,20 @@ local function signatureCovered(definition)
 	return ok and covered
 end
 local castRemote
+local hiddenRemote: RemoteEvent? = nil
+local Players = game:GetService("Players")
+local CombatPolicy = require(game:GetService("ReplicatedStorage").Shared.Modules.CombatPolicy)
+local TrapSpec = require(game:GetService("ReplicatedStorage").Shared.Modules.MagicTrapSpec)
+local function hiddenStorage(): Instance
+	local ServerStorage = game:GetService("ServerStorage")
+	local folder = ServerStorage:FindFirstChild("MagicHiddenMarkers")
+	if not folder then
+		folder = Instance.new("Folder")
+		folder.Name = "MagicHiddenMarkers"
+		folder.Parent = ServerStorage
+	end
+	return folder :: Instance
+end
 local particleBudget = BudgetSpec.new(Config.ParticleBudget, os.clock())
 function Presentation.start(folder)
 	local existing = folder:FindFirstChild("MagicPresentation")
@@ -32,7 +46,93 @@ function Presentation.start(folder)
 		castRemote.Name = "MagicPresentation"
 		castRemote.Parent = folder
 	end
+	local hiddenExisting = folder:FindFirstChild("MagicHiddenMarkers")
+	if hiddenExisting and hiddenExisting:IsA("RemoteEvent") then
+		hiddenRemote = hiddenExisting
+	else
+		hiddenRemote = Instance.new("RemoteEvent")
+		hiddenRemote.Name = "MagicHiddenMarkers"
+		hiddenRemote.Parent = folder
+	end
 end
+
+-- Hidden Field markers (MagicTrapSpec): the marker Part lives in ServerStorage,
+-- so it never replicates. Its description (frame, size, VFX stamp attributes)
+-- is sent only to players who cannot fight the owner; the client builds a
+-- local copy (MagicHiddenMarkerController). Viewers are re-checked every second.
+local hiddenMarkers: { [BasePart]: { Owner: Player?, Viewers: { [Player]: boolean }, Id: string } } = {}
+local hiddenSerial = 0
+
+local function hiddenDescription(marker: BasePart, id: string)
+	return {
+		Kind = "Show",
+		Id = id,
+		Name = marker.Name,
+		CFrame = marker.CFrame,
+		Size = marker.Size,
+		Shape = if marker:IsA("Part") then marker.Shape.Name else "Block",
+		Attributes = marker:GetAttributes(),
+	}
+end
+
+local function refreshHiddenMarker(marker: BasePart, entry)
+	if not hiddenRemote then
+		return
+	end
+	local ownerPolicy = if entry.Owner then CombatPolicy.owner(entry.Owner.Character, Players) else nil
+	local desired = {}
+	for _, viewer in Players:GetPlayers() do
+		local viewerPolicy = CombatPolicy.owner(viewer.Character, Players)
+			or { UserId = viewer.UserId, Zone = nil, DuelOpponent = nil }
+		local canFight = ownerPolicy ~= nil and CombatPolicy.allows(viewerPolicy, ownerPolicy)
+		if TrapSpec.canSee(viewer.UserId, entry.Owner and entry.Owner.UserId, canFight) then
+			table.insert(desired, viewer)
+		end
+	end
+	local show, hide = TrapSpec.diffViewers(entry.Viewers, desired)
+	for _, viewer in show do
+		entry.Viewers[viewer] = true
+		hiddenRemote:FireClient(viewer, hiddenDescription(marker, entry.Id))
+	end
+	for _, viewer in hide do
+		entry.Viewers[viewer] = nil
+		if viewer.Parent == Players then
+			hiddenRemote:FireClient(viewer, { Kind = "Hide", Id = entry.Id })
+		end
+	end
+end
+
+function Presentation.hideMarker(marker: BasePart, owner: Player?)
+	hiddenSerial += 1
+	marker.Parent = hiddenStorage()
+	local entry = { Owner = owner, Viewers = {}, Id = "hidden-" .. hiddenSerial }
+	hiddenMarkers[marker] = entry
+	refreshHiddenMarker(marker, entry)
+end
+
+local function releaseHiddenMarker(marker: Instance): boolean
+	local entry = if marker:IsA("BasePart") then hiddenMarkers[marker] else nil
+	if not entry then
+		return false
+	end
+	hiddenMarkers[marker :: BasePart] = nil
+	for viewer in entry.Viewers do
+		if hiddenRemote and viewer.Parent == Players then
+			hiddenRemote:FireClient(viewer, { Kind = "Hide", Id = entry.Id })
+		end
+	end
+	marker:Destroy()
+	return true
+end
+
+task.spawn(function()
+	while true do
+		task.wait(1)
+		for marker, entry in hiddenMarkers do
+			refreshHiddenMarker(marker, entry)
+		end
+	end
+end)
 local function visualSettings(definition)
 	return (definition and definition.Visual) or {}
 end
@@ -570,6 +670,9 @@ function Presentation.construct(part: BasePart, particleCount: number?, definiti
 	end
 end
 function Presentation.finish(part: Instance)
+	if releaseHiddenMarker(part) then
+		return
+	end
 	part:SetAttribute("VFXPhase", "End")
 	for _, child in part:GetDescendants() do
 		if child:IsA("BasePart") then

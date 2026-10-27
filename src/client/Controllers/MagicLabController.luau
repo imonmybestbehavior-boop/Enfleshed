@@ -2855,6 +2855,9 @@ function Lab.start(send, aim, launcher)
 					end
 					if draft.Form == "Field" then
 						area.DebugHeight = debugHeight or 0.2
+						local previous = draft.Field
+						area.ArmDelay, area.Hidden, area.ConsumeOnTrigger =
+							previous.ArmDelay, previous.Hidden, previous.ConsumeOnTrigger
 					end
 					draft[draft.Form] = area
 				end, nil, "Choose the server hit shape. Visual scale does not change these dimensions.")
@@ -2932,6 +2935,34 @@ function Lab.start(send, aim, launcher)
 						area,
 						"DebugHeight",
 						"Presentation only; it does not change hit detection."
+					)
+					heading("TRAP")
+					numeric(
+						"Arm delay (seconds)",
+						area,
+						"ArmDelay",
+						"Entering, leaving and pulse effects wait this long after placement. Allowed: 0 to "
+							.. Config.MaxTrapArmDelay
+					)
+					toggle(
+						"Hidden from opponents",
+						area.Hidden == true,
+						function(value)
+							area.Hidden = value
+							dirty = true
+							revision += 1
+						end,
+						"Players who can fight you are never sent its marker; you and your allies still see it. A hidden Field cannot follow a target or grow."
+					)
+					toggle(
+						"Ends when triggered",
+						area.ConsumeOnTrigger == true,
+						function(value)
+							area.ConsumeOnTrigger = value
+							dirty = true
+							revision += 1
+						end,
+						"The first time a target enters (after arming), its entering effects run and then the Field ends."
 					)
 				end
 			elseif draft.Form == "Construct" then

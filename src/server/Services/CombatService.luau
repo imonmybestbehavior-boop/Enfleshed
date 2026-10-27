@@ -11,6 +11,7 @@ local Damage = require(script.Parent.DamageService)
 local Enemy = require(script.Parent.EnemyService)
 local Defense = require(script.Parent.MeleeDefenseService)
 local Movement = require(script.Parent.MovementService)
+local ConstructHealth = require(script.Parent.MagicConstructHealth)
 local Combat = {}
 
 -- The client sends the flat direction it swung toward, because the server sees the
@@ -41,6 +42,7 @@ local function begin(state: Types.PlayerState, attack: Types.Attack, now: number
 	state.ReadyAt = state.ActiveUntil + attack.Recovery
 	state.ComboExpires = state.ReadyAt + Config.Combat.ComboReset
 	state.HitTargets = {}
+	state.HitConstructs = {}
 	state.AttackFacing = attackFacing(state, direction)
 	-- A parry bonus is spent on the first swing that starts inside its window.
 	if now <= state.ParryBonusUntil then
@@ -185,6 +187,19 @@ function Combat.update(player: Player, state: Types.PlayerState, now: number, fe
 				Health = hit.Health,
 				Heavy = state.Heavy,
 			})
+		end
+	end
+	-- Constructs with health (MagicConstructHealth) take the swing once each.
+	local overlap = OverlapParams.new()
+	overlap.FilterType = Enum.RaycastFilterType.Exclude
+	overlap.FilterDescendantsInstances = { state.Character }
+	for _, part in workspace:GetPartBoundsInBox(origin * CFrame.new(0, 0, -attack.Offset), attack.Size, overlap) do
+		local entry = ConstructHealth.entryForPart(part)
+		local hitConstructs = state.HitConstructs or {}
+		state.HitConstructs = hitConstructs
+		if entry and not hitConstructs[entry.Record] then
+			hitConstructs[entry.Record] = true
+			ConstructHealth.damage(part, attack.Damage * state.DamageScale, state.Character)
 		end
 	end
 end
