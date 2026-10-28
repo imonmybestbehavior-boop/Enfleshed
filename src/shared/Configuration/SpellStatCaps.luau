@@ -33,6 +33,10 @@ return {
 		MaxRushDistance = 24, -- Rush (Dash/Blink) while the caster can fight players
 		MaxConstructHealth = 150, -- Construct.Health cast while the caster can fight players
 		MinHiddenTrapArmDelay = 1, -- a Hidden Field trap arms no sooner than this in PvP
+		-- Interception (OnBeforeDamageTaken) against hits from players.
+		MaxInterceptReducePercent = 50,
+		MaxInterceptNegateChargesVsPlayer = 1, -- per spell
+		MaxInterceptRedirectToAttackerPercent = 50,
 	},
 	PvPRanked = {
 		DamageMultiplier = 0.5,
@@ -59,5 +63,8 @@ return {
 		MaxRushDistance = 18,
 		MaxConstructHealth = 100,
 		MinHiddenTrapArmDelay = 1.5,
+		MaxInterceptReducePercent = 35,
+		MaxInterceptNegateChargesVsPlayer = 1,
+		MaxInterceptRedirectToAttackerPercent = 30,
 	},
 }

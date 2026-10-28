@@ -45,6 +45,9 @@ return {
 	MaxConstructHealth = 500,
 	MaxTrapArmDelay = 10,
 	PersistentHealthSaveInterval = 30,
+	-- Interception (OnBeforeDamageTaken), provisional.
+	MaxInterceptionCharges = 5,
+	MinInterceptionInterval = 0.25,
 	-- Recast (OnRecast), provisional.
 	MaxRecasts = 3,
 	MinRecastInterval = 0.2,

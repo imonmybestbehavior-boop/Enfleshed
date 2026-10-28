@@ -123,6 +123,7 @@ local EventPhrase = {
 	OnImpact = "When it hits",
 	OnProximity = "When a target comes close",
 	OnDamageDealt = "After it deals damage",
+	OnBeforeDamageTaken = "Before I take damage",
 	OnDamageTaken = "When you take damage",
 	OnMeleeHit = "When your melee hit lands",
 	OnHolderDealtDamage = "When the holder deals spell damage",

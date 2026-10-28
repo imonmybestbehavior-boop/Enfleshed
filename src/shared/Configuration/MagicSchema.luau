@@ -120,6 +120,7 @@ Schema.EventOrder = {
 	"OnImpact",
 	"OnProximity",
 	"OnDamageDealt",
+	"OnBeforeDamageTaken",
 	"OnDamageTaken",
 	"OnMeleeHit",
 	"OnHolderDealtDamage",
@@ -142,6 +143,8 @@ Schema.TargetFromOptions = { "Holder", "Attacker" }
 -- damaged target (default), Caster = the spell's caster (e.g. lifesteal).
 Schema.TargetFromByEvent = {
 	OnDamageTaken = Schema.TargetFromOptions,
+	-- Interception: the holder (default), whoever is hitting them, or the caster.
+	OnBeforeDamageTaken = { "Holder", "Attacker", "Caster" },
 	OnDamageDealt = { "Holder", "Caster" },
 }
 Schema.EventLabels = {
@@ -150,6 +153,7 @@ Schema.EventLabels = {
 	OnImpact = "On impact",
 	OnProximity = "On target approaches",
 	OnDamageDealt = "On damage dealt",
+	OnBeforeDamageTaken = "Before damage taken",
 	OnDamageTaken = "On damage taken",
 	OnMeleeHit = "On melee hit",
 	OnHolderDealtDamage = "On holder deals spell damage",
@@ -170,6 +174,7 @@ Schema.EventDescriptions = {
 	OnImpact = "Runs when a Projectile hits something, or when a Beam resolves. Instant Beams use their server-resolved contact point, or their maximum-range endpoint if unobstructed; channeled Beams run this event on contact.",
 	OnProximity = "Happens when someone gets close enough to the moving projectile, your construct, or your active self spell. The proximity settings control the distance and repeat limits.",
 	OnDamageDealt = "Runs after this spell successfully deals health damage.",
+	OnBeforeDamageTaken = "Runs when the character holding this spell is about to be hit (spell, melee or monster attack), before any protection. A step can cancel the hit, reduce it, or send part of it to the caster or back to the attacker. Uses one charge per hit; damage over time and redirected damage never trigger it.",
 	OnDamageTaken = "Runs when the active spell's caster takes health damage. A step can target the attacker instead of you.",
 	OnMeleeHit = "Runs each time the holder's weapon or claw strike lands while this Enchantment, Aura, or caster-following Field is active. Its target is the creature that was hit.",
 	OnHolderDealtDamage = "Runs when the Enchantment's holder deals damage with one of their own spells. Its target is the holder.",
@@ -1098,6 +1103,20 @@ end
 
 Schema.Forms.Projectile.Events.OnProximity = true
 Schema.Forms.Projectile.EffectEvents.OnProximity = true
+
+-- Interception (OnBeforeDamageTaken): spells a character holds. A Construct
+-- intercepts only while attached to a character.
+Schema.InterceptionForms = { "Aura", "SelfEnhancement", "Construct" }
+for _, formName in Schema.InterceptionForms do
+	Schema.Forms[formName].Events.OnBeforeDamageTaken = true
+	Schema.Forms[formName].EffectEvents.OnBeforeDamageTaken = true
+end
+-- Step field Intercept = { Action, Percent, To } and spell field
+-- Interception = { Charges, EndWhenSpent } (MagicInterceptionSpec).
+Schema.InterceptActions = { "Negate", "Reduce", "Redirect" }
+Schema.InterceptTargets = { "Owner", "Attacker" }
+Schema.InterceptPercentRange = { Reduce = { 1, 90 }, Redirect = { 10, 100 } }
+Schema.MaxInterceptionCharges = Limits.MaxInterceptionCharges
 
 -- OnRecast: Forms whose cast leaves an active effect a slot press can reach
 -- (same list as MagicRecastSpec.Forms).
@@ -2230,6 +2249,7 @@ local reactiveEvents = {
 	"OnCasterDeath",
 	"OnCommand",
 	"OnRecast",
+	"OnBeforeDamageTaken",
 }
 for kind, payload in Schema.Payloads do
 	if kind ~= "Summon" then
@@ -2389,6 +2409,9 @@ for formName, events in Schema.Behaviors.Explode.Events do
 	if formName == "Construct" then
 		events.OnTick = true
 		events.OnDestroyed = true
+	end
+	if Schema.Forms[formName] and Schema.Forms[formName].Events.OnBeforeDamageTaken then
+		events.OnBeforeDamageTaken = true
 	end
 	-- Recast to detonate: Explode where the active effect is now.
 	if Schema.Forms[formName] and Schema.Forms[formName].Events.OnRecast then

@@ -3637,6 +3637,69 @@ function Lab.start(send, aim, launcher)
 					)
 				end
 			end
+			if configuring and event == "OnBeforeDamageTaken" then
+				-- Interception: what this spell does to the incoming hit.
+				local interceptStep = nil
+				for _, step in draft.Triggers[event] or {} do
+					if step.Intercept then
+						interceptStep = step
+						break
+					end
+				end
+				select(
+					"Interception",
+					if interceptStep then interceptStep.Intercept.Action else "None",
+					{ "None", "Negate", "Reduce", "Redirect" },
+					function(value)
+						draft.Triggers[event] = draft.Triggers[event] or {}
+						if value == "None" then
+							if interceptStep then
+								interceptStep.Intercept = nil
+							end
+							return
+						end
+						if not interceptStep then
+							interceptStep = { Payloads = {} }
+							table.insert(draft.Triggers[event], 1, interceptStep)
+						end
+						interceptStep.Intercept = if value == "Negate"
+							then { Action = "Negate" }
+							elseif value == "Reduce" then { Action = "Reduce", Percent = 50 }
+							else { Action = "Redirect", Percent = 50, To = "Owner" }
+						draft.Interception = draft.Interception or { Charges = 1 }
+					end,
+					nil,
+					"Negate cancels the hit; Reduce cuts it by 1-90%; Redirect sends 10-100% to your caster (Owner) or back to the attacker. One spell intercepts each hit; damage over time is never intercepted."
+				)
+				local intercept = interceptStep and interceptStep.Intercept
+				if intercept and intercept.Action ~= "Negate" then
+					numeric(
+						"Percent",
+						intercept,
+						"Percent",
+						if intercept.Action == "Reduce" then "Allowed: 1 to 90" else "Allowed: 10 to 100"
+					)
+				end
+				if intercept and intercept.Action == "Redirect" then
+					select("Send it to", intercept.To or "Owner", Schema.InterceptTargets, function(value)
+						intercept.To = value
+					end, nil, "Owner: the caster of this spell (a guardian on an ally). Attacker: back to whoever hit.")
+				end
+				if draft.Triggers[event] and #draft.Triggers[event] > 0 then
+					draft.Interception = draft.Interception or { Charges = 1 }
+					numeric(
+						"Interception charges",
+						draft.Interception,
+						"Charges",
+						"One is used per intercepted hit, at most every 0.25 s. Allowed: 1 to "
+							.. Config.MaxInterceptionCharges
+					)
+					toggle("Ends when charges run out", draft.Interception.EndWhenSpent == true, function(value)
+						draft.Interception.EndWhenSpent = value
+						dirty = true
+					end, "Off: the spell stays but no longer intercepts.")
+				end
+			end
 			if configuring and event == "OnTargetDeath" then
 				local deathStep = primary()
 				if deathStep then

@@ -594,6 +594,10 @@ function Conditions.stepTargets(condition: any, context: any): { Humanoid }?
 			SpellState = spellState,
 		})
 		return function(familyName, propertyName)
+			-- Hit: the incoming hit on Before damage taken steps.
+			if familyName == "Hit" then
+				return context.IncomingHit and context.IncomingHit[propertyName]
+			end
 			local family = resolved[familyName]
 			return family and family[propertyName]
 		end

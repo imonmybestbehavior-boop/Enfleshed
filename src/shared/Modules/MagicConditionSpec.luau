@@ -78,6 +78,13 @@ ConditionSpec.Properties = {
 		AreaOccupants = { Kind = "Number", Min = 0, Max = 64, Integer = true, Operators = numeric },
 		EventTargets = { Kind = "Number", Min = 0, Max = 64, Integer = true, Operators = numeric },
 	},
+	-- The incoming hit, only on Before damage taken (Interception) steps.
+	Hit = {
+		Damage = { Kind = "Number", Min = 0, Max = 100000, Operators = numeric },
+		Element = { Kind = "String", MaxLength = 32, Operators = stringComparison },
+		AttackerIsPlayer = { Kind = "Boolean", Operators = boolean },
+		IsMelee = { Kind = "Boolean", Operators = boolean },
+	},
 	Resource = {
 		Mana = { Kind = "Number", Min = 0, Max = 100000, Operators = numeric },
 		ManaPercent = { Kind = "Number", Min = 0, Max = 1, Operators = numeric },
@@ -315,11 +322,17 @@ end
 
 -- A trigger-step condition must be a rule tree (not the legacy list form)
 -- built only from values an event context can resolve.
-function ConditionSpec.validateStep(conditions)
+-- `allowHit`: the step belongs to OnBeforeDamageTaken, so the Hit family is offered.
+function ConditionSpec.validateStep(conditions, allowHit: boolean?)
 	if type(conditions) ~= "table" or conditions.Operator == nil then
 		return false, "Step conditions must be an ALL, ANY, or NOT rule group"
 	end
-	local ok, reason = ConditionSpec.validateForFamilies(conditions, ConditionSpec.StepConditionFamilies)
+	local families = ConditionSpec.StepConditionFamilies
+	if allowHit then
+		families = table.clone(families)
+		families.Hit = true
+	end
+	local ok, reason = ConditionSpec.validateForFamilies(conditions, families)
 	if not ok then
 		return false,
 			if reason == "Condition uses a target-only family in a caster lifetime rule"

@@ -256,6 +256,7 @@ env.script = {
 		MagicVisualSpec = "visualSpec",
 		MagicAttributeSpec = "attributeSpec",
 		MagicScaleSpec = "scaleSpec",
+		MagicInterceptionSpec = "interceptionSpec",
 		Parent = {
 			Configuration = {
 				MagicLab = "limits",
@@ -266,9 +267,12 @@ env.script = {
 		},
 	},
 }
+local interceptionSpec = load("src/shared/Modules/MagicInterceptionSpec.luau")
 env.require = function(v)
 	if v == "limits" then
 		return limits
+	elseif v == "interceptionSpec" then
+		return interceptionSpec
 	elseif v == "schema" then
 		return schema
 	elseif v == "projectileBehaviorSpec" then
@@ -1438,6 +1442,108 @@ do
 			"Rush recast was rejected"
 		)
 		assert(not schema.supportsPrincipleForm("Matter", "Rush"), "Matter has no Rush")
+		do
+			-- Interception (OnBeforeDamageTaken).
+			local function hitRule(property, operator, value)
+				return {
+					Operator = "ALL",
+					Conditions = { { Family = "Hit", Property = property, Operator = operator, Value = value } },
+				}
+			end
+			local parry = spec.createDraft("SelfEnhancement", "Body")
+			parry.Element = "Fire"
+			parry.Interception = { Charges = 1, EndWhenSpent = true }
+			parry.Triggers.OnBeforeDamageTaken = {
+				{ Intercept = { Action = "Negate" }, Payloads = {} },
+				{
+					TargetFrom = "Attacker",
+					Payloads = { { Kind = "ElementalMark", Stacks = 1, Duration = 5 } },
+				},
+			}
+			local parryOk, parryReason = spec.validate(parry)
+			assert(parryOk, "parry was rejected: " .. tostring(parryReason))
+			assert(
+				table.find(schema.eventsForEffects("SelfEnhancement"), "OnBeforeDamageTaken"),
+				"Lab hides Before damage taken"
+			)
+			assert(table.find(schema.eventsForEffects("Aura"), "OnBeforeDamageTaken"))
+			assert(
+				not table.find(schema.eventsForEffects("Projectile"), "OnBeforeDamageTaken"),
+				"projectiles hold nothing"
+			)
+			local function parryVariant(mutate)
+				local copy = spec.copy(parry)
+				mutate(copy)
+				return spec.validate(copy)
+			end
+			assert(not parryVariant(function(d)
+				d.Interception = nil
+			end), "charges are required")
+			assert(not parryVariant(function(d)
+				d.Interception.Charges = limits.MaxInterceptionCharges + 1
+			end), "charge limit")
+			assert(not parryVariant(function(d)
+				d.Triggers.OnBeforeDamageTaken[1].Intercept = { Action = "Reduce", Percent = 95 }
+			end), "reduce is at most 90%")
+			assert(
+				parryVariant(function(d)
+					d.Triggers.OnBeforeDamageTaken[1].Intercept = { Action = "Reduce", Percent = 50 }
+				end),
+				"reduce 50% was rejected"
+			)
+			assert(
+				parryVariant(function(d)
+					d.Triggers.OnBeforeDamageTaken[1].Intercept = { Action = "Redirect", Percent = 50, To = "Owner" }
+				end),
+				"guardian redirect was rejected"
+			)
+			assert(not parryVariant(function(d)
+				d.Triggers.OnBeforeDamageTaken[1].Intercept = { Action = "Redirect", Percent = 5, To = "Owner" }
+			end), "redirect is at least 10%")
+			assert(not parryVariant(function(d)
+				d.Triggers.OnBeforeDamageTaken[1].Intercept = { Action = "Redirect", Percent = 50, To = "Bystander" }
+			end), "redirect target")
+			assert(
+				parryVariant(function(d)
+					d.Triggers.OnBeforeDamageTaken[1].Condition = hitRule("Damage", ">=", 20)
+				end),
+				"Hit conditions on Before damage taken"
+			)
+			assert(not parryVariant(function(d)
+				d.Triggers.OnBeforeDamageTaken = nil
+				d.Interception = nil
+				d.Triggers.OnDamageTaken = {
+					{
+						Condition = hitRule("Damage", ">=", 20),
+						Payloads = { { Kind = "Shield", Amount = 5, Duration = 2 } },
+					},
+				}
+			end), "Hit conditions only on Before damage taken")
+			assert(not parryVariant(function(d)
+				d.Triggers.OnBeforeDamageTaken = nil
+				d.Triggers.OnDamageTaken = { { Intercept = { Action = "Negate" }, Payloads = {} } }
+			end), "Intercept only on Before damage taken")
+			-- Cost: Negate is priced highest.
+			local function priced(intercept)
+				local copy = spec.copy(parry)
+				copy.Triggers.OnBeforeDamageTaken = { { Intercept = intercept, Payloads = {} } }
+				return spec.estimate(copy).ManaDemand
+			end
+			local negateCost = priced({ Action = "Negate" })
+			local redirectCost = priced({ Action = "Redirect", Percent = 100, To = "Owner" })
+			local reduceCost = priced({ Action = "Reduce", Percent = 90 })
+			-- Normalization keeps charges in step with the event.
+			local bare = spec.copy(parry)
+			bare.Interception = nil
+			assert(spec.normalize(bare).Interception.Charges == 1, "charges default to 1")
+			bare.Triggers.OnBeforeDamageTaken = nil
+			bare.Interception = { Charges = 3 }
+			assert(spec.normalize(bare).Interception == nil, "charges go with the event")
+			assert(
+				negateCost > redirectCost and redirectCost > reduceCost,
+				"Negate costs the most: " .. negateCost .. " " .. redirectCost .. " " .. reduceCost
+			)
+		end
 		-- Construct pulses (Construct.Interval + OnTick).
 		local totem = spec.createDraft("Construct", "Body")
 		totem.Construct.Interval = 2

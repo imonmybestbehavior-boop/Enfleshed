@@ -279,6 +279,7 @@ local sharedModules = {
 	MagicCrowdControlSpec = load("src/shared/Modules/MagicCrowdControlSpec.luau"),
 	MagicOperationBudget = load("src/shared/Modules/MagicOperationBudget.luau"),
 	MagicHealSpec = load("src/shared/Modules/MagicHealSpec.luau"),
+	MagicInterceptionSpec = load("src/shared/Modules/MagicInterceptionSpec.luau"),
 }
 sharedModules.SpellStatCaps = assert(loadfile(
 	"src/shared/Modules/SpellStatCaps.luau",
@@ -357,6 +358,7 @@ local serverEnv = setmetatable({
 						MagicCrowdControlSpec = "MagicCrowdControlSpec",
 						MagicOperationBudget = "MagicOperationBudget",
 						MagicHealSpec = "MagicHealSpec",
+						MagicInterceptionSpec = "MagicInterceptionSpec",
 					},
 					Configuration = {
 						MagicLab = "MagicLab",
@@ -391,6 +393,7 @@ end
 local Dispatch = loadServer("MagicTriggerDispatch")
 local BehaviorExec = loadServer("MagicBehaviorExecutors")
 local PayloadExec = loadServer("MagicPayloadExecutors")
+local Interception = loadServer("MagicInterception")
 local ProjectileBehaviorExec = loadServer("MagicProjectileBehaviorExecutors")
 local TargetDeath = load("src/shared/Modules/MagicTargetDeathSpec.luau")
 local OperationBudget = load("src/shared/Modules/MagicOperationBudget.luau")
@@ -422,6 +425,7 @@ local StepConditions = {
 					IsAlive = humanoid ~= nil and humanoid.Health > 0,
 				},
 				-- Same sources as MagicConditions.values for these counters.
+				Hit = ctx.IncomingHit,
 				SpellState = {
 					TriggerCount = ctx.SpellState and ctx.SpellState.TriggerCount,
 					EventTargets = ctx.SpellState and ctx.SpellState.EventTargets,
@@ -578,6 +582,9 @@ emit = function(definition, event, caster, position, targets, depth, data, inher
 	ctx.DamageDealt = data and data.DamageDealt
 	local casterHumanoid = caster:FindFirstChildOfClass("Humanoid")
 	ctx.CasterTargets = if casterHumanoid and casterHumanoid.Health > 0 then { casterHumanoid } else {}
+	-- OnBeforeDamageTaken: MagicService passes the incoming hit and the hooks.
+	ctx.IncomingHit = data and data.IncomingHit
+	ctx.InterceptHooks = data and data.InterceptHooks
 	-- MagicService: impacts carry the struck part; Damage on a Construct part
 	-- with health goes to MagicConstructHealth (recorded here).
 	ctx.DamageContext.HitPart = data and data.HitPart
@@ -1782,6 +1789,219 @@ do
 		d.Casting.Mode = "Channeled"
 		d.Triggers = { OnRecast = { stage(1, 3) } }
 	end)), "held spells cannot recast")
+end
+
+---------------------------------------------------------------------------
+-- Interception (OnBeforeDamageTaken): MagicInterception with the real
+-- dispatcher and executors. `held` lists { Definition, Holder, Owner, At }.
+---------------------------------------------------------------------------
+do
+	local clock = 0
+	local deals = {}
+	local function hitRule(property, operator, value)
+		return {
+			Operator = "ALL",
+			Conditions = { { Family = "Hit", Property = property, Operator = operator, Value = value } },
+		}
+	end
+	local hit
+	local function deps(held)
+		return {
+			Candidates = function(h)
+				local list = {}
+				for _, entry in held do
+					if entry.Holder == h.Target and not entry.Ended then
+						table.insert(list, {
+							Record = entry,
+							Definition = entry.Definition,
+							AppliedAt = entry.At,
+							Owner = entry.Owner,
+							Run = function(hooks)
+								local attacker = h.Attacker.Children.Humanoid
+								emit(
+									entry.Definition,
+									"OnBeforeDamageTaken",
+									entry.Owner.Parent,
+									vec(0, 0, 0),
+									{ h.Target },
+									0,
+									{
+										Attackers = { attacker },
+										IncomingHit = hooks.IncomingHit,
+										InterceptHooks = hooks,
+									},
+									nil,
+									entry
+								)
+							end,
+							End = function()
+								entry.Ended = true
+							end,
+						})
+					end
+				end
+				return list
+			end,
+			Now = function()
+				return clock
+			end,
+			Profile = function()
+				return nil
+			end,
+			AttackerIsPlayer = function()
+				return false
+			end,
+			CanDamage = function()
+				return true
+			end,
+			Deal = function(source, recipient, share, context)
+				table.insert(deals, { To = recipient.Parent.Name, Amount = share })
+				hit(source, recipient, share, { Redirected = true }, held)
+			end,
+		}
+	end
+	-- Mirrors DamageService.apply: interception before the hit lands.
+	hit = function(attacker, target, amount, context, held)
+		local kept = Interception.resolve(
+			{ Attacker = attacker, Target = target, Amount = amount, Context = context, Melee = context == nil },
+			deps(held)
+		)
+		if kept > 0 then
+			DamageService.apply(attacker, target, kept)
+		end
+		return kept
+	end
+	local function enchant(principle, mutate)
+		local d = draft("SelfEnhancement", principle, mutate)
+		local ok, reason = validates(d)
+		assert(ok, "interception draft rejected: " .. tostring(reason))
+		return d
+	end
+
+	-- Parry: negate the next hit, then counter-mark the attacker.
+	local parry = enchant("Body", function(d)
+		d.Element = "Fire"
+		d.Interception = { Charges = 1, EndWhenSpent = true }
+		d.Triggers = {
+			OnBeforeDamageTaken = {
+				{ Intercept = { Action = "Negate" }, Payloads = {} },
+				{ TargetFrom = "Attacker", Payloads = { payload("ElementalMark", { Stacks = 1, Duration = 5 }) } },
+			},
+		}
+	end)
+	local foes = resetWorld({ vec(4, 0, 0) }, 100)
+	casterHumanoid.Health = casterHumanoid.MaxHealth
+	local held = { { Definition = parry, Holder = casterHumanoid, Owner = casterHumanoid, At = 1 } }
+	clock = 10
+	local first = hit(foes[1].Parent, casterHumanoid, 30, nil, held)
+	check("INTERCEPT", "CAPABILITY", first == 0 and totalDamageTo("Caster") == 0, "parry negates the next hit")
+	check("INTERCEPT", "CAPABILITY", count(function(x)
+		return x.Op == "Status.elementalMark" and x.Target == "Enemy1"
+	end) == 1, "parry counter-marks the attacker")
+	check("INTERCEPT", "CAPABILITY", held[1].Ended == true, "the spent parry ends (EndWhenSpent)")
+	clock = 11
+	check("INTERCEPT", "CAPABILITY", hit(foes[1].Parent, casterHumanoid, 30, nil, held) == 30, "the next hit lands")
+	casterHumanoid.Health = casterHumanoid.MaxHealth
+
+	-- Absorb: reduce 50% for 3 charges; 0.25 s between interceptions.
+	local absorb = enchant("Body", function(d)
+		d.Interception = { Charges = 3 }
+		d.Triggers = { OnBeforeDamageTaken = { { Intercept = { Action = "Reduce", Percent = 50 }, Payloads = {} } } }
+	end)
+	resetWorld({ vec(4, 0, 0) }, 100)
+	held = { { Definition = absorb, Holder = casterHumanoid, Owner = casterHumanoid, At = 1 } }
+	local landed = {}
+	for index, at in { 20, 20.1, 20.4, 20.8, 21.2 } do
+		clock = at
+		landed[index] = hit(enemies[1].Parent, casterHumanoid, 20, nil, held)
+		casterHumanoid.Health = casterHumanoid.MaxHealth
+	end
+	check(
+		"INTERCEPT",
+		"CAPABILITY",
+		landed[1] == 10 and landed[2] == 20 and landed[3] == 10 and landed[4] == 10 and landed[5] == 20,
+		"absorb halves 3 hits, skips one within 0.25 s, then stops"
+	)
+	local dotState = { Definition = absorb, Holder = casterHumanoid, Owner = casterHumanoid, At = 1 }
+	check("INTERCEPT", "CAPABILITY", Interception.resolve({
+		Attacker = enemies[1].Parent,
+		Target = casterHumanoid,
+		Amount = 9,
+		Context = { Periodic = true },
+		Melee = false,
+	}, deps({ dotState })) == 9 and dotState.InterceptionState == nil, "DoT ticks are never intercepted")
+
+	-- Guardian: an Enchantment on an ally sends 50% of their hits to the caster.
+	local guardian = enchant("Body", function(d)
+		d.Interception = { Charges = 5 }
+		d.Triggers = {
+			OnBeforeDamageTaken = {
+				{
+					Condition = hitRule("Damage", ">=", 10),
+					Intercept = { Action = "Redirect", Percent = 50, To = "Owner" },
+					Payloads = {},
+				},
+			},
+		}
+	end)
+	resetWorld({ vec(4, 0, 0) }, 100)
+	table.clear(deals)
+	local allyHumanoid = makeCharacter("Ally", vec(0, 0, -45), 100)
+	held = { { Definition = guardian, Holder = allyHumanoid, Owner = casterHumanoid, At = 1 } }
+	clock = 30
+	local allyTook = hit(enemies[1].Parent, allyHumanoid, 40, nil, held)
+	check(
+		"INTERCEPT",
+		"CAPABILITY",
+		allyTook == 20 and #deals == 1 and deals[1].To == "Caster" and deals[1].Amount == 20,
+		"guardian sends half of the ally's hit to the caster"
+	)
+	clock = 31
+	check(
+		"INTERCEPT",
+		"CAPABILITY",
+		hit(enemies[1].Parent, allyHumanoid, 5, nil, held) == 5,
+		"Hit.Damage >= 10: small hits pass"
+	)
+
+	-- No loop: two guardians redirecting to each other.
+	local mirror = enchant("Body", function(d)
+		d.Interception = { Charges = 5 }
+		d.Triggers = {
+			OnBeforeDamageTaken = { { Intercept = { Action = "Redirect", Percent = 50, To = "Owner" }, Payloads = {} } },
+		}
+	end)
+	resetWorld({ vec(4, 0, 0) }, 100)
+	table.clear(deals)
+	casterHumanoid.Health, allyHumanoid.Health = casterHumanoid.MaxHealth, allyHumanoid.MaxHealth
+	held = {
+		{ Definition = mirror, Holder = allyHumanoid, Owner = casterHumanoid, At = 1 },
+		{ Definition = mirror, Holder = casterHumanoid, Owner = allyHumanoid, At = 2 },
+	}
+	clock = 40
+	hit(enemies[1].Parent, allyHumanoid, 40, nil, held)
+	check(
+		"INTERCEPT",
+		"CAPABILITY",
+		#deals == 1 and totalDamageTo("Ally") + totalDamageTo("Caster") == 40,
+		"two guardians: the redirected share is never redirected again"
+	)
+	casterHumanoid.Health = casterHumanoid.MaxHealth
+
+	-- One interceptor per hit: the oldest qualifying spell wins.
+	resetWorld({ vec(4, 0, 0) }, 100)
+	held = {
+		{ Definition = absorb, Holder = casterHumanoid, Owner = casterHumanoid, At = 5 },
+		{ Definition = parry, Holder = casterHumanoid, Owner = casterHumanoid, At = 3 },
+	}
+	clock = 50
+	check(
+		"INTERCEPT",
+		"CAPABILITY",
+		hit(enemies[1].Parent, casterHumanoid, 30, nil, held) == 0 and held[1].InterceptionState == nil,
+		"the older parry intercepts; the absorb is untouched"
+	)
+	casterHumanoid.Health = casterHumanoid.MaxHealth
 
 	-- Construct pulse: a turret Construct spawns a Projectile on each pulse.
 	local bolt = spec.defaultSpawnEffect("Projectile")

@@ -48,6 +48,15 @@ function Dispatch.execute(definition, event, context, payloads, behaviors, comma
 		end
 
 		if matches then
+			-- Interception (OnBeforeDamageTaken): report the match and the first
+			-- matching Intercept action to MagicInterception.
+			local hooks = context.InterceptHooks
+			if hooks then
+				hooks.matched()
+				if step.Intercept then
+					hooks.intercept(step.Intercept)
+				end
+			end
 			if step.Behavior then
 				behaviors.execute(step.Behavior, stepContext, step)
 			else

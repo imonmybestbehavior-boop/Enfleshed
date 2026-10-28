@@ -8,6 +8,7 @@ local ConditionSpec = require(script.Parent.MagicConditionSpec)
 local LifetimeSpec = require(script.Parent.MagicLifetimeSpec)
 local ProximitySpec = require(script.Parent.MagicProximitySpec)
 local CastingSpec = require(script.Parent.MagicCastingSpec)
+local InterceptionSpec = require(script.Parent.MagicInterceptionSpec)
 local MaterialSpec = require(script.Parent.MagicMaterialSpec)
 local AudioSpec = require(script.Parent.MagicAudioSpec)
 local ConstructGeometrySpec = require(script.Parent.MagicConstructGeometrySpec)
@@ -52,6 +53,13 @@ function Spec.normalize(source)
 	d.Visual.ProjectileScale = d.Visual.ProjectileScale or 1
 	if d.Construct then
 		d.Construct.Components = d.Construct.Components or {}
+	end
+	-- Interception charges follow the Before damage taken steps.
+	local interceptSteps = d.Triggers and d.Triggers.OnBeforeDamageTaken
+	if type(interceptSteps) == "table" and #interceptSteps > 0 then
+		d.Interception = d.Interception or { Charges = 1 }
+	else
+		d.Interception = nil
 	end
 	d.Audio = d.Audio or Spec.copy(AudioSpec.Defaults)
 	d.Cost = d.Cost or { ManaDemand = 0, Strain = 0, Complexity = 0 }
@@ -493,6 +501,7 @@ function Spec.validate(d, spawnNesting: number?)
 			Field = true,
 			Wave = true,
 			Rush = true,
+			Interception = true,
 			Material = true,
 			Proximity = true,
 		})
@@ -618,6 +627,22 @@ function Spec.validate(d, spawnNesting: number?)
 	for _, f in ipairs({ "Projectile", "Beam", "Wave", "Field", "Aura", "Construct", "Rush" }) do
 		if d[f] and f ~= d.Form then
 			return false, f .. " mechanics do not apply to " .. d.Form
+		end
+	end
+	-- Interception (OnBeforeDamageTaken): charges are required with its steps.
+	local interceptSteps = d.Triggers and d.Triggers.OnBeforeDamageTaken
+	local intercepts = type(interceptSteps) == "table" and #interceptSteps > 0
+	if d.Interception ~= nil or intercepts then
+		local interception = d.Interception
+		if
+			not intercepts
+			or type(interception) ~= "table"
+			or not keys(interception, { Charges = true, EndWhenSpent = true })
+			or not bounded(interception.Charges, 1, Limits.MaxInterceptionCharges)
+			or interception.Charges % 1 ~= 0
+			or (interception.EndWhenSpent ~= nil and type(interception.EndWhenSpent) ~= "boolean")
+		then
+			return false, "Before damage taken needs Interception charges (1-" .. Limits.MaxInterceptionCharges .. ")"
 		end
 	end
 	local c = d.Casting
@@ -1397,9 +1422,28 @@ function Spec.validate(d, spawnNesting: number?)
 					return false, "OnTargetDeath has an unsupported death-cause filter"
 				end
 			end
+			if event == "OnBeforeDamageTaken" then
+				stepFields.Intercept = true
+				local intercept = step.Intercept
+				if intercept ~= nil then
+					local range = type(intercept) == "table" and Schema.InterceptPercentRange[intercept.Action]
+					if
+						type(intercept) ~= "table"
+						or not keys(intercept, { Action = true, Percent = true, To = true })
+						or not table.find(Schema.InterceptActions, intercept.Action)
+						or (intercept.Action == "Negate" and (intercept.Percent ~= nil or intercept.To ~= nil))
+						or (range and not bounded(intercept.Percent, range[1], range[2]))
+						or (intercept.Action == "Reduce" and intercept.To ~= nil)
+						or (intercept.Action == "Redirect" and not table.find(Schema.InterceptTargets, intercept.To))
+					then
+						return false, "Interception: Negate, Reduce 1-90% or Redirect 10-100% to Owner or Attacker"
+					end
+				end
+			end
 			stepFields.Condition = true
 			if step.Condition ~= nil then
-				local conditionValid, conditionReason = ConditionSpec.validateStep(step.Condition)
+				local conditionValid, conditionReason =
+					ConditionSpec.validateStep(step.Condition, event == "OnBeforeDamageTaken")
 				if not conditionValid then
 					return false, conditionReason
 				end
@@ -1418,7 +1462,9 @@ function Spec.validate(d, spawnNesting: number?)
 			if
 				not keys(step, stepFields)
 				or not array(step.Payloads, Limits.MaxPayloads)
-				or #step.Payloads < (if behavior then behavior.MinimumPayloads or 0 else 1)
+				-- An Intercept action is the step's effect, so it needs no payloads.
+				or #step.Payloads
+					< (if behavior or step.Intercept ~= nil then (behavior and behavior.MinimumPayloads) or 0 else 1)
 			then
 				return false, "Invalid trigger step"
 			end
@@ -1574,7 +1620,8 @@ function Spec.validate(d, spawnNesting: number?)
 			end
 		end
 	end
-	if (total == 0 and d.Form ~= "Construct") or total > 8 then
+	-- An Interception action (Negate/Reduce/Redirect) is an effect on its own.
+	if (total == 0 and d.Form ~= "Construct" and not intercepts) or total > 8 then
 		return false, "Specify 1–8 payloads across triggers"
 	end
 	return true
@@ -1637,11 +1684,16 @@ function Spec.estimate(d)
 		constructComponents = components and #components or 0
 		strength += math.max(0, constructComponents - 1) * 3
 	end
+	local interceptCharges = d.Interception and d.Interception.Charges or 1
 	for _, steps in pairs(d.Triggers) do
 		for _, step in ipairs(steps) do
 			if step.Behavior then
 				behaviors = behaviors + 1
 				radius = math.max(radius, step.Radius or 0)
+			end
+			-- Interception: priced per charge, Negate highest.
+			if step.Intercept then
+				controlWeight += InterceptionSpec.costWeight(step.Intercept) * interceptCharges
 			end
 			for _, p in ipairs(step.Payloads) do
 				count = count + 1

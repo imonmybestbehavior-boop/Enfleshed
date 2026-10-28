@@ -9,6 +9,14 @@ local DamageRules = require(game:GetService("ReplicatedStorage").Shared.Modules.
 local CombatPolicy = require(game:GetService("ReplicatedStorage").Shared.Modules.CombatPolicy)
 local StatCaps = require(game:GetService("ReplicatedStorage").Shared.Modules.SpellStatCaps)
 local CapProfiles = require(game:GetService("ReplicatedStorage").Shared.Configuration.SpellStatCaps)
+local InterceptionSpec = require(game:GetService("ReplicatedStorage").Shared.Modules.MagicInterceptionSpec)
+
+-- Interception (OnBeforeDamageTaken), set by MagicService at start: returns
+-- the damage that still lands. DamageService cannot require MagicService.
+local interceptor: ((Model, Humanoid, number, any?, boolean) -> number)? = nil
+function Damage.setInterceptor(fn: (Model, Humanoid, number, any?, boolean) -> number)
+	interceptor = fn
+end
 
 local function apply(
 	attacker: Model,
@@ -42,6 +50,14 @@ local function apply(
 		incoming *= scales[attacker:GetAttribute("MissionRole") or "Basic"] or scales.Basic
 	end
 	incoming = DamageRules.applyOutgoingStrength(incoming, attacker:GetAttribute("MagicStrengthBonus"))
+	-- Before mitigation: spells the target holds may negate, reduce or redirect
+	-- the hit. DoT ticks and redirected damage are never intercepted.
+	if interceptor and InterceptionSpec.eligible(eventContext) then
+		incoming = interceptor(attacker, target, incoming, eventContext, melee)
+		if incoming <= 0 then
+			return 0, 0, false
+		end
+	end
 	if eventContext then
 		local regionMultiplier = eventContext.RegionMultiplier
 		if type(regionMultiplier) == "number" and regionMultiplier == regionMultiplier then

@@ -134,5 +134,10 @@ assert(Profiles.PvE.MaxRushDistance == nil, "PvE Rush uses the MagicLab limit")
 assert(ranked.MaxConstructHealth <= open.MaxConstructHealth and open.MaxConstructHealth > 0)
 assert(ranked.MinHiddenTrapArmDelay >= open.MinHiddenTrapArmDelay and open.MinHiddenTrapArmDelay > 0)
 assert(Profiles.PvE.MaxConstructHealth == nil and Profiles.PvE.MinHiddenTrapArmDelay == nil)
+-- Interception: ranked is tighter; PvE has none of these caps.
+assert(ranked.MaxInterceptReducePercent < open.MaxInterceptReducePercent and open.MaxInterceptReducePercent <= 90)
+assert(ranked.MaxInterceptRedirectToAttackerPercent < open.MaxInterceptRedirectToAttackerPercent)
+assert(open.MaxInterceptNegateChargesVsPlayer == 1 and ranked.MaxInterceptNegateChargesVsPlayer == 1)
+assert(Profiles.PvE.MaxInterceptReducePercent == nil)
 
 print("Spell stat caps: profile selection, PvE identity, potency-aware payload caps and damage caps passed")

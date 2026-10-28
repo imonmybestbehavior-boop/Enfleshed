@@ -1917,7 +1917,7 @@ function Forge.mount(parent, draft, schema, spec, callbacks)
 	end
 	local function pruneStep(scope, eventName, step)
 		local steps = scope.Triggers[eventName]
-		if step and #(step.Payloads or {}) == 0 and not step.Behavior then
+		if step and #(step.Payloads or {}) == 0 and not step.Behavior and not step.Intercept then
 			local index = table.find(steps, step)
 			if index then
 				table.remove(steps, index)
@@ -2232,11 +2232,91 @@ function Forge.mount(parent, draft, schema, spec, callbacks)
 					pad(item, 12, 0)
 				end
 			end
+			if s.Event == "OnBeforeDamageTaken" then
+				-- Interception: the hit itself (cancel, cut, or send part of it away).
+				section("THE HIT")
+				local interceptStep = nil
+				for _, step in steps do
+					if step.Intercept then
+						interceptStep = step
+						break
+					end
+				end
+				local action = if interceptStep then interceptStep.Intercept.Action else "None"
+				choiceField(
+					"What happens to the hit",
+					"Negate cancels it. Reduce cuts it by a percentage. Redirect sends a share to your caster or back to the attacker. One spell intercepts each hit; damage over time is never intercepted.",
+					{ "None", "Negate", "Reduce", "Redirect" },
+					action,
+					function(choice)
+						local list = s.Scope.Triggers[s.Event] or {}
+						s.Scope.Triggers[s.Event] = list
+						if choice == "None" then
+							if interceptStep then
+								interceptStep.Intercept = nil
+								pruneStep(s.Scope, s.Event, interceptStep)
+							end
+							return
+						end
+						if not interceptStep then
+							interceptStep = { Payloads = {} }
+							table.insert(list, 1, interceptStep)
+						end
+						interceptStep.Intercept = if choice == "Negate"
+							then { Action = "Negate" }
+							elseif choice == "Reduce" then { Action = "Reduce", Percent = 50 }
+							else { Action = "Redirect", Percent = 50, To = "Owner" }
+						s.Scope.Interception = s.Scope.Interception or { Charges = 1 }
+					end
+				)
+				local intercept = interceptStep and interceptStep.Intercept
+				if intercept and intercept.Action ~= "Negate" then
+					local range = schema.InterceptPercentRange[intercept.Action]
+					numberField(intercept, {
+						Key = "Percent",
+						Label = if intercept.Action == "Reduce" then "Reduce by (%)" else "Share sent away (%)",
+						Min = range[1],
+						Max = range[2],
+					})
+				end
+				if intercept and intercept.Action == "Redirect" then
+					choiceField("Send it to", nil, schema.InterceptTargets, intercept.To, function(choice)
+						intercept.To = choice
+					end, function(choice)
+						return if choice == "Owner" then "THE CASTER" else "THE ATTACKER"
+					end)
+				end
+				if #steps > 0 then
+					s.Scope.Interception = s.Scope.Interception or { Charges = 1 }
+					numberField(s.Scope.Interception, {
+						Key = "Charges",
+						Label = "Charges",
+						Min = 1,
+						Max = schema.MaxInterceptionCharges,
+						Help = "One is used each time this spell intercepts a hit (at most every 0.25 s).",
+					})
+					choiceField(
+						"Ends when charges run out",
+						nil,
+						{ true, false },
+						s.Scope.Interception.EndWhenSpent == true,
+						function(choice)
+							s.Scope.Interception.EndWhenSpent = choice
+						end,
+						function(choice)
+							return if choice then "ON" else "OFF"
+						end
+					)
+				end
+			end
 			actionButton("+  Add an effect at this moment", function()
 				openPicker({ Mode = "Action", Scope = s.Scope, Event = s.Event })
 			end)
 			removeButton("Remove this trigger and its effects", function()
 				s.Scope.Triggers[s.Event] = nil
+				if s.Event == "OnBeforeDamageTaken" then
+					s.Scope.Interception = nil
+				end
 				state.Selection = { Kind = "Form", Scope = s.Scope }
 			end)
 			hosted({ "ConfigureEffects" }, if s.Scope == draft then s.Event else rootEvent(s.Scope))

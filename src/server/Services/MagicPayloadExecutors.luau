@@ -221,6 +221,10 @@ local function payloadDamageContext(payload, context, target)
 	if payload.Kind == "DamageOverTime" and context.CapProfile then
 		damageContext.PerHitCap = context.CapProfile.MaxDotPerTick
 	end
+	-- DoT ticks never trigger Interception (OnBeforeDamageTaken).
+	if payload.Kind == "DamageOverTime" then
+		damageContext.Periodic = true
+	end
 	return damageContext
 end
 

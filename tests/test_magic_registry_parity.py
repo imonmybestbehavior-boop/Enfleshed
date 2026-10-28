@@ -396,6 +396,27 @@ class MagicRegistryParity(unittest.TestCase):
 		client = (ROOT / "src/client/init.client.luau").read_text(encoding="utf-8")
 		self.assertIn('startController("MagicHiddenMarkerController")', client)
 
+	def test_interception_runs_before_mitigation_without_recursion(self):
+		damage = (ROOT / "src/server/Services/DamageService.luau").read_text(encoding="utf-8")
+		apply = block(damage, "local function apply(", "\nend\n")
+		hook = apply.index("if interceptor and InterceptionSpec.eligible(eventContext) then")
+		self.assertLess(apply.index("applyOutgoingStrength"), hook, "after the attacker's strength")
+		self.assertLess(hook, apply.index("DamageRules.applyChannel"), "before every mitigation")
+		self.assertLess(hook, apply.index("Defense.resolve"))
+		spec = (ROOT / "src/shared/Modules/MagicInterceptionSpec.luau").read_text(encoding="utf-8")
+		self.assertIn("eventContext.Periodic == true or eventContext.Redirected == true", spec)
+		executors = (ROOT / "src/server/Services/MagicPayloadExecutors.luau").read_text(encoding="utf-8")
+		self.assertIn("damageContext.Periodic = true", executors, "DoT ticks are marked")
+		service = (ROOT / "src/server/Services/MagicService.luau").read_text(encoding="utf-8")
+		self.assertIn("Damage.setInterceptor(function(", service)
+		self.assertIn("Redirected = true,", service, "redirected damage is flagged")
+		candidates = block(service, "local function interceptionCandidates(", "\nend\n")
+		self.assertIn("depth >= Limits.MaxMagicEventDepth", candidates, "nested interception stops at the depth limit")
+		dispatch = (ROOT / "src/server/Services/MagicTriggerDispatch.luau").read_text(encoding="utf-8")
+		self.assertIn("hooks.intercept(step.Intercept)", dispatch)
+		interception = (ROOT / "src/server/Services/MagicInterception.luau").read_text(encoding="utf-8")
+		self.assertIn("kept += redirect.Amount", interception, "an undeliverable share returns to the holder")
+
 	def test_stealth_hides_from_monsters_and_player_path_is_behind_the_setting(self):
 		enemy = (ROOT / "src/server/Services/EnemyService.luau").read_text(encoding="utf-8")
 		self.assertEqual(enemy.count("StealthSpec.hiddenFromMonsters("), 2, "scan skip + lose a target that stealths")

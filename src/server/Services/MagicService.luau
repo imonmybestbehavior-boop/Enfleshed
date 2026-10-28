@@ -76,6 +76,7 @@ local CapProfiles = require(Shared.Configuration.SpellStatCaps)
 local ConstructHealth = require(script.Parent.MagicConstructHealth)
 local ConstructHealthSpec = require(Shared.Modules.MagicConstructHealthSpec)
 local TrapSpec = require(Shared.Modules.MagicTrapSpec)
+local Interception = require(script.Parent.MagicInterception)
 local buildConstructModel, watchPersistentConstruct, persistentConstructRecord, restorePersistentConstruct =
 	MagicConstructBuilder.buildConstructModel,
 	MagicConstructBuilder.watchPersistentConstruct,
@@ -818,6 +819,9 @@ local function context(definition, caster, position, targets, direction, remote,
 		SpellTags = definition.Tags,
 		HealthThreshold = runtimeState and runtimeState.HealthThreshold or nil,
 		ChargeFraction = definition._ChargeFraction or 0,
+		-- OnBeforeDamageTaken: the incoming hit and MagicInterception's hooks.
+		IncomingHit = runtimeState and runtimeState.IncomingHit or nil,
+		InterceptHooks = runtimeState and runtimeState.InterceptHooks or nil,
 		-- OnDamageDealt: how much the triggering hit dealt (PercentDamageDealt).
 		DamageDealt = runtimeState and runtimeState.DamageDealt or nil,
 		-- TargetFrom = "Caster" (OnDamageDealt): the caster, if alive.
@@ -1265,6 +1269,136 @@ local function interruptWindupForDamage(target: Humanoid, amount: number)
 		end
 	end
 end
+
+-- Interception (OnBeforeDamageTaken): spells the hit character holds -
+-- Auras following them, Enchantments on them, Constructs attached to them.
+local function interceptionCandidates(hit: any): { any }
+	local target: Humanoid = hit.Target
+	local holder = target.Parent
+	local context = hit.Context
+	local fromSpell = context ~= nil and type(context.Depth) == "number"
+	local depth = if fromSpell then context.Depth + 1 else 0
+	if not holder or depth >= Limits.MaxMagicEventDepth then
+		return {}
+	end
+	local attackerHumanoid = hit.Attacker:FindFirstChildOfClass("Humanoid")
+	local candidates = {}
+	local function add(record, definition, caster, position, direction, remote, player, appliedAt, finish)
+		if not definition or not definition.Interception or not hasEvent(definition, "OnBeforeDamageTaken") then
+			return
+		end
+		table.insert(candidates, {
+			Record = record,
+			Definition = definition,
+			AppliedAt = appliedAt or 0,
+			Owner = caster and caster:FindFirstChildOfClass("Humanoid"),
+			Run = function(hooks)
+				local eventState = lifecycleState(record, "OnBeforeDamageTaken", depth)
+				eventState.EventAttacker = attackerHumanoid
+				eventState.IncomingHit = hooks.IncomingHit
+				eventState.InterceptHooks = hooks
+				if fromSpell then
+					eventState.OperationBudget = context.OperationBudget
+				end
+				emit(
+					definition,
+					"OnBeforeDamageTaken",
+					caster or holder,
+					position,
+					{ target },
+					direction or Vector3.zero,
+					remote,
+					player,
+					nil,
+					eventState
+				)
+			end,
+			End = finish,
+		})
+	end
+	for _, spell in active do
+		local holds = false
+		if spell.Kind == "Aura" and not spell.FollowPart then
+			local follow = spell.FollowTargetModel or spell.FollowTarget
+			holds = (if typeof(follow) == "Instance" then follow else spell.Caster) == holder
+		elseif spell.Kind == "Construct" then
+			holds = spell.AttachedHumanoid ~= nil and spell.AttachedHumanoid.Parent == holder
+		end
+		if holds then
+			add(
+				spell,
+				spell.Definition,
+				spell.Caster,
+				spell.Position,
+				spell.Direction,
+				spell.Remote,
+				spell.Player,
+				spell.StartedAt,
+				function()
+					spell.RemainingLifetime = 0
+				end
+			)
+		end
+	end
+	for player, effects in enhancements do
+		for _, effect in effects do
+			if effect.State.Character == holder and effect.State.Humanoid.Health > 0 then
+				add(
+					effect,
+					effect.Definition,
+					effect.Caster or holder,
+					effect.State.Root.Position,
+					effect.Direction,
+					effect.Remote,
+					player,
+					effect.StartedAt,
+					function()
+						effect.ExpiresAt = workspace:GetServerTimeNow()
+					end
+				)
+			end
+		end
+	end
+	return candidates
+end
+
+Damage.setInterceptor(function(attacker: Model, target: Humanoid, amount: number, eventContext: any?, melee: boolean)
+	return Interception.resolve({
+		Attacker = attacker,
+		Target = target,
+		Amount = amount,
+		Context = eventContext,
+		Melee = melee,
+	}, {
+		Candidates = interceptionCandidates,
+		Now = os.clock,
+		Profile = function(source: Model, holderHumanoid: Humanoid)
+			return CapProfiles[StatCaps.profileName(
+				CombatPolicy.owner(source, Players),
+				CombatPolicy.owner(holderHumanoid.Parent, Players)
+			)]
+		end,
+		AttackerIsPlayer = function(source: Model)
+			return CombatPolicy.owner(source, Players) ~= nil
+		end,
+		CanDamage = function(source: Model, recipient: Humanoid)
+			return recipient.Health > 0
+				and recipient.Parent ~= source
+				and CombatPolicy.canDamage(source, recipient.Parent, Players)
+		end,
+		-- Redirected damage: the recipient's own mitigation and caps apply; it is
+		-- never intercepted again and continues the cascade depth.
+		Deal = function(source: Model, recipient: Humanoid, share: number, hitContext: any?)
+			Damage.apply(source, recipient, share, {
+				Redirected = true,
+				Depth = (if hitContext and type(hitContext.Depth) == "number" then hitContext.Depth else 0) + 1,
+				OperationBudget = hitContext and hitContext.OperationBudget,
+				DamageChannel = (hitContext and hitContext.DamageChannel) or "Physical",
+				Element = (hitContext and hitContext.Element) or "Neutral",
+			})
+		end,
+	})
+end)
 
 Damage.Applied:Connect(function(attacker: Model, target: Humanoid, amount: number, killed, damageContext: any?, melee)
 	interruptWindupForDamage(target, amount)
