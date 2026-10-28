@@ -389,6 +389,11 @@ function Visual.render(parent, spell, compact)
 				0.1 + i * 0.13
 			)
 		end
+	elseif form == "Tether" then
+		-- Two ends and the link between them.
+		shape(parent, UDim2.fromScale(0.5, 0.04), UDim2.fromScale(0.5, 0.43), color, true, 0.2)
+		shape(parent, UDim2.fromScale(0.16, 0.16), UDim2.fromScale(0.25, 0.43), accent, true)
+		shape(parent, UDim2.fromScale(0.16, 0.16), UDim2.fromScale(0.75, 0.43), accent, true)
 	elseif form == "Rush" then
 		-- Three speed streaks and the arrival point.
 		for i = 1, 3 do

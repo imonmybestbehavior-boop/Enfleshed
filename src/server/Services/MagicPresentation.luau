@@ -523,6 +523,44 @@ local function surfacePulse(hit, definition)
 	Debris:AddItem(pulse, 0.65)
 end
 
+-- Tether: a Beam between the anchors' roots in the spell's colour; removed
+-- (with a short impact flash at the midpoint on a snap) by endTether.
+function Presentation.tether(rootA: BasePart, rootB: BasePart, color: Color3): Beam
+	local start = Instance.new("Attachment")
+	start.Name = "MagicTetherStart"
+	start.Parent = rootA
+	local finish = Instance.new("Attachment")
+	finish.Name = "MagicTetherEnd"
+	finish.Parent = rootB
+	local beam = Instance.new("Beam")
+	beam.Name = "MagicTether"
+	beam.Attachment0, beam.Attachment1 = start, finish
+	beam.Color = ColorSequence.new(color)
+	beam.Width0, beam.Width1 = 0.35, 0.35
+	beam.LightEmission = 0.6
+	beam.FaceCamera = true
+	beam.Segments = 8
+	beam.Parent = rootA
+	beam.Destroying:Connect(function()
+		start:Destroy()
+		finish:Destroy()
+	end)
+	return beam
+end
+
+function Presentation.endTether(beam: Beam?, snapped: boolean, midpoint: Vector3?, definition: any?)
+	if snapped and midpoint and definition then
+		Presentation.impact(
+			midpoint,
+			(definition.Visual and definition.Visual.Color) or Color3.new(1, 1, 1),
+			definition
+		)
+	end
+	if beam then
+		beam:Destroy()
+	end
+end
+
 function Presentation.impact(position, color, definition, hit)
 	local settings = visualSettings(definition)
 	playCustomVFX(

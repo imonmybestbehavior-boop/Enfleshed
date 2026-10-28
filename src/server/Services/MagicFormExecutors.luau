@@ -33,6 +33,10 @@ Forms.Executors = {
 	Rush = function(definition: any, context: any)
 		context.ExecuteRush(definition)
 	end,
+	-- Link two characters (MagicService.CreateTether).
+	Tether = function(definition: any, context: any)
+		context.CreateTether(definition)
+	end,
 }
 
 function Forms.execute(form: string, definition: any, context: any): boolean

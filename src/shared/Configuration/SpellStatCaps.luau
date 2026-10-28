@@ -37,6 +37,11 @@ return {
 		MaxInterceptReducePercent = 50,
 		MaxInterceptNegateChargesVsPlayer = 1, -- per spell
 		MaxInterceptRedirectToAttackerPercent = 50,
+		-- Tether: length while the caster can fight players, soul-link share onto
+		-- a player, and whether Pull may move players.
+		MaxTetherLength = 40,
+		MaxTetherShareDamagePercent = 50,
+		TetherPullOnPlayers = true,
 	},
 	PvPRanked = {
 		DamageMultiplier = 0.5,
@@ -66,5 +71,8 @@ return {
 		MaxInterceptReducePercent = 35,
 		MaxInterceptNegateChargesVsPlayer = 1,
 		MaxInterceptRedirectToAttackerPercent = 30,
+		MaxTetherLength = 30,
+		MaxTetherShareDamagePercent = 35,
+		TetherPullOnPlayers = false,
 	},
 }

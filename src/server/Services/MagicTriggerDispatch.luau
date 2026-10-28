@@ -37,6 +37,17 @@ function Dispatch.execute(definition, event, context, payloads, behaviors, comma
 				matches = false
 			end
 		end
+		-- Tether: Anchor = "A" / "B" acts on one end (context.AnchorTargets);
+		-- "Both" or nil keeps the event's targets (both ends).
+		if matches and (step.Anchor == "A" or step.Anchor == "B") then
+			local ends = context.AnchorTargets and context.AnchorTargets[step.Anchor]
+			if type(ends) == "table" and #ends > 0 then
+				stepContext = table.clone(stepContext)
+				stepContext.Targets = ends
+			else
+				matches = false
+			end
+		end
 		if matches and step.Condition ~= nil then
 			local passing = conditions and conditions.filter(step.Condition, stepContext)
 			if passing then

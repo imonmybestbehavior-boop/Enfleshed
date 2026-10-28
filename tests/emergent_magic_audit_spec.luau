@@ -280,6 +280,7 @@ local sharedModules = {
 	MagicOperationBudget = load("src/shared/Modules/MagicOperationBudget.luau"),
 	MagicHealSpec = load("src/shared/Modules/MagicHealSpec.luau"),
 	MagicInterceptionSpec = load("src/shared/Modules/MagicInterceptionSpec.luau"),
+	MagicTetherSpec = load("src/shared/Modules/MagicTetherSpec.luau"),
 }
 sharedModules.SpellStatCaps = assert(loadfile(
 	"src/shared/Modules/SpellStatCaps.luau",
@@ -359,6 +360,7 @@ local serverEnv = setmetatable({
 						MagicOperationBudget = "MagicOperationBudget",
 						MagicHealSpec = "MagicHealSpec",
 						MagicInterceptionSpec = "MagicInterceptionSpec",
+						MagicTetherSpec = "MagicTetherSpec",
 					},
 					Configuration = {
 						MagicLab = "MagicLab",
@@ -394,6 +396,7 @@ local Dispatch = loadServer("MagicTriggerDispatch")
 local BehaviorExec = loadServer("MagicBehaviorExecutors")
 local PayloadExec = loadServer("MagicPayloadExecutors")
 local Interception = loadServer("MagicInterception")
+local TetherRuntime = loadServer("MagicTether")
 local ProjectileBehaviorExec = loadServer("MagicProjectileBehaviorExecutors")
 local TargetDeath = load("src/shared/Modules/MagicTargetDeathSpec.luau")
 local OperationBudget = load("src/shared/Modules/MagicOperationBudget.luau")
@@ -585,6 +588,8 @@ emit = function(definition, event, caster, position, targets, depth, data, inher
 	-- OnBeforeDamageTaken: MagicService passes the incoming hit and the hooks.
 	ctx.IncomingHit = data and data.IncomingHit
 	ctx.InterceptHooks = data and data.InterceptHooks
+	-- Tether: Anchor A / B steps act on one end.
+	ctx.AnchorTargets = data and data.AnchorTargets
 	-- MagicService: impacts carry the struck part; Damage on a Construct part
 	-- with health goes to MagicConstructHealth (recorded here).
 	ctx.DamageContext.HitPart = data and data.HitPart
@@ -1584,6 +1589,195 @@ do
 		not validates(withCondition({ Operator = "ALL", Conditions = { rule("Target", "Script", "Is", true) } })),
 		"unknown condition property rejected"
 	)
+end
+
+---------------------------------------------------------------------------
+-- Tether: MagicTether.update / share with the real dispatcher and executors.
+---------------------------------------------------------------------------
+do
+	local function tetherDraft(principle, mutate)
+		local d = draft("Tether", principle, mutate)
+		local ok, reason = validates(d)
+		assert(ok, "tether draft rejected: " .. tostring(reason))
+		return d
+	end
+	local function newTether(definition, anchorA, anchorB)
+		return {
+			Definition = definition,
+			AnchorA = anchorA,
+			AnchorB = anchorB,
+			Settings = TetherRuntime.settings(definition, definition.Tether.MaxLength),
+			TetherState = { BlockedFor = 0 },
+			NextPulse = 0,
+			RemainingLifetime = 10,
+		}
+	end
+	local world = { Distance = 10, Sight = true, Finished = nil }
+	local tetherDeps = {
+		Alive = function()
+			return true
+		end,
+		Distance = function()
+			return world.Distance
+		end,
+		LineOfSight = function()
+			return world.Sight
+		end,
+		Emit = function(record, event)
+			emit(record.Definition, event, caster, vec(0, 0, 0), { record.AnchorA, record.AnchorB }, 0, {
+				AnchorTargets = { A = { record.AnchorA }, B = { record.AnchorB } },
+			}, nil, record)
+		end,
+		Pull = function() end,
+		Finish = function(_, how)
+			world.Finished = how
+		end,
+	}
+
+	-- Drain tether: OnTick damages the enemy end and heals the caster end.
+	local drain = tetherDraft("Soul", function(d)
+		d.Triggers = {
+			OnTick = {
+				{ Anchor = "B", Payloads = { payload("Damage", { Amount = 6 }) } },
+				{ Anchor = "A", Payloads = { payload("Heal", { Amount = 6 }) } },
+			},
+		}
+	end)
+	local foes = resetWorld({ vec(8, 0, -50) }, 100)
+	casterHumanoid.Health = casterHumanoid.MaxHealth - 20
+	world.Distance, world.Sight, world.Finished = 10, true, nil
+	local record = newTether(drain, casterHumanoid, foes[1])
+	check("TETHER", "CAPABILITY", TetherRuntime.update(record, 0.1, 1, tetherDeps) == nil, "drain tether holds")
+	check(
+		"TETHER",
+		"CAPABILITY",
+		totalDamageTo("Enemy1") == 6 and totalDamageTo("Caster") == 0,
+		"the pulse damages only the enemy end"
+	)
+	check("TETHER", "CAPABILITY", count(function(x)
+		return x.Op == "Status.heal" and x.Target == "Caster"
+	end) == 1 and count(function(x)
+		return x.Op == "Status.heal" and x.Target == "Enemy1"
+	end) == 0, "and heals only the caster end")
+	TetherRuntime.update(record, 0.1, 1.5, tetherDeps)
+	check("TETHER", "CAPABILITY", totalDamageTo("Enemy1") == 6, "no second pulse before the interval")
+	casterHumanoid.Health = casterHumanoid.MaxHealth
+
+	-- Chain two enemies: they snap apart, OnBreak stuns both, no OnExpire.
+	local chain = tetherDraft("Space", function(d)
+		d.Tether.Anchors = "TargetToTarget"
+		d.Tether.MaxLength = 20
+		d.Triggers = {
+			OnBreak = { { Payloads = { payload("Stun", { Duration = 1 }) } } },
+			OnExpire = { { Payloads = { payload("Damage", { Amount = 50 }) } } },
+		}
+	end)
+	foes = resetWorld({ vec(0, 0, 0), vec(6, 0, 0) }, 100)
+	world.Distance, world.Sight, world.Finished = 6, true, nil
+	record = newTether(chain, foes[1], foes[2])
+	check(
+		"TETHER",
+		"CAPABILITY",
+		TetherRuntime.update(record, 0.1, 1, tetherDeps) == nil,
+		"chained enemies stay linked"
+	)
+	world.Distance = 25
+	check(
+		"TETHER",
+		"CAPABILITY",
+		TetherRuntime.update(record, 0.1, 2, tetherDeps) == "Snap",
+		"pulled apart, the chain snaps"
+	)
+	check("TETHER", "CAPABILITY", count(function(x)
+		return x.Op == "Status.stun"
+	end) == 2 and world.Finished == "Snap" and damageOps == 0, "OnBreak stuns both ends; OnExpire does not run")
+
+	-- Line-of-sight grace: a short break holds, a long one snaps.
+	foes = resetWorld({ vec(0, 0, 0), vec(6, 0, 0) }, 100)
+	world.Distance, world.Sight, world.Finished = 6, false, nil
+	record = newTether(chain, foes[1], foes[2])
+	local short = TetherRuntime.update(record, 0.3, 1, tetherDeps)
+	world.Sight = true
+	local seen = TetherRuntime.update(record, 0.1, 1.1, tetherDeps)
+	world.Sight = false
+	local again = TetherRuntime.update(record, 0.3, 1.4, tetherDeps)
+	local long = TetherRuntime.update(record, 0.3, 1.7, tetherDeps)
+	check(
+		"TETHER",
+		"CAPABILITY",
+		short == nil and seen == nil and again == nil and long == "Snap",
+		"blocked 0.3 s holds (the grace resets when seen), blocked 0.6 s snaps"
+	)
+
+	-- Soul link: 50% of an ally's damage moves to the caster; crossed links do not loop.
+	local soul = tetherDraft("Soul", function(d)
+		d.Tether.ShareDamage = 50
+		d.Triggers = { OnCast = { { Payloads = { payload("Shield", { Amount = 5, Duration = 2 }) } } } }
+	end)
+	resetWorld({ vec(4, 0, -45) }, 100)
+	local ally = makeCharacter("SoulAlly", vec(0, 0, -45), 100)
+	local links = {}
+	local shared = {}
+	local shareDeps
+	local function hitLinked(attacker, target, amount, context)
+		local kept = TetherRuntime.share(attacker, target, amount, context, shareDeps)
+		if kept > 0 then
+			DamageService.apply(attacker, target, kept)
+		end
+		return kept
+	end
+	shareDeps = {
+		Links = function(target)
+			local found = {}
+			for _, link in links do
+				if link.A == target then
+					table.insert(found, { Record = link, Percent = link.Percent, Other = link.B, StartedAt = link.At })
+				elseif link.B == target then
+					table.insert(found, { Record = link, Percent = link.Percent, Other = link.A, StartedAt = link.At })
+				end
+			end
+			return found
+		end,
+		ShareCap = function()
+			return nil
+		end,
+		CanDamage = function()
+			return true
+		end,
+		Deal = function(source, recipient, share)
+			table.insert(shared, { To = recipient.Parent.Name, Amount = share })
+			hitLinked(source, recipient, share, { Redirected = true, Shared = true })
+		end,
+	}
+	links = { { A = ally, B = casterHumanoid, Percent = soul.Tether.ShareDamage, At = 1 } }
+	local kept = hitLinked(enemies[1].Parent, ally, 40, nil)
+	check(
+		"TETHER",
+		"CAPABILITY",
+		kept == 20 and #shared == 1 and shared[1].To == "Caster" and totalDamageTo("Caster") == 20,
+		"a 50% soul link moves half of the ally's hit to the caster"
+	)
+	resetWorld({ vec(4, 0, -45) }, 100)
+	table.clear(shared)
+	casterHumanoid.Health, ally.Health = casterHumanoid.MaxHealth, ally.MaxHealth
+	links = {
+		{ A = ally, B = casterHumanoid, Percent = 50, At = 1 },
+		{ A = casterHumanoid, B = ally, Percent = 50, At = 2 },
+	}
+	hitLinked(enemies[1].Parent, ally, 40, nil)
+	check(
+		"TETHER",
+		"CAPABILITY",
+		#shared == 1 and totalDamageTo("SoulAlly") + totalDamageTo("Caster") == 40,
+		"two crossed soul links: the shared part is never shared back"
+	)
+	check(
+		"TETHER",
+		"CAPABILITY",
+		hitLinked(enemies[1].Parent, ally, 10, { Periodic = true }) == 5,
+		"DoT ticks are shared too"
+	)
+	casterHumanoid.Health = casterHumanoid.MaxHealth
 end
 
 ---------------------------------------------------------------------------

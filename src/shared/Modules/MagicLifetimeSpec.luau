@@ -41,6 +41,8 @@ Spec.ModesByForm = {
 	Manipulation = { Instantaneous = true },
 	-- Rush lasts exactly as long as its movement.
 	Rush = { Instantaneous = true },
+	-- A Tether lasts its duration unless it snaps or an end is lost.
+	Tether = { FixedDuration = true },
 }
 
 function Spec.supports(form, mode)

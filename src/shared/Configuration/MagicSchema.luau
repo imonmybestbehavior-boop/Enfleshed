@@ -1085,10 +1085,92 @@ Schema.Forms = {
 			},
 		},
 	},
+	Tether = {
+		Label = "Tether",
+		Description = "A visible link between you and a target, or between two targets. It snaps when they move too far apart or lose sight of each other. Pulse effects can act on either end, so one end can be drained while the other is healed.",
+		Geometry = "Line",
+		Motion = "Stationary",
+		Draft = {
+			Targeting = "EntityTarget",
+			Lifetime = { Mode = "FixedDuration", Duration = 6 },
+			Mechanics = {
+				Anchors = "CasterToTarget",
+				MaxLength = 30,
+				BreakOnLineOfSight = true,
+				Interval = 1,
+				Pull = false,
+			},
+		},
+		Targeting = set({ "EntityTarget" }),
+		TargetTypes = set({ "Humanoid" }),
+		-- OnBreak on a Tether is the snap (distance or line of sight), not a shield breaking.
+		Events = set({ "OnCast", "OnTick", "OnBreak", "OnExpire", "OnDamageDealt", "OnTargetDeath" }),
+		EffectEvents = set({ "OnCast", "OnTick", "OnBreak", "OnExpire", "OnDamageDealt", "OnTargetDeath" }),
+		DefaultEvent = "OnTick",
+		TargetRules = true,
+		Mechanics = {
+			{
+				Object = "Tether",
+				Key = "Anchors",
+				Label = "Links",
+				Options = { "CasterToTarget", "TargetToTarget" },
+				Help = "Caster to target: you and the character you pick. Target to target: the character you pick and the nearest other one within reach (chain two enemies).",
+			},
+			{
+				Object = "Tether",
+				Key = "MaxLength",
+				Label = "Maximum length",
+				Min = Limits.MinTetherLength,
+				Max = Limits.MaxTetherLength,
+				Help = "The link snaps when its ends move further apart than this.",
+			},
+			{
+				Object = "Tether",
+				Key = "BreakOnLineOfSight",
+				Label = "Snaps without line of sight",
+				Help = "On: the link snaps when something solid stays between its ends for more than half a second.",
+			},
+			{
+				Object = "Tether",
+				Key = "Interval",
+				Label = "Pulse interval",
+				Min = Limits.MinInterval,
+				Max = Limits.MaxTetherInterval,
+				Help = "Time between On each pulse effects.",
+			},
+			{
+				Object = "Tether",
+				Key = "Pull",
+				Label = "Pull ends together",
+				Help = "On: past 80% of the maximum length the ends are drawn together. It still snaps beyond the maximum.",
+			},
+			{
+				Object = "Tether",
+				Key = "ShareDamage",
+				Label = "Shared damage (%)",
+				Min = 10,
+				Max = 90,
+				Required = false,
+				Help = "Soul link. Optional. This share of the damage either end takes moves to the other end. Shared damage is never shared again.",
+			},
+		},
+	},
 }
 
-Schema.FormOrder =
-	{ "Projectile", "Beam", "Wave", "Field", "Aura", "SelfEnhancement", "Construct", "Manipulation", "Rush" }
+Schema.FormOrder = {
+	"Projectile",
+	"Beam",
+	"Wave",
+	"Field",
+	"Aura",
+	"SelfEnhancement",
+	"Construct",
+	"Manipulation",
+	"Rush",
+	"Tether",
+}
+-- Tether step field Anchor: which end a step acts on (default Both).
+Schema.TetherAnchors = { "A", "B", "Both" }
 
 -- Commands are lifecycle events on summon-producing spell definitions. A
 -- group retains the validated definition independently of the original cast.
@@ -2230,6 +2312,8 @@ for kind, payload in Schema.Payloads do
 	if kind ~= "Summon" and payload.Forms ~= HumanoidTargetForms and payload.Forms.Wave and payload.Events.Wave then
 		payload.Forms.Rush = true
 		payload.Events.Rush = table.clone(Schema.Forms.Rush.EffectEvents)
+		payload.Forms.Tether = true
+		payload.Events.Tether = table.clone(Schema.Forms.Tether.EffectEvents)
 	end
 end
 

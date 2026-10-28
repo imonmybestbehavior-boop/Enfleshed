@@ -43,6 +43,7 @@ local FormIcon = {
 	Construct = "■",
 	Manipulation = "◇",
 	Rush = "»",
+	Tether = "∞",
 }
 local FormVerb = {
 	Projectile = "Launch a projectile",
@@ -54,6 +55,7 @@ local FormVerb = {
 	Construct = "Build a construct",
 	Manipulation = "Manipulate the world",
 	Rush = "Dash or blink along your aim",
+	Tether = "Link two characters",
 }
 
 local PayloadIcon = {

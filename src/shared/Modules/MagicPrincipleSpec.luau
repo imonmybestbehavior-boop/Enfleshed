@@ -28,12 +28,13 @@ local energyForms = {
 	"Aura",
 	"Construct",
 	"Rush",
+	"Tether",
 }
 
 -- Rush (moving yourself) is open to every Principle except Matter.
-local spaceForms = { "Projectile", "Beam", "Wave", "Field", "Aura", "Construct", "SelfEnhancement", "Rush" }
-local soulForms = { "Projectile", "Beam", "Wave", "Field", "Aura", "Construct", "SelfEnhancement", "Rush" }
-local timeForms = { "Projectile", "Beam", "Wave", "Field", "Aura", "Construct", "SelfEnhancement", "Rush" }
+local spaceForms = { "Projectile", "Beam", "Wave", "Field", "Aura", "Construct", "SelfEnhancement", "Rush", "Tether" }
+local soulForms = { "Projectile", "Beam", "Wave", "Field", "Aura", "Construct", "SelfEnhancement", "Rush", "Tether" }
+local timeForms = { "Projectile", "Beam", "Wave", "Field", "Aura", "Construct", "SelfEnhancement", "Rush", "Tether" }
 
 local Registry = {
 	Order = { "Matter", "Energy", "Body", "Soul", "Space", "Time" },
@@ -59,7 +60,17 @@ local Registry = {
 			Description = "Magic for living bodies. Use direct hits, areas, or a spell on yourself. Add effects separately, such as healing or movement bonuses.",
 			Expressions = { "BodyEnhancement" },
 			DefaultExpression = "BodyEnhancement",
-			Forms = set({ "Projectile", "Beam", "Wave", "Field", "Aura", "Construct", "SelfEnhancement", "Rush" }),
+			Forms = set({
+				"Projectile",
+				"Beam",
+				"Wave",
+				"Field",
+				"Aura",
+				"Construct",
+				"SelfEnhancement",
+				"Rush",
+				"Tether",
+			}),
 			Status = "PARTIAL",
 		},
 		Soul = {

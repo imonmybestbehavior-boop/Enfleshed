@@ -9,7 +9,6 @@ local DamageRules = require(game:GetService("ReplicatedStorage").Shared.Modules.
 local CombatPolicy = require(game:GetService("ReplicatedStorage").Shared.Modules.CombatPolicy)
 local StatCaps = require(game:GetService("ReplicatedStorage").Shared.Modules.SpellStatCaps)
 local CapProfiles = require(game:GetService("ReplicatedStorage").Shared.Configuration.SpellStatCaps)
-local InterceptionSpec = require(game:GetService("ReplicatedStorage").Shared.Modules.MagicInterceptionSpec)
 
 -- Interception (OnBeforeDamageTaken), set by MagicService at start: returns
 -- the damage that still lands. DamageService cannot require MagicService.
@@ -51,8 +50,10 @@ local function apply(
 	end
 	incoming = DamageRules.applyOutgoingStrength(incoming, attacker:GetAttribute("MagicStrengthBonus"))
 	-- Before mitigation: spells the target holds may negate, reduce or redirect
-	-- the hit. DoT ticks and redirected damage are never intercepted.
-	if interceptor and InterceptionSpec.eligible(eventContext) then
+	-- the hit, then a soul link (Tether ShareDamage) may split it. Redirected
+	-- and shared damage skip both; DoT ticks reach only the soul link
+	-- (MagicInterception checks InterceptionSpec.eligible itself).
+	if interceptor and not (eventContext and eventContext.Redirected == true) then
 		incoming = interceptor(attacker, target, incoming, eventContext, melee)
 		if incoming <= 0 then
 			return 0, 0, false

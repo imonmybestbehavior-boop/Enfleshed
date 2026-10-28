@@ -139,5 +139,10 @@ assert(ranked.MaxInterceptReducePercent < open.MaxInterceptReducePercent and ope
 assert(ranked.MaxInterceptRedirectToAttackerPercent < open.MaxInterceptRedirectToAttackerPercent)
 assert(open.MaxInterceptNegateChargesVsPlayer == 1 and ranked.MaxInterceptNegateChargesVsPlayer == 1)
 assert(Profiles.PvE.MaxInterceptReducePercent == nil)
+-- Tether: shorter and gentler in ranked; no Pull on players there.
+assert(ranked.MaxTetherLength < open.MaxTetherLength and open.MaxTetherLength <= 60)
+assert(ranked.MaxTetherShareDamagePercent < open.MaxTetherShareDamagePercent)
+assert(open.TetherPullOnPlayers == true and ranked.TetherPullOnPlayers == false)
+assert(Profiles.PvE.MaxTetherLength == nil)
 
 print("Spell stat caps: profile selection, PvE identity, potency-aware payload caps and damage caps passed")

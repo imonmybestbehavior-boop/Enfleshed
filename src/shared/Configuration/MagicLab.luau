@@ -45,6 +45,15 @@ return {
 	MaxConstructHealth = 500,
 	MaxTrapArmDelay = 10,
 	PersistentHealthSaveInterval = 30,
+	-- Tether Form, provisional.
+	MinTetherLength = 10,
+	MaxTetherLength = 60,
+	MaxTetherInterval = 10,
+	TetherLineOfSightGrace = 0.5,
+	TetherPullStart = 0.8,
+	TetherPullSpeed = 12,
+	MaxTethersPerCaster = 2,
+	MaxTethersPerCharacter = 3,
 	-- Interception (OnBeforeDamageTaken), provisional.
 	MaxInterceptionCharges = 5,
 	MinInterceptionInterval = 0.25,

@@ -3123,6 +3123,7 @@ function Lab.start(send, aim, launcher)
 						or draft.Casting.Mode == "Channeled"
 						or draft.Form == "Field"
 						or draft.Form == "Aura"
+						or draft.Form == "Tether"
 					then
 						showFields(draft[field.Object], { field })
 					end
@@ -3634,6 +3635,21 @@ function Lab.start(send, aim, launcher)
 						if event == "OnDamageDealt"
 							then "Holder applies the effect to the creature that was hit. Caster applies it to you (for example lifesteal)."
 							else "Holder applies the effect to you. Attacker applies it to whoever damaged you (thorns), if this spell's relationship allows them."
+					)
+				end
+			end
+			if configuring and draft.Form == "Tether" then
+				local tetherStep = primary()
+				if tetherStep then
+					select(
+						"Acts on",
+						tetherStep.Anchor or "Both",
+						Schema.TetherAnchors,
+						function(value)
+							tetherStep.Anchor = if value == "Both" then nil else value
+						end,
+						nil,
+						"Both ends, or only end A (you, or the first target) or end B (the target, or the second one)."
 					)
 				end
 			end

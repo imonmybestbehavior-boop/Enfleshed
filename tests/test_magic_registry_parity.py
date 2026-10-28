@@ -399,7 +399,7 @@ class MagicRegistryParity(unittest.TestCase):
 	def test_interception_runs_before_mitigation_without_recursion(self):
 		damage = (ROOT / "src/server/Services/DamageService.luau").read_text(encoding="utf-8")
 		apply = block(damage, "local function apply(", "\nend\n")
-		hook = apply.index("if interceptor and InterceptionSpec.eligible(eventContext) then")
+		hook = apply.index("if interceptor and not (eventContext and eventContext.Redirected == true) then")
 		self.assertLess(apply.index("applyOutgoingStrength"), hook, "after the attacker's strength")
 		self.assertLess(hook, apply.index("DamageRules.applyChannel"), "before every mitigation")
 		self.assertLess(hook, apply.index("Defense.resolve"))
@@ -416,6 +416,28 @@ class MagicRegistryParity(unittest.TestCase):
 		self.assertIn("hooks.intercept(step.Intercept)", dispatch)
 		interception = (ROOT / "src/server/Services/MagicInterception.luau").read_text(encoding="utf-8")
 		self.assertIn("kept += redirect.Amount", interception, "an undeliverable share returns to the holder")
+		self.assertIn("if not Spec.eligible(hit.Context)", interception, "DoT ticks reach the hook but are never intercepted")
+
+	def test_tether_snaps_shares_and_never_loops(self):
+		service = (ROOT / "src/server/Services/MagicService.luau").read_text(encoding="utf-8")
+		self.assertIn('elseif spell.Kind == "Tether" then\n\t\t\tif stepTether(spell, step) then', service)
+		finish = block(service, "	Finish = function(spell, how)", "\n\tend,\n")
+		self.assertIn("LifetimeSpec.claimExpiry(spell)", finish, "a snap never also runs OnExpire")
+		self.assertIn("Presentation.endTether(", finish)
+		self.assertIn('if eventName == "OnBreak" and definition.Form == "Tether" then', service, "shields never fire the snap")
+		self.assertIn("TetherSpec.toEnd(mine, Limits.MaxTethersPerCaster)", service)
+		self.assertIn("TetherSpec.anchorFull(tetherAnchorCount(", service)
+		interceptor = block(service, "Damage.setInterceptor(function(", "\nend)\n")
+		self.assertLess(interceptor.index("Interception.resolve("), interceptor.index("shareSoulLinks("), "share after interception")
+		share = block(service, "local function shareSoulLinks(", "\nend\n")
+		self.assertIn("Shared = true,", share)
+		self.assertIn("Redirected = true,", share, "shared damage is never intercepted or shared again")
+		tether = (ROOT / "src/server/Services/MagicTether.luau").read_text(encoding="utf-8")
+		self.assertIn("not Spec.shareable(eventContext)", tether)
+		dispatch = (ROOT / "src/server/Services/MagicTriggerDispatch.luau").read_text(encoding="utf-8")
+		self.assertIn("context.AnchorTargets[step.Anchor]", dispatch)
+		presentation = (ROOT / "src/server/Services/MagicPresentation.luau").read_text(encoding="utf-8")
+		self.assertIn('Instance.new("Beam")', block(presentation, "function Presentation.tether(", "\nend\n"))
 
 	def test_stealth_hides_from_monsters_and_player_path_is_behind_the_setting(self):
 		enemy = (ROOT / "src/server/Services/EnemyService.luau").read_text(encoding="utf-8")

@@ -1441,6 +1441,68 @@ do
 			end),
 			"Rush recast was rejected"
 		)
+		do
+			-- Tether Form: links, length, line of sight, pulses on either end.
+			local tether = spec.createDraft("Tether", "Soul")
+			assert(tether and tether.Tether.Anchors == "CasterToTarget" and tether.Targeting == "EntityTarget")
+			tether.Triggers.OnTick = {
+				{ Anchor = "B", Payloads = { { Kind = "Damage", Amount = 4 } } },
+				{ Anchor = "A", Payloads = { { Kind = "Heal", Amount = 4 } } },
+			}
+			local tetherOk, tetherReason = spec.validate(tether)
+			assert(tetherOk, "drain tether was rejected: " .. tostring(tetherReason))
+			local function tetherVariant(mutate)
+				local copy = spec.copy(tether)
+				mutate(copy)
+				return spec.validate(copy)
+			end
+			assert(
+				tetherVariant(function(d)
+					d.Tether.Anchors = "TargetToTarget"
+					d.Triggers.OnBreak = { { Payloads = { { Kind = "Stun", Duration = 1 } } } }
+				end),
+				"chain with a snap stun was rejected"
+			)
+			assert(
+				tetherVariant(function(d)
+					d.Tether.ShareDamage = 50
+				end),
+				"soul link was rejected"
+			)
+			assert(not tetherVariant(function(d)
+				d.Tether.ShareDamage = 95
+			end), "shared damage is at most 90%")
+			assert(not tetherVariant(function(d)
+				d.Tether.MaxLength = limits.MaxTetherLength + 1
+			end), "length limit")
+			assert(not tetherVariant(function(d)
+				d.Tether.MaxLength = limits.MinTetherLength - 1
+			end), "minimum length")
+			assert(not tetherVariant(function(d)
+				d.Tether.Anchors = "CasterToCaster"
+			end), "unknown links")
+			assert(not tetherVariant(function(d)
+				d.Triggers.OnTick[1].Anchor = "C"
+			end), "unknown end")
+			assert(not tetherVariant(function(d)
+				d.Targeting = "AimDirection"
+			end), "a Tether is aimed at a character")
+			assert(not tetherVariant(function(d)
+				d.Lifetime = { Mode = "UntilToggledOff" }
+			end), "a Tether lasts a set duration")
+			assert(not tetherVariant(function(d)
+				d.Casting.Mode = "Channeled"
+			end), "a Tether is cast instantly")
+			assert(table.find(schema.eventsForEffects("Tether"), "OnBreak"), "Lab hides the snap")
+			assert(
+				schema.supportsPayload("Stun", "Tether", "OnBreak")
+					and schema.supportsPayload("Damage", "Tether", "OnTick")
+			)
+			assert(not schema.supportsPrincipleForm("Matter", "Tether"), "Matter has no Tether")
+			local plain = spec.createDraft("Projectile", "Energy")
+			plain.Triggers.OnImpact = { { Anchor = "A", Payloads = { { Kind = "Damage", Amount = 3 } } } }
+			assert(not spec.validate(plain), "Anchor only on Tether steps")
+		end
 		assert(not schema.supportsPrincipleForm("Matter", "Rush"), "Matter has no Rush")
 		do
 			-- Interception (OnBeforeDamageTaken).

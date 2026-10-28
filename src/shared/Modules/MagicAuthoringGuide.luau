@@ -36,7 +36,7 @@ Guide.Intents = {
 		Label = "Control",
 		Description = "Slow, bind, pull, push, or otherwise limit a target.",
 		Payloads = { "Slow", "Bind", "Stun", "Silence", "Taunt", "Fear", "Control", "TimeDilation", "Displacement" },
-		RecommendedForms = { "Field", "Wave", "Projectile", "Beam", "Aura" },
+		RecommendedForms = { "Field", "Wave", "Projectile", "Beam", "Aura", "Tether" },
 	},
 	{
 		Id = "Summoning",

@@ -133,6 +133,8 @@ function Spec.createDraft(formName: string, principle: string)
 		},
 		Form = formName,
 		Targeting = form.Draft.Targeting,
+		-- Forms that start aimed at a character (Tether) start with the usual policy.
+		TargetPolicy = if form.Draft.Targeting == "EntityTarget" then "Aim" else nil,
 		Geometry = form.Geometry,
 		Motion = form.Motion,
 		Casting = {
@@ -501,6 +503,7 @@ function Spec.validate(d, spawnNesting: number?)
 			Field = true,
 			Wave = true,
 			Rush = true,
+			Tether = true,
 			Interception = true,
 			Material = true,
 			Proximity = true,
@@ -624,7 +627,7 @@ function Spec.validate(d, spawnNesting: number?)
 	elseif d.TargetPolicy ~= nil then
 		return false, "Target policy requires EntityTarget"
 	end
-	for _, f in ipairs({ "Projectile", "Beam", "Wave", "Field", "Aura", "Construct", "Rush" }) do
+	for _, f in ipairs({ "Projectile", "Beam", "Wave", "Field", "Aura", "Construct", "Rush", "Tether" }) do
 		if d[f] and f ~= d.Form then
 			return false, f .. " mechanics do not apply to " .. d.Form
 		end
@@ -1119,6 +1122,33 @@ function Spec.validate(d, spawnNesting: number?)
 				return false, "A hidden Field needs a duration"
 			end
 		end
+	elseif d.Form == "Tether" then
+		local tether = d.Tether
+		if
+			type(tether) ~= "table"
+			or not keys(tether, {
+				Anchors = true,
+				MaxLength = true,
+				BreakOnLineOfSight = true,
+				Interval = true,
+				Pull = true,
+				ShareDamage = true,
+			})
+			or (tether.Anchors ~= "CasterToTarget" and tether.Anchors ~= "TargetToTarget")
+			or not bounded(tether.MaxLength, Limits.MinTetherLength, Limits.MaxTetherLength)
+			or type(tether.BreakOnLineOfSight) ~= "boolean"
+			or not bounded(tether.Interval, Limits.MinInterval, Limits.MaxTetherInterval)
+			or type(tether.Pull) ~= "boolean"
+			or (tether.ShareDamage ~= nil and not bounded(tether.ShareDamage, 10, 90))
+		then
+			return false, "Invalid Tether links, length, interval, pull or shared damage"
+		end
+		if c.Mode ~= "Instant" then
+			return false, "A Tether is cast instantly"
+		end
+		if d.Lifetime.Mode ~= "FixedDuration" then
+			return false, "A Tether lasts a set duration"
+		end
 	elseif d.Form == "Rush" then
 		local rush = d.Rush
 		if
@@ -1369,7 +1399,8 @@ function Spec.validate(d, spawnNesting: number?)
 		if event == "OnCommand" and not hasSummonSource then
 			return false, "OnCommand requires a Summon payload on another trigger"
 		end
-		if event == "OnBreak" and not hasShieldSource then
+		-- On a Tether, OnBreak is the snap and needs no shield.
+		if event == "OnBreak" and not hasShieldSource and d.Form ~= "Tether" then
 			return false, "OnBreak requires a Shield payload on another trigger"
 		end
 		if
@@ -1420,6 +1451,13 @@ function Spec.validate(d, spawnNesting: number?)
 				stepFields.DeathMode = true
 				if step.DeathMode ~= nil and not table.find(Schema.TargetDeathModes, step.DeathMode) then
 					return false, "OnTargetDeath has an unsupported death-cause filter"
+				end
+			end
+			-- Tether steps may act on one end (A, B) or both (default).
+			if d.Form == "Tether" then
+				stepFields.Anchor = true
+				if step.Anchor ~= nil and not table.find(Schema.TetherAnchors, step.Anchor) then
+					return false, "A Tether step acts on end A, end B or both"
 				end
 			end
 			if event == "OnBeforeDamageTaken" then

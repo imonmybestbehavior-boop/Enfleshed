@@ -77,6 +77,8 @@ local ConstructHealth = require(script.Parent.MagicConstructHealth)
 local ConstructHealthSpec = require(Shared.Modules.MagicConstructHealthSpec)
 local TrapSpec = require(Shared.Modules.MagicTrapSpec)
 local Interception = require(script.Parent.MagicInterception)
+local TetherRuntime = require(script.Parent.MagicTether)
+local TetherSpec = require(Shared.Modules.MagicTetherSpec)
 local buildConstructModel, watchPersistentConstruct, persistentConstructRecord, restorePersistentConstruct =
 	MagicConstructBuilder.buildConstructModel,
 	MagicConstructBuilder.watchPersistentConstruct,
@@ -378,6 +380,72 @@ local function rushPath(state: State, definition: any, direction: Vector3): Magi
 	return MagicRush.plan(state.Character, state.Humanoid, state.Root, direction, rushDistance(state, definition))
 end
 
+-- Tether: length within the hard limit and the caster's PvP MaxTetherLength.
+local function tetherLength(state: State, definition: any): number
+	local profile = CapProfiles[StatCaps.selfProfileName(CombatPolicy.owner(state.Character, Players))]
+	return TetherSpec.length(definition.Tether.MaxLength, profile and profile.MaxTetherLength, Limits.MaxTetherLength)
+end
+
+local function tetherAnchorCount(humanoid: Humanoid): number
+	local count = 0
+	for _, spell in active do
+		if spell.Kind == "Tether" and (spell.AnchorA == humanoid or spell.AnchorB == humanoid) then
+			count += 1
+		end
+	end
+	return count
+end
+
+-- The two anchors: CasterToTarget = caster and the picked character;
+-- TargetToTarget = the picked character and the nearest other eligible one
+-- within reach. Refused when an anchor already holds the most tethers.
+local function tetherAnchors(
+	state: State,
+	definition: any,
+	picked: Model?,
+	player: Player
+): (Humanoid?, Humanoid?, string?)
+	local pickedHumanoid = picked and picked:FindFirstChildOfClass("Humanoid")
+	local pickedRoot = picked and picked:FindFirstChild("HumanoidRootPart")
+	if not pickedHumanoid or not pickedRoot or not pickedRoot:IsA("BasePart") then
+		return nil, nil, "Aim at a character to tether"
+	end
+	local first, second = state.Humanoid, pickedHumanoid
+	if definition.Tether.Anchors == "TargetToTarget" then
+		first, second = pickedHumanoid, nil
+		local found =
+			HitDetection.findSphere(state.Character, CFrame.new(pickedRoot.Position), tetherLength(state, definition), {
+				OverlapCollisionGroup = Sandbox.Combat.OverlapCollisionGroup,
+				RequireLineOfSight = definition.Tether.BreakOnLineOfSight,
+				IncludeAttacker = false,
+			})
+		local eligible = Conditions.targets(definition, state.Character, pickedRoot.Position, found, {
+			Player = player,
+			Resources = resourceSnapshot(playerData[player]),
+			SpellState = {},
+		})
+		local best = math.huge
+		for _, humanoid in eligible do
+			local root = humanoid.Parent and humanoid.Parent:FindFirstChild("HumanoidRootPart")
+			if humanoid ~= pickedHumanoid and root and root:IsA("BasePart") then
+				local distance = (root.Position - pickedRoot.Position).Magnitude
+				if distance < best then
+					best, second = distance, humanoid
+				end
+			end
+		end
+		if not second then
+			return nil, nil, "No second character within reach"
+		end
+	end
+	for _, humanoid in { first, second } do
+		if TetherSpec.anchorFull(tetherAnchorCount(humanoid :: Humanoid), Limits.MaxTethersPerCharacter) then
+			return nil, nil, "That character is already tethered too many times"
+		end
+	end
+	return first, second, nil
+end
+
 local function validate(
 	player: Player,
 	state: State,
@@ -473,6 +541,12 @@ local function validate(
 			local allowed, capReason = canHoldEnchantment(player, definition, selectedTarget)
 			if not allowed then
 				return "IMPOSSIBLE", capReason
+			end
+		end
+		if definition.Form == "Tether" then
+			local anchorA, _, anchorReason = tetherAnchors(state, definition, selectedTarget, player)
+			if not anchorA then
+				return "IMPOSSIBLE", anchorReason
 			end
 		end
 		direction = targetDirection or direction
@@ -821,6 +895,8 @@ local function context(definition, caster, position, targets, direction, remote,
 		ChargeFraction = definition._ChargeFraction or 0,
 		-- OnBeforeDamageTaken: the incoming hit and MagicInterception's hooks.
 		IncomingHit = runtimeState and runtimeState.IncomingHit or nil,
+		-- Tether steps with Anchor = "A" / "B" act on one end.
+		AnchorTargets = runtimeState and runtimeState.AnchorTargets or nil,
 		InterceptHooks = runtimeState and runtimeState.InterceptHooks or nil,
 		-- OnDamageDealt: how much the triggering hit dealt (PercentDamageDealt).
 		DamageDealt = runtimeState and runtimeState.DamageDealt or nil,
@@ -975,6 +1051,10 @@ local function context(definition, caster, position, targets, direction, remote,
 		ThresholdSteps = definition.Triggers.OnThreshold,
 		EmitEvent = function(eventName, targetHumanoid, eventData)
 			if eventDepth >= Limits.MaxMagicEventDepth or not emit then
+				return
+			end
+			-- On a Tether, OnBreak is the snap: its own shields breaking do not fire it.
+			if eventName == "OnBreak" and definition.Form == "Tether" then
 				return
 			end
 			local runtime = runtimeState and (runtimeState.RuntimeOrigin or runtimeState)
@@ -1362,8 +1442,56 @@ local function interceptionCandidates(hit: any): { any }
 	return candidates
 end
 
+-- Soul links on a character: live Tethers with ShareDamage anchored on it.
+local function tetherLinks(target: Humanoid): { any }
+	local links = {}
+	for _, spell in active do
+		local percent = spell.Kind == "Tether" and spell.Definition.Tether.ShareDamage
+		if percent and not spell.Ended and (spell.AnchorA == target or spell.AnchorB == target) then
+			table.insert(links, {
+				Record = spell,
+				Percent = percent,
+				Other = if spell.AnchorA == target then spell.AnchorB else spell.AnchorA,
+				StartedAt = spell.StartedAt or 0,
+			})
+		end
+	end
+	return links
+end
+
+local function shareSoulLinks(attacker: Model, target: Humanoid, amount: number, eventContext: any?): number
+	return TetherRuntime.share(attacker, target, amount, eventContext, {
+		Links = tetherLinks,
+		ShareCap = function(source: Model, receiver: Humanoid)
+			local receiverOwner = CombatPolicy.owner(receiver.Parent, Players)
+			if not receiverOwner then
+				return nil
+			end
+			local profile = CapProfiles[StatCaps.profileName(CombatPolicy.owner(source, Players), receiverOwner)]
+			return profile and profile.MaxTetherShareDamagePercent
+		end,
+		CanDamage = function(source: Model, recipient: Humanoid)
+			return recipient.Health > 0
+				and recipient.Parent ~= source
+				and CombatPolicy.canDamage(source, recipient.Parent, Players)
+		end,
+		-- Shared damage is marked like redirected damage: never shared or
+		-- intercepted again, and it continues the cascade depth.
+		Deal = function(source: Model, recipient: Humanoid, share: number, hitContext: any?)
+			Damage.apply(source, recipient, share, {
+				Redirected = true,
+				Shared = true,
+				Depth = (if hitContext and type(hitContext.Depth) == "number" then hitContext.Depth else 0) + 1,
+				OperationBudget = hitContext and hitContext.OperationBudget,
+				DamageChannel = (hitContext and hitContext.DamageChannel) or "Physical",
+				Element = (hitContext and hitContext.Element) or "Neutral",
+			})
+		end,
+	})
+end
+
 Damage.setInterceptor(function(attacker: Model, target: Humanoid, amount: number, eventContext: any?, melee: boolean)
-	return Interception.resolve({
+	local kept = Interception.resolve({
 		Attacker = attacker,
 		Target = target,
 		Amount = amount,
@@ -1398,6 +1526,8 @@ Damage.setInterceptor(function(attacker: Model, target: Humanoid, amount: number
 			})
 		end,
 	})
+	-- Then a soul link splits what lands (DoT ticks included).
+	return shareSoulLinks(attacker, target, kept, eventContext)
 end)
 
 Damage.Applied:Connect(function(attacker: Model, target: Humanoid, amount: number, killed, damageContext: any?, melee)
@@ -1726,6 +1856,101 @@ local function stepRush(rush, delta: number): boolean
 		return true
 	end
 	return false
+end
+
+-- Tether runtime (MagicTether): events act on both ends; Anchor A/B steps on one.
+local function tetherEnds(spell): { Humanoid }
+	local ends = {}
+	for _, humanoid in { spell.AnchorA, spell.AnchorB } do
+		if humanoid.Health > 0 and humanoid:IsDescendantOf(workspace) then
+			table.insert(ends, humanoid)
+		end
+	end
+	return ends
+end
+
+local function tetherRoot(humanoid: Humanoid): BasePart?
+	local root = humanoid.Parent and humanoid.Parent:FindFirstChild("HumanoidRootPart")
+	return if root and root:IsA("BasePart") then root else nil
+end
+
+local tetherDeps: any = {
+	Alive = function(spell)
+		return #tetherEnds(spell) == 2 and tetherRoot(spell.AnchorA) ~= nil and tetherRoot(spell.AnchorB) ~= nil
+	end,
+	Distance = function(spell)
+		return ((tetherRoot(spell.AnchorA) :: BasePart).Position - (tetherRoot(spell.AnchorB) :: BasePart).Position).Magnitude
+	end,
+	LineOfSight = function(spell)
+		local from = (tetherRoot(spell.AnchorA) :: BasePart).Position
+		local to = (tetherRoot(spell.AnchorB) :: BasePart).Position
+		return sweep(from, to - from, spell.AnchorA.Parent, nil, 0, { spell.AnchorB.Parent }) == nil
+	end,
+	Emit = function(spell, event)
+		local eventState = lifecycleState(spell, event, spell.EventDepth or 0)
+		eventState.AnchorTargets = { A = { spell.AnchorA }, B = { spell.AnchorB } }
+		emit(
+			spell.Definition,
+			event,
+			spell.Caster,
+			spell.Position,
+			tetherEnds(spell),
+			spell.Direction or Vector3.zero,
+			spell.Remote,
+			spell.Player,
+			nil,
+			eventState
+		)
+	end,
+	-- Pull: nudge each end toward the other (players only where the PvP profile allows).
+	Pull = function(spell, speed)
+		local rootA, rootB = tetherRoot(spell.AnchorA), tetherRoot(spell.AnchorB)
+		if not rootA or not rootB or speed <= 0 then
+			return
+		end
+		for _, pair in { { rootA, rootB, spell.AnchorA }, { rootB, rootA, spell.AnchorB } } do
+			local root, other, humanoid = pair[1], pair[2], pair[3]
+			local owner = CombatPolicy.owner(humanoid.Parent, Players)
+			local profile = if owner
+				then CapProfiles[StatCaps.profileName(CombatPolicy.owner(spell.Caster, Players), owner)]
+				else nil
+			if not root.Anchored and not (profile and profile.TetherPullOnPlayers == false) then
+				local delta = Vector3.new(other.Position.X - root.Position.X, 0, other.Position.Z - root.Position.Z)
+				if delta.Magnitude > 0.01 then
+					local direction = delta.Unit
+					local velocity = root.AssemblyLinearVelocity
+					local boost = math.max(0, speed - velocity:Dot(direction))
+					Movement.allowMagicImpulse(root, direction * speed)
+					root.AssemblyLinearVelocity = velocity + direction * boost
+				end
+			end
+		end
+	end,
+	-- Snap: no OnExpire. Expire / Lost: OnExpire at the midpoint.
+	Finish = function(spell, how)
+		spell.Ended = true
+		local rootA, rootB = tetherRoot(spell.AnchorA), tetherRoot(spell.AnchorB)
+		local midpoint = if rootA and rootB then (rootA.Position + rootB.Position) / 2 else spell.Position
+		spell.Position = midpoint
+		if how == "Snap" then
+			LifetimeSpec.claimExpiry(spell)
+		else
+			emitExpiry(spell, midpoint, tetherEnds(spell))
+		end
+		Presentation.endTether(spell.Visual, how == "Snap", midpoint, spell.Definition)
+		spell.Visual = nil
+	end,
+}
+
+local function stepTether(spell, dt: number): boolean
+	if spell.Ended then
+		return true
+	end
+	local rootA, rootB = tetherRoot(spell.AnchorA), tetherRoot(spell.AnchorB)
+	if rootA and rootB then
+		spell.Position = (rootA.Position + rootB.Position) / 2
+	end
+	return TetherRuntime.update(spell, dt, os.clock(), tetherDeps) ~= nil
 end
 
 local function expireProjectile(spell)
@@ -3524,6 +3749,49 @@ local function execute(
 			registerActiveEffect(channel)
 		end
 	end
+	formContext.CreateTether = function(d)
+		local anchorA, anchorB, reason = tetherAnchors(state, d, selectedTarget, player)
+		local rootA = anchorA and tetherRoot(anchorA)
+		local rootB = anchorB and tetherRoot(anchorB)
+		if not anchorA or not anchorB or not rootA or not rootB then
+			feedback(remote, player, "IMPOSSIBLE", d, { Reason = reason or "Tether ends are no longer available" })
+			return
+		end
+		-- At most MaxTethersPerCaster live Tethers per caster: the oldest ends.
+		local mine = {}
+		for _, spell in active do
+			if spell.Kind == "Tether" and spell.Player == player and not spell.Ended then
+				table.insert(mine, spell)
+			end
+		end
+		for _, oldest in TetherSpec.toEnd(mine, Limits.MaxTethersPerCaster) do
+			tetherDeps.Finish(oldest, "Expire")
+		end
+		local length = tetherLength(state, d)
+		local tether = {
+			Kind = "Tether",
+			SpellId = d.SpellId,
+			Caster = state.Character,
+			Player = player,
+			Remote = remote,
+			Definition = d,
+			AnchorA = anchorA,
+			AnchorB = anchorB,
+			Settings = TetherRuntime.settings(d, length),
+			TetherState = TetherSpec.newState(),
+			NextPulse = os.clock() + d.Tether.Interval,
+			Age = 0,
+			CurrentPhase = "Active",
+			TargetsHit = {},
+			StartedAt = os.clock(),
+			RemainingLifetime = configuredLifetime(d),
+			Position = (rootA.Position + rootB.Position) / 2,
+			Direction = direction,
+			Visual = Presentation.tether(rootA, rootB, d.Visual.Color),
+		}
+		registerActiveEffect(tether)
+		tetherDeps.Emit(tether, "OnCast")
+	end
 	formContext.ExecuteRush = function(d)
 		local path = rushPath(state, d, direction)
 		local token = {}
@@ -4696,6 +4964,10 @@ RunService.Heartbeat:Connect(function(delta)
 				end
 			elseif spell.Kind == "Rush" then
 				finishRush(spell, true)
+			elseif spell.Kind == "Tether" then
+				if not spell.Ended then
+					tetherDeps.Finish(spell, "Lost")
+				end
 			elseif spell.Visual then
 				Presentation.finish(spell.Visual)
 			end
@@ -4756,6 +5028,10 @@ RunService.Heartbeat:Connect(function(delta)
 			end
 		elseif spell.Kind == "Rush" then
 			if stepRush(spell, step) then
+				table.remove(active, i)
+			end
+		elseif spell.Kind == "Tether" then
+			if stepTether(spell, step) then
 				table.remove(active, i)
 			end
 		elseif spell.Kind == "BeamCascade" then

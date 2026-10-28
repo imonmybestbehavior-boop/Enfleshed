@@ -652,8 +652,15 @@ function Forge.mount(parent, draft, schema, spec, callbacks)
 		end
 		return table.concat(parts, " · ")
 	end
+	-- On a Tether, OnBreak is the snap.
+	local function phraseFor(eventName, scope)
+		if eventName == "OnBreak" and (scope or draft).Form == "Tether" then
+			return "When it snaps"
+		end
+		return EventPhrase[eventName]
+	end
 	local function eventTitle(eventName)
-		return string.upper(EventPhrase[eventName] or schema.EventLabels[eventName] or eventName)
+		return string.upper(phraseFor(eventName) or schema.EventLabels[eventName] or eventName)
 	end
 
 	------------------------------------------------------------------ tree
@@ -1407,7 +1414,7 @@ function Forge.mount(parent, draft, schema, spec, callbacks)
 				tile(
 					"◆",
 					C.Gold,
-					EventPhrase[eventName] or schema.EventLabels[eventName] or eventName,
+					phraseFor(eventName, scope) or schema.EventLabels[eventName] or eventName,
 					schema.EventDescriptions[eventName] or "",
 					true,
 					function()
@@ -1862,6 +1869,30 @@ function Forge.mount(parent, draft, schema, spec, callbacks)
 			end
 		)
 	end
+	-- Tether steps: which end the effect acts on.
+	local function anchorField(step, scope)
+		if not scope or scope.Form ~= "Tether" then
+			return
+		end
+		local casterLinked = scope.Tether and scope.Tether.Anchors ~= "TargetToTarget"
+		choiceField(
+			"Acts on",
+			"Both ends, or only one (for example drain one end and heal the other).",
+			schema.TetherAnchors,
+			step.Anchor or "Both",
+			function(choice)
+				step.Anchor = if choice == "Both" then nil else choice
+			end,
+			function(choice)
+				if choice == "A" then
+					return if casterLinked then "YOU" else "FIRST TARGET"
+				elseif choice == "B" then
+					return if casterLinked then "THE TARGET" else "SECOND TARGET"
+				end
+				return "BOTH ENDS"
+			end
+		)
+	end
 	local function matches(label)
 		local query = string.lower(state.Search or "")
 		return query == "" or string.find(string.lower(tostring(label)), query, 1, true) ~= nil
@@ -2177,7 +2208,7 @@ function Forge.mount(parent, draft, schema, spec, callbacks)
 			end
 		elseif s.Kind == "Trigger" then
 			inspectSub.Text = "A moment this spell reacts to"
-			header("◆", C.Gold, EventPhrase[s.Event] or s.Event, schema.EventDescriptions[s.Event])
+			header("◆", C.Gold, phraseFor(s.Event, s.Scope) or s.Event, schema.EventDescriptions[s.Event])
 			local steps = s.Scope.Triggers[s.Event] or {}
 			if not eventSupported(s.Scope, s.Event) then
 				local formLabel = (schema.Forms[s.Scope.Form] or {}).Label or s.Scope.Form
@@ -2340,6 +2371,7 @@ function Forge.mount(parent, draft, schema, spec, callbacks)
 				note("Elemental damage uses the spell's element: " .. tostring(draft.Element) .. ".")
 			end
 			targetFromField(s.Step, s.Event)
+			anchorField(s.Step, s.Scope)
 			section("PROPERTIES")
 			fieldGroup(payload, definition.Fields, "payload:" .. payload.Kind)
 			section("")
@@ -2361,6 +2393,7 @@ function Forge.mount(parent, draft, schema, spec, callbacks)
 				note("IF · Runs only when its condition passes. Edit the condition in Advanced view.", C.Arcane)
 			end
 			targetFromField(step, s.Event)
+			anchorField(step, s.Scope)
 			section("PROPERTIES")
 			fieldGroup(step, definition.Fields, "behavior:" .. tostring(step.Behavior))
 			section("AFFECTS EVERYTHING INSIDE WITH")
