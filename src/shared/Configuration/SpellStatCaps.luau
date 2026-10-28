@@ -42,6 +42,8 @@ return {
 		MaxTetherLength = 40,
 		MaxTetherShareDamagePercent = 50,
 		TetherPullOnPlayers = true,
+		-- Polymorph on a player (always breaks on damage).
+		MaxPolymorphDurationVsPlayer = 1.5,
 	},
 	PvPRanked = {
 		DamageMultiplier = 0.5,
@@ -74,5 +76,6 @@ return {
 		MaxTetherLength = 30,
 		MaxTetherShareDamagePercent = 35,
 		TetherPullOnPlayers = false,
+		MaxPolymorphDurationVsPlayer = 1.0,
 	},
 }

@@ -3,6 +3,7 @@
 local applied = Instance.new("BindableEvent")
 local Damage = { Applied = applied.Event }
 local Status = require(script.Parent.MagicStatusEffectService)
+local Transform = require(script.Parent.MagicTransformService)
 local Defense = require(script.Parent.MeleeDefenseService)
 local Players = game:GetService("Players")
 local DamageRules = require(game:GetService("ReplicatedStorage").Shared.Modules.MagicDamageRules)
@@ -100,6 +101,8 @@ local function apply(
 		if attackerHumanoid then
 			Status.breakStealth(attackerHumanoid)
 		end
+		-- Damage from anyone but the caster breaks a BreakOnDamage Polymorph.
+		Transform.onDamaged(target, attacker)
 		-- Last argument: IsMelee, true only for DamageService.applyMelee hits (OnMeleeHit).
 		applied:Fire(attacker, target, dealt, killed, eventContext, melee)
 	end

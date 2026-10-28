@@ -21,6 +21,8 @@ local ScaleSpec = require(game:GetService("ReplicatedStorage").Shared.Modules.Ma
 local CrowdControl = require(game:GetService("ReplicatedStorage").Shared.Modules.MagicCrowdControlSpec)
 local OperationBudget = require(game:GetService("ReplicatedStorage").Shared.Modules.MagicOperationBudget)
 local HealSpec = require(game:GetService("ReplicatedStorage").Shared.Modules.MagicHealSpec)
+local TransformState = require(game:GetService("ReplicatedStorage").Shared.Modules.MagicTransformStateSpec)
+local Transform = require(script.Parent.MagicTransformService)
 local Players = game:GetService("Players")
 local Payloads = {}
 local periodicEffects = {}
@@ -590,7 +592,50 @@ Payloads.Executors = {
 		end
 	end,
 	Transformation = function(payload: any, context: any)
-		if payload.Mode ~= "Scale" then
+		if payload.Mode == "Polymorph" then
+			-- Against players: the PvP duration cap, and it always breaks on damage.
+			local cap = context.CapProfile and context.CapProfile.MaxPolymorphDurationVsPlayer
+			local duration = TransformState.polymorphDuration(
+				payload.Duration,
+				MagicLab.MinPolymorphDuration,
+				MagicLab.MaxPolymorphDuration,
+				cap
+			)
+			for _, humanoid in context.Targets or {} do
+				if
+					Transform.polymorph(
+						context.Caster,
+						humanoid,
+						context.SpellId,
+						duration,
+						payload.BreakOnDamage ~= false or cap ~= nil,
+						context.SpellColor,
+						context.TransformEnded and context.TransformEnded(humanoid)
+					)
+				then
+					context.EffectFeedback("Transformation", humanoid, duration)
+				end
+			end
+			return
+		elseif payload.Mode == "Shapeshift" then
+			-- Self only: the caster's own character.
+			local own = context.Caster:FindFirstChildOfClass("Humanoid")
+			for _, humanoid in context.Targets or {} do
+				if
+					humanoid == own
+					and Transform.shapeshift(
+						humanoid,
+						context.SpellId,
+						payload.Profile,
+						payload.Duration,
+						context.TransformEnded and context.TransformEnded(humanoid)
+					)
+				then
+					context.EffectFeedback("Transformation", humanoid, payload.Duration)
+				end
+			end
+			return
+		elseif payload.Mode ~= "Scale" then
 			return
 		end
 		for _, humanoid in context.Targets or {} do
@@ -751,6 +796,10 @@ Payloads.Executors = {
 		-- removed longest-lasting first (MagicCrowdControlSpec.select).
 		for _, humanoid in context.Targets or {} do
 			local candidates = Status.cleanseCandidates(humanoid)
+			-- Polymorph (Bane) and Shapeshift (Boon) are cleansed like timed statuses.
+			for _, candidate in Transform.cleanseCandidates(humanoid) do
+				table.insert(candidates, candidate)
+			end
 			for _, effect in periodicEffects do
 				if effect.Target == humanoid then
 					table.insert(candidates, {

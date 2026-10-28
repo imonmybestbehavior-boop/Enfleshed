@@ -78,6 +78,7 @@ local ConstructHealthSpec = require(Shared.Modules.MagicConstructHealthSpec)
 local TrapSpec = require(Shared.Modules.MagicTrapSpec)
 local Interception = require(script.Parent.MagicInterception)
 local TetherRuntime = require(script.Parent.MagicTether)
+local Transform = require(script.Parent.MagicTransformService)
 local TetherSpec = require(Shared.Modules.MagicTetherSpec)
 local buildConstructModel, watchPersistentConstruct, persistentConstructRecord, restorePersistentConstruct =
 	MagicConstructBuilder.buildConstructModel,
@@ -1111,6 +1112,17 @@ local function context(definition, caster, position, targets, direction, remote,
 	ctx.SpawnEffect = function(step, eventTargets)
 		spawnEffect(definition, step, caster, position, direction, remote, player, potency, runtimeState, eventTargets)
 	end
+	-- OnTransformEnd: a Polymorph or Shapeshift from this spell ended (expiry,
+	-- break, Cleanse, recast) on `targetHumanoid`.
+	ctx.TransformEnded = function(targetHumanoid)
+		if not definition.Triggers or not definition.Triggers.OnTransformEnd then
+			return nil
+		end
+		return function()
+			ctx.DamageContext.EmitEvent("OnTransformEnd", targetHumanoid)
+		end
+	end
+	ctx.SpellColor = definition.Visual and definition.Visual.Color
 	ctx.TargetDeathCallback = function(targetHumanoid)
 		if not definition.Triggers or not definition.Triggers.OnTargetDeath then
 			return nil
@@ -4131,6 +4143,11 @@ function Magic.start(player, state, intent, remote, castContext, temporaryDefini
 		end
 	end
 	local now = workspace:GetServerTimeNow()
+	-- Recast ends your own Shapeshift from this spell (free; OnTransformEnd runs).
+	if state.Humanoid and Transform.endShapeshift(state.Humanoid, definition.SpellId) then
+		feedback(remote, player, "OFF", definition, nil)
+		return true
+	end
 	-- Recast: a press while this spell's effect is active runs OnRecast on it
 	-- instead of a new cast (before the cooldown gate; costs nothing).
 	local maxRecasts = if castContext then 0 else RecastSpec.allowed(definition)
@@ -4808,8 +4825,13 @@ RunService.Heartbeat:Connect(function(delta)
 		if character and (stats.Pending or stats.Charge or stats.Channel) then
 			local stunned = character:GetAttribute("MagicStunned") == true
 			local silenced = character:GetAttribute("MagicSilenced") == true
-			if stunned or silenced then
-				interruptCasting(player, stats, if stunned then "Stunned" else "Silenced")
+			local polymorphed = character:GetAttribute("MagicPolymorphed") == true
+			if stunned or silenced or polymorphed then
+				interruptCasting(
+					player,
+					stats,
+					if stunned then "Stunned" elseif silenced then "Silenced" else "Polymorphed"
+				)
 			end
 		end
 		local manaBefore, strainBefore = stats.Mana, stats.Strain

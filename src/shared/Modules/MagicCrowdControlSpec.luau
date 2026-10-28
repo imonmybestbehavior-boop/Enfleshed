@@ -53,10 +53,14 @@ Spec.ActionCategories = {
 }
 
 -- Action gating. Categories: "Attack" (melee, block), "Move" (dash), "Cast"
--- (spell start, release, equipment magic). Returns blocked, reason.
-function Spec.blocks(category: string, stunned: boolean, silenced: boolean): (boolean, string?)
+-- (spell start, release, equipment magic). Polymorph blocks attacks and casts
+-- but not movement. Returns blocked, reason.
+function Spec.blocks(category: string, stunned: boolean, silenced: boolean, polymorphed: boolean?): (boolean, string?)
 	if stunned and (category == "Attack" or category == "Move" or category == "Cast") then
 		return true, "Stunned"
+	end
+	if polymorphed and (category == "Attack" or category == "Cast") then
+		return true, "Polymorphed"
 	end
 	if silenced and category == "Cast" then
 		return true, "Silenced"

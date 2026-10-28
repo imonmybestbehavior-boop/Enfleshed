@@ -86,6 +86,9 @@ function Policy.isHostilePayload(payload: any): boolean
 		return type(payload.Amount) ~= "number" or payload.Amount < 0
 	elseif kind == "TimeDilation" then
 		return type(payload.Rate) ~= "number" or payload.Rate < 1
+	elseif kind == "Transformation" then
+		-- Polymorph turns someone into a critter; Scale and Shapeshift do not harm.
+		return payload.Mode == "Polymorph"
 	elseif kind == "Cleanse" then
 		-- Stripping Boons harms the target; removing Banes helps them.
 		return payload.Remove ~= "Banes"

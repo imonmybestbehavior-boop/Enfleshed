@@ -129,12 +129,15 @@ local attributeSpec = load("src/shared/Modules/MagicAttributeSpec.luau")
 env.script = schemaScript
 env.script.Parent.Parent.Modules.MagicAttributeSpec = "attributeSpec"
 env.script.Parent.MagicLocus = "locusConfig"
+env.script.Parent.MeleeProfiles = "meleeProfiles"
 local schemaRequire = env.require
 env.require = function(v)
 	if v == "attributeSpec" then
 		return attributeSpec
 	elseif v == "locusConfig" then
 		return locusConfig
+	elseif v == "meleeProfiles" then
+		return load("src/shared/Configuration/MeleeProfiles.luau")
 	end
 	return schemaRequire(v)
 end
@@ -1503,6 +1506,79 @@ do
 			plain.Triggers.OnImpact = { { Anchor = "A", Payloads = { { Kind = "Damage", Amount = 3 } } } }
 			assert(not spec.validate(plain), "Anchor only on Tether steps")
 		end
+		(function()
+			-- Transformation modes: Polymorph (others), Shapeshift (self).
+			local polymorph = spec.createDraft("Projectile", "Body")
+			polymorph.Triggers.OnImpact = {
+				{ Payloads = { { Kind = "Transformation", Mode = "Polymorph", Duration = 4, BreakOnDamage = true } } },
+			}
+			local ok, reason = spec.validate(polymorph)
+			assert(ok, "polymorph bolt was rejected: " .. tostring(reason))
+			local function variant(source, mutate)
+				local copy = spec.copy(source)
+				mutate(copy)
+				return spec.validate(copy)
+			end
+			assert(not variant(polymorph, function(d)
+				d.Triggers.OnImpact[1].Payloads[1].Duration = 9
+			end), "polymorph lasts at most 8 s")
+			assert(not variant(polymorph, function(d)
+				d.Triggers.OnImpact[1].Payloads[1].Multiplier = 1.2
+			end), "polymorph has no size")
+			assert(not variant(polymorph, function(d)
+				d.Triggers.OnImpact[1].Payloads[1].BreakOnDamage = "yes"
+			end), "BreakOnDamage is a boolean")
+			assert(
+				variant(polymorph, function(d)
+					d.Triggers.OnTransformEnd = { { Payloads = { { Kind = "Damage", Amount = 5 } } } }
+				end),
+				"When the transformation ends was rejected"
+			)
+			local scale = spec.createDraft("Projectile", "Body")
+			scale.Triggers.OnImpact = {
+				{ Payloads = { { Kind = "Transformation", Mode = "Scale", Multiplier = 1.2, Duration = 6 } } },
+			}
+			assert(spec.validate(scale), "Scale is unchanged")
+			assert(not variant(scale, function(d)
+				d.Triggers.OnTransformEnd = { { Payloads = { { Kind = "Damage", Amount = 5 } } } }
+			end), "a Scale alone has no transformation end")
+			local shift = spec.createDraft("SelfEnhancement", "Body")
+			shift.Triggers.OnCast = {
+				{
+					Payloads = {
+						{
+							Kind = "Transformation",
+							Mode = "Shapeshift",
+							Duration = 20,
+							Profile = schema.ShapeshiftProfiles[1],
+						},
+						{ Kind = "Transformation", Mode = "Scale", Multiplier = 1.25, Duration = 10 },
+					},
+				},
+			}
+			ok, reason = spec.validate(shift)
+			assert(ok, "shapeshift with a scale was rejected: " .. tostring(reason))
+			assert(table.find(schema.ShapeshiftProfiles, "Sword"), "profiles come from MeleeProfiles")
+			assert(not variant(shift, function(d)
+				d.Triggers.OnCast[1].Payloads[1].Duration = 61
+			end), "shapeshift lasts at most 60 s")
+			assert(not variant(shift, function(d)
+				d.Triggers.OnCast[1].Payloads[1].Profile = "Tentacle"
+			end), "unknown melee style")
+			assert(not variant(shift, function(d)
+				d.Targeting = "EntityTarget"
+				d.TargetPolicy = "Aim"
+			end), "shapeshift only on yourself")
+			assert(schema.TransformPolarity.Polymorph == "Bane" and schema.TransformPolarity.Shapeshift == "Boon")
+			-- normalizePayload keeps only the chosen mode's settings.
+			local payload = { Kind = "Transformation", Mode = "Polymorph", Multiplier = 1.2, Duration = 12 }
+			schema.normalizePayload(payload)
+			assert(
+				payload.Multiplier == nil
+					and payload.BreakOnDamage == true
+					and payload.Duration == limits.MaxPolymorphDuration
+			)
+		end)()
 		assert(not schema.supportsPrincipleForm("Matter", "Rush"), "Matter has no Rush")
 		do
 			-- Interception (OnBeforeDamageTaken).

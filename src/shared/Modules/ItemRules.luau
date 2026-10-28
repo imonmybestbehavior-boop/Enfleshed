@@ -193,6 +193,29 @@ function Rules.meleeLoadout(instance: Instance?): any?
 	}
 end
 
+-- An unscaled loadout straight from a MeleeProfiles profile (Shapeshift).
+function Rules.profileLoadout(name: string): any?
+	local profile = Melee.Profiles[name]
+	if not profile then
+		return nil
+	end
+	local lights = {}
+	for index, attack in profile.Lights do
+		lights[index] = scaleAttack(attack, 1, 1, 1)
+	end
+	return {
+		Archetype = name,
+		HandsOccupied = 0,
+		Lights = lights,
+		Heavy = scaleAttack(profile.Heavy, 1, 1, 1),
+		Block = {
+			Reduction = math.clamp(profile.Block.Reduction, 0, 0.95),
+			ParryWindow = profile.Block.ParryWindow,
+			FacingDot = profile.Block.FacingDot,
+		},
+	}
+end
+
 function Rules.armor(instances: { Instance? }): number
 	local total = 0
 	for _, instance in instances do

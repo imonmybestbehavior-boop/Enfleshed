@@ -136,6 +136,7 @@ local EventPhrase = {
 	OnCasterDeath = "When you die",
 	OnCommand = "When you give a command",
 	OnRecast = "When you press it again",
+	OnTransformEnd = "When the transformation ends",
 	OnEnter = "When a target enters",
 	OnExit = "When a target leaves",
 	OnInterval = "Every interval",

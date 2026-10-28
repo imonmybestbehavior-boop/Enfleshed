@@ -121,6 +121,15 @@ local function makeInstance(className, name, parent)
 	function inst:GetAttribute(attribute)
 		return self.Attributes and self.Attributes[attribute]
 	end
+	function inst:SetAttribute(attribute, value)
+		self.Attributes = self.Attributes or {}
+		self.Attributes[attribute] = value
+	end
+	inst.AncestryChanged = {
+		Connect = function()
+			return { Disconnect = function() end }
+		end,
+	}
 	function inst:FindFirstAncestorOfClass(class)
 		local node = self.Parent
 		while node do
@@ -229,6 +238,19 @@ local OwnershipDouble = {
 	release = function() end,
 }
 local MovementDouble = { allowMagicImpulse = function() end }
+-- Polymorph visuals are recorded instead of built (MagicTransformVisual).
+local TransformService
+local TransformVisualDouble = {
+	apply = function(model)
+		record({ Op = "Visual.apply", Target = model.Name })
+		return { Model = model }
+	end,
+	restore = function(handle)
+		if handle then
+			record({ Op = "Visual.restore", Target = handle.Model.Name })
+		end
+	end,
+}
 local StatusDouble = setmetatable({}, {
 	__index = function(_, name)
 		return function(_, target, ...)
@@ -281,6 +303,7 @@ local sharedModules = {
 	MagicHealSpec = load("src/shared/Modules/MagicHealSpec.luau"),
 	MagicInterceptionSpec = load("src/shared/Modules/MagicInterceptionSpec.luau"),
 	MagicTetherSpec = load("src/shared/Modules/MagicTetherSpec.luau"),
+	MagicTransformStateSpec = load("src/shared/Modules/MagicTransformStateSpec.luau"),
 }
 sharedModules.SpellStatCaps = assert(loadfile(
 	"src/shared/Modules/SpellStatCaps.luau",
@@ -337,6 +360,8 @@ local serverEnv = setmetatable({
 			MagicStatusEffectService = "Status",
 			MagicControlService = "Control",
 			MagicPhysicsOwnership = "Ownership",
+			MagicTransformService = "Transform",
+			MagicTransformVisual = "TransformVisual",
 		},
 	},
 	game = {
@@ -361,6 +386,7 @@ local serverEnv = setmetatable({
 						MagicHealSpec = "MagicHealSpec",
 						MagicInterceptionSpec = "MagicInterceptionSpec",
 						MagicTetherSpec = "MagicTetherSpec",
+						MagicTransformStateSpec = "MagicTransformStateSpec",
 					},
 					Configuration = {
 						MagicLab = "MagicLab",
@@ -384,6 +410,10 @@ local serverEnv = setmetatable({
 			return OwnershipDouble
 		elseif ref == "MagicLab" then
 			return limits
+		elseif ref == "Transform" then
+			return TransformService
+		elseif ref == "TransformVisual" then
+			return TransformVisualDouble
 		end
 		return sharedModules[ref] or error("unexpected require " .. tostring(ref))
 	end,
@@ -394,6 +424,7 @@ local function loadServer(name)
 end
 local Dispatch = loadServer("MagicTriggerDispatch")
 local BehaviorExec = loadServer("MagicBehaviorExecutors")
+TransformService = loadServer("MagicTransformService")
 local PayloadExec = loadServer("MagicPayloadExecutors")
 local Interception = loadServer("MagicInterception")
 local TetherRuntime = loadServer("MagicTether")
@@ -585,6 +616,15 @@ emit = function(definition, event, caster, position, targets, depth, data, inher
 	ctx.DamageDealt = data and data.DamageDealt
 	local casterHumanoid = caster:FindFirstChildOfClass("Humanoid")
 	ctx.CasterTargets = if casterHumanoid and casterHumanoid.Health > 0 then { casterHumanoid } else {}
+	-- MagicService: OnTransformEnd runs on the spell when its transformation ends.
+	ctx.TransformEnded = function(humanoid)
+		if not definition.Triggers.OnTransformEnd then
+			return nil
+		end
+		return function()
+			emit(definition, "OnTransformEnd", caster, position, { humanoid }, (depth or 0) + 1)
+		end
+	end
 	-- OnBeforeDamageTaken: MagicService passes the incoming hit and the hooks.
 	ctx.IncomingHit = data and data.IncomingHit
 	ctx.InterceptHooks = data and data.InterceptHooks
@@ -1778,6 +1818,157 @@ do
 		"DoT ticks are shared too"
 	)
 	casterHumanoid.Health = casterHumanoid.MaxHealth
+end
+
+---------------------------------------------------------------------------
+-- Transformation modes: the real MagicTransformService with recorded visuals.
+---------------------------------------------------------------------------
+do
+	local CrowdControl = sharedModules.MagicCrowdControlSpec
+	local clock = 100
+	TransformService.now = function()
+		return clock
+	end
+	local deferred = serverEnv.task.defer
+	serverEnv.task.defer = function(fn, ...)
+		fn(...)
+	end
+	-- Mirrors Status: diminishing returns shared by Stun and Polymorph.
+	local histories = {}
+	rawset(StatusDouble, "diminish", function(humanoid, duration)
+		histories[humanoid] = histories[humanoid] or CrowdControl.newHistory()
+		return CrowdControl.applyStun(histories[humanoid], clock, duration)
+	end)
+	rawset(StatusDouble, "setSpeedFactor", function(humanoid, factor)
+		record({ Op = "Status.speed", Target = humanoid.Parent.Name, Factor = factor })
+	end)
+	local function polymorphed(humanoid)
+		return humanoid:GetAttribute("MagicPolymorphed") == true
+	end
+	-- Like the editors: keep only the chosen mode's settings.
+	local function transformation(extra)
+		local p = payload("Transformation", extra)
+		schema.normalizePayload(p)
+		return p
+	end
+
+	-- Polymorph an NPC: no attacks, breaks on someone else's damage, restored.
+	local poly = draft("Projectile", "Body", function(d)
+		d.Triggers = {
+			OnImpact = {
+				{
+					Payloads = { transformation({ Mode = "Polymorph", Duration = 4, BreakOnDamage = true }) },
+				},
+			},
+			OnTransformEnd = { { Payloads = { payload("Damage", { Amount = 3 }) } } },
+		}
+	end)
+	local polyOk, polyReason = validates(poly)
+	check("TRANSFORM", "CAPABILITY", polyOk, "polymorph bolt with an end burst validates: " .. tostring(polyReason))
+	local npc = resetWorld({ vec(5, 0, 0) }, 100)[1]
+	emit(poly, "OnImpact", caster, vec(5, 0, 0), { npc }, 0)
+	check(
+		"TRANSFORM",
+		"CAPABILITY",
+		polymorphed(npc)
+			and CrowdControl.blocks("Attack", false, false, polymorphed(npc))
+			and CrowdControl.blocks("Cast", false, false, polymorphed(npc))
+			and not CrowdControl.blocks("Move", false, false, polymorphed(npc)),
+		"a polymorphed NPC cannot attack or cast but can move"
+	)
+	check("TRANSFORM", "CAPABILITY", count(function(x)
+		return x.Op == "Visual.apply" and x.Target == "Enemy1"
+	end) == 1 and count(function(x)
+		return x.Op == "Status.speed" and x.Factor == limits.PolymorphSpeedMultiplier
+	end) == 1, "it turns into a critter and walks at 70%")
+	TransformService.onDamaged(npc, caster)
+	check("TRANSFORM", "CAPABILITY", polymorphed(npc), "the caster's own damage does not break it")
+	local other = makeCharacter("Bystander", vec(8, 0, 0), 100)
+	TransformService.onDamaged(npc, other.Parent)
+	check("TRANSFORM", "CAPABILITY", not polymorphed(npc) and count(function(x)
+		return x.Op == "Visual.restore" and x.Target == "Enemy1"
+	end) == 1, "someone else's damage breaks it and the NPC is restored")
+	check("TRANSFORM", "CAPABILITY", totalDamageTo("Enemy1") == 3, "When the transformation ends runs once")
+
+	-- Bosses (MagicBoss or a DefendTheWalls Elite) are refused.
+	local boss = resetWorld({ vec(5, 0, 0) }, 100)[1]
+	boss.Parent:SetAttribute("MissionRole", "Elite")
+	emit(poly, "OnImpact", caster, vec(5, 0, 0), { boss }, 0)
+	check("TRANSFORM", "CAPABILITY", not polymorphed(boss), "an Elite (boss) cannot be polymorphed")
+
+	-- Shapeshift: melee profile while it lasts, restored on expiry and on death.
+	local shift = draft("SelfEnhancement", "Body", function(d)
+		d.Triggers = {
+			OnCast = {
+				{
+					Payloads = { transformation({ Mode = "Shapeshift", Duration = 10, Profile = "Dagger" }) },
+				},
+			},
+		}
+	end)
+	local shiftOk, shiftReason = validates(shift)
+	check("TRANSFORM", "CAPABILITY", shiftOk, "shapeshift validates: " .. tostring(shiftReason))
+	resetWorld({}, 100)
+	clock = 200
+	emit(shift, "OnCast", caster, vec(0, 0, -50), { casterHumanoid }, 0)
+	check(
+		"TRANSFORM",
+		"CAPABILITY",
+		casterHumanoid:GetAttribute("MagicShapeshiftProfile") == "Dagger",
+		"shapeshift switches the melee profile"
+	)
+	clock = 210
+	TransformService.step()
+	check(
+		"TRANSFORM",
+		"CAPABILITY",
+		casterHumanoid:GetAttribute("MagicShapeshiftProfile") == nil,
+		"and restores it when it runs out"
+	)
+	emit(shift, "OnCast", caster, vec(0, 0, -50), { casterHumanoid }, 0)
+	casterHumanoid.Health = 0
+	TransformService.step()
+	check("TRANSFORM", "CAPABILITY", casterHumanoid:GetAttribute("MagicShapeshiftProfile") == nil, "and on death")
+	casterHumanoid.Health = casterHumanoid.MaxHealth
+
+	-- Polymorph during Shapeshift: the shapeshift pauses, then resumes.
+	clock = 300
+	emit(shift, "OnCast", caster, vec(0, 0, -50), { casterHumanoid }, 0)
+	clock = 304
+	local foe = resetWorld({ vec(5, 0, -50) }, 100)[1]
+	TransformService.polymorph(foe.Parent, casterHumanoid, "Hex", 3, true, nil, nil)
+	clock = 320
+	TransformService.step()
+	check(
+		"TRANSFORM",
+		"CAPABILITY",
+		not polymorphed(casterHumanoid) and casterHumanoid:GetAttribute("MagicShapeshiftProfile") == "Dagger",
+		"the polymorph ends and the paused shapeshift resumes"
+	)
+	clock = 325
+	TransformService.step()
+	check(
+		"TRANSFORM",
+		"CAPABILITY",
+		casterHumanoid:GetAttribute("MagicShapeshiftProfile") == "Dagger",
+		"with its remaining 6 s (still on 5 s after resuming)"
+	)
+	clock = 327
+	TransformService.step()
+	check("TRANSFORM", "CAPABILITY", casterHumanoid:GetAttribute("MagicShapeshiftProfile") == nil, "then ends")
+
+	-- Diminishing returns: Stun, then Polymorph on the same target.
+	clock = 400
+	local victim = resetWorld({ vec(5, 0, 0) }, 100)[1]
+	StatusDouble.diminish(victim, 2) -- a Stun
+	TransformService.polymorph(caster, victim, "Hex", 6, true, nil, nil)
+	clock = 403.1
+	TransformService.step()
+	check("TRANSFORM", "CAPABILITY", not polymorphed(victim), "a polymorph after a stun lasts half as long (3 of 6 s)")
+
+	serverEnv.task.defer = deferred
+	rawset(StatusDouble, "diminish", nil)
+	rawset(StatusDouble, "setSpeedFactor", nil)
 end
 
 ---------------------------------------------------------------------------

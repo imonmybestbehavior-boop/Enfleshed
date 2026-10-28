@@ -9,6 +9,7 @@ local PrincipleSpec = require(script.Parent.Parent.Modules.MagicPrincipleSpec)
 local DamageRules = require(script.Parent.Parent.Modules.MagicDamageRules)
 local AttributeSpec = require(script.Parent.Parent.Modules.MagicAttributeSpec)
 local LocusConfiguration = require(script.Parent.MagicLocus)
+local MeleeProfiles = require(script.Parent.MeleeProfiles)
 -- DrainResource / RestoreResource: Mana plus every configured special resource.
 local resourceOptions = { "Mana" }
 do
@@ -131,6 +132,7 @@ Schema.EventOrder = {
 	"OnCasterDeath",
 	"OnCommand",
 	"OnRecast",
+	"OnTransformEnd",
 	"OnEnter",
 	"OnExit",
 	"OnInterval",
@@ -167,6 +169,7 @@ Schema.EventLabels = {
 	OnExpire = "On expire",
 	OnCommand = "On command",
 	OnRecast = "On recast",
+	OnTransformEnd = "When the transformation ends",
 }
 Schema.EventDescriptions = {
 	OnCast = "Runs immediately when this spell is cast.",
@@ -190,6 +193,7 @@ Schema.EventDescriptions = {
 	OnExpire = "Runs once when the spell's active duration ends.",
 	OnCommand = "Runs when the owner gives this spell's active summon group a validated Follow, Protect, Attack, Hold, Support, or Dismiss order. A step may be limited to one command.",
 	OnRecast = "Runs when you press this spell's slot again while its effect is still active, instead of casting it again. Free, up to the spell's recast limit; the trigger count (1, 2, 3) tells the stages apart.",
+	OnTransformEnd = "Runs when a Polymorph or Shapeshift from this spell ends (it ran out, broke on damage, was cleansed or recast), on the character who was transformed. Not when they die or leave.",
 }
 
 Schema.TargetingModes = {
@@ -1186,6 +1190,26 @@ end
 Schema.Forms.Projectile.Events.OnProximity = true
 Schema.Forms.Projectile.EffectEvents.OnProximity = true
 
+-- Transformation modes: polarity by mode (Scale is neither), and the melee
+-- profiles a Shapeshift can use.
+Schema.TransformModes = { "Scale", "Polymorph", "Shapeshift" }
+Schema.TransformPolarity = { Scale = "Neutral", Polymorph = "Bane", Shapeshift = "Boon" }
+Schema.ShapeshiftProfiles = (function()
+	local names = {}
+	for name in MeleeProfiles.Profiles do
+		table.insert(names, name)
+	end
+	table.sort(names)
+	return names
+end)()
+-- OnTransformEnd: every Form that can carry a Transformation.
+for _, form in Schema.Forms do
+	if form.TargetTypes and form.TargetTypes.Humanoid then
+		form.Events.OnTransformEnd = true
+		form.EffectEvents.OnTransformEnd = true
+	end
+end
+
 -- Interception (OnBeforeDamageTaken): spells a character holds. A Construct
 -- intercepts only while attached to a character.
 Schema.InterceptionForms = { "Aura", "SelfEnhancement", "Construct" }
@@ -1655,7 +1679,7 @@ Schema.Payloads = {
 		Label = "Transformation",
 		Category = "Support",
 		Polarity = "Neutral",
-		Description = "Temporarily scales a target's full character model, then restores its original size.",
+		Description = "Temporarily changes a character, then restores them. Scale resizes the model; Polymorph turns another character into a harmless critter that can move but not attack or cast; Shapeshift gives you a different melee style.",
 		Forms = HumanoidTargetForms,
 		Events = HumanoidTargetEvents,
 		Defaults = { Mode = "Scale", Multiplier = 1.15, Duration = 6 },
@@ -1663,25 +1687,42 @@ Schema.Payloads = {
 			{
 				Key = "Mode",
 				Label = "Transform",
-				Options = { "Scale" },
+				Options = { "Scale", "Polymorph", "Shapeshift" },
 				Required = true,
-				Help = "Scale changes the target's complete character model while preserving its original scale for cleanup.",
+				Help = "Scale resizes the target. Polymorph (on others) turns them into a critter for 1-8 s; bosses are immune. Shapeshift (on yourself, 5-60 s) changes your melee to another weapon style.",
 			},
 			{
 				Key = "Multiplier",
 				Label = "Scale multiplier",
 				Min = Limits.MinTransformScale,
 				Max = Limits.MaxTransformScale,
-				Required = true,
+				Required = false,
+				ShowWhen = { Key = "Mode", Values = { "Scale" } },
 				Help = "1 keeps the current size; values below or above 1 shrink or enlarge the model.",
 			},
 			{
 				Key = "Duration",
 				Label = "Transform duration",
 				Min = 0.1,
-				Max = Limits.MaxDuration,
+				Max = Limits.MaxShapeshiftDuration,
 				Required = true,
-				Help = "The target returns to its original size when this duration ends.",
+				Help = "Scale: up to the usual effect limit. Polymorph: 1-8 s. Shapeshift: 5-60 s. The character is restored when it ends.",
+			},
+			{
+				Key = "BreakOnDamage",
+				Label = "Breaks on damage",
+				Boolean = true,
+				Required = false,
+				ShowWhen = { Key = "Mode", Values = { "Polymorph" } },
+				Help = "On: damage from anyone other than you ends the Polymorph early (always on against players).",
+			},
+			{
+				Key = "Profile",
+				Label = "Melee style",
+				Options = Schema.ShapeshiftProfiles,
+				Required = false,
+				ShowWhen = { Key = "Mode", Values = { "Shapeshift" } },
+				Help = "Your melee attacks use this weapon style while shapeshifted.",
 			},
 		},
 	},
@@ -2334,6 +2375,7 @@ local reactiveEvents = {
 	"OnCommand",
 	"OnRecast",
 	"OnBeforeDamageTaken",
+	"OnTransformEnd",
 }
 for kind, payload in Schema.Payloads do
 	if kind ~= "Summon" then
@@ -2496,6 +2538,9 @@ for formName, events in Schema.Behaviors.Explode.Events do
 	end
 	if Schema.Forms[formName] and Schema.Forms[formName].Events.OnBeforeDamageTaken then
 		events.OnBeforeDamageTaken = true
+	end
+	if Schema.Forms[formName] and Schema.Forms[formName].Events.OnTransformEnd then
+		events.OnTransformEnd = true
 	end
 	-- Recast to detonate: Explode where the active effect is now.
 	if Schema.Forms[formName] and Schema.Forms[formName].Events.OnRecast then
@@ -2745,6 +2790,23 @@ end
 -- Keeps a ModifyAttribute payload consistent after its Attribute changes:
 -- Element only for Resistance, Amount inside the attribute's range.
 function Schema.normalizePayload(payload: any)
+	-- Transformation: keep only the settings of the chosen mode, with defaults.
+	if type(payload) == "table" and payload.Kind == "Transformation" then
+		local mode = payload.Mode or "Scale"
+		payload.Multiplier = if mode == "Scale" then payload.Multiplier or 1.15 else nil
+		payload.BreakOnDamage = if mode == "Polymorph" then payload.BreakOnDamage ~= false else nil
+		payload.Profile = if mode == "Shapeshift" then payload.Profile or Schema.ShapeshiftProfiles[1] else nil
+		local low = if mode == "Polymorph"
+			then Limits.MinPolymorphDuration
+			elseif mode == "Shapeshift" then Limits.MinShapeshiftDuration
+			else 0.1
+		local high = if mode == "Polymorph"
+			then Limits.MaxPolymorphDuration
+			elseif mode == "Shapeshift" then Limits.MaxShapeshiftDuration
+			else Limits.MaxDuration
+		payload.Duration = math.clamp(type(payload.Duration) == "number" and payload.Duration or low, low, high)
+		return
+	end
 	if type(payload) ~= "table" or payload.Kind ~= "ModifyAttribute" then
 		return
 	end

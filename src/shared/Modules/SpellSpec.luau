@@ -1340,6 +1340,7 @@ function Spec.validate(d, spawnNesting: number?)
 		return false, "Invalid triggers"
 	end
 	local hasShieldSource = false
+	local hasTransformSource = false
 	local hasSummonSource = false
 	local hasProjectileLinger = false
 	local hasProjectilePulse = false
@@ -1373,6 +1374,14 @@ function Spec.validate(d, spawnNesting: number?)
 						if type(payload) == "table" and payload.Kind == "Shield" then
 							hasShieldSource = true
 						end
+						if
+							event ~= "OnTransformEnd"
+							and type(payload) == "table"
+							and payload.Kind == "Transformation"
+							and (payload.Mode == "Polymorph" or payload.Mode == "Shapeshift")
+						then
+							hasTransformSource = true
+						end
 						if event ~= "OnCommand" and type(payload) == "table" and payload.Kind == "Summon" then
 							hasSummonSource = true
 						end
@@ -1398,6 +1407,9 @@ function Spec.validate(d, spawnNesting: number?)
 		end
 		if event == "OnCommand" and not hasSummonSource then
 			return false, "OnCommand requires a Summon payload on another trigger"
+		end
+		if event == "OnTransformEnd" and not hasTransformSource then
+			return false, "When the transformation ends needs a Polymorph or Shapeshift on another trigger"
 		end
 		-- On a Tether, OnBreak is the snap and needs no shield.
 		if event == "OnBreak" and not hasShieldSource and d.Form ~= "Tether" then
@@ -1573,8 +1585,46 @@ function Spec.validate(d, spawnNesting: number?)
 						if not table.find(options, value) then
 							return false, "Invalid payload setting: " .. field.Label
 						end
+					elseif field.Boolean then
+						if type(value) ~= "boolean" then
+							return false, "Invalid payload setting: " .. field.Label
+						end
 					elseif not bounded(value, field.Min, field.Max) or (field.Integer and value % 1 ~= 0) then
 						return false, "Payload setting is outside its safety limit: " .. field.Label
+					end
+				end
+				-- Transformation: settings and limits per mode.
+				if p.Kind == "Transformation" then
+					local mode = p.Mode
+					if mode == "Scale" then
+						if
+							p.Multiplier == nil
+							or p.Duration > Limits.MaxDuration
+							or p.BreakOnDamage ~= nil
+							or p.Profile ~= nil
+						then
+							return false, "Scale needs a multiplier and lasts at most " .. Limits.MaxDuration .. " s"
+						end
+					elseif mode == "Polymorph" then
+						if
+							p.Multiplier ~= nil
+							or p.Profile ~= nil
+							or not bounded(p.Duration, Limits.MinPolymorphDuration, Limits.MaxPolymorphDuration)
+						then
+							return false, "Polymorph lasts 1-8 s and has no size or melee style"
+						end
+					elseif mode == "Shapeshift" then
+						if
+							p.Multiplier ~= nil
+							or p.BreakOnDamage ~= nil
+							or p.Profile == nil
+							or not bounded(p.Duration, Limits.MinShapeshiftDuration, Limits.MaxShapeshiftDuration)
+						then
+							return false, "Shapeshift lasts 5-60 s and needs a melee style"
+						end
+						if d.Form ~= "SelfEnhancement" or d.Targeting ~= "Self" then
+							return false, "Shapeshift only works on yourself (an Enchantment on you)"
+						end
 					end
 				end
 				if (p.Kind == "ElementalMark" or p.Kind == "ConsumeElementalMark") and d.Element == "Neutral" then
@@ -1627,10 +1677,12 @@ function Spec.validate(d, spawnNesting: number?)
 					or p.Kind == "ModifyAttribute"
 					or p.Kind == "Transformation"
 				then
-					if single[p.Kind] then
+					-- One Transformation per mode (Shapeshift may sit beside a Scale).
+					local slot = if p.Kind == "Transformation" then p.Kind .. tostring(p.Mode) else p.Kind
+					if single[slot] then
 						return false, "Only one movement/material/attribute modifier is supported per spell"
 					end
-					single[p.Kind] = true
+					single[slot] = true
 				end
 				if
 					p.Kind == "Enhancement"

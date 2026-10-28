@@ -577,8 +577,9 @@ function Enemy.create(
 
 	-- Stun stops the Nascent from starting or landing attacks (Silence never
 	-- applies: its attacks are not spells).
+	-- A polymorphed monster (a critter) cannot attack either, but still walks.
 	local function stunned(): boolean
-		return humanoid:GetAttribute("MagicStunned") == true
+		return humanoid:GetAttribute("MagicStunned") == true or humanoid:GetAttribute("MagicPolymorphed") == true
 	end
 	local function beginAttack(other: BasePart, name: string, now: number)
 		local attacks = Config.Nascent

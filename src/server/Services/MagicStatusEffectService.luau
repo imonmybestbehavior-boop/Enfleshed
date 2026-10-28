@@ -72,6 +72,9 @@ Status.HandledElsewhere = {
 	Cleanse = "Status.cleanseCandidates / removeWhere here; MagicPayloadExecutors adds periodic effects and Enchantments",
 }
 local targets: { [Humanoid]: TargetState } = setmetatable({}, { __mode = "k" }) :: any
+-- Extra walk-speed factors from outside the timed statuses (Polymorph, via
+-- MagicTransformService.setSpeedFactor); folded into the slow multiplier.
+local speedFactors: { [Humanoid]: number } = setmetatable({}, { __mode = "k" }) :: any
 local active: { TargetState } = {}
 local lastSweep = 0
 
@@ -204,7 +207,7 @@ local function removeState(state: TargetState)
 			CollectionService:RemoveTag(model, "MagicRevealedTarget")
 		end
 	end
-	Movement.setMagicSlow(state.Humanoid, 1)
+	Movement.setMagicSlow(state.Humanoid, speedFactors[state.Humanoid] or 1)
 	setAttribute(state.Humanoid, if model and model:IsA("Model") then model else nil, "MagicShield", 0)
 	for _, attribute in AttributeSpec.Order do
 		if AttributeSpec.requiresElement(attribute) then
@@ -239,7 +242,12 @@ local function removeState(state: TargetState)
 		model:SetAttribute("MagicFearUntil", nil)
 	end
 	setAttribute(state.Humanoid, if model and model:IsA("Model") then model else nil, "MagicShieldExpiresAt", nil)
-	setAttribute(state.Humanoid, if model and model:IsA("Model") then model else nil, "MagicSlowMultiplier", 1)
+	setAttribute(
+		state.Humanoid,
+		if model and model:IsA("Model") then model else nil,
+		"MagicSlowMultiplier",
+		speedFactors[state.Humanoid] or 1
+	)
 	setAttribute(state.Humanoid, if model and model:IsA("Model") then model else nil, "MagicTimeRate", 1)
 	setAttribute(state.Humanoid, if model and model:IsA("Model") then model else nil, "MagicElementalMarks", nil)
 end
@@ -257,7 +265,7 @@ local function refreshAttributes(state: TargetState)
 	end
 	local shield = 0
 	local timeRate = TemporalRate.combine(state.Effects, now)
-	local slow = MovementEffects.multiplier(state.Effects, now)
+	local slow = MovementEffects.multiplier(state.Effects, now) * (speedFactors[state.Humanoid] or 1)
 	local movementMultiplier = math.clamp(slow * timeRate, 0, TemporalRate.Maximum)
 	local bound = movementMultiplier <= 0
 	local earliestShield: number? = nil
@@ -854,6 +862,35 @@ function Status.stun(
 		onTargetDeath,
 		requiredElementalMark
 	)
+end
+
+-- Shared diminishing returns for Stun-like crowd control (Polymorph): returns
+-- the duration to apply, 0 when the target is immune.
+function Status.diminish(humanoid: Humanoid, duration: number): number
+	local history = stunHistory[humanoid]
+	if not history then
+		history = CrowdControl.newHistory()
+		stunHistory[humanoid] = history
+	end
+	return CrowdControl.applyStun(history, os.clock(), duration)
+end
+
+-- A walk-speed factor kept beside the timed statuses (1 or nil clears it).
+function Status.setSpeedFactor(humanoid: Humanoid, factor: number?)
+	speedFactors[humanoid] = if factor and factor ~= 1 then factor else nil
+	local state = targets[humanoid]
+	if state then
+		refreshAttributes(state)
+	else
+		local model = humanoid.Parent
+		Movement.setMagicSlow(humanoid, speedFactors[humanoid] or 1)
+		setAttribute(
+			humanoid,
+			if model and model:IsA("Model") then model else nil,
+			"MagicSlowMultiplier",
+			speedFactors[humanoid] or 1
+		)
+	end
 end
 
 -- Taunt / Fear: creatures only; a player target is never affected.

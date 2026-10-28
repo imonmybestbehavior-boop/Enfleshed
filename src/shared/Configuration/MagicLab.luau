@@ -19,6 +19,12 @@ return {
 	MinTransformScale = 0.7,
 	MaxTransformScale = 1.35,
 	MaxCombinedTransformScale = 1.75,
+	-- Transformation modes Polymorph and Shapeshift (provisional).
+	MinPolymorphDuration = 1,
+	MaxPolymorphDuration = 8,
+	PolymorphSpeedMultiplier = 0.7,
+	MinShapeshiftDuration = 5,
+	MaxShapeshiftDuration = 60,
 	MaxBindDuration = 4,
 	-- Stun binds and blocks attacks/casts; PvP caps it lower (SpellStatCaps).
 	MaxStunDuration = 1.5,

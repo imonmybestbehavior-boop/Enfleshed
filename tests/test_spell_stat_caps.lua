@@ -144,5 +144,8 @@ assert(ranked.MaxTetherLength < open.MaxTetherLength and open.MaxTetherLength <=
 assert(ranked.MaxTetherShareDamagePercent < open.MaxTetherShareDamagePercent)
 assert(open.TetherPullOnPlayers == true and ranked.TetherPullOnPlayers == false)
 assert(Profiles.PvE.MaxTetherLength == nil)
+-- Polymorph on players: short, shorter in ranked; PvE has no cap.
+assert(open.MaxPolymorphDurationVsPlayer == 1.5 and ranked.MaxPolymorphDurationVsPlayer == 1.0)
+assert(Profiles.PvE.MaxPolymorphDurationVsPlayer == nil)
 
 print("Spell stat caps: profile selection, PvE identity, potency-aware payload caps and damage caps passed")
