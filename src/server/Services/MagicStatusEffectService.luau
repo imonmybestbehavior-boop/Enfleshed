@@ -70,6 +70,7 @@ Status.HandledElsewhere = {
 	DrainResource = "MagicService (context.TransferResource), players only",
 	RestoreResource = "MagicService (context.TransferResource), players only",
 	Cleanse = "Status.cleanseCandidates / removeWhere here; MagicPayloadExecutors adds periodic effects and Enchantments",
+	Dispel = "MagicSpellTargets (acts on spells, never on a character)",
 }
 local targets: { [Humanoid]: TargetState } = setmetatable({}, { __mode = "k" }) :: any
 -- Extra walk-speed factors from outside the timed statuses (Polymorph, via

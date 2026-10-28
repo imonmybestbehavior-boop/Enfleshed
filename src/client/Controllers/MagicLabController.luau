@@ -24,6 +24,7 @@ local SpecialResourceSpec = require(Shared.Modules.MagicSpecialResourceSpec)
 local SpecialResourceDefinitions = require(Shared.Configuration.MagicLocus).SpecialResources
 local EnvironmentRequirementSpec = require(Shared.Modules.MagicEnvironmentRequirementSpec)
 local SpellIdentitySpec = require(Shared.Modules.MagicSpellIdentitySpec)
+local SpellTargetSpec = require(Shared.Modules.MagicSpellTargetSpec)
 local GamepadNav = require(script.Parent.Parent.UI.Kit.GamepadNav)
 local InputMode = require(script.Parent.Parent.UI.Kit.InputMode)
 local Responsive = require(script.Parent.Parent.UI.Kit.Responsive)
@@ -1062,6 +1063,32 @@ function Lab.start(send, aim, launcher)
 			info(help, 34)
 		end
 	end
+	-- Spell steps (Dispel, Force): whether they act on live spells, and whose.
+	local function spellTargetControls(step)
+		local mode = SpellTargetSpec.stepMode(step, Schema.SpellTargetPayloads)
+		if mode == "Optional" then
+			toggle("Target spells", step.TargetKind == "Spell", function(value)
+				step.TargetKind = if value then "Spell" else nil
+				if not value then
+					step.SpellRelationship = nil
+				end
+				dirty = true
+				revision += 1
+			end, "Off: acts on creatures. On: acts on live Fields, Auras, Constructs and Tethers here instead.")
+		end
+		if mode and step.TargetKind == "Spell" then
+			select(
+				"Which spells",
+				step.SpellRelationship or "Hostile",
+				Schema.SpellRelationships,
+				function(value)
+					step.SpellRelationship = if value == "Hostile" then nil else value
+				end,
+				nil,
+				"Hostile: spells of those you can fight. Allied: yours and your allies'. Any: every spell it touches. Each spell is affected once per cast."
+			)
+		end
+	end
 	local function slider(label, object, key, minimum, maximum, help, canEdit)
 		local r = row(label)
 		local valueLabel = K.text(r, "", 13, K.C.Ink, Enum.Font.GothamBold, {
@@ -1294,6 +1321,7 @@ function Lab.start(send, aim, launcher)
 				table.insert(step.Payloads, value)
 			end
 		end
+		SpellTargetSpec.syncStep(step, Schema.SpellTargetPayloads)
 		if #step.Payloads == 0 then
 			for i, s in draft.Triggers[event] do
 				if s == step then
@@ -2856,8 +2884,8 @@ function Lab.start(send, aim, launcher)
 					if draft.Form == "Field" then
 						area.DebugHeight = debugHeight or 0.2
 						local previous = draft.Field
-						area.ArmDelay, area.Hidden, area.ConsumeOnTrigger =
-							previous.ArmDelay, previous.Hidden, previous.ConsumeOnTrigger
+						area.ArmDelay, area.Hidden, area.ConsumeOnTrigger, area.AffectsSpells =
+							previous.ArmDelay, previous.Hidden, previous.ConsumeOnTrigger, previous.AffectsSpells
 					end
 					draft[draft.Form] = area
 				end, nil, "Choose the server hit shape. Visual scale does not change these dimensions.")
@@ -2964,6 +2992,45 @@ function Lab.start(send, aim, launcher)
 						end,
 						"The first time a target enters (after arming), its entering effects run and then the Field ends."
 					)
+					heading("LENS")
+					local lens = area.AffectsSpells
+					select(
+						"Changes projectiles crossing it",
+						if lens then lens.Who else "Off",
+						{ "Off", "Hostile", "Allied", "Any" },
+						function(value)
+							if value == "Off" then
+								area.AffectsSpells = nil
+							elseif lens then
+								lens.Who = value
+							else
+								area.AffectsSpells = { Who = value, Slow = 0.7 }
+							end
+						end,
+						nil,
+						"Whose projectiles it changes as they fly through, once per projectile per Field."
+					)
+					if lens then
+						local marks = { "None" }
+						for _, element in Schema.MarkElements do
+							table.insert(marks, element)
+						end
+						select("Adds a mark", lens.AddMark or "None", marks, function(value)
+							lens.AddMark = if value == "None" then nil else value
+						end, nil, "The projectile marks what it hits with this element.")
+						numeric(
+							"Potency (x)",
+							lens,
+							"ScalePotency",
+							"Allowed: 0.5 to 1.5; clear for no change. Against players: at least 0.7 (0.8 ranked)."
+						)
+						numeric(
+							"Speed (x)",
+							lens,
+							"Slow",
+							"Allowed: 0.3 to 1; clear for no change. Against players: at least 0.6 (0.7 ranked)."
+						)
+					end
 				end
 			elseif draft.Form == "Construct" then
 				select(
@@ -3653,6 +3720,9 @@ function Lab.start(send, aim, launcher)
 					)
 				end
 			end
+			if configuring and primary() then
+				spellTargetControls(primary())
+			end
 			if configuring and event == "OnBeforeDamageTaken" then
 				-- Interception: what this spell does to the incoming hit.
 				local interceptStep = nil
@@ -4091,6 +4161,9 @@ function Lab.start(send, aim, launcher)
 					info(definition.Description, 38)
 					showFields(current, definition.Fields)
 					current.Payloads = current.Payloads or {}
+					if kind == "Explode" then
+						spellTargetControls(current)
+					end
 					if kind == "SpawnEffect" then
 						current.Effect = current.Effect or Spec.defaultSpawnEffect("Field", draft.Source.Principle)
 						local spawnForms = {}
@@ -4236,6 +4309,7 @@ function Lab.start(send, aim, launcher)
 								elseif not on and at and not last then
 									table.remove(current.Payloads, at)
 								end
+								SpellTargetSpec.syncStep(current, Schema.SpellTargetPayloads)
 								dirty = true
 								revision += 1
 							end)

@@ -133,6 +133,7 @@ Schema.EventOrder = {
 	"OnCommand",
 	"OnRecast",
 	"OnTransformEnd",
+	"OnDispelled",
 	"OnEnter",
 	"OnExit",
 	"OnInterval",
@@ -170,6 +171,7 @@ Schema.EventLabels = {
 	OnCommand = "On command",
 	OnRecast = "On recast",
 	OnTransformEnd = "When the transformation ends",
+	OnDispelled = "When it's dispelled",
 }
 Schema.EventDescriptions = {
 	OnCast = "Runs immediately when this spell is cast.",
@@ -193,6 +195,7 @@ Schema.EventDescriptions = {
 	OnExpire = "Runs once when the spell's active duration ends.",
 	OnCommand = "Runs when the owner gives this spell's active summon group a validated Follow, Protect, Attack, Hold, Support, or Dismiss order. A step may be limited to one command.",
 	OnRecast = "Runs when you press this spell's slot again while its effect is still active, instead of casting it again. Free, up to the spell's recast limit; the trigger count (1, 2, 3) tells the stages apart.",
+	OnDispelled = "Runs once when a Dispel ends this Field, Aura, Construct or Tether, before it is removed (it then does not run On expire). Not when it is only shortened.",
 	OnTransformEnd = "Runs when a Polymorph or Shapeshift from this spell ends (it ran out, broke on damage, was cleansed or recast), on the character who was transformed. Not when they die or leave.",
 }
 
@@ -1190,6 +1193,20 @@ end
 Schema.Forms.Projectile.Events.OnProximity = true
 Schema.Forms.Projectile.EffectEvents.OnProximity = true
 
+-- Spells as targets (TargetKind = "Spell"): Dispel and Force act on live
+-- Fields, Auras, Constructs and Tethers. OnDispelled runs on those Forms.
+Schema.TargetKinds = { "Character", "Spell" }
+Schema.SpellRelationships = { "Hostile", "Allied", "Any" }
+Schema.SpellTargetPayloads = { Dispel = true, Force = true }
+-- Dispel is a Bane only when it targets Hostile spells.
+Schema.DispelPolarity = { Hostile = "Bane", Allied = "Neutral", Any = "Neutral" }
+for _, formName in { "Field", "Aura", "Construct", "Tether" } do
+	Schema.Forms[formName].Events.OnDispelled = true
+	Schema.Forms[formName].EffectEvents.OnDispelled = true
+end
+-- Field lens (Field.AffectsSpells) settings.
+Schema.LensWho = { "Hostile", "Allied", "Any" }
+
 -- Transformation modes: polarity by mode (Scale is neither), and the melee
 -- profiles a Shapeshift can use.
 Schema.TransformModes = { "Scale", "Polymorph", "Shapeshift" }
@@ -2001,6 +2018,34 @@ Schema.Payloads = {
 			},
 		},
 	},
+	Dispel = {
+		Label = "Dispel",
+		Category = "Control",
+		-- Bane when the step targets Hostile spells, otherwise Neutral (Schema.DispelPolarity).
+		Polarity = "Bane",
+		Description = "Acts on spells, not characters: shortens or ends Fields, Auras, Constructs and Tethers its step touches (use Target spells on the step). End only removes spells no more complex than this one; stronger spells lose half their remaining time instead.",
+		Forms = HumanoidTargetForms,
+		Events = HumanoidTargetEvents,
+		Defaults = { Mode = "End" },
+		Fields = {
+			{
+				Key = "Mode",
+				Label = "Dispel",
+				Options = { "Shorten", "End" },
+				Required = true,
+				Help = "Shorten cuts time off a timed spell. End removes it if it is no more complex than this spell; otherwise it halves its remaining time.",
+			},
+			{
+				Key = "Seconds",
+				Label = "Time removed (seconds)",
+				Min = 1,
+				Max = Limits.MaxDispelSeconds,
+				Required = false,
+				ShowWhen = { Key = "Mode", Values = { "Shorten" } },
+				Help = "How much remaining time Shorten removes.",
+			},
+		},
+	},
 	Reveal = {
 		Label = "Reveal",
 		Category = "Detection",
@@ -2376,6 +2421,7 @@ local reactiveEvents = {
 	"OnRecast",
 	"OnBeforeDamageTaken",
 	"OnTransformEnd",
+	"OnDispelled",
 }
 for kind, payload in Schema.Payloads do
 	if kind ~= "Summon" then
@@ -2409,6 +2455,7 @@ Schema.PayloadOrder = {
 	"DrainResource",
 	"RestoreResource",
 	"Cleanse",
+	"Dispel",
 	"Reveal",
 	"Control",
 	"Displacement",
@@ -2512,6 +2559,8 @@ Schema.Behaviors = {
 			"TimeDilation",
 			"ElementalMark",
 			"ConsumeElementalMark",
+			-- With Target spells: dispel the spells inside the blast.
+			"Dispel",
 		},
 		DefaultPayloadKinds = { "Damage" },
 		MinimumPayloads = 1,
@@ -2541,6 +2590,9 @@ for formName, events in Schema.Behaviors.Explode.Events do
 	end
 	if Schema.Forms[formName] and Schema.Forms[formName].Events.OnTransformEnd then
 		events.OnTransformEnd = true
+	end
+	if Schema.Forms[formName] and Schema.Forms[formName].Events.OnDispelled then
+		events.OnDispelled = true
 	end
 	-- Recast to detonate: Explode where the active effect is now.
 	if Schema.Forms[formName] and Schema.Forms[formName].Events.OnRecast then

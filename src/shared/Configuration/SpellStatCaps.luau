@@ -44,6 +44,11 @@ return {
 		TetherPullOnPlayers = true,
 		-- Polymorph on a player (always breaks on damage).
 		MaxPolymorphDurationVsPlayer = 1.5,
+		-- Spell vs Spell: lenses never weaken a hostile player's projectile below
+		-- these, and Force moves spells at most this far.
+		MinLensPotencyVsPlayers = 0.7,
+		MinLensSlowVsPlayers = 0.6,
+		MaxSpellForceDistance = 10,
 	},
 	PvPRanked = {
 		DamageMultiplier = 0.5,
@@ -77,5 +82,8 @@ return {
 		MaxTetherShareDamagePercent = 35,
 		TetherPullOnPlayers = false,
 		MaxPolymorphDurationVsPlayer = 1.0,
+		MinLensPotencyVsPlayers = 0.8,
+		MinLensSlowVsPlayers = 0.7,
+		MaxSpellForceDistance = 6,
 	},
 }

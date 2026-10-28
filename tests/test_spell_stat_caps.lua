@@ -148,4 +148,25 @@ assert(Profiles.PvE.MaxTetherLength == nil)
 assert(open.MaxPolymorphDurationVsPlayer == 1.5 and ranked.MaxPolymorphDurationVsPlayer == 1.0)
 assert(Profiles.PvE.MaxPolymorphDurationVsPlayer == nil)
 
+-- Spell vs Spell: lens floors against players and the Force-on-spells distance.
+do
+	local TargetSpec = assert(loadfile("src/shared/Modules/MagicSpellTargetSpec.luau"))()
+	local Lens = assert(loadfile("src/shared/Modules/MagicSpellLensSpec.luau"))()
+	for _, profile in { open, ranked } do
+		assert(profile.MinLensPotencyVsPlayers and profile.MinLensSlowVsPlayers and profile.MaxSpellForceDistance)
+		local floors = { Potency = profile.MinLensPotencyVsPlayers, Slow = profile.MinLensSlowVsPlayers }
+		local change = Lens.apply({}, {}, { Who = "Hostile", ScalePotency = 0.5, Slow = 0.3 }, floors)
+		assert(change.Potency == profile.MinLensPotencyVsPlayers, "lens potency floored vs players")
+		assert(change.Speed == profile.MinLensSlowVsPlayers, "lens slow floored vs players")
+		assert(TargetSpec.forceDistance(10, profile.MaxSpellForceDistance, 10) <= profile.MaxSpellForceDistance)
+	end
+	assert(open.MaxSpellForceDistance == 10 and ranked.MaxSpellForceDistance == 6)
+	assert(
+		ranked.MinLensPotencyVsPlayers >= open.MinLensPotencyVsPlayers
+			and ranked.MinLensSlowVsPlayers >= open.MinLensSlowVsPlayers,
+		"ranked lenses are gentler"
+	)
+	assert(Profiles.PvE.MinLensPotencyVsPlayers == nil and Profiles.PvE.MaxSpellForceDistance == nil)
+end
+
 print("Spell stat caps: profile selection, PvE identity, potency-aware payload caps and damage caps passed")

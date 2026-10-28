@@ -304,6 +304,9 @@ local sharedModules = {
 	MagicInterceptionSpec = load("src/shared/Modules/MagicInterceptionSpec.luau"),
 	MagicTetherSpec = load("src/shared/Modules/MagicTetherSpec.luau"),
 	MagicTransformStateSpec = load("src/shared/Modules/MagicTransformStateSpec.luau"),
+	MagicSpellTargetSpec = load("src/shared/Modules/MagicSpellTargetSpec.luau"),
+	MagicDispelSpec = load("src/shared/Modules/MagicDispelSpec.luau"),
+	MagicSpellLensSpec = load("src/shared/Modules/MagicSpellLensSpec.luau"),
 }
 sharedModules.SpellStatCaps = assert(loadfile(
 	"src/shared/Modules/SpellStatCaps.luau",
@@ -387,6 +390,9 @@ local serverEnv = setmetatable({
 						MagicInterceptionSpec = "MagicInterceptionSpec",
 						MagicTetherSpec = "MagicTetherSpec",
 						MagicTransformStateSpec = "MagicTransformStateSpec",
+						MagicSpellTargetSpec = "MagicSpellTargetSpec",
+						MagicDispelSpec = "MagicDispelSpec",
+						MagicSpellLensSpec = "MagicSpellLensSpec",
 					},
 					Configuration = {
 						MagicLab = "MagicLab",
@@ -426,6 +432,10 @@ local Dispatch = loadServer("MagicTriggerDispatch")
 local BehaviorExec = loadServer("MagicBehaviorExecutors")
 TransformService = loadServer("MagicTransformService")
 local PayloadExec = loadServer("MagicPayloadExecutors")
+local SpellTargetsRuntime = loadServer("MagicSpellTargets")
+-- Spell vs Spell world for the harness: live spell entries and how ending one
+-- behaves (MagicService: OnDispelled once, or a Tether snap, then removal).
+local spellWorld = { Entries = {}, Complexity = 0, CasterUserId = 1 }
 local Interception = loadServer("MagicInterception")
 local TetherRuntime = loadServer("MagicTether")
 local ProjectileBehaviorExec = loadServer("MagicProjectileBehaviorExecutors")
@@ -616,6 +626,50 @@ emit = function(definition, event, caster, position, targets, depth, data, inher
 	ctx.DamageDealt = data and data.DamageDealt
 	local casterHumanoid = caster:FindFirstChildOfClass("Humanoid")
 	ctx.CasterTargets = if casterHumanoid and casterHumanoid.Health > 0 then { casterHumanoid } else {}
+	-- MagicService: spell targets for TargetKind = "Spell" steps.
+	ctx.ResolveSpellTargets = function(step)
+		local reach = if step.Behavior == "Explode" then step.Radius or 0 else 0
+		return SpellTargetsRuntime.resolve(spellWorld.Entries, step.SpellRelationship, position, reach, nil, function()
+			return "Hostile"
+		end)
+	end
+	ctx.DispelSpells = function(dispelPayload, entries)
+		spellWorld.Touched = spellWorld.Touched or {}
+		SpellTargetsRuntime.dispel(dispelPayload, entries, {
+			CasterUserId = spellWorld.CasterUserId,
+			Complexity = spellWorld.Complexity,
+			Touched = spellWorld.Touched,
+			Remaining = function(entry)
+				return entry.Record.Remaining
+			end,
+			SetRemaining = function(entry, value)
+				entry.Record.Remaining = value
+			end,
+			End = function(entry)
+				local spell = entry.Record
+				if spell.Dispelled then
+					return
+				end
+				spell.Dispelled = true
+				record({ Op = "Dispelled", Name = spell.Name })
+				local event = if entry.Kind == "Tether" then "OnBreak" else "OnDispelled"
+				if
+					spell.Definition
+					and spell.Definition.Triggers[event]
+					and (depth or 0) + 1 < limits.MaxMagicEventDepth
+				then
+					emit(
+						spell.Definition,
+						event,
+						caster,
+						entry.Center or position,
+						spell.Targets or {},
+						(depth or 0) + 1
+					)
+				end
+			end,
+		})
+	end
 	-- MagicService: OnTransformEnd runs on the spell when its transformation ends.
 	ctx.TransformEnded = function(humanoid)
 		if not definition.Triggers.OnTransformEnd then
@@ -1969,6 +2023,200 @@ do
 	serverEnv.task.defer = deferred
 	rawset(StatusDouble, "diminish", nil)
 	rawset(StatusDouble, "setSpeedFactor", nil)
+end
+
+---------------------------------------------------------------------------
+-- Spell vs Spell: MagicSpellTargets with the real dispatcher and executors.
+---------------------------------------------------------------------------
+do
+	local SpellSpecTargets = sharedModules.MagicSpellTargetSpec
+	local enemyOwner = makeCharacter("SpellOwner", vec(30, 0, 0), 100).Parent
+	local function fieldEntry(name, complexity, remaining, extra)
+		local spell = { Name = name, Remaining = remaining }
+		local entry = {
+			Record = spell,
+			Kind = "Field",
+			Owner = enemyOwner,
+			Center = vec(0, 0, 0),
+			Radius = 6,
+			Complexity = complexity,
+		}
+		for key, value in pairs(extra or {}) do
+			entry[key] = value
+		end
+		return entry, spell
+	end
+	local dispelBolt = draft("Projectile", "Energy", function(d)
+		d.Triggers = {
+			OnImpact = {
+				{
+					TargetKind = "Spell",
+					Behavior = "Explode",
+					Radius = 4,
+					Payloads = { payload("Dispel", { Mode = "End" }) },
+				},
+			},
+		}
+	end)
+	local boltOk, boltReason = validates(dispelBolt)
+	check("SPELLS", "CAPABILITY", boltOk, "dispel bolt validates: " .. tostring(boltReason))
+	local boltComplexity = spec.estimate(dispelBolt).Complexity
+
+	-- Dispel ends a cheap hostile Field but only halves an expensive one.
+	local cheap, cheapSpell = fieldEntry("Cheap", boltComplexity - 1, 8)
+	local costly, costlySpell = fieldEntry("Costly", boltComplexity + 50, 8, { Center = vec(2, 0, 0) })
+	spellWorld.Entries, spellWorld.Complexity, spellWorld.Touched = { cheap, costly }, boltComplexity, {}
+	resetWorld({}, 100)
+	emit(dispelBolt, "OnImpact", caster, vec(0, 0, 0), {}, 0)
+	check(
+		"SPELLS",
+		"CAPABILITY",
+		cheapSpell.Dispelled == true and not costlySpell.Dispelled and costlySpell.Remaining == 4,
+		"a cheap hostile Field is ended; an expensive one only loses half its time"
+	)
+
+	-- A persistent construct: never by a non-owner, by its owner yes.
+	local saved = { Name = "Saved" }
+	local savedEntry = {
+		Record = saved,
+		Kind = "Construct",
+		Owner = enemyOwner,
+		OwnerUserId = 7,
+		Center = vec(0, 0, 0),
+		HalfExtent = 3,
+		Persistent = true,
+	}
+	spellWorld.Entries, spellWorld.Touched, spellWorld.CasterUserId = { savedEntry }, {}, 8
+	emit(dispelBolt, "OnImpact", caster, vec(0, 0, 0), {}, 0)
+	check("SPELLS", "CAPABILITY", not saved.Dispelled, "a saved construct cannot be dispelled by a non-owner")
+	spellWorld.Touched, spellWorld.CasterUserId = {}, 7
+	emit(dispelBolt, "OnImpact", caster, vec(0, 0, 0), {}, 0)
+	check("SPELLS", "CAPABILITY", saved.Dispelled == true, "its owner can")
+	spellWorld.CasterUserId = 1
+
+	-- Dispelling a Tether is a snap (OnBreak); a Construct's OnDispelled runs once.
+	local chain = draft("Tether", "Space", function(d)
+		d.Triggers = { OnBreak = { { Payloads = { payload("Stun", { Duration = 1 }) } } } }
+	end)
+	local wall = draft("Construct", "Matter", function(d)
+		d.Triggers = { OnDispelled = { { Payloads = { payload("Damage", { Amount = 7 }) } } } }
+	end)
+	local foes = resetWorld({ vec(1, 0, 0), vec(3, 0, 0) }, 100)
+	local tetherSpell = { Name = "Chain", Definition = chain, Targets = { foes[1], foes[2] }, Remaining = 5 }
+	local wallSpell = { Name = "Wall", Definition = wall, Targets = { foes[1] }, Remaining = 5 }
+	spellWorld.Entries = {
+		{
+			Record = tetherSpell,
+			Kind = "Tether",
+			Owner = enemyOwner,
+			A = vec(-2, 0, 0),
+			B = vec(2, 0, 0),
+			Complexity = 0,
+		},
+		{
+			Record = wallSpell,
+			Kind = "Construct",
+			Owner = enemyOwner,
+			Center = vec(0, 0, 0),
+			HalfExtent = 2,
+			Complexity = 0,
+		},
+	}
+	spellWorld.Touched = {}
+	emit(dispelBolt, "OnImpact", caster, vec(0, 0, 0), {}, 0)
+	spellWorld.Touched = {}
+	emit(dispelBolt, "OnImpact", caster, vec(0, 0, 0), {}, 0)
+	check("SPELLS", "CAPABILITY", count(function(x)
+		return x.Op == "Status.stun"
+	end) == 2, "dispelling a Tether fires its OnBreak (both ends stunned)")
+	check("SPELLS", "CAPABILITY", totalDamageTo("Enemy1") == 7, "a dispelled Construct runs On dispelled once")
+
+	-- Force pushes a Field's centre and stops one stud short of a wall.
+	local pushed = {}
+	local fieldToPush = fieldEntry("Pushed", 0, 8)
+	local attached = fieldEntry("Attached", 0, 8, { Attached = true })
+	local moved = SpellTargetsRuntime.force({ Magnitude = 9 }, { fieldToPush, attached }, {
+		Touched = {},
+		Cap = nil,
+		Move = function(entry, distance)
+			local travel = SpellSpecTargets.pushTravel(distance, 5, 1, 0.5) -- a wall 5 studs away
+			pushed[entry.Record.Name] = travel
+			return travel > 0
+		end,
+	})
+	check(
+		"SPELLS",
+		"CAPABILITY",
+		moved == 1 and pushed.Pushed == 4 and pushed.Attached == nil,
+		"Force pushes a Field's centre, stops at the wall, and leaves attached spells alone"
+	)
+	check("SPELLS", "CAPABILITY", SpellTargetsRuntime.force({ Magnitude = 9 }, { (fieldEntry("Ranked", 0, 8)) }, {
+		Touched = {},
+		Cap = 6,
+		Move = function(_, distance)
+			pushed.Ranked = distance
+			return true
+		end,
+	}) == 1 and pushed.Ranked == 6, "the PvP cap limits the push (6 studs ranked)")
+
+	-- Lenses: a fire lens marks an allied projectile; a slow lens slows a hostile one once.
+	local lensField = {}
+	local friendly = { Velocity = 10, BaseSpeed = 10 }
+	SpellTargetsRuntime.lens(lensField, { Who = "Allied", AddMark = "Fire" }, { friendly }, function()
+		return nil
+	end)
+	check(
+		"SPELLS",
+		"CAPABILITY",
+		friendly.LensMarks and friendly.LensMarks[1] == "Fire",
+		"a fire lens gives an allied projectile a Fire mark for its target"
+	)
+	local hostileShot = { Velocity = 10, BaseSpeed = 10 }
+	for _ = 1, 3 do
+		SpellTargetsRuntime.lens(lensField, { Who = "Hostile", Slow = 0.5 }, { hostileShot }, function()
+			return nil
+		end)
+	end
+	check(
+		"SPELLS",
+		"CAPABILITY",
+		hostileShot.Velocity == 5 and hostileShot.BaseSpeed == 5,
+		"a slow lens slows a projectile once"
+	)
+
+	-- No loop: two Fields whose On dispelled dispels the other.
+	local mirrorA = draft("Field", "Energy", function(d)
+		d.Triggers = {
+			OnDispelled = {
+				{
+					TargetKind = "Spell",
+					Behavior = "Explode",
+					Radius = 8,
+					Payloads = { payload("Dispel", { Mode = "End" }) },
+				},
+			},
+		}
+	end)
+	local mirrorOk, mirrorReason = validates(mirrorA)
+	check(
+		"SPELLS",
+		"CAPABILITY",
+		mirrorOk,
+		"a Field that dispels on being dispelled validates: " .. tostring(mirrorReason)
+	)
+	local aSpell = { Name = "MirrorA", Definition = mirrorA, Remaining = 5 }
+	local bSpell = { Name = "MirrorB", Definition = mirrorA, Remaining = 5 }
+	spellWorld.Entries = {
+		{ Record = aSpell, Kind = "Field", Owner = enemyOwner, Center = vec(0, 0, 0), Radius = 4, Complexity = 0 },
+		{ Record = bSpell, Kind = "Field", Owner = enemyOwner, Center = vec(3, 0, 0), Radius = 4, Complexity = 0 },
+	}
+	spellWorld.Touched = {}
+	resetWorld({}, 100)
+	emit(dispelBolt, "OnImpact", caster, vec(0, 0, 0), {}, 0)
+	check("SPELLS", "CAPABILITY", aSpell.Dispelled and bSpell.Dispelled and count(function(x)
+		return x.Op == "Dispelled"
+	end) == 2, "two Fields dispelling each other end once each and stop")
+	spellWorld.Entries = {}
 end
 
 ---------------------------------------------------------------------------

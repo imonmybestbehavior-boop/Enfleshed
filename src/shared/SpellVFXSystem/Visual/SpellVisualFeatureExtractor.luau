@@ -143,7 +143,7 @@ local function scanPayloads(payloads, raw, weight)
 			then
 				-- Creature control with no visual feature of its own (keeps the
 				-- canonical feature order unchanged).
-			elseif kind == "Cleanse" then
+			elseif kind == "Cleanse" or kind == "Dispel" then
 				-- Removes effects; no visual weight of its own (still counted in Payloads).
 			elseif kind == "Force" then
 				raw.force = math.max(raw.force, num(p.Magnitude) + num(p.Upward) * 0.5)

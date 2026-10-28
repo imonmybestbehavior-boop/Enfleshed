@@ -41,6 +41,7 @@ Policy.UnsupportedKinds = {
 	Manipulation = "Needs a material target, which companions cannot select",
 	Summon = "Companions cannot summon further companions",
 	Cleanse = "Helps or harms depending on what it removes, so a companion cannot pick its target safely",
+	Dispel = "Acts on spells, which companions cannot target",
 	Stealth = "Hiding an ally from monsters is a player decision, not a companion behaviour",
 	DrainResource = "Moves player resources; companions only use combat and support spells",
 	RestoreResource = "Moves player resources; companions only use combat and support spells",

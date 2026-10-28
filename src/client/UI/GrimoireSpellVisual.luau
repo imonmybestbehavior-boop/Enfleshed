@@ -44,6 +44,7 @@ local effectLabels = {
 	Stun = "STUN",
 	Silence = "HUSH",
 	Cleanse = "PURGE",
+	Dispel = "UNDO",
 	Taunt = "TAUNT",
 	Fear = "FEAR",
 	Stealth = "HIDE",
@@ -75,6 +76,7 @@ local effectOrder = {
 	Stealth = 22,
 	DrainResource = 23,
 	RestoreResource = 24,
+	Dispel = 25,
 }
 local behaviorLabels = {
 	Homing = "HOME",

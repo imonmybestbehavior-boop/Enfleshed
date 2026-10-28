@@ -89,6 +89,9 @@ function Policy.isHostilePayload(payload: any): boolean
 	elseif kind == "Transformation" then
 		-- Polymorph turns someone into a critter; Scale and Shapeshift do not harm.
 		return payload.Mode == "Polymorph"
+	elseif kind == "Dispel" then
+		-- Acts on spells, never on characters; its own relationship filter applies.
+		return false
 	elseif kind == "Cleanse" then
 		-- Stripping Boons harms the target; removing Banes helps them.
 		return payload.Remove ~= "Banes"

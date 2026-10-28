@@ -791,6 +791,12 @@ Payloads.Executors = {
 			end
 		end
 	end,
+	-- Dispel acts only on spells (MagicSpellTargets through MagicService).
+	Dispel = function(payload: any, context: any)
+		if context.SpellTargets and context.DispelSpells then
+			context.DispelSpells(payload, context.SpellTargets)
+		end
+	end,
 	Cleanse = function(payload: any, context: any)
 		-- One pool across timed statuses, periodic effects and Enchantments,
 		-- removed longest-lasting first (MagicCrowdControlSpec.select).
@@ -871,6 +877,14 @@ Payloads.Executors = {
 		end
 	end,
 	Force = function(payload: any, context: any)
+		-- Force on spells (TargetKind = "Spell"): moves Field/Aura centres and
+		-- unattached Constructs (MagicSpellTargets).
+		if context.SpellTargets then
+			if context.ForceSpells then
+				context.ForceSpells(payload, context.SpellTargets)
+			end
+			return
+		end
 		for _, target in context.Targets or {} do
 			local root = if target:IsA("Humanoid")
 				then target.Parent and target.Parent:FindFirstChild("HumanoidRootPart")

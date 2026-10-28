@@ -49,7 +49,7 @@ Guide.Intents = {
 		Id = "Utility",
 		Label = "Utility",
 		Description = "Reveal, alter, or interact with a target or the surrounding world.",
-		Payloads = { "Reveal", "Manipulation", "Transformation" },
+		Payloads = { "Reveal", "Manipulation", "Transformation", "Dispel" },
 		RecommendedForms = { "Manipulation", "Construct", "Field", "Projectile" },
 	},
 	{

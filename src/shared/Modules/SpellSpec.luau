@@ -1103,6 +1103,21 @@ function Spec.validate(d, spawnNesting: number?)
 		if d.Field.FollowTarget == true and d.Targeting ~= "EntityTarget" and d.Targeting ~= "ObjectTarget" then
 			return false, "Following Fields require an entity or object target"
 		end
+		-- Field lens: changes projectiles crossing the Field (MagicSpellLensSpec).
+		local lens = d.Field.AffectsSpells
+		if lens ~= nil then
+			if
+				type(lens) ~= "table"
+				or not keys(lens, { Who = true, AddMark = true, ScalePotency = true, Slow = true })
+				or not table.find(Schema.LensWho, lens.Who)
+				or (lens.AddMark ~= nil and (not table.find(Schema.Elements, lens.AddMark) or lens.AddMark == "Neutral"))
+				or (lens.ScalePotency ~= nil and not bounded(lens.ScalePotency, 0.5, 1.5))
+				or (lens.Slow ~= nil and not bounded(lens.Slow, 0.3, 1))
+				or (lens.AddMark == nil and lens.ScalePotency == nil and lens.Slow == nil)
+			then
+				return false, "A lens needs Who and at least one of: mark element, potency 0.5-1.5, slow 0.3-1"
+			end
+		end
 		local field = d.Field
 		if
 			(field.ArmDelay ~= nil and not bounded(field.ArmDelay, 0, Limits.MaxTrapArmDelay))
@@ -1490,6 +1505,33 @@ function Spec.validate(d, spawnNesting: number?)
 					end
 				end
 			end
+			-- Spells as targets: only Dispel and Force act on spells, and Dispel
+			-- only there.
+			stepFields.TargetKind = true
+			stepFields.SpellRelationship = true
+			if step.TargetKind ~= nil and not table.find(Schema.TargetKinds, step.TargetKind) then
+				return false, "Unknown target kind"
+			end
+			if step.SpellRelationship ~= nil then
+				if step.TargetKind ~= "Spell" or not table.find(Schema.SpellRelationships, step.SpellRelationship) then
+					return false, "Spell relationship needs Target spells (Hostile, Allied or Any)"
+				end
+			end
+			if step.TargetKind == "Spell" and step.Behavior ~= nil and step.Behavior ~= "Explode" then
+				return false, "A step that targets spells can only use Explode (its radius is the reach)"
+			end
+			if step.TargetKind == "Spell" and step.Condition ~= nil then
+				return false, "Conditions check characters; a step that targets spells cannot have one"
+			end
+			for _, spellPayload in ipairs(type(step.Payloads) == "table" and step.Payloads or {}) do
+				local kind = type(spellPayload) == "table" and spellPayload.Kind
+				if step.TargetKind == "Spell" and not Schema.SpellTargetPayloads[kind] then
+					return false, "Only Dispel and Force can act on spells"
+				end
+				if step.TargetKind ~= "Spell" and kind == "Dispel" then
+					return false, "Dispel acts on spells: turn on Target spells for this step"
+				end
+			end
 			stepFields.Condition = true
 			if step.Condition ~= nil then
 				local conditionValid, conditionReason =
@@ -1592,6 +1634,12 @@ function Spec.validate(d, spawnNesting: number?)
 					elseif not bounded(value, field.Min, field.Max) or (field.Integer and value % 1 ~= 0) then
 						return false, "Payload setting is outside its safety limit: " .. field.Label
 					end
+				end
+				if p.Kind == "Dispel" and p.Mode == "Shorten" and p.Seconds == nil then
+					return false, "Shorten needs the time it removes"
+				end
+				if p.Kind == "Dispel" and p.Mode == "End" and p.Seconds ~= nil then
+					return false, "End removes the spell; it has no time setting"
 				end
 				-- Transformation: settings and limits per mode.
 				if p.Kind == "Transformation" then

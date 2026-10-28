@@ -31,6 +31,7 @@ Caps.UncappedKinds = {
 	Manipulation = "Moves world objects, not players",
 	Summon = "Summon damage is capped by Caps.damage",
 	Cleanse = "Removes effects; it has no number to cap",
+	Dispel = "Acts on spells, not players; its End rule compares spell complexity",
 	Taunt = "Creatures only; never applies to players, so no PvP cap",
 	Fear = "Creatures only; never applies to players, so no PvP cap",
 	Stealth = "Hides from monsters only while StealthHidesFromPlayers is off; nothing to cap",

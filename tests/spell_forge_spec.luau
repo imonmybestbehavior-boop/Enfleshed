@@ -193,6 +193,7 @@ forgeEnv = setmetatable({
 							Modules = {
 								ProjectileBehaviorSpec = "projectileBehaviorSpec",
 								MagicSpellIdentitySpec = "identitySpec",
+								MagicSpellTargetSpec = "spellTargetSpec",
 							},
 						}
 					end,
@@ -215,6 +216,8 @@ forgeEnv = setmetatable({
 			return projectileBehaviorSpec
 		elseif v == "identitySpec" then
 			return identitySpec
+		elseif v == "spellTargetSpec" then
+			return load("src/shared/Modules/MagicSpellTargetSpec.luau")
 		elseif v == "spellVisual" then
 			return { render = function() end }
 		end

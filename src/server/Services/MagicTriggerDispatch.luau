@@ -48,6 +48,17 @@ function Dispatch.execute(definition, event, context, payloads, behaviors, comma
 				matches = false
 			end
 		end
+		-- Spells as targets: the step acts on live spells it touches, not characters.
+		if matches and step.TargetKind == "Spell" then
+			local spells = context.ResolveSpellTargets and context.ResolveSpellTargets(step, stepContext)
+			if type(spells) == "table" and #spells > 0 then
+				stepContext = table.clone(stepContext)
+				stepContext.Targets = {}
+				stepContext.SpellTargets = spells
+			else
+				matches = false
+			end
+		end
 		if matches and step.Condition ~= nil then
 			local passing = conditions and conditions.filter(step.Condition, stepContext)
 			if passing then
@@ -68,7 +79,11 @@ function Dispatch.execute(definition, event, context, payloads, behaviors, comma
 					hooks.intercept(step.Intercept)
 				end
 			end
-			if step.Behavior then
+			if step.TargetKind == "Spell" then
+				-- Spell targets are already resolved (an Explode's radius is the
+				-- reach); the payloads act on them directly.
+				payloads.execute(step.Payloads or {}, stepContext)
+			elseif step.Behavior then
 				behaviors.execute(step.Behavior, stepContext, step)
 			else
 				payloads.execute(step.Payloads or {}, stepContext)

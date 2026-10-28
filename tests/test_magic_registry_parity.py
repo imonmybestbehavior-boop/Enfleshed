@@ -26,7 +26,19 @@ def names_kind(source: str, kind: str) -> bool:
 
 
 BOON = {"Heal", "Restoration", "Shield", "Enhancement", "AerialMovement", "Stealth", "RestoreResource"}
-BANE = {"Damage", "DamageOverTime", "Slow", "Bind", "ElementalMark", "Stun", "Silence", "Taunt", "Fear", "DrainResource"}
+BANE = {
+	"Damage",
+	"DamageOverTime",
+	"Slow",
+	"Bind",
+	"ElementalMark",
+	"Stun",
+	"Silence",
+	"Taunt",
+	"Fear",
+	"DrainResource",
+	"Dispel",  # Bane against Hostile spells, Neutral otherwise (Schema.DispelPolarity)
+}
 
 # Every Schema.Payloads kind must be named by each of these consumers, so a new
 # payload kind fails here until every file handles it.
@@ -466,6 +478,37 @@ class MagicRegistryParity(unittest.TestCase):
 		self.assertIn('ctx.DamageContext.EmitEvent("OnTransformEnd", targetHumanoid)', service)
 		policy = (ROOT / "src/shared/Modules/CombatPolicy.luau").read_text(encoding="utf-8")
 		self.assertIn('return payload.Mode == "Polymorph"', policy)
+
+	def test_spells_as_targets_dispel_force_and_lenses_are_wired(self):
+		service = (ROOT / "src/server/Services/MagicService.luau").read_text(encoding="utf-8")
+		dispel = block(service, "spellRuntime.dispel = function(", "\nend\n")
+		self.assertIn('tetherDeps.Emit(record, "OnBreak")', dispel, "a dispelled Tether snaps")
+		self.assertIn('tetherDeps.Finish(record, "Snap")', dispel)
+		self.assertIn("if record.Dispelled then", dispel, "OnDispelled runs once")
+		self.assertIn('"OnDispelled"', dispel)
+		self.assertIn("LifetimeSpec.claimExpiry(record)", dispel, "no OnExpire after a dispel")
+		self.assertIn("depth < Limits.MaxMagicEventDepth", dispel)
+		self.assertIn("record:Destroy()", dispel, "a saved Construct is removed (its store record follows)")
+		force = block(service, "spellRuntime.force = function(", "\nend\n")
+		self.assertIn("SpellTargetSpec.pushTravel(distance, hit and hit.Distance, 1, 0.5)", force, "stops at walls")
+		self.assertIn("profile.MaxSpellForceDistance", force)
+		self.assertIn("spellRuntime.lens(spell, Geometry.areaSize(d.Geometry, scaledArea))", service)
+		self.assertIn("for _, element in spell.LensMarks do", service, "lens marks land on impact")
+		finder = block(service, "FindIncomingProjectile = function(", "\n\t\tend,\n")
+		self.assertIn("projectilesNear(", finder, "Absorb/Reflect share the lens scan")
+		self.assertIn("budget.SpellTouched", service, "once per spell target per root cast")
+		dispatch = (ROOT / "src/server/Services/MagicTriggerDispatch.luau").read_text(encoding="utf-8")
+		self.assertIn('if matches and step.TargetKind == "Spell" then', dispatch)
+		self.assertIn("stepContext.SpellTargets = spells", dispatch)
+		executors = (ROOT / "src/server/Services/MagicPayloadExecutors.luau").read_text(encoding="utf-8")
+		self.assertIn("context.DispelSpells(payload, context.SpellTargets)", executors)
+		self.assertIn("context.ForceSpells(payload, context.SpellTargets)", executors)
+		for path in ("src/client/UI/GuidedSpellForge.luau", "src/client/Controllers/MagicLabController.luau"):
+			editor = (ROOT / path).read_text(encoding="utf-8")
+			self.assertIn('"Target spells"', editor, path)
+			self.assertIn('"Which spells"', editor, path)
+			self.assertIn('"LENS"', editor, path)
+			self.assertIn("SpellTargetSpec.syncStep(", editor, f"{path} keeps TargetKind in step with its payloads")
 
 	def test_stealth_hides_from_monsters_and_player_path_is_behind_the_setting(self):
 		enemy = (ROOT / "src/server/Services/EnemyService.luau").read_text(encoding="utf-8")

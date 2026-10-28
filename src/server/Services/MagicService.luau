@@ -79,6 +79,11 @@ local TrapSpec = require(Shared.Modules.MagicTrapSpec)
 local Interception = require(script.Parent.MagicInterception)
 local TetherRuntime = require(script.Parent.MagicTether)
 local Transform = require(script.Parent.MagicTransformService)
+local SpellTargets = require(script.Parent.MagicSpellTargets)
+local SpellTargetSpec = require(Shared.Modules.MagicSpellTargetSpec)
+local Schema = require(Shared.Configuration.MagicSchema)
+-- Spell vs Spell runtime (assigned before Magic.start; see spellRuntime below).
+local spellRuntime: any = {}
 local TetherSpec = require(Shared.Modules.MagicTetherSpec)
 local buildConstructModel, watchPersistentConstruct, persistentConstructRecord, restorePersistentConstruct =
 	MagicConstructBuilder.buildConstructModel,
@@ -898,6 +903,16 @@ local function context(definition, caster, position, targets, direction, remote,
 		IncomingHit = runtimeState and runtimeState.IncomingHit or nil,
 		-- Tether steps with Anchor = "A" / "B" act on one end.
 		AnchorTargets = runtimeState and runtimeState.AnchorTargets or nil,
+		-- Spell vs Spell: steps with TargetKind = "Spell" (MagicSpellTargets).
+		ResolveSpellTargets = function(step, stepContext)
+			return spellRuntime.resolve(definition, caster, step, stepContext, runtimeState)
+		end,
+		DispelSpells = function(payload, entries)
+			spellRuntime.dispel(definition, caster, player, payload, entries, runtimeState)
+		end,
+		ForceSpells = function(payload, entries)
+			spellRuntime.force(definition, caster, payload, entries, direction, runtimeState)
+		end,
 		InterceptHooks = runtimeState and runtimeState.InterceptHooks or nil,
 		-- OnDamageDealt: how much the triggering hit dealt (PercentDamageDealt).
 		DamageDealt = runtimeState and runtimeState.DamageDealt or nil,
@@ -1986,6 +2001,24 @@ local function formAreaCandidates(definition, caster, position, age)
 	})
 end
 
+-- Live projectiles within `radius` (plus their own size) of `position` that
+-- pass `accept`: the scan Absorb, Reflect and Field lenses share.
+local function projectilesNear(position: Vector3, radius: number, accept: (any) -> boolean): { any }
+	local found = {}
+	for _, candidate in ipairs(active) do
+		if
+			candidate.Kind == "Projectile"
+			and not candidate.AbsorbedBy
+			and candidate.Caster:IsDescendantOf(workspace)
+			and (candidate.Position - position).Magnitude <= radius + candidate.Definition.Projectile.Radius
+			and accept(candidate)
+		then
+			table.insert(found, candidate)
+		end
+	end
+	return found
+end
+
 local function formAreaTargets(spell, position)
 	local stats = playerData[spell.Player]
 	return Conditions.targets(
@@ -2419,22 +2452,18 @@ local function projectileBehaviorContext(spell)
 		FindIncomingProjectile = function(projectile, radius, maxReflections)
 			local closest = nil
 			local closestDistance = math.huge
-			for _, candidate in ipairs(active) do
-				if
-					candidate ~= projectile
-					and candidate.Kind == "Projectile"
-					and not candidate.AbsorbedBy
-					and candidate.Caster ~= projectile.Caster
-					and (maxReflections == nil or (candidate.ReflectionCount or 0) < maxReflections)
-					and candidate.Caster:IsDescendantOf(workspace)
-					and Conditions.relationshipMatches(projectile.Caster, candidate.Caster, "Hostile")
-				then
-					local separation = (candidate.Position - projectile.Position).Magnitude
-					local contactRange = radius + definition.Projectile.Radius + candidate.Definition.Projectile.Radius
-					if separation <= contactRange and separation < closestDistance then
-						closest = candidate
-						closestDistance = separation
-					end
+			for _, candidate in
+				projectilesNear(projectile.Position, radius + definition.Projectile.Radius, function(candidate)
+					return candidate ~= projectile
+						and candidate.Caster ~= projectile.Caster
+						and (maxReflections == nil or (candidate.ReflectionCount or 0) < maxReflections)
+						and Conditions.relationshipMatches(projectile.Caster, candidate.Caster, "Hostile")
+				end)
+			do
+				local separation = (candidate.Position - projectile.Position).Magnitude
+				if separation < closestDistance then
+					closest = candidate
+					closestDistance = separation
 				end
 			end
 			return closest
@@ -4107,6 +4136,243 @@ local function recastActive(record, now: number)
 	)
 end
 
+-- Spell vs Spell: live spells as MagicSpellTargets entries, and the world
+-- changes Dispel / Force / lenses make.
+local function relationTo(caster: Model, owner: Model?): string
+	if owner == nil then
+		return "Neutral"
+	elseif owner == caster then
+		return "Self"
+	elseif Conditions.relationshipMatches(caster, owner, "Hostile") then
+		return "Hostile"
+	elseif Conditions.relationshipMatches(caster, owner, "Ally") then
+		return "Ally"
+	end
+	return "Neutral"
+end
+
+local function complexityOf(definition: any): number
+	if definition._DispelComplexity == nil then
+		local estimate = Spec.estimate(definition)
+		definition._DispelComplexity = estimate and estimate.Complexity or 0
+	end
+	return definition._DispelComplexity
+end
+
+local function spellEntries(): { any }
+	local entries = {}
+	for _, spell in active do
+		local d = spell.Definition
+		if spell.Ended or spell.Dispelled or not d then
+			continue
+		end
+		if spell.Kind == "Field" or spell.Kind == "Aura" then
+			local area = d.Field or d.Aura
+			local size = Geometry.areaSize(d.Geometry, AreaGrowth.area(area, AreaGrowth.scale(area, spell.Age or 0)))
+			table.insert(entries, {
+				Record = spell,
+				Kind = spell.Kind,
+				Owner = spell.Caster,
+				Center = spell.Position,
+				Radius = math.max(size.X, size.Z) / 2,
+				Attached = spell.Kind == "Aura" or spell.FollowTarget == true,
+				Complexity = complexityOf(d),
+			})
+		elseif spell.Kind == "Construct" and spell.Visual and spell.Visual.Parent then
+			table.insert(entries, {
+				Record = spell,
+				Kind = "Construct",
+				Owner = spell.Caster,
+				Center = spell.Visual:GetPivot().Position,
+				HalfExtent = spell.Visual:GetExtentsSize().Magnitude / 2,
+				Model = spell.Visual,
+				Attached = spell.Attachment ~= nil or spell.AttachedHumanoid ~= nil,
+				Complexity = complexityOf(d),
+			})
+		elseif spell.Kind == "Tether" then
+			local rootA, rootB = tetherRoot(spell.AnchorA), tetherRoot(spell.AnchorB)
+			if rootA and rootB then
+				table.insert(entries, {
+					Record = spell,
+					Kind = "Tether",
+					Owner = spell.Caster,
+					A = rootA.Position,
+					B = rootB.Position,
+					Attached = true,
+					Complexity = complexityOf(d),
+				})
+			end
+		end
+	end
+	-- Persistent (saved) Constructs: owner-only, End only.
+	for _, model in workspace:GetChildren() do
+		if model:IsA("Model") and model:GetAttribute("MagicPersistentConstruct") == true then
+			local ownerId = model:GetAttribute("MagicPersistentConstructOwner")
+			local ownerPlayer = if type(ownerId) == "number" then Players:GetPlayerByUserId(ownerId) else nil
+			table.insert(entries, {
+				Record = model,
+				Kind = "Construct",
+				Owner = ownerPlayer and ownerPlayer.Character,
+				OwnerUserId = ownerId,
+				Center = model:GetPivot().Position,
+				HalfExtent = model:GetExtentsSize().Magnitude / 2,
+				Model = model,
+				Persistent = true,
+			})
+		end
+	end
+	return entries
+end
+
+local function touchedSet(runtimeState: any): { [any]: boolean }
+	local budget = runtimeState and runtimeState.OperationBudget
+	if type(budget) == "table" then
+		budget.SpellTouched = budget.SpellTouched or {}
+		return budget.SpellTouched
+	end
+	return {}
+end
+
+spellRuntime.resolve = function(definition, caster, step, stepContext, runtimeState)
+	local point = stepContext.Origin or (caster and caster:GetPivot().Position)
+	if not point then
+		return {}
+	end
+	local reach = if step.Behavior == "Explode" then step.Radius or 0 else 0
+	local hitPart = stepContext.DamageContext and stepContext.DamageContext.HitPart
+	return SpellTargets.resolve(spellEntries(), step.SpellRelationship, point, reach, hitPart, function(owner)
+		return relationTo(caster, owner)
+	end)
+end
+
+spellRuntime.dispel = function(definition, caster, player, payload, entries, runtimeState)
+	local depth = (runtimeState and runtimeState.EventDepth or 0) + 1
+	SpellTargets.dispel(payload, entries, {
+		CasterUserId = player and player.UserId,
+		Complexity = complexityOf(definition),
+		Touched = touchedSet(runtimeState),
+		Remaining = function(entry)
+			local record = entry.Record
+			if record.Definition and record.Definition.Lifetime.Mode == "FixedDuration" then
+				return record.RemainingLifetime
+			end
+			return nil
+		end,
+		SetRemaining = function(entry, value)
+			entry.Record.RemainingLifetime = value
+		end,
+		-- OnDispelled (or a Tether snap), then removal without OnExpire.
+		End = function(entry)
+			local record = entry.Record
+			if entry.Persistent then
+				record:Destroy()
+				return
+			end
+			if entry.Kind == "Tether" then
+				if not record.Ended then
+					tetherDeps.Emit(record, "OnBreak")
+					tetherDeps.Finish(record, "Snap")
+				end
+				return
+			end
+			if record.Dispelled then
+				return
+			end
+			record.Dispelled = true
+			if hasEvent(record.Definition, "OnDispelled") and depth < Limits.MaxMagicEventDepth then
+				local eventState = lifecycleState(record, "OnDispelled", depth)
+				eventState.OperationBudget = runtimeState and runtimeState.OperationBudget
+				local targets = if entry.Kind == "Field" or entry.Kind == "Aura"
+					then formAreaTargets(record, record.Position)
+					else {}
+				emit(
+					record.Definition,
+					"OnDispelled",
+					record.Caster,
+					record.Position,
+					targets,
+					record.Direction or Vector3.zero,
+					record.Remote,
+					record.Player,
+					nil,
+					eventState
+				)
+			end
+			LifetimeSpec.claimExpiry(record)
+			record.RemainingLifetime = 0
+		end,
+	})
+end
+
+spellRuntime.force = function(definition, caster, payload, entries, direction, runtimeState)
+	local flat = Vector3.new(direction.X, 0, direction.Z)
+	if flat.Magnitude < 0.001 then
+		return
+	end
+	flat = flat.Unit
+	local profile = CapProfiles[StatCaps.selfProfileName(CombatPolicy.owner(caster, Players))]
+	SpellTargets.force(payload, entries, {
+		Touched = touchedSet(runtimeState),
+		Cap = profile and profile.MaxSpellForceDistance,
+		-- Same wall rule as Displacement: never through solid geometry; stop
+		-- short of it, and skip moves under half a stud.
+		Move = function(entry, distance)
+			local record = entry.Record
+			local from = entry.Center
+			local params = RaycastParams.new()
+			params.FilterType = Enum.RaycastFilterType.Exclude
+			params.FilterDescendantsInstances = if entry.Model then { caster, entry.Model } else { caster }
+			params.RespectCanCollide = true
+			local hit = workspace:Raycast(from + Vector3.new(0, 1, 0), flat * distance, params)
+			local travel = SpellTargetSpec.pushTravel(distance, hit and hit.Distance, 1, 0.5)
+			if travel <= 0 then
+				return false
+			end
+			local delta = flat * travel
+			if entry.Kind == "Construct" then
+				record.Visual:PivotTo(record.Visual:GetPivot() + delta)
+				if record.AnchorPoint then
+					record.AnchorPoint += delta
+				end
+				if record.GrowthAnchorPoint then
+					record.GrowthAnchorPoint += delta
+				end
+			else
+				record.Position += delta
+			end
+			return true
+		end,
+	})
+end
+
+-- Field lens: projectiles inside the Field whose owner matches Who.
+spellRuntime.lens = function(field, size: Vector3)
+	local lens = field.Definition.Field.AffectsSpells
+	local radius = math.max(size.X, size.Z) / 2
+	local projectiles = projectilesNear(field.Position, radius, function(projectile)
+		local relation = relationTo(field.Caster, projectile.Caster)
+		if relation == "Ally" then
+			relation = "Allied"
+		end
+		return lens.Who == "Any"
+			or (lens.Who == "Allied" and (relation == "Allied" or relation == "Self"))
+			or (lens.Who == "Hostile" and relation == "Hostile")
+	end)
+	SpellTargets.lens(field, lens, projectiles, function(projectile)
+		-- PvP floors when a hostile player's projectile is weakened.
+		local owner = CombatPolicy.owner(projectile.Caster, Players)
+		local fieldOwner = CombatPolicy.owner(field.Caster, Players)
+		if not owner or relationTo(field.Caster, projectile.Caster) ~= "Hostile" then
+			return nil
+		end
+		local profile = CapProfiles[StatCaps.profileName(owner, fieldOwner)]
+		if not profile or profile.MinLensPotencyVsPlayers == nil then
+			return nil
+		end
+		return { Potency = profile.MinLensPotencyVsPlayers, Slow = profile.MinLensSlowVsPlayers }
+	end)
+end
+
 function Magic.start(player, state, intent, remote, castContext, temporaryDefinition): (boolean, string?)
 	castStates[player] = state
 	local definition = temporaryDefinition or getDefinition(intent.SpellId)
@@ -5459,6 +5725,10 @@ RunService.Heartbeat:Connect(function(delta)
 					)
 				end
 			end
+			-- Field lens: change projectiles crossing the Field (once per projectile).
+			if spell.Kind == "Field" and d.Field.AffectsSpells and spell.RemainingLifetime > 0 then
+				spellRuntime.lens(spell, Geometry.areaSize(d.Geometry, scaledArea))
+			end
 			if spell.RemainingLifetime <= 0 then
 				if not targets then
 					targets = formAreaTargets(spell, spell.Position)
@@ -5777,6 +6047,13 @@ RunService.Heartbeat:Connect(function(delta)
 				)
 				spell.HitPart = nil
 				spell.AllowObjectTarget = nil
+				-- Lens marks: the target hit gets each mark this projectile picked up.
+				if hitHumanoid and spell.LensMarks then
+					local markDuration = Schema.Payloads.ElementalMark.Defaults.Duration
+					for _, element in spell.LensMarks do
+						StatusEffects.elementalMark(spell.Caster, hitHumanoid, d.SpellId, element, 1, markDuration)
+					end
+				end
 				local continue = ProjectileBehaviors.impact(spell, hit, projectileBehaviorContext(spell))
 				if projectileHasBehavior(spell, "Return") and hitHumanoid then
 					continue = true

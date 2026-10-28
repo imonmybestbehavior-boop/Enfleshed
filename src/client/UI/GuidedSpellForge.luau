@@ -20,6 +20,7 @@ local TweenService = game:GetService("TweenService")
 local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
 local ProjectileBehaviorSpec = require(Shared.Modules.ProjectileBehaviorSpec)
 local SpellIdentitySpec = require(Shared.Modules.MagicSpellIdentitySpec)
+local SpellTargetSpec = require(Shared.Modules.MagicSpellTargetSpec)
 local SpellVisual = require(script.Parent.GrimoireSpellVisual)
 local PreviewPanel = require(script.Parent.ForgePreviewPanel)
 
@@ -1231,10 +1232,12 @@ function Forge.mount(parent, draft, schema, spec, callbacks)
 				if picker.Step then
 					picker.Step.Payloads = picker.Step.Payloads or {}
 					table.insert(picker.Step.Payloads, payload)
+					SpellTargetSpec.syncStep(picker.Step, schema.SpellTargetPayloads)
 					state.Selection =
 						{ Kind = "Payload", Scope = scope, Event = eventName, Step = picker.Step, Payload = payload }
 				else
 					local step = { Payloads = { payload } }
+					SpellTargetSpec.syncStep(step, schema.SpellTargetPayloads)
 					table.insert(steps, step)
 					state.Selection =
 						{ Kind = "Payload", Scope = scope, Event = eventName, Step = step, Payload = payload }
@@ -1893,6 +1896,42 @@ function Forge.mount(parent, draft, schema, spec, callbacks)
 			end
 		)
 	end
+	-- Spell steps (Dispel, Force): whether they act on live spells, and whose.
+	local function spellTargetField(step)
+		local mode = SpellTargetSpec.stepMode(step, schema.SpellTargetPayloads)
+		if not mode then
+			return
+		end
+		if mode == "Optional" then
+			choiceField(
+				"Target spells",
+				"Off: acts on creatures. On: acts on live Fields, Auras, Constructs and Tethers here instead.",
+				{ false, true },
+				step.TargetKind == "Spell",
+				function(choice)
+					step.TargetKind = if choice then "Spell" else nil
+					if not choice then
+						step.SpellRelationship = nil
+					end
+				end,
+				function(choice)
+					return if choice then "ON" else "OFF"
+				end
+			)
+		end
+		if step.TargetKind == "Spell" then
+			choiceField(
+				"Which spells",
+				"Hostile: spells of those you can fight. Allied: yours and your allies'. Any: every spell it touches. Each spell is affected once per cast.",
+				schema.SpellRelationships,
+				step.SpellRelationship or "Hostile",
+				function(choice)
+					step.SpellRelationship = if choice == "Hostile" then nil else choice
+				end,
+				string.upper
+			)
+		end
+	end
 	local function matches(label)
 		local query = string.lower(state.Search or "")
 		return query == "" or string.find(string.lower(tostring(label)), query, 1, true) ~= nil
@@ -2141,6 +2180,55 @@ function Forge.mount(parent, draft, schema, spec, callbacks)
 				end
 				fieldGroup(mechanics, fields, "mech:" .. tostring(scope.Form))
 			end
+			if scope.Form == "Field" and mechanics then
+				section("LENS")
+				local lens = mechanics.AffectsSpells
+				choiceField(
+					"Changes projectiles crossing it",
+					"Off, or whose projectiles it changes as they fly through (once per projectile per Field).",
+					{ "Off", "Hostile", "Allied", "Any" },
+					if lens then lens.Who else "Off",
+					function(choice)
+						if choice == "Off" then
+							mechanics.AffectsSpells = nil
+						elseif lens then
+							lens.Who = choice
+						else
+							mechanics.AffectsSpells = { Who = choice, Slow = 0.7 }
+						end
+					end,
+					string.upper
+				)
+				if lens then
+					local marks = { "None" }
+					for _, element in schema.MarkElements do
+						table.insert(marks, element)
+					end
+					choiceField(
+						"Adds a mark",
+						"The projectile marks what it hits with this element.",
+						marks,
+						lens.AddMark or "None",
+						function(choice)
+							lens.AddMark = if choice == "None" then nil else choice
+						end
+					)
+					numberField(lens, {
+						Key = "ScalePotency",
+						Label = "Potency (x)",
+						Min = 0.5,
+						Max = 1.5,
+						Help = "Scales the projectile's effects. Against players: at least 0.7 (0.8 in ranked).",
+					})
+					numberField(lens, {
+						Key = "Slow",
+						Label = "Speed (x)",
+						Min = 0.3,
+						Max = 1,
+						Help = "Slows the projectile. Against players: at least 0.6 (0.7 in ranked).",
+					})
+				end
+			end
 			if scope.Lifetime and scope.Lifetime.Mode == "FixedDuration" then
 				numberField(scope.Lifetime, {
 					Key = "Duration",
@@ -2370,8 +2458,11 @@ function Forge.mount(parent, draft, schema, spec, callbacks)
 			if payload.Kind == "Damage" and (payload.DamageChannel or "Elemental") == "Elemental" then
 				note("Elemental damage uses the spell's element: " .. tostring(draft.Element) .. ".")
 			end
-			targetFromField(s.Step, s.Event)
-			anchorField(s.Step, s.Scope)
+			spellTargetField(s.Step)
+			if s.Step.TargetKind ~= "Spell" then
+				targetFromField(s.Step, s.Event)
+				anchorField(s.Step, s.Scope)
+			end
 			section("PROPERTIES")
 			fieldGroup(payload, definition.Fields, "payload:" .. payload.Kind)
 			section("")
@@ -2380,6 +2471,7 @@ function Forge.mount(parent, draft, schema, spec, callbacks)
 				if index then
 					table.remove(s.Step.Payloads, index)
 				end
+				SpellTargetSpec.syncStep(s.Step, schema.SpellTargetPayloads)
 				pruneStep(s.Scope, s.Event, s.Step)
 				state.Selection = { Kind = "Form", Scope = s.Scope }
 			end)
@@ -2392,8 +2484,11 @@ function Forge.mount(parent, draft, schema, spec, callbacks)
 			if step.Condition then
 				note("IF · Runs only when its condition passes. Edit the condition in Advanced view.", C.Arcane)
 			end
-			targetFromField(step, s.Event)
-			anchorField(step, s.Scope)
+			spellTargetField(step)
+			if step.TargetKind ~= "Spell" then
+				targetFromField(step, s.Event)
+				anchorField(step, s.Scope)
+			end
 			section("PROPERTIES")
 			fieldGroup(step, definition.Fields, "behavior:" .. tostring(step.Behavior))
 			section("AFFECTS EVERYTHING INSIDE WITH")

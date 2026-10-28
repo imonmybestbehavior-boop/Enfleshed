@@ -1578,6 +1578,77 @@ do
 					and payload.BreakOnDamage == true
 					and payload.Duration == limits.MaxPolymorphDuration
 			)
+		end)();
+		(function()
+			-- Spell vs Spell: Dispel and Force on spells, OnDispelled, Field lenses.
+			local dispel = spec.createDraft("Projectile", "Energy")
+			dispel.Triggers.OnImpact = {
+				{
+					TargetKind = "Spell",
+					Behavior = "Explode",
+					Radius = 6,
+					Payloads = { { Kind = "Dispel", Mode = "End" } },
+				},
+			}
+			local ok, reason = spec.validate(dispel)
+			assert(ok, "dispel bolt was rejected: " .. tostring(reason))
+			local function variant(source, mutate)
+				local copy = spec.copy(source)
+				mutate(copy)
+				return spec.validate(copy)
+			end
+			assert(
+				variant(dispel, function(d)
+					d.Triggers.OnImpact[1].Payloads[1] = { Kind = "Dispel", Mode = "Shorten", Seconds = 10 }
+					d.Triggers.OnImpact[1].SpellRelationship = "Any"
+				end),
+				"Shorten on any spell was rejected"
+			)
+			assert(not variant(dispel, function(d)
+				d.Triggers.OnImpact[1].Payloads[1] = { Kind = "Dispel", Mode = "Shorten", Seconds = 31 }
+			end), "at most 30 s")
+			assert(not variant(dispel, function(d)
+				d.Triggers.OnImpact[1].Payloads[1] = { Kind = "Damage", Amount = 5 }
+			end), "only Dispel and Force act on spells")
+			assert(not variant(dispel, function(d)
+				d.Triggers.OnImpact[1].TargetKind = nil
+			end), "Dispel needs Target spells")
+			assert(
+				variant(dispel, function(d)
+					d.Triggers.OnImpact[1].Payloads[1] = { Kind = "Force", Magnitude = 8 }
+				end),
+				"Force on spells was rejected"
+			)
+			assert(not variant(dispel, function(d)
+				d.Triggers.OnImpact[1].SpellRelationship = "Friends"
+			end), "unknown spell relationship")
+			-- OnDispelled on a Field; lens settings.
+			local wall = spec.createDraft("Field", "Energy")
+			wall.Triggers.OnDispelled = { { Payloads = { { Kind = "Damage", Amount = 5 } } } }
+			wall.Field.AffectsSpells = { Who = "Allied", AddMark = "Fire" }
+			ok, reason = spec.validate(wall)
+			assert(ok, "lens field with On dispelled was rejected: " .. tostring(reason))
+			assert(table.find(schema.eventsForEffects("Field"), "OnDispelled"), "Lab hides When it's dispelled")
+			assert(
+				not table.find(schema.eventsForEffects("Projectile"), "OnDispelled"),
+				"projectiles cannot be dispelled"
+			)
+			assert(not variant(wall, function(d)
+				d.Field.AffectsSpells = { Who = "Hostile" }
+			end), "a lens needs a modifier")
+			assert(not variant(wall, function(d)
+				d.Field.AffectsSpells = { Who = "Hostile", Slow = 0.2 }
+			end), "slow is at least 0.3")
+			assert(not variant(wall, function(d)
+				d.Field.AffectsSpells = { Who = "Hostile", ScalePotency = 1.6 }
+			end), "potency is at most 1.5")
+			assert(
+				variant(wall, function(d)
+					d.Field.AffectsSpells = { Who = "Hostile", Slow = 0.5, ScalePotency = 0.8 }
+				end),
+				"slow + potency lens was rejected"
+			)
+			assert(schema.DispelPolarity.Hostile == "Bane" and schema.DispelPolarity.Allied == "Neutral")
 		end)()
 		assert(not schema.supportsPrincipleForm("Matter", "Rush"), "Matter has no Rush")
 		do

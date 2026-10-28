@@ -51,6 +51,10 @@ return {
 	MaxConstructHealth = 500,
 	MaxTrapArmDelay = 10,
 	PersistentHealthSaveInterval = 30,
+	-- Spell vs Spell (Dispel, Force on spells, Field lenses), provisional.
+	MaxDispelSeconds = 30,
+	MaxSpellForceDistance = 10,
+	TetherDispelWidth = 2,
 	-- Tether Form, provisional.
 	MinTetherLength = 10,
 	MaxTetherLength = 60,

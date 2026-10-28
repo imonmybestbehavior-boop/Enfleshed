@@ -53,6 +53,7 @@ Analyzer.Behaviors = {
 	DrainResource = "Pulse",
 	RestoreResource = "Rise",
 	Cleanse = "Rise",
+	Dispel = "Fracture",
 	Control = "Bands",
 	Manipulation = "Lattice",
 	DamageOverTime = "Pulse",
