@@ -1,0 +1,9 @@
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "{\"Cleanup\":{\"Lights\":0,\"Meshes\":0,\"Trails\":0,\"Sessions\":0,\"Emitters\":0,\"Rate\":0},\"ConnectedBeams\":true,\"GroundedModes\":{\"Water\":24,\"Wind\":3,\"Lightning\":2,\"Arcane\":48,\"Space\":10,\"Fire\":30,\"Spirit\":20,\"Ice\":34},\"ReleaseCases\":36}"
+    }
+  ],
+  "isError": false
+}

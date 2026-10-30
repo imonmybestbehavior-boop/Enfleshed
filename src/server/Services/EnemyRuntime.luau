@@ -59,10 +59,10 @@ function Runtime.start()
 	end)
 end
 
-function Runtime.create(position: Vector3, folder: Folder): Enemy.Handle
+function Runtime.create(position: Vector3, folder: Folder, kind: string?): Enemy.Handle
 	Runtime.start()
 	local handle =
-		Enemy.create(position, folder, Runtime.Group, (#handles % 10) * 0.01, 1 / Config.StressTest.HitQueryRate)
+		Enemy.create(position, folder, Runtime.Group, (#handles % 10) * 0.01, 1 / Config.StressTest.HitQueryRate, kind)
 	table.insert(handles, handle)
 	return handle
 end

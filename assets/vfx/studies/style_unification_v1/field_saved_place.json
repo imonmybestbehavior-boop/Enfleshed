@@ -1,0 +1,15 @@
+{
+  "place": "C:\\Users\\bello\\Documents\\Projects\\Enfleshed\\Enfleshed-Defend-The-Walls.rbxlx",
+  "backup": "C:\\Users\\bello\\Documents\\Projects\\Enfleshed\\place-backups\\Enfleshed-before-field-source-persistence-20261019.rbxlx",
+  "sources": {
+    "ReplicatedStorage/Shared/SpellVFXSystem/Signature/FieldDynamics": "da9f2ed91828f3551fc74543ca62a9c68f0ed46b7d1698f7c98883d2f1f9afe1",
+    "ReplicatedStorage/Shared/SpellVFXSystem/Signature/StreamBeam": "d1695fff0b9bdb766f4ebcf2a10dcd87656becc6848a3f6e09a81c07c1dd5240",
+    "ReplicatedStorage/Shared/SpellVFXSystem/Signature/PathGlyphs": "9f3444c4815fc8cb61c6a808686ed33869bb723bed26672b51899e16d9cc8ff3",
+    "ReplicatedStorage/Shared/SpellVFXSystem/Signature/SignaturePlanner": "c1ae134d1b15cfeb97eb1146b0430a6e8f72d6eedc7d3d6ecc9930fa8ffd7940",
+    "ReplicatedStorage/Shared/SpellVFXSystem/Signature/SignatureKits": "b82b64f6e1a32ee043aa3ca3e8298fec207f083474e6c825aa409a1bdafb1bec",
+    "ReplicatedStorage/Shared/SpellVFXSystem/Signature/SignatureRenderer": "b4459ea2a7a9179babd9bae1fbfd5b6558361999fc02a6e8b05ea72536c16171",
+    "ReplicatedStorage/Shared/SpellVFXSystem/Core/SpellVFXComposer": "50aa83fe2477fb375b2823e52a64e030bc51c4e1e399aa1b640b250cd816eba1"
+  },
+  "unrelated_script_sources_preserved": 251,
+  "xml_valid": true
+}

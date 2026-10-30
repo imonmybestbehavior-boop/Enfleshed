@@ -1,0 +1,65 @@
+{
+  "server": {
+    "protocolVersion": "2024-11-05",
+    "capabilities": {
+      "tools": {
+        "listChanged": true
+      }
+    },
+    "serverInfo": {
+      "name": "RobloxStudio",
+      "version": "1.0.0"
+    },
+    "instructions": "Studio MCP Proxy - bridges MCP clients with Roblox Studio"
+  },
+  "tools": {
+    "tools": [
+      {
+        "name": "get_console_output",
+        "description": "Get the console output from the Studio output log.",
+        "inputSchema": {
+          "properties": {
+            "studio_id": {
+              "description": "Selects Roblox Studio instance, use the list_roblox_studios tool to get available instances",
+              "type": "string"
+            }
+          },
+          "required": [
+            "studio_id"
+          ],
+          "type": "object"
+        },
+        "annotations": {
+          "title": "Get Console Output",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        }
+      },
+      {
+        "name": "get_studio_state",
+        "description": "Get the state of the studio, including current play state and available datamodel types. If the studio state is not expected, please call start_stop_play tool to start or stop the play.",
+        "inputSchema": {
+          "properties": {
+            "studio_id": {
+              "description": "Selects Roblox Studio instance, use the list_roblox_studios tool to get available instances",
+              "type": "string"
+            }
+          },
+          "required": [
+            "studio_id"
+          ],
+          "type": "object"
+        },
+        "annotations": {
+          "title": "Get Studio State",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": false,
+          "openWorldHint": false
+        }
+      }
+    ]
+  }
+}

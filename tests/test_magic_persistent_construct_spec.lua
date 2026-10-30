@@ -66,6 +66,27 @@ end
 local limited, limitedOk = spec.decode({ Version = spec.Version, Records = ownerLimited })
 assert(not limitedOk and #limited.Records == 0, "per-owner world limits should reject unsafe saved data")
 
+-- Optional saved health (Construct.Health on a persistent Construct).
+local function withHealth(health, maxHealth)
+	local item = {}
+	for key, value in pairs(record) do
+		item[key] = value
+	end
+	item.Health, item.MaxHealth = health, maxHealth
+	return item
+end
+assert(spec.validateRecord(withHealth(80, 120)), "saved health within its maximum")
+assert(spec.validateRecord(withHealth(nil, nil)), "records without health stay valid")
+assert(not spec.validateRecord(withHealth(0, 120)), "a destroyed Construct is never saved")
+assert(not spec.validateRecord(withHealth(130, 120)), "health above its maximum")
+assert(not spec.validateRecord(withHealth(80, spec.MaxHealth + 1)), "maximum above the limit")
+assert(not spec.validateRecord(withHealth(80, nil)), "health without a maximum")
+local healthProfile = { Version = spec.Version, Records = { withHealth(120, 120) } }
+assert(spec.applyHealth(healthProfile, { [record.Id] = 45 }) == 1 and healthProfile.Records[1].Health == 45)
+assert(spec.applyHealth(healthProfile, { [record.Id] = 45 }) == 0, "unchanged health writes nothing")
+assert(spec.applyHealth(healthProfile, { [record.Id] = 0 }) == 0, "zero is destruction, not a save")
+assert(spec.applyHealth(healthProfile, { unknown = 10 }) == 0)
+
 print("Magic persistent Construct spec: safe versioned profile decoding passed")
 
 local savedProfile
@@ -159,5 +180,31 @@ local restoredOk = nextServerStore.start(function(saved)
 	table.insert(restoredIds, saved.Id)
 end)
 assert(restoredOk and #restoredIds == spec.MaxPerOwner, "a new server should restore saved world Constructs")
+
+-- Saved health: updates are batched until flushHealth.
+local healthStore = loadStore()
+assert(healthStore.start(function() end))
+savedProfile = { Version = spec.Version, Records = {} }
+local damagedId = healthStore.add(withHealth(120, 120))
+assert(damagedId, "a persistent Construct with health saves")
+healthStore.updateHealth(damagedId, 70)
+local function savedHealth()
+	for _, saved in ipairs(savedProfile.Records) do
+		if saved.Id == damagedId then
+			return saved.Health
+		end
+	end
+	return nil
+end
+assert(savedHealth() == 120, "damage is not written until the next flush")
+assert(healthStore.flushHealth())
+assert(savedHealth() == 70, "flush saves the remaining health")
+local restoredHealth
+assert(loadStore().start(function(saved)
+	if saved.Id == damagedId then
+		restoredHealth = saved.Health
+	end
+end))
+assert(restoredHealth == 70, "a new server restores the remaining health")
 
 print("Magic persistent Construct store: save, remove, limits, and startup restoration passed")

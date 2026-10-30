@@ -10,7 +10,46 @@ export type Rules = {
 	RequireLineOfSight: boolean?,
 	IncludeAttacker: boolean?,
 	CanTarget: ((Model, Humanoid) -> boolean)?,
+	-- Only world geometry blocks line of sight; other characters' bodies are looked past.
+	LineOfSightIgnoresCharacters: boolean?,
 }
+
+-- The nearest ancestor model that holds a Humanoid, if any.
+local function characterOf(part: Instance): Model?
+	local model = part:FindFirstAncestorOfClass("Model")
+	while model and not model:FindFirstChildOfClass("Humanoid") do
+		model = model:FindFirstAncestorOfClass("Model")
+	end
+	return model
+end
+
+local function clearLine(
+	attacker: Model,
+	target: Model,
+	from: Vector3,
+	delta: Vector3,
+	ignoreCharacters: boolean
+): boolean
+	local ignored: { Instance } = { attacker, target }
+	local ray = RaycastParams.new()
+	ray.FilterType = Enum.RaycastFilterType.Exclude
+	ray.FilterDescendantsInstances = ignored
+	ray.RespectCanCollide = true
+	-- Each pass skips one more body in the way; a crowd deeper than this counts as blocked.
+	for _ = 1, 4 do
+		local hit = workspace:Raycast(from, delta, ray)
+		if not hit then
+			return true
+		end
+		local body = if ignoreCharacters then characterOf(hit.Instance) else nil
+		if not body then
+			return false
+		end
+		table.insert(ignored, body)
+		ray.FilterDescendantsInstances = ignored
+	end
+	return false
+end
 
 -- Geometry and target policy come from the caller, never from attacker identity.
 function HitDetection.find(attacker: Model, origin: CFrame, hitbox: CFrame, size: Vector3, rules: Rules): { Humanoid }
@@ -21,10 +60,7 @@ function HitDetection.find(attacker: Model, origin: CFrame, hitbox: CFrame, size
 	local found: { [Humanoid]: boolean } = {}
 	local targets: { Humanoid } = {}
 	for _, part in workspace:GetPartBoundsInBox(hitbox, size, overlap) do
-		local model = part:FindFirstAncestorOfClass("Model")
-		while model and not model:FindFirstChildOfClass("Humanoid") do
-			model = model:FindFirstAncestorOfClass("Model")
-		end
+		local model = characterOf(part)
 		local humanoid = if model then model:FindFirstChildOfClass("Humanoid") else nil
 		local root = if model then model:FindFirstChild("HumanoidRootPart") else nil
 		if
@@ -54,14 +90,12 @@ function HitDetection.find(attacker: Model, origin: CFrame, hitbox: CFrame, size
 		then
 			continue
 		end
-		if rules.RequireLineOfSight and delta.Magnitude > 0.001 then
-			local ray = RaycastParams.new()
-			ray.FilterType = Enum.RaycastFilterType.Exclude
-			ray.FilterDescendantsInstances = { attacker, model }
-			ray.RespectCanCollide = true
-			if workspace:Raycast(origin.Position, delta, ray) then
-				continue
-			end
+		if
+			rules.RequireLineOfSight
+			and delta.Magnitude > 0.001
+			and not clearLine(attacker, model, origin.Position, delta, rules.LineOfSightIgnoresCharacters == true)
+		then
+			continue
 		end
 		table.insert(targets, humanoid)
 	end

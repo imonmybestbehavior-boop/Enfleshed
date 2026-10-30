@@ -1,0 +1,443 @@
+{
+  "status": "runtime_integrated_scene_visible_render_performance_acceptance_pending",
+  "live_casts": {
+    "requests": 3,
+    "connected_peak": 3,
+    "aligned_samples": 470,
+    "projectile_hit_size_studs": 2.2,
+    "active_after_cleanup": 0
+  },
+  "lifecycle_checks": {
+    "ConnectedCapAndFallback": true,
+    "OtherFormPreserved": true,
+    "BodyWidth": true,
+    "Checks": 7,
+    "DistanceHide": true,
+    "PoolAndBudgetsClean": true,
+    "Fire": {
+      "Created": 12,
+      "Updates": 1646,
+      "Active": 0,
+      "Pooled": 8,
+      "MaxUpdateMS": 0.4631000047083944,
+      "MeanUpdateMS": 0.02803219902274829
+    },
+    "IdempotentStop": true,
+    "FlightAlignment": true
+  },
+  "cpu_samples": [
+    {
+      "CreationMS": 0.000100000761449337,
+      "HeartbeatSamples": 180,
+      "FrameP95MS": 18.02271604537964,
+      "Renderer": {
+        "Lights": 0,
+        "Meshes": 0,
+        "Trails": 0,
+        "Sessions": 0,
+        "Emitters": 0,
+        "Rate": 0
+      },
+      "FrameP50MS": 16.932068392634392,
+      "ScriptMSPerHeartbeat": 0,
+      "Quality": "High",
+      "RenderedFrames": 180,
+      "FrameMaxMS": 18.914101645350456,
+      "WindowSeconds": 3,
+      "CameraDistance": 28.089143753051758,
+      "Memory": {
+        "TextureMB": 64.71145629882812
+      },
+      "Count": 0,
+      "Scope": "Local Studio Heartbeat cadence and body CPU wall time; RenderedFrames reports whether render callbacks ran. Not GPU timing, mobile or published-server benchmark",
+      "AfterCleanup": {
+        "Created": 12,
+        "Updates": 0,
+        "Active": 0,
+        "Pooled": 8,
+        "MaxUpdateMS": 0,
+        "MeanUpdateMS": 0
+      },
+      "Fire": {
+        "Created": 12,
+        "Updates": 0,
+        "Active": 0,
+        "Pooled": 8,
+        "MaxUpdateMS": 0,
+        "MeanUpdateMS": 0
+      },
+      "MicroProfiler": {
+        "Scope": "RenderStepped intervals and per-body wall time only; MicroProfiler capture was unavailable in this session",
+        "Ready": false
+      },
+      "FrameMeanMS": 16.663495709912645
+    },
+    {
+      "CreationMS": 8.89270001789555,
+      "HeartbeatSamples": 180,
+      "FrameP95MS": 18.067175522446632,
+      "Renderer": {
+        "Lights": 1,
+        "Meshes": 1,
+        "Trails": 0,
+        "Sessions": 1,
+        "Emitters": 0,
+        "Rate": 0
+      },
+      "FrameP50MS": 16.92960225045681,
+      "ScriptMSPerHeartbeat": 0.07253944285265687,
+      "Quality": "High",
+      "RenderedFrames": 0,
+      "FrameMaxMS": 19.10516433417797,
+      "WindowSeconds": 3,
+      "CameraDistance": 28.089143753051758,
+      "Memory": {
+        "TextureMB": 64.71170043945312
+      },
+      "Count": 1,
+      "Scope": "Local Studio Heartbeat cadence and body CPU wall time; RenderedFrames reports whether render callbacks ran. Not GPU timing, mobile or published-server benchmark",
+      "AfterCleanup": {
+        "Created": 4,
+        "Updates": 203,
+        "Active": 0,
+        "Pooled": 4,
+        "MaxUpdateMS": 4.929200018523261,
+        "MeanUpdateMS": 0.09144285608890462
+      },
+      "Fire": {
+        "Created": 4,
+        "Updates": 180,
+        "Active": 1,
+        "Pooled": 3,
+        "MaxUpdateMS": 3.3229000109713525,
+        "MeanUpdateMS": 0.07253944285265687
+      },
+      "MicroProfiler": {
+        "Scope": "RenderStepped intervals and per-body wall time only; MicroProfiler capture was unavailable in this session",
+        "Ready": false
+      },
+      "FrameMeanMS": 16.66645952500403
+    },
+    {
+      "CreationMS": 6.94580000708811,
+      "HeartbeatSamples": 181,
+      "FrameP95MS": 18.01135763525963,
+      "Renderer": {
+        "Lights": 4,
+        "Meshes": 4,
+        "Trails": 0,
+        "Sessions": 4,
+        "Emitters": 0,
+        "Rate": 0
+      },
+      "FrameP50MS": 16.90906658768654,
+      "ScriptMSPerHeartbeat": 0.31340165910805007,
+      "Quality": "High",
+      "RenderedFrames": 0,
+      "FrameMaxMS": 19.28878016769886,
+      "WindowSeconds": 3,
+      "CameraDistance": 28.089143753051758,
+      "Memory": {
+        "TextureMB": 64.71170043945312
+      },
+      "Count": 4,
+      "Scope": "Local Studio Heartbeat cadence and body CPU wall time; RenderedFrames reports whether render callbacks ran. Not GPU timing, mobile or published-server benchmark",
+      "AfterCleanup": {
+        "Created": 4,
+        "Updates": 820,
+        "Active": 0,
+        "Pooled": 4,
+        "MaxUpdateMS": 6.28199998755008,
+        "MeanUpdateMS": 0.07907524435190348
+      },
+      "Fire": {
+        "Created": 4,
+        "Updates": 724,
+        "Active": 4,
+        "Pooled": 0,
+        "MaxUpdateMS": 6.28199998755008,
+        "MeanUpdateMS": 0.07835041477701252
+      },
+      "MicroProfiler": {
+        "Scope": "RenderStepped intervals and per-body wall time only; MicroProfiler capture was unavailable in this session",
+        "Ready": false
+      },
+      "FrameMeanMS": 16.666440324065434
+    },
+    {
+      "CreationMS": 14.275199995609,
+      "HeartbeatSamples": 180,
+      "FrameP95MS": 18.05131882429123,
+      "Renderer": {
+        "Lights": 8,
+        "Meshes": 8,
+        "Trails": 0,
+        "Sessions": 8,
+        "Emitters": 0,
+        "Rate": 0
+      },
+      "FrameP50MS": 16.943270340561867,
+      "ScriptMSPerHeartbeat": 0.21860277661795002,
+      "Quality": "High",
+      "RenderedFrames": 0,
+      "FrameMaxMS": 18.77875253558159,
+      "WindowSeconds": 3,
+      "CameraDistance": 28.089143753051758,
+      "Memory": {
+        "TextureMB": 64.71145629882812
+      },
+      "Count": 8,
+      "Scope": "Local Studio Heartbeat cadence and body CPU wall time; RenderedFrames reports whether render callbacks ran. Not GPU timing, mobile or published-server benchmark",
+      "AfterCleanup": {
+        "Created": 8,
+        "Updates": 1632,
+        "Active": 0,
+        "Pooled": 8,
+        "MaxUpdateMS": 0.17899999511428177,
+        "MeanUpdateMS": 0.027416114914790252
+      },
+      "Fire": {
+        "Created": 8,
+        "Updates": 1440,
+        "Active": 8,
+        "Pooled": 0,
+        "MaxUpdateMS": 0.17899999511428177,
+        "MeanUpdateMS": 0.027325347077243753
+      },
+      "MicroProfiler": {
+        "Scope": "RenderStepped intervals and per-body wall time only; MicroProfiler capture was unavailable in this session",
+        "Ready": false
+      },
+      "FrameMeanMS": 16.67634697837962
+    },
+    {
+      "CreationMS": 45.779400010360405,
+      "HeartbeatSamples": 180,
+      "FrameP95MS": 18.049590289592743,
+      "Renderer": {
+        "Lights": 10,
+        "Meshes": 12,
+        "Trails": 0,
+        "Sessions": 12,
+        "Emitters": 0,
+        "Rate": 0
+      },
+      "FrameP50MS": 16.92630536854267,
+      "ScriptMSPerHeartbeat": 0.32177388687462855,
+      "Quality": "High",
+      "RenderedFrames": 0,
+      "FrameMaxMS": 29.082011431455612,
+      "WindowSeconds": 3,
+      "CameraDistance": 28.089143753051758,
+      "Memory": {
+        "TextureMB": 64.71170043945312
+      },
+      "Count": 12,
+      "Scope": "Local Studio Heartbeat cadence and body CPU wall time; RenderedFrames reports whether render callbacks ran. Not GPU timing, mobile or published-server benchmark",
+      "AfterCleanup": {
+        "Created": 12,
+        "Updates": 2448,
+        "Active": 0,
+        "Pooled": 8,
+        "MaxUpdateMS": 1.8791999900713563,
+        "MeanUpdateMS": 0.02622957500160042
+      },
+      "Fire": {
+        "Created": 12,
+        "Updates": 2160,
+        "Active": 12,
+        "Pooled": 0,
+        "MaxUpdateMS": 1.8791999900713563,
+        "MeanUpdateMS": 0.026814490572885714
+      },
+      "MicroProfiler": {
+        "Scope": "RenderStepped intervals and per-body wall time only; MicroProfiler capture was unavailable in this session",
+        "Ready": false
+      },
+      "FrameMeanMS": 16.67855853577041
+    }
+  ],
+  "foreground_samples": [
+    {
+      "CreationMS": 0.000300002284348011,
+      "HeartbeatSamples": 181,
+      "RenderTiming": {
+        "MeanMS": 66.68562401572,
+        "P95MS": 68.20069998502731,
+        "MaxMS": 71.80710136890411
+      },
+      "FrameP95MS": 18.935779109597206,
+      "Renderer": {
+        "Lights": 0,
+        "Meshes": 0,
+        "Trails": 0,
+        "Sessions": 0,
+        "Emitters": 0,
+        "Rate": 0
+      },
+      "FrameP50MS": 16.902964562177658,
+      "ScriptMSPerHeartbeat": 0,
+      "Quality": "High",
+      "RenderedFrames": 46,
+      "FrameMaxMS": 21.333815529942513,
+      "WindowSeconds": 3,
+      "CameraDistance": 28.178340911865234,
+      "Memory": {
+        "TextureMB": 78.99201202392578
+      },
+      "Count": 0,
+      "Scope": "Local Studio Heartbeat cadence and body CPU wall time; RenderedFrames reports whether render callbacks ran. Not GPU timing, mobile or published-server benchmark",
+      "AfterCleanup": {
+        "Created": 12,
+        "Updates": 0,
+        "Active": 0,
+        "Pooled": 8,
+        "MaxUpdateMS": 0,
+        "MeanUpdateMS": 0
+      },
+      "Fire": {
+        "Created": 12,
+        "Updates": 0,
+        "Active": 0,
+        "Pooled": 8,
+        "MaxUpdateMS": 0,
+        "MeanUpdateMS": 0
+      },
+      "MicroProfiler": {
+        "Scope": "RenderStepped intervals and per-body wall time only; MicroProfiler capture was unavailable in this session",
+        "Ready": false
+      },
+      "FrameMeanMS": 16.671266684627664
+    },
+    {
+      "CreationMS": 179.60969998966902,
+      "HeartbeatSamples": 181,
+      "RenderTiming": {
+        "MeanMS": 66.65900689752206,
+        "P95MS": 69.86729800701141,
+        "MaxMS": 70.72550058364868
+      },
+      "FrameP95MS": 18.841968849301338,
+      "Renderer": {
+        "Lights": 8,
+        "Meshes": 8,
+        "Trails": 0,
+        "Sessions": 8,
+        "Emitters": 0,
+        "Rate": 0
+      },
+      "FrameP50MS": 16.95030927658081,
+      "ScriptMSPerHeartbeat": 0.42274695961319364,
+      "Quality": "High",
+      "RenderedFrames": 46,
+      "FrameMaxMS": 35.02079099416733,
+      "WindowSeconds": 3,
+      "CameraDistance": 28.178340911865234,
+      "Memory": {
+        "TextureMB": 78.99201202392578
+      },
+      "Count": 8,
+      "Scope": "Local Studio Heartbeat cadence and body CPU wall time; RenderedFrames reports whether render callbacks ran. Not GPU timing, mobile or published-server benchmark",
+      "AfterCleanup": {
+        "Created": 8,
+        "Updates": 1632,
+        "Active": 0,
+        "Pooled": 8,
+        "MaxUpdateMS": 3.2672999950591475,
+        "MeanUpdateMS": 0.05027530617143402
+      },
+      "Fire": {
+        "Created": 8,
+        "Updates": 1448,
+        "Active": 8,
+        "Pooled": 0,
+        "MaxUpdateMS": 3.2672999950591475,
+        "MeanUpdateMS": 0.052843369951649205
+      },
+      "MicroProfiler": {
+        "Scope": "RenderStepped intervals and per-body wall time only; MicroProfiler capture was unavailable in this session",
+        "Ready": false
+      },
+      "FrameMeanMS": 16.661846741406215
+    },
+    {
+      "CreationMS": 71.58019999042153,
+      "HeartbeatSamples": 180,
+      "RenderTiming": {
+        "MeanMS": 66.6687270005544,
+        "P95MS": 71.11310213804245,
+        "MaxMS": 71.98259979486465
+      },
+      "FrameP95MS": 19.011760130524635,
+      "Renderer": {
+        "Lights": 10,
+        "Meshes": 12,
+        "Trails": 0,
+        "Sessions": 12,
+        "Emitters": 0,
+        "Rate": 0
+      },
+      "FrameP50MS": 16.53391122817993,
+      "ScriptMSPerHeartbeat": 0.7845411148284458,
+      "Quality": "High",
+      "RenderedFrames": 45,
+      "FrameMaxMS": 22.09790050983429,
+      "WindowSeconds": 3,
+      "CameraDistance": 28.178340911865234,
+      "Memory": {
+        "TextureMB": 78.99201202392578
+      },
+      "Count": 12,
+      "Scope": "Local Studio Heartbeat cadence and body CPU wall time; RenderedFrames reports whether render callbacks ran. Not GPU timing, mobile or published-server benchmark",
+      "AfterCleanup": {
+        "Created": 12,
+        "Updates": 2436,
+        "Active": 0,
+        "Pooled": 8,
+        "MaxUpdateMS": 0.7499000057578087,
+        "MeanUpdateMS": 0.06529035329897483
+      },
+      "Fire": {
+        "Created": 12,
+        "Updates": 2160,
+        "Active": 12,
+        "Pooled": 0,
+        "MaxUpdateMS": 0.7499000057578087,
+        "MeanUpdateMS": 0.06537842623570382
+      },
+      "MicroProfiler": {
+        "Scope": "RenderStepped intervals and per-body wall time only; MicroProfiler capture was unavailable in this session",
+        "Ready": false
+      },
+      "FrameMeanMS": 16.664091368309325
+    }
+  ],
+  "source_sha256": {
+    "Signature/ConnectedFire.luau": "6db2a28bc9ac777df99fa014fab55a7fcb7130cbaad45c985125f7a7de9e848b",
+    "Signature/SignatureRenderer.luau": "bdbdd70fac5f6c49f08881f5547f56c6c1bd1959f2bb874200dcfd06e6d50e0b",
+    "Assets/ConnectedFireRig.rbxmx": "d29fcb27a0204130a50fbed86ad7e37b685fd9e9f07db470b2abc05535a0f7ff",
+    "Assets/ConnectedFirePoses.luau": "e5df3adddc41cf5d88cb583184429ccc53f3e378ec3a507ece5c1734f523730f"
+  },
+  "validation": [
+    "Three signature/compile/manifest tests pass",
+    "Three shipping-asset integrity tests pass",
+    "Full Rojo project build passes",
+    "Seven Studio runtime lifecycle checks pass"
+  ],
+  "graphics_acceptance": false,
+  "scene_capture_usable": true,
+  "scene_evidence": [
+    "foreground_scene_0.jpg",
+    "foreground_wide_0.jpg"
+  ],
+  "limitations": [
+    "Earlier CPU samples ran with rendering paused; use separate foreground samples for rendered intervals",
+    "The scene now visibly renders the rounded body and tapered alpha tail; lighting brightens the palette relative to the isolated preview",
+    "Empty-scene, eight-body and twelve-body render intervals all average about 66.7 ms, consistent with a Studio throttle; unconstrained performance remains unverified",
+    "MicroProfiler capture was unavailable; no GPU scope timing was obtained",
+    "Short local Studio samples do not establish mobile or published-server performance",
+    "Visible batch setup measured approximately 180 ms for eight and 72 ms for twelve; setup hitch risk remains despite eight prewarmed clones",
+    "Authored body palette is fixed; custom spell color continues to tint the existing light",
+    "Other forms, cast cues and impact recipes retain their existing presentation"
+  ]
+}

@@ -1,3 +1,0 @@
-VERSION 1
-7aeeed2b-0da8-4a39-95e9-bd1a375cb001:Lower Layer/Frontages:Frontages
-7aeeed2b-0da8-4a39-95e9-bd1a375cb002:Lower Layer/Attachments:Attachments

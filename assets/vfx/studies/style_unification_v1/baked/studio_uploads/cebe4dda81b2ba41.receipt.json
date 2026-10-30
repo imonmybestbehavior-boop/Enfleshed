@@ -1,0 +1,9 @@
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "{\"http://127.0.0.1:64001/Water__water_orb.png\":\"rbxassetid://134159932259399\",\"http://127.0.0.1:64001/Water__water_trail.png\":\"rbxassetid://100113934767829\",\"http://127.0.0.1:64001/Space__void_orb.png\":\"rbxassetid://119263126477595\",\"http://127.0.0.1:64001/Poison__toxic_pool.png\":\"rbxassetid://76587760608724\",\"http://127.0.0.1:64001/Force__ward_hex.png\":\"rbxassetid://76755988437742\",\"http://127.0.0.1:64001/Fire__trail_flame.png\":\"rbxassetid://85718123744989\",\"http://127.0.0.1:64001/Water__water_splash.png\":\"rbxassetid://121548331747970\",\"http://127.0.0.1:64001/Space__warp_implode.png\":\"rbxassetid://79076654926983\"}"
+    }
+  ],
+  "isError": false
+}

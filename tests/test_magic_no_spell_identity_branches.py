@@ -27,7 +27,7 @@ PROOF_SPELL_NAMES = (
 class MagicDispatchArchitecture(unittest.TestCase):
     def test_runtime_does_not_branch_on_spell_identity(self):
         for relative_path in RUNTIME_FILES:
-            source = (ROOT / relative_path).read_text()
+            source = (ROOT / relative_path).read_text(encoding="utf-8")
             with self.subTest(file=relative_path):
                 self.assertIsNone(
                     re.search(r"\b(?:SpellId|spellId)\s*(?:==|~=)\s*['\"]", source),

@@ -21,6 +21,12 @@ function Movement.start(send: (string, Types.ActionOptions?) -> number)
 	local slowConnection: RBXScriptConnection? = nil
 	local boundConnection: RBXScriptConnection? = nil
 	local castingConnection: RBXScriptConnection? = nil
+	local blockingConnection: RBXScriptConnection? = nil
+	local rushConnection: RBXScriptConnection? = nil
+	-- A magic Rush (Dash/Blink) is moved by the server, which owns the root until
+	-- this server time (MovementService.magicRush): predict nothing meanwhile.
+	local rushingUntil = 0
+	local cancel: () -> ()
 
 	local function applyPredictedSpeed()
 		local character = player.Character
@@ -30,13 +36,17 @@ function Movement.start(send: (string, Types.ActionOptions?) -> number)
 			local multiplier = character:GetAttribute("MagicSpeedMultiplier")
 			local slow = character:GetAttribute("MagicSlowMultiplier")
 			local casting = character:GetAttribute("MagicCastingMultiplier")
+			local blocking = character:GetAttribute("MeleeBlocking") == true
+			local scale = (if blocking then Config.BlockWalkMultiplier else 1)
+				* (if typeof(slow) == "number" then slow else 1)
+				* (if typeof(casting) == "number" then casting else 1)
 			humanoid.WalkSpeed = Speed.calculate(
 				Config.WalkSpeed,
 				Config.SprintSpeed,
-				sprinting,
+				sprinting and not blocking,
 				if typeof(bonus) == "number" then bonus else 0,
 				if typeof(multiplier) == "number" then multiplier else 1
-			) * (if typeof(slow) == "number" then slow else 1) * (if typeof(casting) == "number" then casting else 1)
+			) * scale
 		end
 	end
 
@@ -56,11 +66,27 @@ function Movement.start(send: (string, Types.ActionOptions?) -> number)
 		if speedConnection then
 			speedConnection:Disconnect()
 		end
+		if blockingConnection then
+			blockingConnection:Disconnect()
+		end
+		if rushConnection then
+			rushConnection:Disconnect()
+		end
 		speedConnection = character:GetAttributeChangedSignal("MagicWalkSpeedBonus"):Connect(applyPredictedSpeed)
 		multiplierConnection = character:GetAttributeChangedSignal("MagicSpeedMultiplier"):Connect(applyPredictedSpeed)
 		slowConnection = character:GetAttributeChangedSignal("MagicSlowMultiplier"):Connect(applyPredictedSpeed)
 		boundConnection = character:GetAttributeChangedSignal("MagicMovementBound"):Connect(applyPredictedSpeed)
 		castingConnection = character:GetAttributeChangedSignal("MagicCastingMultiplier"):Connect(applyPredictedSpeed)
+		blockingConnection = character:GetAttributeChangedSignal("MeleeBlocking"):Connect(applyPredictedSpeed)
+		rushingUntil = 0
+		rushConnection = character:GetAttributeChangedSignal("MagicRushUntil"):Connect(function()
+			local untilTime = character:GetAttribute("MagicRushUntil")
+			rushingUntil = if typeof(untilTime) == "number" then untilTime else 0
+			if workspace:GetServerTimeNow() < rushingUntil then
+				-- The server's move replaces any predicted dash; it is not a correction.
+				cancel()
+			end
+		end)
 		applyPredictedSpeed()
 	end
 	player.CharacterAdded:Connect(bindCharacter)
@@ -68,7 +94,7 @@ function Movement.start(send: (string, Types.ActionOptions?) -> number)
 		bindCharacter(player.Character)
 	end
 
-	local function cancel()
+	cancel = function()
 		if stopDash then
 			stopDash()
 		end
@@ -89,7 +115,7 @@ function Movement.start(send: (string, Types.ActionOptions?) -> number)
 
 	local function dash(): boolean
 		local now = workspace:GetServerTimeNow()
-		if now < readyAt or stopDash then
+		if now < readyAt or stopDash or now < rushingUntil then
 			return false
 		end
 		local character = player.Character
@@ -185,6 +211,9 @@ function Movement.start(send: (string, Types.ActionOptions?) -> number)
 		Cancel = cancel,
 		IsDashing = function(): boolean
 			return stopDash ~= nil
+		end,
+		IsRushing = function(): boolean
+			return workspace:GetServerTimeNow() < rushingUntil
 		end,
 		GetCooldown = function(): number
 			return math.max(0, readyAt - workspace:GetServerTimeNow())

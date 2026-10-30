@@ -1,0 +1,16 @@
+{
+  "place": "C:\\Users\\bello\\Documents\\Projects\\Enfleshed\\Enfleshed-Defend-The-Walls.rbxlx",
+  "sources": {
+    "ReplicatedStorage/Shared/SpellVFXSystem/Core/SpellVFXComposer": "8766a76a72e835f0110ef58ce6c4b89453f876f9912154de71ff45af82a9b75c",
+    "ReplicatedStorage/Shared/SpellVFXSystem/Signature/SignaturePlanner": "65bb9f3c1c856aad70ea639b4bdf4786c5b259b8ba0a9e69103ba05cc46c5b60",
+    "ReplicatedStorage/Shared/SpellVFXSystem/Signature/SignatureKits": "b82b64f6e1a32ee043aa3ca3e8298fec207f083474e6c825aa409a1bdafb1bec",
+    "ReplicatedStorage/Shared/SpellVFXSystem/Signature/SignatureRenderer": "b4459ea2a7a9179babd9bae1fbfd5b6558361999fc02a6e8b05ea72536c16171",
+    "ReplicatedStorage/Shared/SpellVFXSystem/Signature/FieldDynamics": "da9f2ed91828f3551fc74543ca62a9c68f0ed46b7d1698f7c98883d2f1f9afe1",
+    "ReplicatedStorage/Shared/SpellVFXSystem/Signature/PathGlyphs": "9f3444c4815fc8cb61c6a808686ed33869bb723bed26672b51899e16d9cc8ff3",
+    "ReplicatedStorage/Shared/SpellVFXSystem/Signature/StreamBeam": "d1695fff0b9bdb766f4ebcf2a10dcd87656becc6848a3f6e09a81c07c1dd5240",
+    "StarterPlayer/StarterPlayerScripts/Client/Controllers/SpellVFXController": "95b3345ddb51cf1bbd7c09cb5b189150b0c962ad66c9eda7b123e77a3f2d313a"
+  },
+  "unrelated_sources_unchanged": 250,
+  "fixture_absent": true,
+  "xml_valid": true
+}

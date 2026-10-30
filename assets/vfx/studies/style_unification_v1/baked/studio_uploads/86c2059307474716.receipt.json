@@ -1,0 +1,9 @@
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "{\"http://127.0.0.1:52999/Space__portal_rings.png\":\"rbxassetid://90335223953703\",\"http://127.0.0.1:52999/Lightning__plasma_orb.png\":\"rbxassetid://71437307721073\",\"http://127.0.0.1:52999/Wind__pressure_wave.png\":\"rbxassetid://140536249477414\",\"http://127.0.0.1:52999/Space__rift_tear.png\":\"rbxassetid://120974849045536\",\"http://127.0.0.1:52999/Body__pressure_wave.png\":\"rbxassetid://129454932087521\",\"http://127.0.0.1:52999/Force__pressure_wave.png\":\"rbxassetid://101143179297327\",\"http://127.0.0.1:52999/Earth__rock_burst.png\":\"rbxassetid://82503822274708\",\"http://127.0.0.1:52999/Water__ripple_ring.png\":\"rbxassetid://136944255881875\"}"
+    }
+  ],
+  "isError": false
+}

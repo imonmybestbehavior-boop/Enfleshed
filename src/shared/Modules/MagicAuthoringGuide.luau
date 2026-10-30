@@ -7,7 +7,7 @@ Guide.Intents = {
 		Id = "Attack",
 		Label = "Attack",
 		Description = "Hurt a target or pressure an area with damaging effects.",
-		Payloads = { "Damage", "DamageOverTime", "Force" },
+		Payloads = { "Damage", "DamageOverTime", "Force", "DrainResource" },
 		RecommendedForms = { "Projectile", "Beam", "Wave", "Field" },
 	},
 	{
@@ -21,22 +21,22 @@ Guide.Intents = {
 		Id = "Healing",
 		Label = "Healing & support",
 		Description = "Restore health or help an ally survive and recover.",
-		Payloads = { "Heal", "Restoration", "Shield", "ModifyAttribute" },
+		Payloads = { "Heal", "Restoration", "Shield", "ModifyAttribute", "Cleanse", "Stealth", "RestoreResource" },
 		RecommendedForms = { "Aura", "Field", "Beam", "Projectile" },
 	},
 	{
 		Id = "Movement",
 		Label = "Movement",
-		Description = "Fly yourself, improve movement, or move a target through space.",
+		Description = "Dash or blink yourself, fly, improve movement, or move a target through space.",
 		Payloads = { "Enhancement", "AerialMovement", "Displacement", "Control" },
-		RecommendedForms = { "SelfEnhancement", "Wave", "Aura", "Projectile" },
+		RecommendedForms = { "Rush", "SelfEnhancement", "Wave", "Aura", "Projectile" },
 	},
 	{
 		Id = "Control",
 		Label = "Control",
 		Description = "Slow, bind, pull, push, or otherwise limit a target.",
-		Payloads = { "Slow", "Bind", "Control", "TimeDilation", "Displacement" },
-		RecommendedForms = { "Field", "Wave", "Projectile", "Beam", "Aura" },
+		Payloads = { "Slow", "Bind", "Stun", "Silence", "Taunt", "Fear", "Control", "TimeDilation", "Displacement" },
+		RecommendedForms = { "Field", "Wave", "Projectile", "Beam", "Aura", "Tether" },
 	},
 	{
 		Id = "Summoning",
@@ -49,7 +49,7 @@ Guide.Intents = {
 		Id = "Utility",
 		Label = "Utility",
 		Description = "Reveal, alter, or interact with a target or the surrounding world.",
-		Payloads = { "Reveal", "Manipulation", "Transformation" },
+		Payloads = { "Reveal", "Manipulation", "Transformation", "Dispel" },
 		RecommendedForms = { "Manipulation", "Construct", "Field", "Projectile" },
 	},
 	{
@@ -90,6 +90,11 @@ local function internalDefault(kind, formName, schema)
 	if definition and definition.Principle then
 		return definition.Principle
 	end
+	-- Matches the Lab's creation step (MagicLabController): material
+	-- Manipulation always uses the Matter Principle.
+	if kind == "Manipulation" then
+		return "Matter"
+	end
 	-- The runtime still requires a valid Source contract. Pick its default privately;
 	-- this value never becomes a creation choice or a description of the spell.
 	if schema.supportsPrincipleForm("Energy", formName) then
@@ -119,6 +124,12 @@ local function candidate(intent, formName, kind, event, schema, spec)
 	local payload = spec.copy(definition.Defaults or {})
 	payload.Kind = kind
 	draft.Triggers[event] = { { Payloads = { payload } } }
+	-- Only offer starters the server will accept as created (for example,
+	-- Manipulation on a Beam needs ObjectTarget and a material the guided
+	-- path does not configure).
+	if not spec.validate(draft) then
+		return nil
+	end
 	return {
 		Form = formName,
 		-- Internal compatibility default required by the current spell contract.

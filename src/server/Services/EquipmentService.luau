@@ -1,38 +1,41 @@
 --!strict
 
--- Server-owned prototype equipment state. It selects items/profiles but never
--- executes weapon combat; magic remains in MagicService and melee in CombatService.
+-- Server-owned active-weapon state on top of InventoryService. It selects items
+-- and profiles but never executes weapon combat; magic remains in MagicService
+-- and melee in CombatService. Legacy slot names map onto inventory equip slots:
+-- PrimaryWeapon = MagicFocus, SecondaryWeapon = MainHand melee weapon.
 local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
 local Definitions = require(Shared.Configuration.Items)
+local Rules = require(Shared.Modules.ItemRules)
+local Inventory = require(script.Parent.InventoryService)
 local Equipment = {}
 
 type Slot = "PrimaryWeapon" | "SecondaryWeapon" | "Utility"
-type State = {
-	Owned: { [string]: boolean },
-	PrimaryWeapon: string?,
-	SecondaryWeapon: string?,
-	Utility: string?,
-	ActiveSlot: Slot,
-}
+type State = { ActiveSlot: Slot, VisualUid: string? }
 
+local equipSlotFor: { [string]: string } = { PrimaryWeapon = "MagicFocus", SecondaryWeapon = "MainHand" }
 local states: { [Player]: State } = {}
+local feedbackRemote: RemoteEvent? = nil
 
-local function itemInSlot(state: State, slot: Slot): string?
-	return state[slot]
+local function itemInSlot(player: Player, slot: Slot): Rules.Instance?
+	local equipSlot = equipSlotFor[slot]
+	return if equipSlot then Inventory.equipped(player, equipSlot) else nil
 end
 
-local function publish(player: Player, state: State, remote: RemoteEvent)
-	player:SetAttribute("PrimaryWeapon", state.PrimaryWeapon)
-	player:SetAttribute("SecondaryWeapon", state.SecondaryWeapon)
-	player:SetAttribute("Utility", state.Utility)
+local function publish(player: Player, state: State)
+	local primary = itemInSlot(player, "PrimaryWeapon")
+	local secondary = itemInSlot(player, "SecondaryWeapon")
+	player:SetAttribute("PrimaryWeapon", if primary then primary.ItemId else nil)
+	player:SetAttribute("SecondaryWeapon", if secondary then secondary.ItemId else nil)
 	player:SetAttribute("ActiveEquipmentSlot", state.ActiveSlot)
-	remote:FireClient(player, {
-		Kind = "Equipment",
-		PrimaryWeapon = state.PrimaryWeapon,
-		SecondaryWeapon = state.SecondaryWeapon,
-		Utility = state.Utility,
-		ActiveSlot = state.ActiveSlot,
-	})
+	if feedbackRemote then
+		feedbackRemote:FireClient(player, {
+			Kind = "Equipment",
+			PrimaryWeapon = if primary then primary.ItemId else nil,
+			SecondaryWeapon = if secondary then secondary.ItemId else nil,
+			ActiveSlot = state.ActiveSlot,
+		})
+	end
 end
 
 local function attachVisual(player: Player, state: State)
@@ -40,12 +43,16 @@ local function attachVisual(player: Player, state: State)
 	if not character then
 		return
 	end
+	local active = itemInSlot(player, state.ActiveSlot)
 	local previous = character:FindFirstChild("SandboxEquippedWeapon")
+	if previous and active and state.VisualUid == active.Uid then
+		return
+	end
 	if previous then
 		previous:Destroy()
 	end
-	local itemId = itemInSlot(state, state.ActiveSlot)
-	local item = if itemId then Definitions.Items[itemId] else nil
+	state.VisualUid = nil
+	local item = if active then Definitions.Items[active.ItemId] else nil
 	if not item or not item.Visual then
 		return
 	end
@@ -64,6 +71,7 @@ local function attachVisual(player: Player, state: State)
 	part.CanQuery = false
 	part.Massless = true
 	part.CFrame = hand.CFrame * visual.Offset
+	part:SetAttribute("ItemUid", (active :: Rules.Instance).Uid)
 	part.Parent = character
 	if visual.MuzzleOffset then
 		local muzzle = Instance.new("Attachment")
@@ -71,60 +79,85 @@ local function attachVisual(player: Player, state: State)
 		muzzle.CFrame = visual.MuzzleOffset
 		muzzle.Parent = part
 	end
+	local rarity = Rules.rarity((active :: Rules.Instance).Rarity)
+	if rarity.Affixes > 0 then
+		local glow = Instance.new("PointLight")
+		glow.Color = rarity.Color
+		glow.Range = 4
+		glow.Brightness = 0.8
+		glow.Parent = part
+	end
 	local weld = Instance.new("WeldConstraint")
 	weld.Part0 = hand
 	weld.Part1 = part
 	weld.Parent = part
+	state.VisualUid = (active :: Rules.Instance).Uid
+end
+
+local function refresh(player: Player)
+	local state = states[player]
+	if not state then
+		return
+	end
+	if not itemInSlot(player, state.ActiveSlot) then
+		local other: Slot = if state.ActiveSlot == "PrimaryWeapon" then "SecondaryWeapon" else "PrimaryWeapon"
+		if itemInSlot(player, other) then
+			state.ActiveSlot = other
+		end
+	end
+	local character = player.Character
+	if character then
+		character:SetAttribute("ArmorReduction", Inventory.armor(player))
+	end
+	attachVisual(player, state)
+	publish(player, state)
+end
+
+function Equipment.start(feedback: RemoteEvent)
+	feedbackRemote = feedback
+	Inventory.Changed:Connect(refresh)
 end
 
 function Equipment.bind(player: Player)
-	states[player] = {
-		Owned = {},
-		PrimaryWeapon = nil,
-		SecondaryWeapon = nil,
-		Utility = nil,
-		ActiveSlot = "SecondaryWeapon", -- Preserve existing melee controls on spawn.
-	}
+	states[player] = { ActiveSlot = "SecondaryWeapon" } -- Preserve existing melee controls on spawn.
+	task.spawn(Inventory.bind, player)
 end
 
-function Equipment.chooseStarter(player: Player, path: string, remote: RemoteEvent): boolean
+-- Sandbox entry prefers a path's weapon when the inventory has one equipped.
+function Equipment.chooseStarter(player: Player, path: string, _remote: RemoteEvent?): boolean
 	local state = states[player]
-	if not state or next(state.Owned) ~= nil or (path ~= "Melee" and path ~= "Magic") then
+	if not state or (path ~= "Melee" and path ~= "Magic") then
 		return false
 	end
-	local id = if path == "Melee" then "RecruitMeleeWeapon" else "RecruitMagicWeapon"
 	local slot: Slot = if path == "Melee" then "SecondaryWeapon" else "PrimaryWeapon"
-	state.Owned[id] = true
-	state[slot] = id
+	-- While the inventory is still loading, remember the preference; refresh
+	-- keeps it once the matching item arrives.
+	if Inventory.ready(player) and not itemInSlot(player, slot) then
+		return false
+	end
 	state.ActiveSlot = slot
-	attachVisual(player, state)
-	publish(player, state, remote)
+	refresh(player)
 	return true
 end
 
-function Equipment.characterAdded(player: Player, remote: RemoteEvent)
+function Equipment.characterAdded(player: Player, _remote: RemoteEvent?)
 	local state = states[player]
 	if state then
-		attachVisual(player, state)
-		publish(player, state, remote)
+		state.VisualUid = nil
+		refresh(player)
 	end
 end
 
-function Equipment.switch(player: Player, slot: any, remote: RemoteEvent): boolean
+function Equipment.switch(player: Player, slot: any, _remote: RemoteEvent?): boolean
 	local state = states[player]
-	if slot ~= "PrimaryWeapon" and slot ~= "SecondaryWeapon" and slot ~= "Utility" then
+	if not state or (slot ~= "PrimaryWeapon" and slot ~= "SecondaryWeapon") then
 		return false
 	end
-	if not state then
-		return false
-	end
-	local itemId = itemInSlot(state, slot :: Slot)
-	if not itemId or not state.Owned[itemId] or not Definitions.Items[itemId] then
+	if not itemInSlot(player, slot :: Slot) then
 		return false
 	end
 	state.ActiveSlot = slot
-	attachVisual(player, state)
-	publish(player, state, remote)
+	refresh(player)
 	return true
 end
 
@@ -133,21 +166,19 @@ function Equipment.magicCast(player: Player, action: any): (string?, { Origin: V
 	if not state or state.ActiveSlot ~= "PrimaryWeapon" or (action ~= "Primary" and action ~= "Area") then
 		return nil, nil
 	end
-	local itemId = state.PrimaryWeapon
-	local item = if itemId and state.Owned[itemId] then Definitions.Items[itemId] else nil
+	local instance = itemInSlot(player, "PrimaryWeapon")
+	local item = if instance then Definitions.Items[instance.ItemId] else nil
 	if not item or item.ItemType ~= "Weapon" or item.WeaponType ~= "MagicFocus" then
-		return nil, nil
-	end
-	local selectedProfileId = require(script.Parent.MagicDiscoveryService).awakeningProfileId(player)
-	local profileId = selectedProfileId or item.MagicProfile
-	local profile = Definitions.MagicProfiles[profileId]
-	if not profile then
 		return nil, nil
 	end
 	local weapon = player.Character and player.Character:FindFirstChild("SandboxEquippedWeapon")
 	local muzzle = if weapon then weapon:FindFirstChild("Muzzle") else nil
 	local context = if muzzle and muzzle:IsA("Attachment") then { Origin = muzzle.WorldPosition } else nil
-	return if action == "Primary" then profile.PrimarySpellId else profile.AreaSpellId, context
+	local spellId = if action == "Primary" then item.PrimarySpellId else item.AreaSpellId
+	if type(spellId) ~= "string" then
+		return nil, nil
+	end
+	return spellId, context
 end
 
 function Equipment.freeHandCount(player: Player): number
@@ -162,8 +193,8 @@ function Equipment.freeHandCount(player: Player): number
 	if type(rigHandCount) == "number" and rigHandCount == rigHandCount then
 		handCount = math.clamp(math.floor(rigHandCount), 0, 8)
 	end
-	local itemId = itemInSlot(state, state.ActiveSlot)
-	local item = if itemId and state.Owned[itemId] then Definitions.Items[itemId] else nil
+	local instance = itemInSlot(player, state.ActiveSlot)
+	local item = if instance then Definitions.Items[instance.ItemId] else nil
 	local occupied = if item then item.HandsOccupied else 0
 	if type(occupied) ~= "number" or occupied ~= occupied then
 		occupied = if item and item.ItemType == "Weapon" then 1 else 0
@@ -171,18 +202,22 @@ function Equipment.freeHandCount(player: Player): number
 	return math.max(0, handCount - math.clamp(math.floor(occupied), 0, handCount))
 end
 
-function Equipment.meleeActive(player: Player): boolean
+-- Resolved melee profile of the active weapon, or nil when melee is not active.
+function Equipment.meleeLoadout(player: Player): any?
 	local state = states[player]
 	if not state or state.ActiveSlot ~= "SecondaryWeapon" then
-		return false
+		return nil
 	end
-	local itemId = state.SecondaryWeapon
-	local item = if itemId and state.Owned[itemId] then Definitions.Items[itemId] else nil
-	return item ~= nil and item.ItemType == "Weapon" and item.WeaponType == "Melee"
+	return Rules.meleeLoadout(itemInSlot(player, "SecondaryWeapon"))
+end
+
+function Equipment.meleeActive(player: Player): boolean
+	return Equipment.meleeLoadout(player) ~= nil
 end
 
 function Equipment.remove(player: Player)
 	states[player] = nil
+	Inventory.remove(player)
 end
 
 return Equipment

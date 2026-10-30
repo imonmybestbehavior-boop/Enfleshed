@@ -62,4 +62,51 @@ assert(rules.physicalResistance(target) == 1 and rules.physicalArmor(target) == 
 attributes.PhysicalResistance = -1
 attributes.PhysicalArmor = -20
 assert(rules.physicalResistance(target) == 0 and rules.physicalArmor(target) == 0)
+
+-- Spell-driven bonuses (ModifyAttribute): armor bonuses add to the base armor.
+attributes.PhysicalArmor = 4
+attributes.PhysicalArmorBonus = 16
+assert(rules.physicalArmor(target) == 20, "PhysicalArmorBonus adds to base physical armor")
+attributes.PhysicalArmorBonus = -50
+assert(rules.physicalArmor(target) == 0, "a physical armor debuff floors at zero")
+attributes.PhysicalArmorBonus = nil
+attributes.SoulArmor = 6
+attributes.SoulArmorBonus = 14
+assert(rules.soulArmor(target) == 20, "SoulArmorBonus adds to base soul armor")
+attributes.SoulArmorBonus = 500
+assert(rules.soulArmor(target) == 100, "soul armor keeps its cap")
+attributes.SoulArmorBonus = nil
+
+-- Negative resistance is a vulnerability: -0.5 means x1.5 damage.
+assert(rules.mitigate(40, -0.5) == 60, "negative resistance amplifies damage")
+assert(rules.mitigate(40, -5) == 80, "vulnerability is capped at double damage")
+attributes.MagicArmor = 0
+attributes.MagicArmorBonus = 0
+attributes.MagicResistanceFireBonus = -0.9
+assert(math.abs(rules.resistance(target, "Fire") - -0.5) < 1e-9, "base 0.4 + bonus -0.9 = -0.5")
+assert(math.abs(rules.applyChannel(40, target, "Elemental", "Fire") - 60) < 1e-9, "Fire vulnerability")
+attributes.MagicResistanceFireBonus = -3
+assert(rules.resistance(target, "Fire") == -0.6, "the bonus itself is clamped to -1 before adding")
+attributes.MagicResistanceFireBonus = 0.9
+assert(rules.resistance(target, "Fire") == 1, "total resistance never exceeds 1")
+attributes.MagicResistanceFireBonus = nil
+attributes.MagicResistanceWindBonus = -0.25
+assert(rules.resistance(target, "Wind") == -0.25, "a bonus works without a base resistance")
+assert(rules.resistance(target, "Neutral") == 0, "Neutral damage has no resistance")
+attributes.MagicResistanceWindBonus = nil
+
+-- DamageTaken scales damage after mitigation, for spells and melee.
+attributes.DamageTakenBonus = 20
+assert(rules.applyDamageTaken(50, target) == 60, "vulnerability +20% after mitigation")
+assert(rules.applyChannel(40, target, "Elemental", "Water") == 24, "Water: 40 * (1-0.5) = 20, then +20%")
+attributes.DamageTakenBonus = -50
+assert(rules.applyDamageTaken(50, target) == 25, "protection -50%")
+attributes.DamageTakenBonus = 400
+assert(rules.applyDamageTaken(50, target) == 75, "DamageTaken is clamped to +50%")
+attributes.DamageTakenBonus = -400
+assert(rules.applyDamageTaken(50, target) == 25, "DamageTaken is clamped to -50%")
+attributes.DamageTakenBonus = 0 / 0
+assert(rules.applyDamageTaken(50, target) == 50, "NaN is ignored")
+attributes.DamageTakenBonus = nil
+assert(rules.applyDamageTaken(-5, target) == 0 and rules.applyDamageTaken(50, nil) == 50)
 print("Magic damage rules: elemental, physical, Soul, resistance and armor math passed")

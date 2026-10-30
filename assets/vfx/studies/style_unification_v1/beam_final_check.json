@@ -1,0 +1,9 @@
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "{\"Check\":\"{\\\"FixedStations\\\":true,\\\"Cleanup\\\":{\\\"Lights\\\":0,\\\"Meshes\\\":0,\\\"Trails\\\":0,\\\"Sessions\\\":0,\\\"Emitters\\\":0,\\\"Rate\\\":0},\\\"Checked\\\":[\\\"Fire\\\",\\\"Water\\\",\\\"Space\\\",\\\"Arcane\\\"],\\\"GeometricEnclosures\\\":true,\\\"EndpointSmoke\\\":true}\",\"Library\":\"{\\\"Textures\\\":91,\\\"Meshes\\\":60,\\\"ConnectedFire\\\":{\\\"Created\\\":8,\\\"Updates\\\":1,\\\"Active\\\":0,\\\"Pooled\\\":8,\\\"MaxUpdateMS\\\":0.4529999860096723,\\\"MeanUpdateMS\\\":0.4529999860096723},\\\"Scope\\\":\\\"Cosmetic renderer, real spell definitions, identity/layout and pooling checks; no GPU performance claim\\\",\\\"Spells\\\":[\\\"Fireball\\\",\\\"BurningGround\\\",\\\"LightningLance\\\",\\\"BodyReinforcement\\\",\\\"BodyBurst\\\",\\\"StoneShot\\\",\\\"RecruitMagicDischarge\\\",\\\"StoneRaise\\\",\\\"RecruitMagicBolt\\\"],\\\"Cleanup\\\":{\\\"Lights\\\":0,\\\"Meshes\\\":0,\\\"Trails\\\":0,\\\"Sessions\\\":0,\\\"Emitters\\\":0,\\\"Rate\\\":0}}\",\"Visual\":\"{\\\"Review\\\":\\\"Continuous streams and fixed geometric motifs\\\",\\\"Stats\\\":{\\\"Lights\\\":4,\\\"Meshes\\\":0,\\\"Trails\\\":12,\\\"Sessions\\\":4,\\\"Emitters\\\":21,\\\"Rate\\\":0}}\"}"
+    }
+  ],
+  "isError": false
+}

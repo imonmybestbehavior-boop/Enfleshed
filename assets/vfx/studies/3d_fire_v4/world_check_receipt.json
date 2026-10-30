@@ -1,0 +1,9 @@
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "sabuiltin_Assistant.rbxm.Assistant.Packages._Index.AssistantUI.AssistantUI.Tools.ExecuteLuauTool:116: sabuiltin_Assistant.rbxm.Assistant.Packages._Index.AssistantUI.AssistantUI.Util.CommandExecution:54: Frame_007 is not a valid member of Folder \"Players.enfleshedgame.PlayerGui.ConnectedFireV4Review.SurfaceFramePool\""
+    }
+  ],
+  "isError": true
+}

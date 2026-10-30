@@ -1,0 +1,9 @@
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "{\"Cases\":[{\"School\":\"Poison\",\"CloudDistance\":47.98112106323242,\"Culled\":false,\"Clouds\":1},{\"School\":\"Poison\",\"CloudDistance\":48.723270416259769,\"Culled\":true,\"Clouds\":1},{\"School\":\"Water\",\"CloudDistance\":48.5201530456543,\"Culled\":false,\"Clouds\":1},{\"School\":\"Water\",\"CloudDistance\":48.5738639831543,\"Culled\":true,\"Clouds\":1},{\"School\":\"Earth\",\"CloudDistance\":48.5328483581543,\"Culled\":false,\"Clouds\":1},{\"School\":\"Earth\",\"CloudDistance\":48.59632110595703,\"Culled\":true,\"Clouds\":1},{\"School\":\"Arcane\",\"CloudDistance\":48.7388916015625,\"Culled\":false,\"Clouds\":1},{\"School\":\"Arcane\",\"CloudDistance\":48.339500427246097,\"Culled\":true,\"Clouds\":1}],\"Cleanup\":{\"Lights\":0,\"Meshes\":0,\"Trails\":0,\"Sessions\":0,\"Emitters\":0,\"Rate\":2.842170943040401e-14}}"
+    }
+  ],
+  "isError": false
+}

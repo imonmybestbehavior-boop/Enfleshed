@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "file": "assets/vfx/source/painted_fire_v1/animation/flame_lick_v1.png",
+  "sha256": "202f565ac6c07f9688e396e65a82111fc887f7b7029c0319dddbe1402d319b28",
+  "generator": "built-in image_gen",
+  "reference": "assets/vfx/source/painted_fire_v1/core.png",
+  "status": "layered_motion_study",
+  "roblox_id": null,
+  "studio_verified": false,
+  "note": "Generated source includes low-alpha red haze; the local shader suppresses it during rendering, original pixels preserved.",
+  "renderer": "tools/vfx_pipeline/painted_fire_layers.js",
+  "renderer_sha256": "2dfd1b50cc95ed1f42d4ee8d6aa3d338d4623e30546e75ad27b74e09e8d76d42",
+  "prompt_file": "assets/vfx/source/painted_fire_v1/animation/flame_lick_prompt.txt",
+  "rear_flame_layers_max": 12,
+  "front_flame_layers_max": 8,
+  "detached_wisps": 5,
+  "whole_core_squash": false,
+  "whole_core_rotation": false,
+  "user_visual_approval": "pending",
+  "roblox_integration": "pending"
+}

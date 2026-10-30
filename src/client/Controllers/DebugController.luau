@@ -11,9 +11,7 @@ function Debug.start()
 	gui.Name = "SandboxDebug"
 	gui.ResetOnSpawn = false
 	gui.Parent = Players.LocalPlayer:WaitForChild("PlayerGui")
-	local cityConfig = require(game:GetService("ReplicatedStorage").Shared.Configuration.CityLife)
-	gui.Enabled = game:GetService("RunService"):IsStudio()
-		and (cityConfig.DevelopmentSpells or Config.StressTest.Enabled)
+	gui.Enabled = game:GetService("RunService"):IsStudio() and Config.StressTest.Enabled
 	local label = Instance.new("TextLabel")
 	label.Size = UDim2.fromOffset(760, 216)
 	label.Position = UDim2.fromOffset(12, 12)

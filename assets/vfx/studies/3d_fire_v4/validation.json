@@ -1,0 +1,19 @@
+{
+  "passed": true,
+  "scope": "Blender and exported files only; Studio playback unverified",
+  "connected_components": 1,
+  "closed_volume_after_uv_seam_weld": true,
+  "mesh_count": 1,
+  "deform_bones": 72,
+  "maximum_skin_influences": 4,
+  "loop_max_vertex_error": 1.1444209210793648e-19,
+  "quarter_cycle_max_vertex_motion": 0.5010357983873267,
+  "rgba_surface_frames": 24,
+  "leading_body_opaque_all_frames": true,
+  "rear_erosion_all_frames": true,
+  "maximum_core_pixels_changed_vs_first_frame": 0.7059228515625,
+  "uv_seam_matches_all_frames": true,
+  "fbx_meshes": 1,
+  "fbx_bones": 73,
+  "fbx_animation_present": true
+}

@@ -1,16 +1,18 @@
 # Development Magic Lab and normalized runtime
 
+> **Update 2026-10-14:** the discovery system, its DataStore, Locus resource persistence and Locus practice progression have been removed (Phase 0.3 in [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md)). Statements below about discovery milestones, saved Discovery records or Focus profiles are historical.
+
 ## Active test configuration
 
-Progression is disabled for this mechanics testbed. All registered Principles,
-Expressions, Forms, payloads, behaviors, palettes, projectile shapes, and Focus
-profiles are available without cast-count requirements. Successful casts do not
-raise Locus stats or unlock content. Mana, Strain, complexity, spell-authored
-requirements, server validation, and resource limits still operate as mechanics
-under test; those are not content unlocks. The K panel changes a freely available
-Focus profile, while P edits and equips the nine spell slots.
+The active fighter sandbox enables spell discovery milestones. Successful casts
+advance principle, form, and expression counters used to unlock editor options
+and Focus profiles. Mana, Strain, complexity, server validation, and resource
+limits remain part of the mechanics under test. The K panel selects a Focus
+profile, while P opens the Grimoire to edit, save, and equip spells. Per-spell
+power upgrades are not implemented yet.
 
-This pass adds a Studio-only spell editor to the existing city and sandbox. It does not regenerate geometry, change encounters, add progression, or replace equipment. Open **Enfleshed_CitySaferSide.rbxlx** for the current city, not the older default sandbox.
+The Grimoire and magic runtime are part of the active castle fighter sandbox. Open
+`Enfleshed-Combat-Sandbox.rbxlx` and press Play to generate the test arena.
 
 ## Files
 
@@ -50,8 +52,8 @@ Modified for this pass:
 - `ActionRouter.luau`: initialize Lab transport with existing authoritative character state.
 - `MagicController.luau`: start Lab alongside existing controls.
 - `InputController.luau`, `CameraController.luau`: release mouse and suppress gameplay actions while editing.
-- `prototypes/{KitBlock,KitDistrict,CitySaferSide}/review.project.json`: include new server modules in explicit service mappings.
-- Rebuilt `Enfleshed.rbxlx` and `Enfleshed_CitySaferSide.rbxlx`.
+- The former city prototype place mappings are archived in `Shelved Project`.
+- Rebuilt `Enfleshed-Combat-Sandbox.rbxlx`.
 
 Existing uncommitted world/gameplay work was preserved. Registered `Spells.luau` was not edited.
 
@@ -109,7 +111,7 @@ Capsule Fields/Auras define **Radius** and total **Height**. The volume is verti
 
 The **Detection** category currently contains **Reveal**. It marks eligible targets for the authored duration; the server replicates an owner-specific expiry, and only that caster's client draws the through-wall outline. Reveal does not add damage, acquire a lock, or ignore targeting/relationship rules. It is capped at 15 seconds and ends early if its caster or target leaves or dies.
 
-Constructs and Self Enhancements may use `OnProximity` with Damage, DamageOverTime, Force, maintained Control, Slow, and Space Displacement payloads. The existing bounded active-proximity query samples nearby valid targets, then sends each effect through the same relationship/condition and server-authoritative executor paths as other Forms. It fires once per eligible target for that active effect, subject to the configured proximity target cap; placement or enhancement activation alone does not apply proximity effects.
+Constructs and Enchantments may use `OnProximity` with Damage, DamageOverTime, Force, maintained Control, Slow, and Space Displacement payloads. The existing bounded active-proximity query samples nearby valid targets, then sends each effect through the same relationship/condition and server-authoritative executor paths as other Forms. It fires once per eligible target for that active effect, subject to the configured proximity target cap; placement or enhancement activation alone does not apply proximity effects.
 
 Body SelfEnhancement targets self. Material Manipulation requires Matter, a server-tagged Earth-affinity material part, and `MagicRaise` authorization. Its discrete Raise and Lower operations can be used on a Manipulation cast or placed on Projectile impacts, Beam casts/ticks, and Wave casts/ticks when ObjectTarget is selected; the server checks the exact unobstructed part, matching `MagicMaterial`, and authorization before moving it vertically. Force and Physical control remain available on those Forms for explicitly tagged movable parts without a material attribute. Earth-affinity material casts can consume tagged Earth, Metal, or Wood sources; Water-affinity casts use tagged Water sources. Damage and Force can coexist on combat Forms; Enhancement remains restricted to its matching Form. Force adds velocity only: it does not create status or stun behavior. Bind is an explicit, separately selected control payload; it temporarily prevents walking, jumping, and dashing, then restores movement according to any remaining Slow or enhancement effects. Its duration is capped by the development configuration.
 
@@ -166,11 +168,11 @@ The Lab authors a blank SpellSpec draft; the registered spell library is not use
 
 ### Persistent Field and Aura toggles
 
-Field and Aura drafts can use a toggle lifetime alongside their existing fixed duration. The first cast creates the normal server-owned area and interval pulses; casting the same spell again turns it off. Toggle-off emits `OnExpire`, closes sampled membership with `OnExit`, and removes the replicated marker. SelfEnhancements and Constructs also expose `OnExpire`: it runs on normal duration end, resource/condition termination, toggle-off, caster reset, or construct removal. Construct expiry payloads can affect its still-valid attached character; self-enhancement expiry payloads target the caster. Active-effect limits still apply, and respawn/disconnect cleanup remains authoritative; instantaneous Forms cannot be toggled.
+Field and Aura drafts can use a toggle lifetime alongside their existing fixed duration. The first cast creates the normal server-owned area and interval pulses; casting the same spell again turns it off. Toggle-off emits `OnExpire`, closes sampled membership with `OnExit`, and removes the replicated marker. SelfEnhancements and Constructs also expose `OnExpire`: it runs on normal duration end, resource/condition termination, toggle-off, caster reset, or construct removal. Construct expiry payloads can affect its still-valid attached character; enchantment expiry payloads target the caster. Active-effect limits still apply, and respawn/disconnect cleanup remains authoritative; instantaneous Forms cannot be toggled.
 
 Constructs may use **Remain active until the Construct is destroyed**. That removes the authored timer but retains server cleanup on model removal, caster cleanup, and any other active termination conditions. It does not add Construct health or player damage interaction; destruction currently comes from server systems removing the model.
 
-Projectile flight, Fields, Auras, Self Enhancements, Constructs, and channeled Beams/Waves may use **Remain active while a condition stays true**. The selected `EndWhen` rule becomes a keep-alive predicate: it must evaluate true when cast or activation is rejected, and the effect expires through its Form's ordinary cleanup when the rule becomes false or unavailable. Condition-bound Projectiles and channels require a maximum duration. Other condition-bound effects may optionally add a maximum duration, so whichever happens first—the condition failing or the timer ending—expires the effect. The timer is bounded to 0.1–15 seconds and uses the same normal cleanup path. The starter rule is `Resource · Mana > 0`; it does not spend mana on its own. Add Mana upkeep if the spell should drain Locus while maintained.
+Projectile flight, Fields, Auras, Enchantments, Constructs, and channeled Beams/Waves may use **Remain active while a condition stays true**. The selected `EndWhen` rule becomes a keep-alive predicate: it must evaluate true when cast or activation is rejected, and the effect expires through its Form's ordinary cleanup when the rule becomes false or unavailable. Condition-bound Projectiles and channels require a maximum duration. Other condition-bound effects may optionally add a maximum duration, so whichever happens first—the condition failing or the timer ending—expires the effect. The timer is bounded to 0.1–15 seconds and uses the same normal cleanup path. The starter rule is `Resource · Mana > 0`; it does not spend mana on its own. Add Mana upkeep if the spell should drain Locus while maintained.
 
 ## Summons: quick setup and behavior
 
@@ -225,7 +227,7 @@ Projectile drafts can add up to the configured motion-phase limit and choose **B
 
 The Setup page allows spells to keep movement enabled with a bounded speed penalty, prevent movement, or prevent mouse-look rotation during charge, server-timed gather, and held channels. These rules are server-validated; a movement penalty composes with sprint, Body Enhancement, and Slow, while a full movement lock also blocks jump and dash. Rotation lock freezes client mouse-look, retains the server-validated initial aim through charge/gather, and rejects channeled aim updates. Movement and camera control return on cast completion, interruption, release, death, or respawn. Studio check: test a 50% penalty while sprinting and while Body Reinforcement is active, then disable movement and rotation during a charged cast and channel; cancel each and confirm the prior speed, aim control, and dash access return.
 
-1. Stop any current session. Open the freshly rebuilt **Enfleshed_CitySaferSide.rbxlx** with Studio's File → Open from File. Press Play and complete the existing opening if shown. Existing city spawn/geometry should remain the same.
+1. Stop any current session. Open **Enfleshed-Combat-Sandbox.rbxlx** with Studio's File → Open from File and press Play. The server generates the castle arena and spawns the player directly into combat.
 2. Press P. Select Fireball. Set radius 1, speed 100, direct damage 10. Apply, close, aim at an existing target, then 1. The existing combat hit feedback should report damage.
 3. Reopen P: radius 8, speed 35, direct damage 50, Explode enabled, explosion radius 12. Cast Test. Expect a slower, much wider projectile. Stand away from nearby walls/floor when comparing travel: an eight-stud radius can correctly collide immediately with close geometry. Do not interpret an immediate overlap hit as a failed cast.
 4. Select BodyReinforcement, multiplier 3. Apply and 1. Compare walking and Shift sprint; Q dash and normal controls should remain available. 1 again disables the toggle. Test a timed duration too.
@@ -234,15 +236,15 @@ The Setup page allows spells to keep movement enabled with a bounded speed penal
 7. Add Force alongside Damage on a draft. Confirm displacement without a new stun/control-lock. Material-target spells show a source-material picker; aim at its matching tagged Earth, Metal, Wood, or Water source. For Manipulation, choose Raise or Lower and test on a tagged part with `MagicRaise=true`; it should move by the authored distance in the selected vertical direction. Ordinary walls are not valid material targets.
 8. Change Forms after adding effects. Keep effects that remain compatible and omit only those that the new Form cannot execute. Try unsupported Soul and out-of-range numeric values: Apply must reject with a reason.
 9. Use Studio's Server & Clients test with two clients. Each client has independent Lab drafts/applied state; gameplay damage is server-owned. Check cooldown spam, death/respawn and disconnect during active fields/projectiles.
-10. Close the Lab and retest existing equipment, sprint/dash, melee and registered spell controls. Verify no city/navigation changes.
+10. Close the Grimoire and retest equipment, sprint/dash, melee, and registered spell controls.
 
-Aerial movement check: create a Self Enhancement with **Aerial movement** on **OnCast**, set speed to 32, apply, and cast it. WASD steers horizontally, Space rises, and Left Control descends; gamepad uses A/B, with Rise/Descend touch buttons. Release the controls to hover. Cast a separate speed Enhancement at the same time and confirm both effects coexist. Let the aerial spell expire (or cast its toggle again) and verify normal gravity and walking return. Try moving into a wall and confirm collision remains solid.
+Aerial movement check: create an Enchantment with **Aerial movement** on **OnCast**, set speed to 32, apply, and cast it. WASD steers horizontally, Space rises, and Left Control descends; gamepad uses A/B, with Rise/Descend touch buttons. Release the controls to hover. Cast a separate speed Enhancement at the same time and confirm both effects coexist. Let the aerial spell expire (or cast its toggle again) and verify normal gravity and walking return. Try moving into a wall and confirm collision remains solid.
 
 For Detection, create a Field or Aura with **Reveal** on **OnEnter**, choose an eligible hostile, and set duration to 8 seconds. Let the target enter, then have it move behind solid cover. The caster should still see its colored outline through the wall; a second client should not. Reapply Reveal before expiry to confirm the mark refreshes, then verify expiry and target/caster death remove the outline.
 
 For Time, create a Time / TemporalShift Aura with **TimeDilation** on **OnTick**, rate 0.5, duration 5 seconds, and target a hostile. Confirm the target moves at half rate and any active Slow, Bind, Shield, or periodic DamageOverTime duration/ticks progress more slowly; the TimeDilation itself should expire after five world seconds. Repeat at rate 1.5 on an ally and confirm movement and periodic Restoration accelerate. An authored target condition on `Status.TimeRate` should distinguish the affected target from one at the default rate. Test with two clients to confirm the server remains authoritative.
 
-Aerial Movement is a Self Enhancement payload. Its speed is bounded to 48 studs/second; the client sends only normalized movement intent at a throttled rate, and the server validates full 3D travel against the active limit. The spell's ordinary duration, toggle, and resource lifecycle controls cleanup. This is not target-applied flight or unrestricted teleportation.
+Aerial Movement is an Enchantment payload. Its speed is bounded to 48 studs/second; the client sends only normalized movement intent at a throttled rate, and the server validates full 3D travel against the active limit. The spell's ordinary duration, toggle, and resource lifecycle controls cleanup. This is not target-applied flight or unrestricted teleportation.
 
 For a target-bound effect, choose Aura or Construct and target a character or solid object; Fields need **Follow selected target**, and Projectiles need the `MaintainTarget` entity policy plus Homing. Enable **Remain active until its target is lost**, then remove or kill the target. Areas run expiry/exit cleanup, Constructs are destroyed, and maintained Projectiles run `OnExpire`. Free-standing or non-following effects reject this lifetime.
 
@@ -257,7 +259,6 @@ Recorded offline results (2026-09-28):
 - StyLua check passed for the touched runtime, controller, configuration, type and test files.
 - Rojo 7.7.0 built both requested places successfully.
 - Main-place reference/source checks: three tests passed.
-- City review audit passed: 37,499 Parts, 250 frontages, 22 through-rooms, 600 doorway samples, eight stair towers, 3,296 module route samples, 1,412 upper samples, 81,775 reachable ground cells, 84 module references, zero coplanar overlaps/errors. Geometry was not regenerated.
 - `git diff --check` passed.
 - Studio execution and standalone Luau typechecking were not run; the latter tool is not installed.
 
@@ -314,7 +315,7 @@ Offline findings addressed:
 
 The existing server authority, character attachment following and death/leave cleanup paths were reviewed. This is not a live multiplayer verification. No Studio connector or installed Studio test runner was available in this session.
 
-Focused manual acceptance test in the rebuilt CitySaferSide place:
+Focused manual acceptance test in the rebuilt combat sandbox:
 1. P → choose Construct → Test → equip → close. Aim at a wall within Distance and press the selected slot key. Verify contact placement, visible cast feedback, and collision. Try a tight corner: if rejected, the on-screen reason should be readable. Repeat with a separate Construct draft on floor and a sloped surface.
 2. In a two-client test, attach to the other character, then have them move and turn. Confirm following without pinning/flinging. Kill/reset the target; attachment must disappear. Repeat and reset the caster instead, then repeat and disconnect the caster. Neither client should retain an orphaned construct.
 3. Aura draft: add Damage and test just inside/outside the configured root radius and behind a solid wall. Add Force and verify outward displacement without a stun. Verify no further periodic damage after duration ends.
@@ -403,7 +404,7 @@ All instant casts first validate on the server, then reserve the caster's single
 
 The client hand transform isn't authoritative on the server. For ordinary player Projectile/Beam casts the client sends its current raised-hand point; the server accepts it only within 3.5 studs of the root and after a root-to-hand obstruction ray. Invalid points use a server fallback. The subsequent projectile sweep/Beam ray remains server-authoritative and can still hit a wall immediately beyond the hand. Equipment muzzle origins continue to use the server's equipped weapon data.
 
-Studio procedure: stop Play and open the rebuilt CitySaferSide place. Equip a projectile, Beam, Field, Construct and SelfEnhancement in slots. In a side view and then from a second client, press each slot once: see the gather, then observe spell/VFX release at the end of that gesture, followed by brief recovery. Check Beam begins at the raised hands, ground effects begin at the downward release, and self enhancement begins on its upward release. Move/sprint/dash while gathering; there should be no movement lock. Press another slot during gather and confirm it is rejected without starting another pose. Test respawn during gather and test charged Stone Shot hold/release. Fire at a wall close to the hand: no projectile or damage may appear through it. Check Studio Output and per-character MagicPoseProfile attributes if cue appears but pose does not.
+Studio procedure: stop Play and open the rebuilt combat sandbox. Equip a projectile, Beam, Field, Construct and SelfEnhancement in slots. In a side view and then from a second client, press each slot once: see the gather, then observe spell/VFX release at the end of that gesture, followed by brief recovery. Check Beam begins at the raised hands, ground effects begin at the downward release, and an enchantment begins on its upward release. Move/sprint/dash while gathering; there should be no movement lock. Press another slot during gather and confirm it is rejected without starting another pose. Test respawn during gather and charged Stone Shot hold/release. Fire at a wall close to the hand: no projectile or damage may appear through it. Check Studio Output and per-character MagicPoseProfile attributes if cue appears but pose does not.
 
 StyLua check, both Rojo builds and git diff --check passed. This environment did not run Studio or automated test suites for this pass, so animation-to-hit alignment, multiplayer cue ordering and wall clearance still need live verification.
 
@@ -423,7 +424,7 @@ The Lab is organized into Setup, Targeting, Effects, Presentation, and Test page
 
 Advanced cast conditions can now be edited as recursive `ALL`, `ANY`, and `NOT` trees rather than only as a flat rule list. Each group supports adding/removing safe property rules and nested groups; individual rules or groups can be inverted. The editor disables operations that would exceed the server's maximum depth, total node count, or child count. Existing simple checkbox rules remain available, and legacy or saved nested conditions remain editable. Run `lua tests/test_magic_condition_tree.lua` for the pure tree editing and limit checks; use Studio to inspect the recursive editor layout and verify saved nested rules still load and validate.
 
-Healing and Shield are derived from Forms marked as humanoid-targeting, rather than being attached to Projectile. They are available on Projectile impact, Beam/Wave cast, Field/Aura cast/spawn/tick/expiry, Self Enhancement cast/proximity, and Construct proximity. A Construct can therefore be authored as an open-air healing patch or protective zone; it does not need a floor or other surface. Wave, Field, and Aura drafts can opt to include the caster; this is off by default because damaging/control payloads on the same area would affect the caster too. Material Manipulation remains object/material focused and does not expose humanoid payloads.
+Healing and Shield are derived from Forms marked as humanoid-targeting, rather than being attached to Projectile. They are available on Projectile impact, Beam/Wave cast, Field/Aura cast/spawn/tick/expiry, Enchantment cast/proximity, and Construct proximity. A Construct can therefore be authored as an open-air healing patch or protective zone; it does not need a floor or other surface. Wave, Field, and Aura drafts can opt to include the caster; this is off by default because damaging/control payloads on the same area would affect the caster too. Material Manipulation remains object/material focused and does not expose humanoid payloads.
 
 The Setup page also exposes optional minimum Locus Capacity, Efficiency, Potency, Strain tolerance, and Complexity capacity. Zero leaves a metric unrestricted. The server checks these owner metrics on every cast, including a companion spell cast on the owner's Locus.
 
@@ -461,4 +462,4 @@ Time Dilation lifecycle check: apply a TimeDilation payload from one client to a
 
 Maintained Control also exposes `SpellState.ControlledMass`: the live total assembly mass currently controlled by this caster's spell. It can be tested in cast, target, and lifetime conditions using the ordinary numeric comparisons. It becomes zero after the spell has no controlled targets.
 
-`SpellState.TargetsHit` counts valid Humanoid targets selected by payloads that declare `TracksHumanoidTargets` in the server executor metadata. This includes support, movement, displacement, and self-enhancement payloads; targeted world-object interactions do not count as Humanoid hits.
+`SpellState.TargetsHit` counts valid Humanoid targets selected by payloads that declare `TracksHumanoidTargets` in the server executor metadata. This includes support, movement, displacement, and enchantment payloads; targeted world-object interactions do not count as Humanoid hits.

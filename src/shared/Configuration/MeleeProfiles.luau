@@ -1,0 +1,203 @@
+--!strict
+
+-- Melee archetypes. Items reference one by name; ItemRules applies rolled affixes
+-- on top. Times are seconds, sizes are hitbox studs, Offset is forward distance
+-- of the hitbox centre from the root. Reaction is the enemy hit reaction tier.
+return table.freeze({
+	ParryRange = 12, -- Attackers farther than this are blocked, never parried.
+	-- A successful parry makes the next swing started within Window seconds deal Multiplier x damage.
+	ParryBonus = { Multiplier = 1.5, Window = 2 },
+	-- Placeholder game feel. Swap the sounds for real assets, and fill Animations per
+	-- archetype ({ Lights = { "rbxassetid://..." }, Heavy = "rbxassetid://..." }) once they exist.
+	Feel = {
+		SwingSound = "rbxasset://sounds/swordslash.wav",
+		HeavySwingSound = "rbxasset://sounds/swordlunge.wav",
+		HitSound = "rbxasset://sounds/action_jump_land.mp3",
+		Hitstop = 0.05, -- Seconds the attacker's animations freeze on a light hit.
+		HeavyHitstop = 0.09,
+		HitFlash = 0.12, -- Seconds the target flashes white.
+		Animations = {} :: { [string]: any },
+	},
+	Profiles = {
+		Sword = {
+			Lights = {
+				{
+					Startup = 0.05,
+					Active = 0.08,
+					Recovery = 0.12,
+					Damage = 24,
+					Size = Vector3.new(5, 5, 5),
+					Offset = 3,
+					Reach = 6,
+					Reaction = "Minor",
+				},
+				{
+					Startup = 0.06,
+					Active = 0.08,
+					Recovery = 0.12,
+					Damage = 26,
+					Size = Vector3.new(5, 5, 5),
+					Offset = 3,
+					Reach = 6,
+					Reaction = "Minor",
+				},
+				{
+					Startup = 0.09,
+					Active = 0.10,
+					Recovery = 0.19,
+					Damage = 30,
+					Size = Vector3.new(6, 5, 5),
+					Offset = 3,
+					Reach = 6.5,
+					Reaction = "Significant",
+				},
+			},
+			Heavy = {
+				Startup = 0.22,
+				Active = 0.12,
+				Recovery = 0.32,
+				Damage = 52,
+				Size = Vector3.new(7, 5, 6),
+				Offset = 3.5,
+				Reach = 7,
+				Reaction = "Major",
+			},
+			Block = { Reduction = 0.65, ParryWindow = 0.18, FacingDot = 0.2 },
+		},
+		Greatsword = {
+			Lights = {
+				{
+					Startup = 0.14,
+					Active = 0.12,
+					Recovery = 0.24,
+					Damage = 40,
+					Size = Vector3.new(8, 5, 6),
+					Offset = 3.5,
+					Reach = 7.5,
+					Reaction = "Significant",
+				},
+				{
+					Startup = 0.16,
+					Active = 0.12,
+					Recovery = 0.30,
+					Damage = 46,
+					Size = Vector3.new(8, 5, 6),
+					Offset = 3.5,
+					Reach = 7.5,
+					Reaction = "Significant",
+				},
+			},
+			Heavy = {
+				Startup = 0.38,
+				Active = 0.16,
+				Recovery = 0.45,
+				Damage = 90,
+				Size = Vector3.new(10, 6, 7),
+				Offset = 4,
+				Reach = 8.5,
+				Reaction = "Major",
+			},
+			Block = { Reduction = 0.8, ParryWindow = 0.14, FacingDot = 0.1 },
+		},
+		Dagger = {
+			Lights = {
+				{
+					Startup = 0.03,
+					Active = 0.06,
+					Recovery = 0.08,
+					Damage = 15,
+					Size = Vector3.new(4, 4, 4),
+					Offset = 2.5,
+					Reach = 4.5,
+					Reaction = "Minor",
+				},
+				{
+					Startup = 0.03,
+					Active = 0.06,
+					Recovery = 0.08,
+					Damage = 15,
+					Size = Vector3.new(4, 4, 4),
+					Offset = 2.5,
+					Reach = 4.5,
+					Reaction = "Minor",
+				},
+				{
+					Startup = 0.04,
+					Active = 0.06,
+					Recovery = 0.10,
+					Damage = 18,
+					Size = Vector3.new(4, 4, 4),
+					Offset = 2.5,
+					Reach = 4.5,
+					Reaction = "Minor",
+				},
+				{
+					Startup = 0.06,
+					Active = 0.08,
+					Recovery = 0.16,
+					Damage = 24,
+					Size = Vector3.new(4.5, 4, 4.5),
+					Offset = 2.5,
+					Reach = 5,
+					Reaction = "Significant",
+				},
+			},
+			Heavy = {
+				Startup = 0.16,
+				Active = 0.08,
+				Recovery = 0.22,
+				Damage = 44,
+				Size = Vector3.new(3.5, 4, 5),
+				Offset = 3,
+				Reach = 5.5,
+				Reaction = "Significant",
+			},
+			Block = { Reduction = 0.45, ParryWindow = 0.26, FacingDot = 0.3 },
+		},
+		Spear = {
+			Lights = {
+				{
+					Startup = 0.08,
+					Active = 0.08,
+					Recovery = 0.16,
+					Damage = 26,
+					Size = Vector3.new(2.5, 4, 9),
+					Offset = 5,
+					Reach = 10,
+					Reaction = "Minor",
+				},
+				{
+					Startup = 0.08,
+					Active = 0.08,
+					Recovery = 0.16,
+					Damage = 26,
+					Size = Vector3.new(2.5, 4, 9),
+					Offset = 5,
+					Reach = 10,
+					Reaction = "Minor",
+				},
+				{
+					Startup = 0.12,
+					Active = 0.10,
+					Recovery = 0.22,
+					Damage = 34,
+					Size = Vector3.new(5, 4, 8),
+					Offset = 4.5,
+					Reach = 9.5,
+					Reaction = "Significant",
+				},
+			},
+			Heavy = {
+				Startup = 0.28,
+				Active = 0.12,
+				Recovery = 0.36,
+				Damage = 62,
+				Size = Vector3.new(3, 4, 12),
+				Offset = 6.5,
+				Reach = 13,
+				Reaction = "Major",
+			},
+			Block = { Reduction = 0.6, ParryWindow = 0.16, FacingDot = 0.25 },
+		},
+	},
+})

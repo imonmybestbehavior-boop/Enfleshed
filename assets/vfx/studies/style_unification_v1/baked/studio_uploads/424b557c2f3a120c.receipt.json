@@ -1,0 +1,9 @@
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "{\"http://127.0.0.1:59479/Arcane__smoke_billow.png\":\"rbxassetid://88003011138421\",\"http://127.0.0.1:59479/Force__slash_arc.png\":\"rbxassetid://79229653024166\",\"http://127.0.0.1:59479/Force__shockwave_ring.png\":\"rbxassetid://128229162357716\",\"http://127.0.0.1:59479/Spirit__skull_mote.png\":\"rbxassetid://109036843640727\",\"http://127.0.0.1:59479/Body__sinew_trail.png\":\"rbxassetid://92156286723215\",\"http://127.0.0.1:59479/Space__shard_trail.png\":\"rbxassetid://127017454122549\",\"http://127.0.0.1:59479/Fire__smoke_billow.png\":\"rbxassetid://87444630094085\",\"http://127.0.0.1:59479/Lightning__smoke_billow.png\":\"rbxassetid://80537616477801\"}"
+    }
+  ],
+  "isError": false
+}

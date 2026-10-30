@@ -1,0 +1,9 @@
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "{\"Sandbox\":true,\"Players\":[{\"Health\":400,\"Name\":\"enfleshedgame\",\"Ready\":true}]}"
+    }
+  ],
+  "isError": false
+}

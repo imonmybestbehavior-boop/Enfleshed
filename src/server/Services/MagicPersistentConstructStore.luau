@@ -10,6 +10,8 @@ local dataStore
 local loaded = false
 local writable = false
 local profile = Spec.emptyProfile()
+-- Remaining health waiting to be saved (id -> health), written by flushHealth.
+local pendingHealth = {}
 local key = string.format("place:%s:%s", tostring(game.GameId), tostring(game.PlaceId))
 
 local function decode(raw)
@@ -110,6 +112,7 @@ function Store.add(record)
 end
 
 function Store.remove(id)
+	pendingHealth[id] = nil
 	if not loaded or not writable or not dataStore then
 		return false, "Persistent Construct storage is unavailable"
 	end
@@ -139,6 +142,45 @@ function Store.remove(id)
 		return false, reason or "Saved Persistent Construct world data failed validation"
 	end
 	profile = updated
+	return true
+end
+
+-- Remaining health of a damaged persistent Construct; saved on the next flush.
+function Store.updateHealth(id, health)
+	if loaded and writable then
+		pendingHealth[id] = health
+	end
+end
+
+-- One UpdateAsync for every pending health change (MagicService calls this
+-- every PersistentHealthSaveInterval seconds and on shutdown).
+function Store.flushHealth()
+	if next(pendingHealth) == nil or not loaded or not writable or not dataStore then
+		return true
+	end
+	local updates = pendingHealth
+	pendingHealth = {}
+	local ok, result = pcall(function()
+		return dataStore:UpdateAsync(key, function(raw)
+			local current, safe = decode(raw)
+			if not safe or Spec.applyHealth(current, updates) == 0 then
+				return nil
+			end
+			return current
+		end)
+	end)
+	if not ok then
+		for id, health in pairs(updates) do
+			if pendingHealth[id] == nil then
+				pendingHealth[id] = health
+			end
+		end
+		return false, "Persistent Construct health could not be saved"
+	end
+	local updated, safe = decode(result)
+	if safe then
+		profile = updated
+	end
 	return true
 end
 

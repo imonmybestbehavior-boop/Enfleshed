@@ -9,13 +9,17 @@ function Cost.normalize(definition)
 	end
 end
 function Cost.refresh(definition, estimate, clone)
-	local special = definition.Cost and definition.Cost.SpecialResources
+	local previous = definition.Cost or {}
 	local values = estimate(definition)
+	-- Authored costs survive repricing: special resources and blood magic.
 	definition.Cost = {
 		ManaDemand = values.ManaDemand,
 		Strain = values.Strain,
 		Complexity = values.Complexity,
-		SpecialResources = clone(special or {}),
+		SpecialResources = clone(previous.SpecialResources or {}),
+		Health = if previous.Health then clone(previous.Health) else nil,
+		HealthForMana = previous.HealthForMana,
+		HealthPerSecond = previous.HealthPerSecond,
 	}
 end
 return Cost

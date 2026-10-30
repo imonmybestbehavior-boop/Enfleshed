@@ -1,0 +1,192 @@
+{
+  "version": 1,
+  "status": "local_exports_pending_import_review",
+  "assets": {
+    "front": {
+      "file": "assets/vfx/generated/painted_fire_v1/fire_front_v1.png",
+      "sha256": "16e5c40861896983ef4e9c506d7d9a20888ff6bfc0c693466fe96c7e57254ac5",
+      "source": "assets/vfx/source/painted_fire_v1/animation/core_flow_front_v1.png",
+      "source_sha256": "df5d3ad4085d0fdcc5f0aef9a8a71a8f48e8e8068ea8f917262781e855c4158c",
+      "size": [
+        1024,
+        1024
+      ],
+      "grid": [
+        4,
+        4
+      ],
+      "layout": "Grid4x4",
+      "frame_count": 16,
+      "unique_frames": 8,
+      "source_frame_map": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "fps": 8,
+      "unique_cycle_seconds": 1,
+      "padding_px": 12,
+      "framing": "fixed source cell; no per-frame fitting",
+      "angle_degrees": 0,
+      "source_motion_approval": "approved",
+      "roblox_id": null,
+      "studio_verified": false
+    },
+    "three_quarter": {
+      "file": "assets/vfx/generated/painted_fire_v1/fire_three_quarter_v1.png",
+      "sha256": "8d0c075c9f0f6dc6260cf07f200dc9c16901d81414cca07564a0d163d229f5cf",
+      "source": "assets/vfx/source/painted_fire_v1/animation/core_flow_three_quarter_v1.png",
+      "source_sha256": "df441f77d2d3d22968cef0314db3274fc104a082ebf571fc9e4aaa483ccb44a7",
+      "size": [
+        1024,
+        1024
+      ],
+      "grid": [
+        4,
+        4
+      ],
+      "layout": "Grid4x4",
+      "frame_count": 16,
+      "unique_frames": 8,
+      "source_frame_map": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "fps": 8,
+      "unique_cycle_seconds": 1,
+      "padding_px": 12,
+      "framing": "fixed source cell; no per-frame fitting",
+      "angle_degrees": 45,
+      "source_motion_approval": "pending",
+      "roblox_id": null,
+      "studio_verified": false
+    },
+    "side": {
+      "file": "assets/vfx/generated/painted_fire_v1/fire_side_v1.png",
+      "sha256": "f36a70e20c3cf1777740cb44de391e95deb188a236a3cdccb1f5d13c4c3fcebd",
+      "source": "assets/vfx/source/painted_fire_v1/animation/core_flow_true_side_v1.png",
+      "source_sha256": "b91ebad8c1b985d077a530970f61abc831e301164a31047f9f9e696aa084353e",
+      "size": [
+        1024,
+        1024
+      ],
+      "grid": [
+        4,
+        4
+      ],
+      "layout": "Grid4x4",
+      "frame_count": 16,
+      "unique_frames": 8,
+      "source_frame_map": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "fps": 8,
+      "unique_cycle_seconds": 1,
+      "padding_px": 12,
+      "framing": "fixed source cell; no per-frame fitting",
+      "angle_degrees": 90,
+      "source_motion_approval": "approved",
+      "roblox_id": null,
+      "studio_verified": false
+    },
+    "rear": {
+      "file": "assets/vfx/generated/painted_fire_v1/fire_rear_v1.png",
+      "sha256": "fc0f943bb90659caa1b65122002ceccc601f65631019c309017e11b1921dddd0",
+      "source": "assets/vfx/source/painted_fire_v1/animation/core_flow_rear_v1.png",
+      "source_sha256": "79515bf463209a1302ad32e93f88a0feb8d333d07f2b915d5768d09fa0833f3b",
+      "size": [
+        1024,
+        1024
+      ],
+      "grid": [
+        4,
+        4
+      ],
+      "layout": "Grid4x4",
+      "frame_count": 16,
+      "unique_frames": 8,
+      "source_frame_map": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "fps": 8,
+      "unique_cycle_seconds": 1,
+      "padding_px": 12,
+      "framing": "fixed source cell; no per-frame fitting",
+      "angle_degrees": 180,
+      "source_motion_approval": "approved",
+      "roblox_id": null,
+      "studio_verified": false
+    }
+  },
+  "generator": "tools/vfx_pipeline/pack_directional_fire.py",
+  "generator_sha256": "d0e400fc33920331c3ca8c10b127b2a6603c83c490314d2cd07f62fe851d6388",
+  "publication": "not_uploaded",
+  "runtime_activation": false,
+  "remaining_art_review": [
+    "three_quarter"
+  ],
+  "notes": [
+    "Eight source frames repeated twice; no invented animation frames.",
+    "At 8 fps the visual sequence still repeats every second.",
+    "Existing runtime only understands standard grids; this export deliberately uses Grid4x4.",
+    "Color and silhouette design preserved; resampling and uniform padding are technical export steps.",
+    "Rear three-quarter and elevation coverage remain approximations."
+  ]
+}

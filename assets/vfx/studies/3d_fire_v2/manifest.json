@@ -1,0 +1,16 @@
+{
+  "status": "Revised authored geometry study; not yet imported or accepted",
+  "frames": 48,
+  "fps": 24,
+  "tongues": 18,
+  "deform_bones_per_tongue": 22,
+  "vertices_per_tongue": 264,
+  "palette": "Same four RGB colors as v1",
+  "animation": "Rigid bone rotations and translations only; width changes through paired rails",
+  "visibility": "Hide a tongue below .08 lifecycle width to conceal the thin reset; visibility is not baked into FBX",
+  "limitations": [
+    "Full-body silhouette and resetting need visual review",
+    "No performance claim",
+    "No gameplay integration"
+  ]
+}

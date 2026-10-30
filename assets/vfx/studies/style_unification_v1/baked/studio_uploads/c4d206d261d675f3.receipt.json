@@ -1,0 +1,9 @@
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "{\"http://127.0.0.1:57787/Ice__hex_seal.png\":\"rbxassetid://84846883020270\",\"http://127.0.0.1:57787/Ice__ice_glint.png\":\"rbxassetid://104568887923716\",\"http://127.0.0.1:57787/Arcane__hex_seal.png\":\"rbxassetid://120734024567748\",\"http://127.0.0.1:57787/Force__hourglass_mote.png\":\"rbxassetid://114106364153744\",\"http://127.0.0.1:57787/Force__heat_haze.png\":\"rbxassetid://112927934825580\",\"http://127.0.0.1:57787/Wind__gust_strokes.png\":\"rbxassetid://127465680613663\",\"http://127.0.0.1:57787/Force__hex_seal.png\":\"rbxassetid://90043311359126\",\"http://127.0.0.1:57787/Arcane__glyph_chain.png\":\"rbxassetid://113965439470500\"}"
+    }
+  ],
+  "isError": false
+}

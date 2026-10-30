@@ -20,6 +20,17 @@ local impulses = setmetatable({}, { __mode = "k" })
 local playerStates = setmetatable({}, { __mode = "k" })
 local npcSlowRecords: { [Humanoid]: NpcSlowRecord } = setmetatable({}, { __mode = "k" }) :: any
 
+-- Ground speed for the current sprint and guard state, before magic slows and casting.
+local function groundSpeed(state: Types.PlayerState): number
+	return Speed.calculate(
+		Config.WalkSpeed,
+		Config.SprintSpeed,
+		state.Sprinting and not state.Blocking,
+		state.MagicWalkSpeedBonus,
+		state.MagicSpeedMultiplier
+	) * (if state.Blocking then Config.BlockWalkMultiplier else 1)
+end
+
 local function clearAerial(state: Types.PlayerState)
 	if state.MagicAerialVelocity then
 		if state.Root:IsDescendantOf(workspace) then
@@ -164,13 +175,7 @@ function Movement.setMagicSlow(humanoid: Humanoid, multiplier: number)
 		state.MagicSlowMultiplier = multiplier
 		state.Character:SetAttribute("MagicSlowMultiplier", multiplier)
 		humanoid:SetAttribute("MagicSlowMultiplier", multiplier)
-		local base = Speed.calculate(
-			Config.WalkSpeed,
-			Config.SprintSpeed,
-			state.Sprinting,
-			state.MagicWalkSpeedBonus,
-			state.MagicSpeedMultiplier
-		)
+		local base = groundSpeed(state)
 		humanoid.WalkSpeed = base * multiplier * (state.MagicCastingMultiplier or 1)
 		if multiplier <= 0 or (state.MagicCastingMultiplier or 1) <= 0 then
 			if humanoid.UseJumpPower then
@@ -267,13 +272,9 @@ local function maximumSpeed(state: Types.PlayerState): number
 end
 
 local function applySpeed(state: Types.PlayerState)
-	state.Humanoid.WalkSpeed = Speed.calculate(
-		Config.WalkSpeed,
-		Config.SprintSpeed,
-		state.Sprinting,
-		state.MagicWalkSpeedBonus,
-		state.MagicSpeedMultiplier
-	) * (state.MagicSlowMultiplier or 1) * (state.MagicCastingMultiplier or 1)
+	state.Humanoid.WalkSpeed = groundSpeed(state)
+		* (state.MagicSlowMultiplier or 1)
+		* (state.MagicCastingMultiplier or 1)
 	if state.MagicSlowMultiplier <= 0 or (state.MagicCastingMultiplier or 1) <= 0 then
 		if state.Humanoid.UseJumpPower then
 			state.Humanoid.JumpPower = 0
@@ -301,6 +302,11 @@ end
 
 function Movement.sprint(state: Types.PlayerState, enabled: boolean)
 	state.Sprinting = enabled
+	applySpeed(state)
+end
+
+-- Re-applies walk speed after something outside movement changed it (raising or lowering a guard).
+function Movement.refreshSpeed(state: Types.PlayerState)
 	applySpeed(state)
 end
 
@@ -332,6 +338,7 @@ function Movement.dash(state: Types.PlayerState, now: number): boolean
 		or now < state.DashReadyAt
 		or now < state.ReadyAt
 		or now < state.CorrectionUntil
+		or now < (state.MagicRushUntil or 0)
 	then
 		return false
 	end
@@ -342,6 +349,23 @@ function Movement.dash(state: Types.PlayerState, now: number): boolean
 	state.DashCheckUntil = state.DashUntil + Config.DashReplicationGrace
 	state.DashAllowance += Config.DashDistance
 	return true
+end
+
+-- Whether a magic Rush may start now (not during a correction or another rush).
+function Movement.canMagicRush(state: Types.PlayerState, now: number): boolean
+	return now >= state.CorrectionUntil and now >= (state.MagicRushUntil or 0) and now >= state.SpawnGraceUntil
+end
+
+-- A magic Rush (Dash or Blink) is moved by the server, which owns the root
+-- meanwhile: the speed and dash checks stand down until it ends plus the
+-- replication grace, and any predicted dash is dropped. The character
+-- attribute tells the client to stop predicting (MovementController).
+function Movement.magicRush(state: Types.PlayerState, untilTime: number)
+	state.MagicRushUntil = untilTime + Config.DashReplicationGrace
+	state.DashOrigin = nil
+	state.DashUntil = 0
+	state.DashAllowance = 0
+	state.Character:SetAttribute("MagicRushUntil", untilTime)
 end
 
 local function correct(state: Types.PlayerState, position: Vector3, now: number, player: Player, feedback: RemoteEvent)
@@ -370,6 +394,13 @@ function Movement.update(player: Player, state: Types.PlayerState, now: number, 
 		if state.DashOrigin then
 			state.DashOrigin = state.Root.Position
 		end
+		return true
+	end
+	if now < (state.MagicRushUntil or 0) then
+		-- The server is moving this root (magic Rush): follow it, check nothing.
+		state.LastPosition = state.Root.Position
+		state.LastFramePosition = state.Root.Position
+		state.LastCheck = now
 		return true
 	end
 	if state.CorrectionUntil > 0 then

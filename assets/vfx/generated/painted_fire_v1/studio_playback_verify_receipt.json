@@ -1,0 +1,9 @@
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "{\"Before\":{\"CurrentFrame\":1,\"FrameUpdates\":201,\"LoadedImages\":4,\"CompletedLoops\":25},\"After\":{\"CurrentFrame\":3,\"FrameUpdates\":219,\"LoadedImages\":4,\"CompletedLoops\":27},\"Images\":[{\"Offset\":[512,0],\"Image\":\"rbxassetid://81011468551955\",\"Name\":\"FRONT\",\"IsLoaded\":true},{\"Offset\":[512,0],\"Image\":\"rbxassetid://81316819745490\",\"Name\":\"THREE QUARTER\",\"IsLoaded\":true},{\"Offset\":[512,0],\"Image\":\"rbxassetid://97561699384624\",\"Name\":\"TRUE SIDE\",\"IsLoaded\":true},{\"Offset\":[512,0],\"Image\":\"rbxassetid://92127109486544\",\"Name\":\"REAR\",\"IsLoaded\":true}],\"IsClient\":true,\"PlaceId\":0}"
+    }
+  ],
+  "isError": false
+}

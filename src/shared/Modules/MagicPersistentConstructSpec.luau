@@ -1,5 +1,7 @@
 -- Versioned, DataStore-safe records for static world-persistent Constructs.
-local Spec = { Version = 1, MaxRecords = 128, MaxPerOwner = 8, MaxComponents = 5 }
+-- MaxHealth mirrors MagicLab.MaxConstructHealth (parity-checked). Health and
+-- MaxHealth are optional, so version 1 records without them stay valid.
+local Spec = { Version = 1, MaxRecords = 128, MaxPerOwner = 8, MaxComponents = 5, MaxHealth = 500 }
 
 local shapes = { Block = true, Ball = true, Cylinder = true, Wedge = true }
 local materials = { Auto = true, Neon = true, ForceField = true, Glass = true, SmoothPlastic = true, Slate = true }
@@ -48,6 +50,8 @@ function Spec.validateRecord(record)
 			RotationDegrees = true,
 			Components = true,
 			Visual = true,
+			Health = true,
+			MaxHealth = true,
 		})
 		or type(record.Id) ~= "string"
 		or #record.Id < 8
@@ -62,6 +66,18 @@ function Spec.validateRecord(record)
 		or not vector(record.RotationDegrees, -180, 180)
 	then
 		return false, "Persistent Construct identity or transform is invalid"
+	end
+	if record.MaxHealth ~= nil or record.Health ~= nil then
+		if
+			not finite(record.MaxHealth)
+			or record.MaxHealth < 1
+			or record.MaxHealth > Spec.MaxHealth
+			or not finite(record.Health)
+			or record.Health <= 0
+			or record.Health > record.MaxHealth
+		then
+			return false, "Persistent Construct health is invalid"
+		end
 	end
 	local components = record.Components
 	if type(components) ~= "table" or #components < 1 or #components > Spec.MaxComponents then
@@ -114,6 +130,23 @@ function Spec.validateRecord(record)
 		return false, "Persistent Construct presentation is invalid"
 	end
 	return true
+end
+
+-- Writes remaining health into a decoded profile: updates[id] = health.
+-- Destroyed (<= 0) or unknown ids are skipped; returns how many changed.
+function Spec.applyHealth(profile, updates)
+	local changed = 0
+	for _, record in ipairs(profile.Records) do
+		local health = updates[record.Id]
+		if record.MaxHealth and finite(health) and health > 0 then
+			local clamped = math.min(health, record.MaxHealth)
+			if clamped ~= record.Health then
+				record.Health = clamped
+				changed = changed + 1
+			end
+		end
+	end
+	return changed
 end
 
 function Spec.emptyProfile()

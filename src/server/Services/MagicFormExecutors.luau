@@ -29,6 +29,14 @@ Forms.Executors = {
 	Manipulation = function(definition: any, context: any)
 		context.ApplyManipulation(definition)
 	end,
+	-- Dash or Blink the caster along the aim (MagicService.ExecuteRush).
+	Rush = function(definition: any, context: any)
+		context.ExecuteRush(definition)
+	end,
+	-- Link two characters (MagicService.CreateTether).
+	Tether = function(definition: any, context: any)
+		context.CreateTether(definition)
+	end,
 }
 
 function Forms.execute(form: string, definition: any, context: any): boolean

@@ -1,0 +1,2 @@
+# The VFX audit hashes these generator scripts byte for byte, so keep LF on every platform
+tools/vfx_pipeline/*.py text eol=lf

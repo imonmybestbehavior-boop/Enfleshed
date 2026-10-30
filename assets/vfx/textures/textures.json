@@ -1,0 +1,641 @@
+{
+  "acid_splat": {
+    "fallback": "Smoke",
+    "file": "acid_splat.png",
+    "height": 1024,
+    "layout": "Grid4x4",
+    "tiles": false,
+    "usage": "16-frame OneShot viscous splat: blob flattens, flings ropy droplets, then sizzles away; poison impacts.",
+    "width": 1024
+  },
+  "arc_flicker": {
+    "fallback": "Sparkle",
+    "file": "arc_flicker.png",
+    "height": 1024,
+    "layout": "Grid4x4",
+    "tiles": false,
+    "usage": "16 distinct crackling arc clusters (random-start Loop at high framerate); lightning motes, auras.",
+    "width": 1024
+  },
+  "arcane_burst": {
+    "fallback": "Sparkle",
+    "file": "arcane_burst.png",
+    "height": 1024,
+    "layout": "Grid4x4",
+    "tiles": false,
+    "usage": "16-frame OneShot: hexagram flash, expanding polygon rings and glyph shards flung out; arcane impacts.",
+    "width": 1024
+  },
+  "arcane_glyphs": {
+    "fallback": "Sparkle",
+    "file": "arcane_glyphs.png",
+    "height": 1024,
+    "layout": "Grid4x4",
+    "tiles": false,
+    "usage": "16 distinct angular runes (random-start flipbook, Framerate 0) for arcane motes and orbiting glyphs.",
+    "width": 1024
+  },
+  "arcane_orb": {
+    "fallback": "Sparkle",
+    "file": "arcane_orb.png",
+    "height": 1024,
+    "layout": "Grid4x4",
+    "tiles": false,
+    "usage": "Looping 16-frame geometric core: counter-rotating nested polygons and a star around a bright eye.",
+    "width": 1024
+  },
+  "beam_energy": {
+    "fallback": "Sparkle",
+    "file": "beam_energy.png",
+    "height": 128,
+    "layout": null,
+    "tiles": true,
+    "usage": "U-tiling filament energy for Beams; scroll with TextureSpeed.",
+    "width": 512
+  },
+  "bolt_strip": {
+    "fallback": "Sparkle",
+    "file": "bolt_strip.png",
+    "height": 128,
+    "layout": null,
+    "tiles": true,
+    "usage": "U-tiling forked lightning channel with glow; Beams/Trails (animate TextureSpeed for crawl).",
+    "width": 1024
+  },
+  "caustics": {
+    "fallback": "Sparkle",
+    "file": "caustics.png",
+    "height": 512,
+    "layout": null,
+    "tiles": true,
+    "usage": "Tiling underwater caustic light network; water fields/ground overlays (scroll or rotate).",
+    "width": 512
+  },
+  "clock_dial": {
+    "fallback": "Sparkle",
+    "file": "clock_dial.png",
+    "height": 1024,
+    "layout": null,
+    "tiles": false,
+    "usage": "Ground decal: broken clock face with 12 hour marks, minute ticks, numeral glyphs and two hands; time fields.",
+    "width": 1024
+  },
+  "core_plasma": {
+    "fallback": "Sparkle",
+    "file": "core_plasma.png",
+    "height": 1024,
+    "layout": "Grid4x4",
+    "tiles": false,
+    "usage": "Looping 16-frame turbulent energy core; projectile hearts, charge points.",
+    "width": 1024
+  },
+  "debris_chip": {
+    "fallback": "Sparkle",
+    "file": "debris_chip.png",
+    "height": 128,
+    "layout": null,
+    "tiles": false,
+    "usage": "Angular dark fragment silhouette with a hot rim.",
+    "width": 128
+  },
+  "drip_trail": {
+    "fallback": "Smoke",
+    "file": "drip_trail.png",
+    "height": 128,
+    "layout": null,
+    "tiles": true,
+    "usage": "U-tiling viscous ribbon with hanging drips along the lower edge; poison trails.",
+    "width": 512
+  },
+  "droplet": {
+    "fallback": "Sparkle",
+    "file": "droplet.png",
+    "height": 128,
+    "layout": null,
+    "tiles": false,
+    "usage": "Teardrop water droplet with specular highlight; VelocityParallel spray.",
+    "width": 128
+  },
+  "dust_burst": {
+    "fallback": "Smoke",
+    "file": "dust_burst.png",
+    "height": 512,
+    "layout": null,
+    "tiles": false,
+    "usage": "Heavy grit cloud with clumped edges; ground kick-up for body impacts.",
+    "width": 512
+  },
+  "dust_plume": {
+    "fallback": "Smoke",
+    "file": "dust_plume.png",
+    "height": 1024,
+    "layout": "Grid4x4",
+    "tiles": false,
+    "usage": "16-frame OneShot heavy dust plume rising and spreading (bottom-anchored); earth casts, slams.",
+    "width": 1024
+  },
+  "earth_fissure": {
+    "fallback": "Smoke",
+    "file": "earth_fissure.png",
+    "height": 1024,
+    "layout": null,
+    "tiles": false,
+    "usage": "Ground decal: radial fissures splitting from an impact point with broken slab edges; earth fields/impacts.",
+    "width": 1024
+  },
+  "ember_streak": {
+    "fallback": "Sparkle",
+    "file": "ember_streak.png",
+    "height": 128,
+    "layout": null,
+    "tiles": false,
+    "usage": "Hot elongated spark; set Orientation=VelocityParallel.",
+    "width": 128
+  },
+  "explosion_fire": {
+    "fallback": "Fire",
+    "file": "explosion_fire.png",
+    "height": 1024,
+    "layout": "Grid8x8",
+    "tiles": false,
+    "usage": "64-frame OneShot fire burst: flash -> lobed fireball -> rolling smoke -> gone.",
+    "width": 1024
+  },
+  "flame_tongue": {
+    "fallback": "Fire",
+    "file": "flame_tongue.png",
+    "height": 1024,
+    "layout": "Grid4x4",
+    "tiles": false,
+    "usage": "Looping 16-frame irregular flame silhouette; flame shells, fire trails, fields.",
+    "width": 1024
+  },
+  "flame_wisp": {
+    "fallback": "Fire",
+    "file": "flame_wisp.png",
+    "height": 512,
+    "layout": null,
+    "tiles": false,
+    "usage": "Single static leaning flame lick; sparse secondary flames.",
+    "width": 512
+  },
+  "force_streak": {
+    "fallback": "Sparkle",
+    "file": "force_streak.png",
+    "height": 128,
+    "layout": null,
+    "tiles": true,
+    "usage": "U-tiling speed lines for Trails/Beams on force and movement magic.",
+    "width": 512
+  },
+  "frost_crack": {
+    "fallback": "Smoke",
+    "file": "frost_crack.png",
+    "height": 1024,
+    "layout": null,
+    "tiles": false,
+    "usage": "Ground decal: branching frozen crack network with feathered frost, radial falloff; ice fields.",
+    "width": 1024
+  },
+  "frost_mist": {
+    "fallback": "Smoke",
+    "file": "frost_mist.png",
+    "height": 1024,
+    "layout": "Grid4x4",
+    "tiles": false,
+    "usage": "Looping 16-frame curling cold fog with crystalline streaks; ice auras, fields, trails.",
+    "width": 1024
+  },
+  "gear_mote": {
+    "fallback": "Sparkle",
+    "file": "gear_mote.png",
+    "height": 256,
+    "layout": null,
+    "tiles": false,
+    "usage": "Spoked cog wheel; time/clockwork motes and mechanical accents.",
+    "width": 256
+  },
+  "ghost_trail": {
+    "fallback": "Smoke",
+    "file": "ghost_trail.png",
+    "height": 128,
+    "layout": null,
+    "tiles": true,
+    "usage": "U-tiling tattered spectral ribbon with torn holes and trailing wisps; spirit trails, tethers.",
+    "width": 512
+  },
+  "glow_soft": {
+    "fallback": "Sparkle",
+    "file": "glow_soft.png",
+    "height": 256,
+    "layout": null,
+    "tiles": false,
+    "usage": "Soft energy bloom; core halos and charge glow.",
+    "width": 256
+  },
+  "glyph_chain": {
+    "fallback": "Sparkle",
+    "file": "glyph_chain.png",
+    "height": 128,
+    "layout": null,
+    "tiles": true,
+    "usage": "U-tiling chain of runes between two rails; arcane beams, trails, binding tethers.",
+    "width": 1024
+  },
+  "gust_strokes": {
+    "fallback": "Sparkle",
+    "file": "gust_strokes.png",
+    "height": 128,
+    "layout": null,
+    "tiles": true,
+    "usage": "U-tiling curved brush-stroke gusts with hooked ends; wind trails and beams.",
+    "width": 512
+  },
+  "heat_haze": {
+    "fallback": "Smoke",
+    "file": "heat_haze.png",
+    "height": 256,
+    "layout": null,
+    "tiles": true,
+    "usage": "Very low-contrast shimmer noise; faked distortion via low-opacity overlay.",
+    "width": 256
+  },
+  "hex_seal": {
+    "fallback": "Sparkle",
+    "file": "hex_seal.png",
+    "height": 1024,
+    "layout": null,
+    "tiles": false,
+    "usage": "Ground decal: hexagonal ward seal, spoked lattice and corner glyphs; arcane fields, wards, shields.",
+    "width": 1024
+  },
+  "hourglass_mote": {
+    "fallback": "Sparkle",
+    "file": "hourglass_mote.png",
+    "height": 256,
+    "layout": null,
+    "tiles": false,
+    "usage": "Hourglass icon with falling sand; time motes, slow/haste marks.",
+    "width": 256
+  },
+  "ice_glint": {
+    "fallback": "Sparkle",
+    "file": "ice_glint.png",
+    "height": 256,
+    "layout": null,
+    "tiles": false,
+    "usage": "Six-point crystalline glint with diffraction spikes; frost motes.",
+    "width": 256
+  },
+  "ice_shatter": {
+    "fallback": "Sparkle",
+    "file": "ice_shatter.png",
+    "height": 1024,
+    "layout": "Grid4x4",
+    "tiles": false,
+    "usage": "16-frame OneShot burst of angular ice shards flying out and fading; ice impacts.",
+    "width": 1024
+  },
+  "ice_trail": {
+    "fallback": "Sparkle",
+    "file": "ice_trail.png",
+    "height": 128,
+    "layout": null,
+    "tiles": true,
+    "usage": "U-tiling crystalline streak with faceted shards along the edge; ice trails and beams.",
+    "width": 512
+  },
+  "impact_frame": {
+    "fallback": "Sparkle",
+    "file": "impact_frame.png",
+    "height": 512,
+    "layout": null,
+    "tiles": false,
+    "usage": "Single-frame stylized impact: jagged star-burst with ink speed wedges, for 1-2 frame hit flashes.",
+    "width": 512
+  },
+  "impact_star": {
+    "fallback": "Sparkle",
+    "file": "impact_star.png",
+    "height": 512,
+    "layout": null,
+    "tiles": false,
+    "usage": "Irregular radial flash for the first frames of an impact.",
+    "width": 512
+  },
+  "kinetic_burst": {
+    "fallback": "Sparkle",
+    "file": "kinetic_burst.png",
+    "height": 1024,
+    "layout": "Grid4x4",
+    "tiles": false,
+    "usage": "16-frame OneShot: hard concentric shock rings with radial speed lines punching outward; force impacts.",
+    "width": 1024
+  },
+  "leaf_scrap": {
+    "fallback": "Sparkle",
+    "file": "leaf_scrap.png",
+    "height": 256,
+    "layout": "Grid2x2",
+    "tiles": false,
+    "usage": "4 torn leaf/ash scraps (random-start flipbook) for debris caught in wind.",
+    "width": 256
+  },
+  "miasma": {
+    "fallback": "Smoke",
+    "file": "miasma.png",
+    "height": 1024,
+    "layout": "Grid4x4",
+    "tiles": false,
+    "usage": "Looping 16-frame lumpy toxic gas with dripping tendrils and dark pockets; poison clouds/fields.",
+    "width": 1024
+  },
+  "plasma_orb": {
+    "fallback": "Sparkle",
+    "file": "plasma_orb.png",
+    "height": 1024,
+    "layout": "Grid4x4",
+    "tiles": false,
+    "usage": "Looping 16-frame ball of writhing electric filaments with hot center; lightning cores.",
+    "width": 1024
+  },
+  "portal_rings": {
+    "fallback": "Sparkle",
+    "file": "portal_rings.png",
+    "height": 1024,
+    "layout": null,
+    "tiles": false,
+    "usage": "Ground/portal decal: warped concentric rings around a void centre with orbiting stars; space fields.",
+    "width": 1024
+  },
+  "pressure_wave": {
+    "fallback": "Sparkle",
+    "file": "pressure_wave.png",
+    "height": 1024,
+    "layout": "Grid4x4",
+    "tiles": false,
+    "usage": "16-frame OneShot directional pressure crescent; compressed air front for force magic.",
+    "width": 1024
+  },
+  "rift_tear": {
+    "fallback": "Sparkle",
+    "file": "rift_tear.png",
+    "height": 1024,
+    "layout": "Grid4x4",
+    "tiles": false,
+    "usage": "16-frame OneShot jagged tear in space: splits open on a void, holds, seals shut; space casts/portals.",
+    "width": 1024
+  },
+  "ripple_ring": {
+    "fallback": "Sparkle",
+    "file": "ripple_ring.png",
+    "height": 1024,
+    "layout": "Grid4x4",
+    "tiles": false,
+    "usage": "16-frame OneShot concentric ripples expanding and fading; flat (ground-facing) water impacts/fields.",
+    "width": 1024
+  },
+  "rock_burst": {
+    "fallback": "Smoke",
+    "file": "rock_burst.png",
+    "height": 1024,
+    "layout": "Grid4x4",
+    "tiles": false,
+    "usage": "16-frame OneShot: faceted rock chunks blast outward and arc down with a grit cloud; earth impacts.",
+    "width": 1024
+  },
+  "rubble_trail": {
+    "fallback": "Smoke",
+    "file": "rubble_trail.png",
+    "height": 128,
+    "layout": null,
+    "tiles": true,
+    "usage": "U-tiling dragged grit and pebbles with a dust band; earth trails, ground-skimming projectiles.",
+    "width": 512
+  },
+  "rune_circle": {
+    "fallback": "Sparkle",
+    "file": "rune_circle.png",
+    "height": 1024,
+    "layout": null,
+    "tiles": false,
+    "usage": "Industrial sigil: geared outer ring, angular glyph band, inner lattice. Ground casting circles.",
+    "width": 1024
+  },
+  "sand_trail": {
+    "fallback": "Smoke",
+    "file": "sand_trail.png",
+    "height": 128,
+    "layout": null,
+    "tiles": true,
+    "usage": "U-tiling stream of drifting sand grains thinning at the edges; time trails, decay.",
+    "width": 512
+  },
+  "scorch_lichtenberg": {
+    "fallback": "Smoke",
+    "file": "scorch_lichtenberg.png",
+    "height": 1024,
+    "layout": null,
+    "tiles": false,
+    "usage": "Ground decal: branching Lichtenberg burn figure with charred core; lightning strikes/fields.",
+    "width": 1024
+  },
+  "shard_trail": {
+    "fallback": "Sparkle",
+    "file": "shard_trail.png",
+    "height": 128,
+    "layout": null,
+    "tiles": true,
+    "usage": "U-tiling stream of broken-glass reality shards with void gaps; space trails, folds.",
+    "width": 512
+  },
+  "shockwave_ring": {
+    "fallback": "Sparkle",
+    "file": "shockwave_ring.png",
+    "height": 512,
+    "layout": null,
+    "tiles": false,
+    "usage": "Thin ragged ring with inner falloff; flat ring billboards and impact fronts.",
+    "width": 512
+  },
+  "sinew_trail": {
+    "fallback": "Sparkle",
+    "file": "sinew_trail.png",
+    "height": 128,
+    "layout": null,
+    "tiles": true,
+    "usage": "U-tiling twisting fibrous strands; organic/body trails and tethers.",
+    "width": 512
+  },
+  "skull_mote": {
+    "fallback": "Sparkle",
+    "file": "skull_mote.png",
+    "height": 256,
+    "layout": null,
+    "tiles": false,
+    "usage": "Stylized horned skull icon; spirit motes, curse marks, death accents.",
+    "width": 256
+  },
+  "slash_arc": {
+    "fallback": "Sparkle",
+    "file": "slash_arc.png",
+    "height": 512,
+    "layout": null,
+    "tiles": false,
+    "usage": "Crescent slash with tapered tips and fibrous streaks.",
+    "width": 512
+  },
+  "smoke_billow": {
+    "fallback": "Smoke",
+    "file": "smoke_billow.png",
+    "height": 1024,
+    "layout": "Grid4x4",
+    "tiles": false,
+    "usage": "16-frame OneShot smoke puff that billows then thins; impact smoke, dissipation.",
+    "width": 1024
+  },
+  "soul_burst": {
+    "fallback": "Smoke",
+    "file": "soul_burst.png",
+    "height": 1024,
+    "layout": "Grid4x4",
+    "tiles": false,
+    "usage": "16-frame OneShot: hollow-eyed wisps tear outward from a dark core and dissolve; spirit impacts.",
+    "width": 1024
+  },
+  "soul_sigil": {
+    "fallback": "Sparkle",
+    "file": "soul_sigil.png",
+    "height": 1024,
+    "layout": null,
+    "tiles": false,
+    "usage": "Ground decal: sunken eye within thorned rings and spectral script; spirit fields, curses, summons.",
+    "width": 1024
+  },
+  "soul_wisp": {
+    "fallback": "Fire",
+    "file": "soul_wisp.png",
+    "height": 1024,
+    "layout": "Grid4x4",
+    "tiles": false,
+    "usage": "Looping 16-frame wailing ghost wisp: tattered rising flame shape with two hollow eyes and a mouth.",
+    "width": 1024
+  },
+  "spark_burst": {
+    "fallback": "Sparkle",
+    "file": "spark_burst.png",
+    "height": 1024,
+    "layout": "Grid4x4",
+    "tiles": false,
+    "usage": "16-frame OneShot electrical discharge: white flash, radial forks racing out, flicker off.",
+    "width": 1024
+  },
+  "star_mote": {
+    "fallback": "Sparkle",
+    "file": "star_mote.png",
+    "height": 128,
+    "layout": null,
+    "tiles": false,
+    "usage": "Four-point star with long vertical spike; space motes, void sparkle.",
+    "width": 128
+  },
+  "time_ripple": {
+    "fallback": "Sparkle",
+    "file": "time_ripple.png",
+    "height": 1024,
+    "layout": "Grid4x4",
+    "tiles": false,
+    "usage": "Looping 16-frame ticking ring: notched dial ring rotates in steps with trailing afterimages; time auras.",
+    "width": 1024
+  },
+  "toxic_bubble": {
+    "fallback": "Sparkle",
+    "file": "toxic_bubble.png",
+    "height": 256,
+    "layout": null,
+    "tiles": false,
+    "usage": "Thick-rimmed bubble with crescent highlight and dark inner pool; poison motes, boiling fields.",
+    "width": 256
+  },
+  "toxic_pool": {
+    "fallback": "Smoke",
+    "file": "toxic_pool.png",
+    "height": 1024,
+    "layout": null,
+    "tiles": false,
+    "usage": "Ground decal: irregular bubbling toxic pool with splatter rim and burst-bubble rings; poison fields.",
+    "width": 1024
+  },
+  "trail_flame": {
+    "fallback": "Fire",
+    "file": "trail_flame.png",
+    "height": 128,
+    "layout": null,
+    "tiles": true,
+    "usage": "U-tiling ragged flame streak for Trails (TextureMode Wrap/Stretch).",
+    "width": 512
+  },
+  "void_orb": {
+    "fallback": "Sparkle",
+    "file": "void_orb.png",
+    "height": 1024,
+    "layout": "Grid4x4",
+    "tiles": false,
+    "usage": "Looping 16-frame black hole: dark core, bright lensed ring and spiralling accretion streaks.",
+    "width": 1024
+  },
+  "ward_hex": {
+    "fallback": "Sparkle",
+    "file": "ward_hex.png",
+    "height": 512,
+    "layout": null,
+    "tiles": true,
+    "usage": "Tiling hexagonal barrier lattice with bright cell edges; shields, wards, force fields (MeshPart/Beam).",
+    "width": 512
+  },
+  "warp_implode": {
+    "fallback": "Sparkle",
+    "file": "warp_implode.png",
+    "height": 1024,
+    "layout": "Grid4x4",
+    "tiles": false,
+    "usage": "16-frame OneShot: rings and debris streaks collapse inward to a point, then a sharp pop; teleports.",
+    "width": 1024
+  },
+  "water_orb": {
+    "fallback": "Sparkle",
+    "file": "water_orb.png",
+    "height": 1024,
+    "layout": "Grid4x4",
+    "tiles": false,
+    "usage": "Looping 16-frame sphere of churning water with caustic highlights and bright rim; water cores.",
+    "width": 1024
+  },
+  "water_splash": {
+    "fallback": "Smoke",
+    "file": "water_splash.png",
+    "height": 1024,
+    "layout": "Grid4x4",
+    "tiles": false,
+    "usage": "16-frame OneShot crown splash: sheet rises, breaks into droplets, falls; water impacts.",
+    "width": 1024
+  },
+  "water_trail": {
+    "fallback": "Smoke",
+    "file": "water_trail.png",
+    "height": 128,
+    "layout": null,
+    "tiles": true,
+    "usage": "U-tiling flowing water ribbon with foam edges and streaks; water trails/beams.",
+    "width": 512
+  },
+  "wind_swirl": {
+    "fallback": "Sparkle",
+    "file": "wind_swirl.png",
+    "height": 1024,
+    "layout": "Grid4x4",
+    "tiles": false,
+    "usage": "Looping 16-frame spiral of tapered gust strokes; wind cores, cyclones, auras.",
+    "width": 1024
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "name":"Cel & Brush — existing asset restyle",
+  "scope":"Material and palette variants of the current library; no new geometry, motifs, spell forms or animation frames",
+  "palette_order":["Shadow","Body","Light","Accent","Ink"],
+  "texture_thresholds":[0.12,0.52,0.86,0.97],
+  "soft_assets":["glow_soft","heat_haze"],
+  "line_assets":["rune_circle","frost_crack","scorch_lichtenberg","caustics","earth_fissure","hex_seal","ward_hex","soul_sigil","clock_dial","portal_rings"],
+  "review_runtime":{"Saturation":1.04,"Value":1.0,"LightInfluence":0.25,"Brightness":1.0,"InkScale":0.0,"Material":"SmoothPlastic"},
+  "principles":["Clear flat color masses and asymmetric existing silhouettes","Warm restrained highlights and hue-shifted shadows","Colored contour ink; no extra paper noise, symbols or outlines added to source alpha","Existing soft utility assets keep continuous falloff","No additive glow in the comparison; scene-lighting verification is a later Studio step"],
+  "palettes":{
+    "Fire":[[153,41,22],[249,103,27],[255,202,66],[255,237,170],[61,27,27]],
+    "Ice":[[36,73,110],[88,165,202],[166,221,227],[239,244,219],[25,43,61]],
+    "Lightning":[[70,49,104],[161,124,210],[230,190,242],[255,244,204],[35,27,54]],
+    "Water":[[28,64,98],[39,133,173],[99,197,211],[224,241,219],[19,36,52]],
+    "Earth":[[72,51,43],[156,107,68],[210,163,104],[245,222,167],[37,29,29]],
+    "Wind":[[37,76,71],[108,178,142],[184,223,171],[243,244,212],[23,42,40]],
+    "Poison":[[51,67,34],[113,158,54],[185,211,79],[239,232,161],[30,37,24]],
+    "Arcane":[[69,44,92],[148,94,181],[209,155,218],[250,225,203],[34,23,44]],
+    "Force":[[45,65,80],[126,168,179],[198,222,214],[246,239,210],[27,35,44]],
+    "Body":[[70,40,47],[160,91,90],[219,164,140],[246,221,184],[39,25,32]],
+    "Spirit":[[19,62,70],[70,184,164],[157,225,199],[232,244,214],[17,38,42]],
+    "Space":[[29,31,69],[95,73,151],[171,137,210],[233,215,225],[20,21,41]],
+    "Time":[[78,54,35],[172,124,55],[227,187,95],[250,233,182],[39,30,27]]
+  }
+}

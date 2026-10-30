@@ -1,0 +1,1184 @@
+{
+  "policy": "Reuse first. Rebuild only after a specific failed shape/motion requirement is recorded.",
+  "assets": [
+    {
+      "name": "arcane_prism",
+      "kind": "mesh",
+      "path": "assets/vfx/meshes/arcane_prism.glb",
+      "sha256": "0192c00658f03c69d50d5d2478b1df7aebc16169e120c766c53ccbff5703df21",
+      "proposal": "Reuse shape; review material bands and contour weight",
+      "usage": "Elongated faceted octahedral crystal (height 2) for floating arcane cores and orbiting shards.",
+      "acceptance": "Reuse candidate; not a fresh visual or Studio fetch approval"
+    },
+    {
+      "name": "arcane_prism_ink",
+      "kind": "mesh",
+      "path": "assets/vfx/meshes/arcane_prism_ink.glb",
+      "sha256": "29f9a2aa112c7f614ec1ddee8251aa20c70bb26877990ece336a0d0da906a49c",
+      "proposal": "Reuse shape; review material bands and contour weight",
+      "usage": "Inverted-hull ink outline for arcane_prism (render black, same CFrame/size x1.0).",
+      "acceptance": "Reuse candidate; not a fresh visual or Studio fetch approval"
+    },
+    {
+      "name": "chain_link",
+      "kind": "mesh",
+      "path": "assets/vfx/meshes/chain_link.glb",
+      "sha256": "7baa2ba4b76fbc39e609e65b61b7618e427e6f13edb3c9a8cb5da9c7d30721e3",
+      "proposal": "Reuse shape; review material bands and contour weight",
+      "usage": "Single chunky chain link (length 1, open centre); binding, control and tether chains.",
+      "acceptance": "Reuse candidate; not a fresh visual or Studio fetch approval"
+    },
+    {
+      "name": "chain_link_ink",
+      "kind": "mesh",
+      "path": "assets/vfx/meshes/chain_link_ink.glb",
+      "sha256": "461509fb93a7b2b0430fdb8309c6d6603114821ec7da291113b01c7d8f4fa7ed",
+      "proposal": "Reuse shape; review material bands and contour weight",
+      "usage": "Inverted-hull ink outline for chain_link (render black, same CFrame/size x1.0).",
+      "acceptance": "Reuse candidate; not a fresh visual or Studio fetch approval"
+    },
+    {
+      "name": "chrono_gear",
+      "kind": "mesh",
+      "path": "assets/vfx/meshes/chrono_gear.glb",
+      "sha256": "1a3adef49f993d18df486f5bffe46fa3728f1dc9a90bc026f70f0cdb2550d22f",
+      "proposal": "Reuse shape; review material bands and contour weight",
+      "usage": "Thick toothed gear (radius 1, flat on XZ) with spokes; time constructs, clockwork auras.",
+      "acceptance": "Reuse candidate; not a fresh visual or Studio fetch approval"
+    },
+    {
+      "name": "chrono_gear_ink",
+      "kind": "mesh",
+      "path": "assets/vfx/meshes/chrono_gear_ink.glb",
+      "sha256": "cd951a75cf96bb8653441f5ad5333ca73e759fa3457799311c07b068e98f6327",
+      "proposal": "Reuse shape; review material bands and contour weight",
+      "usage": "Inverted-hull ink outline for chrono_gear (render black, same CFrame/size x1.0).",
+      "acceptance": "Reuse candidate; not a fresh visual or Studio fetch approval"
+    },
+    {
+      "name": "comet_spike",
+      "kind": "mesh",
+      "path": "assets/vfx/meshes/comet_spike.glb",
+      "sha256": "f7fd964a6ad7f5680b2d744aed424b083894a37322ec101544f699265c0d6c2d",
+      "proposal": "Reuse shape; review material bands and contour weight",
+      "usage": "Projectile silhouette: blunt head, finned body tapering to a long tail (+Z).",
+      "acceptance": "Reuse candidate; not a fresh visual or Studio fetch approval"
+    },
+    {
+      "name": "comet_spike_ink",
+      "kind": "mesh",
+      "path": "assets/vfx/meshes/comet_spike_ink.glb",
+      "sha256": "0691e39a94cfea56e819499ed02fedb07f07e4ccfb9f45231837470ce2f648d6",
+      "proposal": "Reuse shape; review material bands and contour weight",
+      "usage": "Inverted-hull ink outline for comet_spike (render black, same CFrame/size x1.0).",
+      "acceptance": "Reuse candidate; not a fresh visual or Studio fetch approval"
+    },
+    {
+      "name": "debris_rock_a",
+      "kind": "mesh",
+      "path": "assets/vfx/meshes/debris_rock_a.glb",
+      "sha256": "fd2dd5961b1797dd7ec594fe4282dddb6cc4a829d46978c8e6690a4035e73ac9",
+      "proposal": "Reuse shape; review material bands and contour weight",
+      "usage": "Fractured faceted rock chunk (3 variants: _a _b _c); impact debris.",
+      "acceptance": "Reuse candidate; not a fresh visual or Studio fetch approval"
+    },
+    {
+      "name": "debris_rock_a_ink",
+      "kind": "mesh",
+      "path": "assets/vfx/meshes/debris_rock_a_ink.glb",
+      "sha256": "1c7bee488a7b91520ce3c2987d0e87915a143076735922e1443ae6e513fbb84e",
+      "proposal": "Reuse shape; review material bands and contour weight",
+      "usage": "Inverted-hull ink outline for debris_rock_a (render black, same CFrame/size x1.0).",
+      "acceptance": "Reuse candidate; not a fresh visual or Studio fetch approval"
+    },
+    {
+      "name": "debris_rock_b",
+      "kind": "mesh",
+      "path": "assets/vfx/meshes/debris_rock_b.glb",
+      "sha256": "cd25b22e2fcf6506c3889471a82662c60c34573b09d60dc42415e0ed9c8ed6f3",
+      "proposal": "Reuse shape; review material bands and contour weight",
+      "usage": "Fractured faceted rock chunk (3 variants: _a _b _c); impact debris.",
+      "acceptance": "Reuse candidate; not a fresh visual or Studio fetch approval"
+    },
+    {
+      "name": "debris_rock_b_ink",
+      "kind": "mesh",
+      "path": "assets/vfx/meshes/debris_rock_b_ink.glb",
+      "sha256": "1a639c5f7f952ea128febb28f51e6e0c45999df7ee53c9a3bef153a4c3dc70e9",
+      "proposal": "Reuse shape; review material bands and contour weight",
+      "usage": "Inverted-hull ink outline for debris_rock_b (render black, same CFrame/size x1.0).",
+      "acceptance": "Reuse candidate; not a fresh visual or Studio fetch approval"
+    },
+    {
+      "name": "debris_rock_c",
+      "kind": "mesh",
+      "path": "assets/vfx/meshes/debris_rock_c.glb",
+      "sha256": "3cbbb46426dd1bd6c21c9b03398a23e28828b02dcb19a4e8d6ea7b0c3e33c434",
+      "proposal": "Reuse shape; review material bands and contour weight",
+      "usage": "Fractured faceted rock chunk (3 variants: _a _b _c); impact debris.",
+      "acceptance": "Reuse candidate; not a fresh visual or Studio fetch approval"
+    },
+    {
+      "name": "debris_rock_c_ink",
+      "kind": "mesh",
+      "path": "assets/vfx/meshes/debris_rock_c_ink.glb",
+      "sha256": "7f57ba5eab629708719479358bead63c4949d6cc78f05b62f97d769a3220aa19",
+      "proposal": "Reuse shape; review material bands and contour weight",
+      "usage": "Inverted-hull ink outline for debris_rock_c (render black, same CFrame/size x1.0).",
+      "acceptance": "Reuse candidate; not a fresh visual or Studio fetch approval"
+    },
+    {
+      "name": "earth_boulder",
+      "kind": "mesh",
+      "path": "assets/vfx/meshes/earth_boulder.glb",
+      "sha256": "ef618599014a2f170871956ebc99b52f41db94b209d7ac2a6fc93db3efe046b6",
+      "proposal": "Reuse shape; review material bands and contour weight",
+      "usage": "Chunky faceted boulder (~1.6 studs) with flat fracture planes; thrown rocks, meteors.",
+      "acceptance": "Reuse candidate; not a fresh visual or Studio fetch approval"
+    },
+    {
+      "name": "earth_boulder_ink",
+      "kind": "mesh",
+      "path": "assets/vfx/meshes/earth_boulder_ink.glb",
+      "sha256": "152d1bcb06a4311ed9094541a47e3ab0ca2898b240d2836d560e6899a487c21d",
+      "proposal": "Reuse shape; review material bands and contour weight",
+      "usage": "Inverted-hull ink outline for earth_boulder (render black, same CFrame/size x1.0).",
+      "acceptance": "Reuse candidate; not a fresh visual or Studio fetch approval"
+    },
+    {
+      "name": "earth_slab",
+      "kind": "mesh",
+      "path": "assets/vfx/meshes/earth_slab.glb",
+      "sha256": "ca5f778f7dbd3fb034a894ef101bbd8d03bacf0a87957df7c4f87f74ee0f2fef",
+      "proposal": "Reuse shape; review material bands and contour weight",
+      "usage": "Upthrust stone wall slab (W2.4 x H1.8 x D0.6) with broken top edge; earth constructs, walls.",
+      "acceptance": "Reuse candidate; not a fresh visual or Studio fetch approval"
+    },
+    {
+      "name": "earth_slab_ink",
+      "kind": "mesh",
+      "path": "assets/vfx/meshes/earth_slab_ink.glb",
+      "sha256": "63fe43f979f1acd8b566d72a2cdfbc34146a5b200bec5dedf7f6707c17f3a46d",
+      "proposal": "Reuse shape; review material bands and contour weight",
+      "usage": "Inverted-hull ink outline for earth_slab (render black, same CFrame/size x1.0).",
+      "acceptance": "Reuse candidate; not a fresh visual or Studio fetch approval"
+    },
+    {
+      "name": "earth_spire",
+      "kind": "mesh",
+      "path": "assets/vfx/meshes/earth_spire.glb",
+      "sha256": "ab55ee9274877c6edd9ed991dce39cf8189b6b69e51b9c96e248b08e52acf363",
+      "proposal": "Reuse shape; review material bands and contour weight",
+      "usage": "Jagged faceted stone spire erupting along +Y (height ~2.6); earth spikes, pillars, fields.",
+      "acceptance": "Reuse candidate; not a fresh visual or Studio fetch approval"
+    },
+    {
+      "name": "earth_spire_ink",
+      "kind": "mesh",
+      "path": "assets/vfx/meshes/earth_spire_ink.glb",
+      "sha256": "1ff4d935fa4b568510ebaac25e5e2b8ba44a15261261c98b43265a9233099746",
+      "proposal": "Reuse shape; review material bands and contour weight",
+      "usage": "Inverted-hull ink outline for earth_spire (render black, same CFrame/size x1.0).",
+      "acceptance": "Reuse candidate; not a fresh visual or Studio fetch approval"
+    },
+    {
+      "name": "energy_ribbon",
+      "kind": "mesh",
+      "path": "assets/vfx/meshes/energy_ribbon.glb",
+      "sha256": "3dc08a2ec2a753d517f8a4351136c608a26d6aec5b64bd9404b0735d543af381",
+      "proposal": "Reuse shape; review material bands and contour weight",
+      "usage": "Twisting helical ribbon strip along +Z (length 4); beams, orbit trails, auras.",
+      "acceptance": "Reuse candidate; not a fresh visual or Studio fetch approval"
+    },
+    {
+      "name": "fire_core",
+      "kind": "mesh",
+      "path": "assets/vfx/meshes/fire_core.glb",
+      "sha256": "706f86c4e02a6ff58c9f8733fbc63057fc88b58a855e6b08436fbe5b40de0737",
+      "proposal": "Reuse shape; review material bands and contour weight",
+      "usage": "Turbulent lobed energy core; projectile hearts (Neon / ForceField).",
+      "acceptance": "Reuse candidate; not a fresh visual or Studio fetch approval"
+    },
+    {
+      "name": "fire_core_ink",
+      "kind": "mesh",
+      "path": "assets/vfx/meshes/fire_core_ink.glb",
+      "sha256": "0672ddcdbf31b7cff3d99b6f2584d2a39c42c0305d960bd9e4ac6bfbd673ed60",
+      "proposal": "Reuse shape; review material bands and contour weight",
+      "usage": "Inverted-hull ink outline for fire_core (render black, same CFrame/size x1.0).",
+      "acceptance": "Reuse candidate; not a fresh visual or Studio fetch approval"
+    },
+    {
+      "name": "flame_shell",
+      "kind": "mesh",
+      "path": "assets/vfx/meshes/flame_shell.glb",
+      "sha256": "659c786396c112ff40b099da3072f330f35d4b660d5e546e311a1e68fd60cb3c",
+      "proposal": "Reuse shape; review material bands and contour weight",
+      "usage": "Cluster of 7 swept flame tongues around a hollow core; projectile outer shell.",
+      "acceptance": "Reuse candidate; not a fresh visual or Studio fetch approval"
+    },
+    {
+      "name": "flame_tongue",
+      "kind": "mesh",
+      "path": "assets/vfx/meshes/flame_tongue.glb",
+      "sha256": "6a650b24b96c50e69a3386ae94d74b187786af4de79fa837089a8a7a3b1e23b3",
+      "proposal": "Reuse shape; review material bands and contour weight",
+      "usage": "Single curling blade of flame trailing along +Z; layered around cores.",
+      "acceptance": "Reuse candidate; not a fresh visual or Studio fetch approval"
+    },
+    {
+      "name": "flame_tongue_ink",
+      "kind": "mesh",
+      "path": "assets/vfx/meshes/flame_tongue_ink.glb",
+      "sha256": "6ee25da113d1ad1a3c03640e5475fee92d5beb4e82bc2a8a4016bf53101779cb",
+      "proposal": "Reuse shape; review material bands and contour weight",
+      "usage": "Inverted-hull ink outline for flame_tongue (render black, same CFrame/size x1.0).",
+      "acceptance": "Reuse candidate; not a fresh visual or Studio fetch approval"
+    },
+    {
+      "name": "flesh_shard",
+      "kind": "mesh",
+      "path": "assets/vfx/meshes/flesh_shard.glb",
+      "sha256": "4b83f7e9e0802d40468f2c221d08af6aa292daacc9fa35a3778eb469e21f4d90",
+      "proposal": "Reuse shape; review material bands and contour weight",
+      "usage": "Mutated organic spindle with bulges and a hooked tip; body-magic fragments.",
+      "acceptance": "Reuse candidate; not a fresh visual or Studio fetch approval"
+    },
+    {
+      "name": "flesh_shard_ink",
+      "kind": "mesh",
+      "path": "assets/vfx/meshes/flesh_shard_ink.glb",
+      "sha256": "210f8fd0aa388c4358b13b7ecb31e7e7957598f914fbc0d067b3fe528d778f8c",
+      "proposal": "Reuse shape; review material bands and contour weight",
+      "usage": "Inverted-hull ink outline for flesh_shard (render black, same CFrame/size x1.0).",
+      "acceptance": "Reuse candidate; not a fresh visual or Studio fetch approval"
+    },
+    {
+      "name": "hourglass",
+      "kind": "mesh",
+      "path": "assets/vfx/meshes/hourglass.glb",
+      "sha256": "7160a957719de5b3b4ce99a763bb9d20a6520794a4476de75e9c541402fe876d",
+      "proposal": "Reuse shape; review material bands and contour weight",
+      "usage": "Hourglass (height 2) with pillar frame and pinched glass; time constructs, slow/haste totems.",
+      "acceptance": "Reuse candidate; not a fresh visual or Studio fetch approval"
+    },
+    {
+      "name": "hourglass_ink",
+      "kind": "mesh",
+      "path": "assets/vfx/meshes/hourglass_ink.glb",
+      "sha256": "2300cd5ba4068f6402469ef7c4312e30941ae17baa030257b64dcba1489d80f5",
+      "proposal": "Reuse shape; review material bands and contour weight",
+      "usage": "Inverted-hull ink outline for hourglass (render black, same CFrame/size x1.0).",
+      "acceptance": "Reuse candidate; not a fresh visual or Studio fetch approval"
+    },
+    {
+      "name": "ice_cluster",
+      "kind": "mesh",
+      "path": "assets/vfx/meshes/ice_cluster.glb",
+      "sha256": "38a85ad75a3ab85b6f49ae71fafd693db0deb97ad765b81e623af8f7c6127212",
+      "proposal": "Reuse shape; review material bands and contour weight",
+      "usage": "Faceted crystal cluster erupting from a point (Y up); ice fields, constructs, impacts.",
+      "acceptance": "Reuse candidate; not a fresh visual or Studio fetch approval"
+    },
+    {
+      "name": "ice_cluster_ink",
+      "kind": "mesh",
+      "path": "assets/vfx/meshes/ice_cluster_ink.glb",
+      "sha256": "ac58c223739dfdb55c61b04bcd9415e77e15d7f574b37c53fdca8500352b0911",
+      "proposal": "Reuse shape; review material bands and contour weight",
+      "usage": "Inverted-hull ink outline for ice_cluster (render black, same CFrame/size x1.0).",
+      "acceptance": "Reuse candidate; not a fresh visual or Studio fetch approval"
+    },
+    {
+      "name": "ice_shard_a",
+      "kind": "mesh",
+      "path": "assets/vfx/meshes/ice_shard_a.glb",
+      "sha256": "49eee8749e28095ba7de0c20da7af7a8d40bd87206f96ac9b49e1f956e2db514",
+      "proposal": "Reuse shape; review material bands and contour weight",
+      "usage": "Irregular bipyramid ice fragments (variants _a _b); shatter debris.",
+      "acceptance": "Reuse candidate; not a fresh visual or Studio fetch approval"
+    },
+    {
+      "name": "ice_shard_a_ink",
+      "kind": "mesh",
+      "path": "assets/vfx/meshes/ice_shard_a_ink.glb",
+      "sha256": "304209fdf60cd3651292a3940e82b26f350dfc8e249483e1da1b5b23240d9130",
+      "proposal": "Reuse shape; review material bands and contour weight",
+      "usage": "Inverted-hull ink outline for ice_shard_a (render black, same CFrame/size x1.0).",
+      "acceptance": "Reuse candidate; not a fresh visual or Studio fetch approval"
+    },
+    {
+      "name": "ice_shard_b",
+      "kind": "mesh",
+      "path": "assets/vfx/meshes/ice_shard_b.glb",
+      "sha256": "5578974d4abd6edc353786cfcb7518990174e4db9985dae03a05e7e647880d3f",
+      "proposal": "Reuse shape; review material bands and contour weight",
+      "usage": "Irregular bipyramid ice fragments (variants _a _b); shatter debris.",
+      "acceptance": "Reuse candidate; not a fresh visual or Studio fetch approval"
+    },
+    {
+      "name": "ice_shard_b_ink",
+      "kind": "mesh",
+      "path": "assets/vfx/meshes/ice_shard_b_ink.glb",
+      "sha256": "7dc147e967b21d4c75a45ceed2ca398d6491086ec6b98b13319c64b62963b26b",
+      "proposal": "Reuse shape; review material bands and contour weight",
+      "usage": "Inverted-hull ink outline for ice_shard_b (render black, same CFrame/size x1.0).",
+      "acceptance": "Reuse candidate; not a fresh visual or Studio fetch approval"
+    },
+    {
+      "name": "ice_spike",
+      "kind": "mesh",
+      "path": "assets/vfx/meshes/ice_spike.glb",
+      "sha256": "b51334f23c4380ba65ed8b6a7c973a1ef77da534d67a4e5fe26949ec3e039881",
+      "proposal": "Reuse shape; review material bands and contour weight",
+      "usage": "Single tall faceted crystal spike along +Y; ice projectiles (rotate), pillars, lances.",
+      "acceptance": "Reuse candidate; not a fresh visual or Studio fetch approval"
+    },
+    {
+      "name": "ice_spike_ink",
+      "kind": "mesh",
+      "path": "assets/vfx/meshes/ice_spike_ink.glb",
+      "sha256": "caf5e97c516b9ec957632c8e19a6f9bb9f76001992e82a2402cf9ee8a1432a44",
+      "proposal": "Reuse shape; review material bands and contour weight",
+      "usage": "Inverted-hull ink outline for ice_spike (render black, same CFrame/size x1.0).",
+      "acceptance": "Reuse candidate; not a fresh visual or Studio fetch approval"
+    },
+    {
+      "name": "lightning_fork",
+      "kind": "mesh",
+      "path": "assets/vfx/meshes/lightning_fork.glb",
+      "sha256": "5cb955a5475bd7b8ac2af66cdb27c596054a0c5e3d9ed2b4dcc562035212c2f5",
+      "proposal": "Reuse shape; review material bands and contour weight",
+      "usage": "Jagged forked bolt (square-section tubes) from +Y down to -Y, height 4; strikes, chains.",
+      "acceptance": "Reuse candidate; not a fresh visual or Studio fetch approval"
+    },
+    {
+      "name": "lightning_fork_ink",
+      "kind": "mesh",
+      "path": "assets/vfx/meshes/lightning_fork_ink.glb",
+      "sha256": "634834228a24c73336fe55d7f23d6f7dfa75f2a183d35c69c1eaf2c317931269",
+      "proposal": "Reuse shape; review material bands and contour weight",
+      "usage": "Inverted-hull ink outline for lightning_fork (render black, same CFrame/size x1.0).",
+      "acceptance": "Reuse candidate; not a fresh visual or Studio fetch approval"
+    },
+    {
+      "name": "poison_bubbles",
+      "kind": "mesh",
+      "path": "assets/vfx/meshes/poison_bubbles.glb",
+      "sha256": "0e25ee281723eed9535880f42c0321a507faeae0abe4e12e2abc42b2048002df",
+      "proposal": "Reuse shape; review material bands and contour weight",
+      "usage": "Cluster of 6 low-poly bubbles of varied size (~1.6 across); boiling poison, gas sacs.",
+      "acceptance": "Reuse candidate; not a fresh visual or Studio fetch approval"
+    },
+    {
+      "name": "poison_bubbles_ink",
+      "kind": "mesh",
+      "path": "assets/vfx/meshes/poison_bubbles_ink.glb",
+      "sha256": "34f9b0403d743b0b00588e1ff13b75cad955c74c9344b54ddd64ae5432ad1071",
+      "proposal": "Reuse shape; review material bands and contour weight",
+      "usage": "Inverted-hull ink outline for poison_bubbles (render black, same CFrame/size x1.0).",
+      "acceptance": "Reuse candidate; not a fresh visual or Studio fetch approval"
+    },
+    {
+      "name": "poison_thorn",
+      "kind": "mesh",
+      "path": "assets/vfx/meshes/poison_thorn.glb",
+      "sha256": "40cd23bb941268c971862f736141eba680250510e26637d42501462cf293385b",
+      "proposal": "Reuse shape; review material bands and contour weight",
+      "usage": "Curved barbed thorn along +Y (length 2.2) with side barbs; venom spikes, needles.",
+      "acceptance": "Reuse candidate; not a fresh visual or Studio fetch approval"
+    },
+    {
+      "name": "poison_thorn_ink",
+      "kind": "mesh",
+      "path": "assets/vfx/meshes/poison_thorn_ink.glb",
+      "sha256": "416771763ca1f2f2cc5a99396c022edcee189bcd04be3e5a14cfe9c8811aef57",
+      "proposal": "Reuse shape; review material bands and contour weight",
+      "usage": "Inverted-hull ink outline for poison_thorn (render black, same CFrame/size x1.0).",
+      "acceptance": "Reuse candidate; not a fresh visual or Studio fetch approval"
+    },
+    {
+      "name": "pressure_cone",
+      "kind": "mesh",
+      "path": "assets/vfx/meshes/pressure_cone.glb",
+      "sha256": "bedddb69dde9e4bb483632ab726ae3ecaaa30e44928326b7964789f7af7e7dda",
+      "proposal": "Reuse shape; review material bands and contour weight",
+      "usage": "Body force cone shell opening along -Z (length 1, mouth radius 1) with torn crescent rim.",
+      "acceptance": "Reuse candidate; not a fresh visual or Studio fetch approval"
+    },
+    {
+      "name": "rift_frame",
+      "kind": "mesh",
+      "path": "assets/vfx/meshes/rift_frame.glb",
+      "sha256": "45ff2492b24c3a467904ce6898afe41df41ce2c8acb1bdc5721d0594cc3fc5f8",
+      "proposal": "Reuse shape; review material bands and contour weight",
+      "usage": "Jagged torn-reality loop (vertical lens, height 3) open in the middle; portals and rifts.",
+      "acceptance": "Reuse candidate; not a fresh visual or Studio fetch approval"
+    },
+    {
+      "name": "shockwave_dome",
+      "kind": "mesh",
+      "path": "assets/vfx/meshes/shockwave_dome.glb",
+      "sha256": "0dfd47069bafc7692a1a1089b81ce2fbe2ee04d8a3a604c434193af8f3556bdf",
+      "proposal": "Reuse shape; review material bands and contour weight",
+      "usage": "Open hemispherical shell with a torn rim; volumetric blast front.",
+      "acceptance": "Reuse candidate; not a fresh visual or Studio fetch approval"
+    },
+    {
+      "name": "shockwave_ring",
+      "kind": "mesh",
+      "path": "assets/vfx/meshes/shockwave_ring.glb",
+      "sha256": "6d7fc64da6ca92f6a95e395087615959d0ee706e567768b4deb26b12b2b08639",
+      "proposal": "Reuse shape; review material bands and contour weight",
+      "usage": "Flat ragged band ring (XZ plane, radius 1); expanding impact fronts.",
+      "acceptance": "Reuse candidate; not a fresh visual or Studio fetch approval"
+    },
+    {
+      "name": "sigil_ring",
+      "kind": "mesh",
+      "path": "assets/vfx/meshes/sigil_ring.glb",
+      "sha256": "3f1c6e6cee5a25196d1235e09a98c09977e2caf8e0c740504473a19a4b7999ad",
+      "proposal": "Reuse shape; review material bands and contour weight",
+      "usage": "Industrial casting sigil: geared outer ring + segmented inner band, flat on XZ.",
+      "acceptance": "Reuse candidate; not a fresh visual or Studio fetch approval"
+    },
+    {
+      "name": "sinew_tendril",
+      "kind": "mesh",
+      "path": "assets/vfx/meshes/sinew_tendril.glb",
+      "sha256": "960516fc199820d15ae9c0585db864573b7d1712287995e93f287f857f950eff",
+      "proposal": "Reuse shape; review material bands and contour weight",
+      "usage": "Curling organic tube that tapers and twists; tethers, body auras, grips.",
+      "acceptance": "Reuse candidate; not a fresh visual or Studio fetch approval"
+    },
+    {
+      "name": "sinew_tendril_ink",
+      "kind": "mesh",
+      "path": "assets/vfx/meshes/sinew_tendril_ink.glb",
+      "sha256": "78e6726ad7d6af7d557fd0968c91ab650fb8818968bb6acdec94a5080aa477bf",
+      "proposal": "Reuse shape; review material bands and contour weight",
+      "usage": "Inverted-hull ink outline for sinew_tendril (render black, same CFrame/size x1.0).",
+      "acceptance": "Reuse candidate; not a fresh visual or Studio fetch approval"
+    },
+    {
+      "name": "soul_skull",
+      "kind": "mesh",
+      "path": "assets/vfx/meshes/soul_skull.glb",
+      "sha256": "c4e698eef3471be0ef9ef0b4a0d1dc3e5037b64cbbc2b8cdf6f8cf5304e98841",
+      "proposal": "Reuse shape; review material bands and contour weight",
+      "usage": "Low-poly horned skull (height ~1.3) facing -Z with hollow eye sockets; spirit projectiles, curses.",
+      "acceptance": "Reuse candidate; not a fresh visual or Studio fetch approval"
+    },
+    {
+      "name": "soul_skull_ink",
+      "kind": "mesh",
+      "path": "assets/vfx/meshes/soul_skull_ink.glb",
+      "sha256": "e7b29fc5501e1834d42839306af46d78d696ebae8885ee5cb8eb8e9307315303",
+      "proposal": "Reuse shape; review material bands and contour weight",
+      "usage": "Inverted-hull ink outline for soul_skull (render black, same CFrame/size x1.0).",
+      "acceptance": "Reuse candidate; not a fresh visual or Studio fetch approval"
+    },
+    {
+      "name": "void_shard",
+      "kind": "mesh",
+      "path": "assets/vfx/meshes/void_shard.glb",
+      "sha256": "fb24c7927ba5e75d15991bcceb797fde10b58df701fabe6fc63883e43f02fe6d",
+      "proposal": "Reuse shape; review material bands and contour weight",
+      "usage": "Long razor obsidian shard (height 2) with a beveled edge; space blades, rift debris.",
+      "acceptance": "Reuse candidate; not a fresh visual or Studio fetch approval"
+    },
+    {
+      "name": "void_shard_ink",
+      "kind": "mesh",
+      "path": "assets/vfx/meshes/void_shard_ink.glb",
+      "sha256": "c17466b92aac61202f7898991ad8b9e678cdcb37ce1f5d08a84c1090a19bf248",
+      "proposal": "Reuse shape; review material bands and contour weight",
+      "usage": "Inverted-hull ink outline for void_shard (render black, same CFrame/size x1.0).",
+      "acceptance": "Reuse candidate; not a fresh visual or Studio fetch approval"
+    },
+    {
+      "name": "ward_dome",
+      "kind": "mesh",
+      "path": "assets/vfx/meshes/ward_dome.glb",
+      "sha256": "2848ec9b28523f08509bc3d2bef5820c7933edef1570844e7eb18689f19cda61",
+      "proposal": "Reuse shape; review material bands and contour weight",
+      "usage": "Faceted geodesic hemisphere (radius 1, open base) for barriers and shields; pair with ward_hex.",
+      "acceptance": "Reuse candidate; not a fresh visual or Studio fetch approval"
+    },
+    {
+      "name": "water_crown",
+      "kind": "mesh",
+      "path": "assets/vfx/meshes/water_crown.glb",
+      "sha256": "d34d8bbb4bfad5f2dc0c6c4fcce618d67b02fa5fc2466ce1463958e39084a354",
+      "proposal": "Reuse shape; review material bands and contour weight",
+      "usage": "Open splash crown: wavy wall with spiky droplet tips, radius 1, height ~1.3; water impacts.",
+      "acceptance": "Reuse candidate; not a fresh visual or Studio fetch approval"
+    },
+    {
+      "name": "water_curl",
+      "kind": "mesh",
+      "path": "assets/vfx/meshes/water_curl.glb",
+      "sha256": "105437281dd9b987ce1603bfe23331ab54ab492d8455e501f8df8b614fbb576b",
+      "proposal": "Reuse shape; review material bands and contour weight",
+      "usage": "Curling breaking-wave sheet along X (width 3), crest curling forward (-Z); water waves.",
+      "acceptance": "Reuse candidate; not a fresh visual or Studio fetch approval"
+    },
+    {
+      "name": "wind_crescent",
+      "kind": "mesh",
+      "path": "assets/vfx/meshes/wind_crescent.glb",
+      "sha256": "ced031936e20d78d4d31c6a93f196e88752c70d558691ee77864ed401d518983",
+      "proposal": "Reuse shape; review material bands and contour weight",
+      "usage": "Thick tapered blade crescent (span 3, flat on XZ, convex toward -Z); wind slashes, gust waves.",
+      "acceptance": "Reuse candidate; not a fresh visual or Studio fetch approval"
+    },
+    {
+      "name": "wind_funnel",
+      "kind": "mesh",
+      "path": "assets/vfx/meshes/wind_funnel.glb",
+      "sha256": "ce664b2d8b813f100c8736599b31dcc61b1e8e279f1431e961f8b57ee9ee33f4",
+      "proposal": "Reuse shape; review material bands and contour weight",
+      "usage": "Open twisting tornado funnel of 3 ribbon bands (height 3, top radius 1.2); cyclones, wind auras.",
+      "acceptance": "Reuse candidate; not a fresh visual or Studio fetch approval"
+    },
+    {
+      "name": "acid_splat",
+      "kind": "texture",
+      "path": "assets/vfx/textures/acid_splat.png",
+      "sha256": "18b75f956eb739a3771ee30c2cafa015525b3939d8ebbe4b35759230b2e80e8c",
+      "proposal": "Reuse alpha, layout and timing; review palette and internal value shapes",
+      "usage": "16-frame OneShot viscous splat: blob flattens, flings ropy droplets, then sizzles away; poison impacts.",
+      "acceptance": "Reuse candidate; not a fresh visual or Studio fetch approval"
+    },
+    {
+      "name": "arc_flicker",
+      "kind": "texture",
+      "path": "assets/vfx/textures/arc_flicker.png",
+      "sha256": "bff30a415ab8f21a1e2ad8e03f905683bbc2e14c42dd74eebcaf3aa205e17a6b",
+      "proposal": "Reuse alpha, layout and timing; review palette and internal value shapes",
+      "usage": "16 distinct crackling arc clusters (random-start Loop at high framerate); lightning motes, auras.",
+      "acceptance": "Reuse candidate; not a fresh visual or Studio fetch approval"
+    },
+    {
+      "name": "arcane_burst",
+      "kind": "texture",
+      "path": "assets/vfx/textures/arcane_burst.png",
+      "sha256": "40098216ac98231f72dc51e998e052099af1d9efef39a362bd260bddf01fd5a5",
+      "proposal": "Reuse alpha, layout and timing; review palette and internal value shapes",
+      "usage": "16-frame OneShot: hexagram flash, expanding polygon rings and glyph shards flung out; arcane impacts.",
+      "acceptance": "Reuse candidate; not a fresh visual or Studio fetch approval"
+    },
+    {
+      "name": "arcane_glyphs",
+      "kind": "texture",
+      "path": "assets/vfx/textures/arcane_glyphs.png",
+      "sha256": "5e52c38b8fd89fe2223ce032ee1955f29652be9905040b50f4fbdda214699517",
+      "proposal": "Reuse alpha, layout and timing; review palette and internal value shapes",
+      "usage": "16 distinct angular runes (random-start flipbook, Framerate 0) for arcane motes and orbiting glyphs.",
+      "acceptance": "Reuse candidate; not a fresh visual or Studio fetch approval"
+    },
+    {
+      "name": "arcane_orb",
+      "kind": "texture",
+      "path": "assets/vfx/textures/arcane_orb.png",
+      "sha256": "8d050a1c173832b54abdc92c93bb6cc439e357b85aec97362c2b2f7dc518a9ac",
+      "proposal": "Reuse alpha, layout and timing; review palette and internal value shapes",
+      "usage": "Looping 16-frame geometric core: counter-rotating nested polygons and a star around a bright eye.",
+      "acceptance": "Reuse candidate; not a fresh visual or Studio fetch approval"
+    },
+    {
+      "name": "beam_energy",
+      "kind": "texture",
+      "path": "assets/vfx/textures/beam_energy.png",
+      "sha256": "9836e088e28fbfa397ab0f53f9329fb9239c67aa9c4a61834e61775e3327a15d",
+      "proposal": "Reuse alpha, layout and timing; review palette and internal value shapes",
+      "usage": "U-tiling filament energy for Beams; scroll with TextureSpeed.",
+      "acceptance": "Reuse candidate; not a fresh visual or Studio fetch approval"
+    },
+    {
+      "name": "bolt_strip",
+      "kind": "texture",
+      "path": "assets/vfx/textures/bolt_strip.png",
+      "sha256": "f4885af6c0838547468cd535bac8aff0fc8d9f8fa3f086c4c69365b0c12a5692",
+      "proposal": "Reuse alpha, layout and timing; review palette and internal value shapes",
+      "usage": "U-tiling forked lightning channel with glow; Beams/Trails (animate TextureSpeed for crawl).",
+      "acceptance": "Reuse candidate; not a fresh visual or Studio fetch approval"
+    },
+    {
+      "name": "caustics",
+      "kind": "texture",
+      "path": "assets/vfx/textures/caustics.png",
+      "sha256": "ba214c10d28cd033cb9070d5bf815bcc83ad6e682e669f1b494db0f649929975",
+      "proposal": "Reuse alpha, layout and timing; review palette and internal value shapes",
+      "usage": "Tiling underwater caustic light network; water fields/ground overlays (scroll or rotate).",
+      "acceptance": "Reuse candidate; not a fresh visual or Studio fetch approval"
+    },
+    {
+      "name": "clock_dial",
+      "kind": "texture",
+      "path": "assets/vfx/textures/clock_dial.png",
+      "sha256": "6a41b5cb1e1d195a072d176dc1d5bd2ff404fa2158ee3d35a2994f5fc88651c7",
+      "proposal": "Reuse alpha, layout and timing; review palette and internal value shapes",
+      "usage": "Ground decal: broken clock face with 12 hour marks, minute ticks, numeral glyphs and two hands; time fields.",
+      "acceptance": "Reuse candidate; not a fresh visual or Studio fetch approval"
+    },
+    {
+      "name": "core_plasma",
+      "kind": "texture",
+      "path": "assets/vfx/textures/core_plasma.png",
+      "sha256": "a9955b3a1120a5d2172fcc3584b106b13c9511a4fbd3177555e8ea348fa7e5a3",
+      "proposal": "Reuse alpha, layout and timing; review palette and internal value shapes",
+      "usage": "Looping 16-frame turbulent energy core; projectile hearts, charge points.",
+      "acceptance": "Reuse candidate; not a fresh visual or Studio fetch approval"
+    },
+    {
+      "name": "debris_chip",
+      "kind": "texture",
+      "path": "assets/vfx/textures/debris_chip.png",
+      "sha256": "a947befd01594acb568477f05a89ba715afc8d67df1af98337af035d34f8db3d",
+      "proposal": "Reuse alpha, layout and timing; review palette and internal value shapes",
+      "usage": "Angular dark fragment silhouette with a hot rim.",
+      "acceptance": "Reuse candidate; not a fresh visual or Studio fetch approval"
+    },
+    {
+      "name": "drip_trail",
+      "kind": "texture",
+      "path": "assets/vfx/textures/drip_trail.png",
+      "sha256": "0c1642bc7c12e4e5ef8651c1ae93f70b8f14f23ef6724e39fffb341c1cd1a964",
+      "proposal": "Reuse alpha, layout and timing; review palette and internal value shapes",
+      "usage": "U-tiling viscous ribbon with hanging drips along the lower edge; poison trails.",
+      "acceptance": "Reuse candidate; not a fresh visual or Studio fetch approval"
+    },
+    {
+      "name": "droplet",
+      "kind": "texture",
+      "path": "assets/vfx/textures/droplet.png",
+      "sha256": "22efa4ff42233fc5a184a729e92541402ea15728965f3ae080bee15345fa7dfa",
+      "proposal": "Reuse alpha, layout and timing; review palette and internal value shapes",
+      "usage": "Teardrop water droplet with specular highlight; VelocityParallel spray.",
+      "acceptance": "Reuse candidate; not a fresh visual or Studio fetch approval"
+    },
+    {
+      "name": "dust_burst",
+      "kind": "texture",
+      "path": "assets/vfx/textures/dust_burst.png",
+      "sha256": "01383b3be7c51ffa7c7a2f9f2d8b279594a22ceebe0847d3f4104c2314d5f9d1",
+      "proposal": "Reuse alpha, layout and timing; review palette and internal value shapes",
+      "usage": "Heavy grit cloud with clumped edges; ground kick-up for body impacts.",
+      "acceptance": "Reuse candidate; not a fresh visual or Studio fetch approval"
+    },
+    {
+      "name": "dust_plume",
+      "kind": "texture",
+      "path": "assets/vfx/textures/dust_plume.png",
+      "sha256": "69e2e02cd36e20af752bcc29bf11c366a19be69cad802ee1d091e60b1604c524",
+      "proposal": "Reuse alpha, layout and timing; review palette and internal value shapes",
+      "usage": "16-frame OneShot heavy dust plume rising and spreading (bottom-anchored); earth casts, slams.",
+      "acceptance": "Reuse candidate; not a fresh visual or Studio fetch approval"
+    },
+    {
+      "name": "earth_fissure",
+      "kind": "texture",
+      "path": "assets/vfx/textures/earth_fissure.png",
+      "sha256": "43f2fde0416209eba8d409b70af50cf56c68cc86f27f97c7768c9243d1da4e54",
+      "proposal": "Reuse alpha, layout and timing; review palette and internal value shapes",
+      "usage": "Ground decal: radial fissures splitting from an impact point with broken slab edges; earth fields/impacts.",
+      "acceptance": "Reuse candidate; not a fresh visual or Studio fetch approval"
+    },
+    {
+      "name": "ember_streak",
+      "kind": "texture",
+      "path": "assets/vfx/textures/ember_streak.png",
+      "sha256": "ef47755c9ba99d489c88c65e0634eee79191fd721bd1f5fe1002ef7c1819cb90",
+      "proposal": "Reuse alpha, layout and timing; review palette and internal value shapes",
+      "usage": "Hot elongated spark; set Orientation=VelocityParallel.",
+      "acceptance": "Reuse candidate; not a fresh visual or Studio fetch approval"
+    },
+    {
+      "name": "explosion_fire",
+      "kind": "texture",
+      "path": "assets/vfx/textures/explosion_fire.png",
+      "sha256": "c216d13d3fe894ef626f50f73ee76216f0cd539c6116b412362cff801d6892b5",
+      "proposal": "Reuse alpha, layout and timing; review palette and internal value shapes",
+      "usage": "64-frame OneShot fire burst: flash -> lobed fireball -> rolling smoke -> gone.",
+      "acceptance": "Reuse candidate; not a fresh visual or Studio fetch approval"
+    },
+    {
+      "name": "flame_tongue",
+      "kind": "texture",
+      "path": "assets/vfx/textures/flame_tongue.png",
+      "sha256": "c9e436929366e2b275f67bf66fd63075327070540e614025f314c58e67152919",
+      "proposal": "Reuse alpha, layout and timing; review palette and internal value shapes",
+      "usage": "Looping 16-frame irregular flame silhouette; flame shells, fire trails, fields.",
+      "acceptance": "Reuse candidate; not a fresh visual or Studio fetch approval"
+    },
+    {
+      "name": "flame_wisp",
+      "kind": "texture",
+      "path": "assets/vfx/textures/flame_wisp.png",
+      "sha256": "60f40543a822532520a34546ed59d5698033c5b3ec069582a78bf343d1eef8c2",
+      "proposal": "Reuse alpha, layout and timing; review palette and internal value shapes",
+      "usage": "Single static leaning flame lick; sparse secondary flames.",
+      "acceptance": "Reuse candidate; not a fresh visual or Studio fetch approval"
+    },
+    {
+      "name": "force_streak",
+      "kind": "texture",
+      "path": "assets/vfx/textures/force_streak.png",
+      "sha256": "e51e60410726aba04af8dbfa21810c9947d94f5f0a7e6c69fc5903a166b229e6",
+      "proposal": "Reuse alpha, layout and timing; review palette and internal value shapes",
+      "usage": "U-tiling speed lines for Trails/Beams on force and movement magic.",
+      "acceptance": "Reuse candidate; not a fresh visual or Studio fetch approval"
+    },
+    {
+      "name": "frost_crack",
+      "kind": "texture",
+      "path": "assets/vfx/textures/frost_crack.png",
+      "sha256": "4dbb52f8b943da47d456c26419c3040bf6c3fdfa59083948e4e69295e08dd35f",
+      "proposal": "Reuse alpha, layout and timing; review palette and internal value shapes",
+      "usage": "Ground decal: branching frozen crack network with feathered frost, radial falloff; ice fields.",
+      "acceptance": "Reuse candidate; not a fresh visual or Studio fetch approval"
+    },
+    {
+      "name": "frost_mist",
+      "kind": "texture",
+      "path": "assets/vfx/textures/frost_mist.png",
+      "sha256": "0a9cbbd3376641bcda5d675ecd625e13f283ca8ed1ed33094c57747f34e07eb9",
+      "proposal": "Reuse alpha, layout and timing; review palette and internal value shapes",
+      "usage": "Looping 16-frame curling cold fog with crystalline streaks; ice auras, fields, trails.",
+      "acceptance": "Reuse candidate; not a fresh visual or Studio fetch approval"
+    },
+    {
+      "name": "gear_mote",
+      "kind": "texture",
+      "path": "assets/vfx/textures/gear_mote.png",
+      "sha256": "158dbbfa52b951ef9dcb9ee34a6e8b01ad08d15ae751c7b3b18a01a48b3b2774",
+      "proposal": "Reuse alpha, layout and timing; review palette and internal value shapes",
+      "usage": "Spoked cog wheel; time/clockwork motes and mechanical accents.",
+      "acceptance": "Reuse candidate; not a fresh visual or Studio fetch approval"
+    },
+    {
+      "name": "ghost_trail",
+      "kind": "texture",
+      "path": "assets/vfx/textures/ghost_trail.png",
+      "sha256": "4881e19b9e0af136c34befab990f8d8ab167a69d781242c810ce5fb7cba9c87d",
+      "proposal": "Reuse alpha, layout and timing; review palette and internal value shapes",
+      "usage": "U-tiling tattered spectral ribbon with torn holes and trailing wisps; spirit trails, tethers.",
+      "acceptance": "Reuse candidate; not a fresh visual or Studio fetch approval"
+    },
+    {
+      "name": "glow_soft",
+      "kind": "texture",
+      "path": "assets/vfx/textures/glow_soft.png",
+      "sha256": "77664ed171ebb555857c1715c06a2c940f1935bcdadf6337c469c15ecb712137",
+      "proposal": "Reuse alpha, layout and timing; review palette and internal value shapes",
+      "usage": "Soft energy bloom; core halos and charge glow.",
+      "acceptance": "Reuse candidate; not a fresh visual or Studio fetch approval"
+    },
+    {
+      "name": "glyph_chain",
+      "kind": "texture",
+      "path": "assets/vfx/textures/glyph_chain.png",
+      "sha256": "e098d1b65e38de961a5404942c86aa0a3e260bcbf214b0deb53fc5627e8ce0b5",
+      "proposal": "Reuse alpha, layout and timing; review palette and internal value shapes",
+      "usage": "U-tiling chain of runes between two rails; arcane beams, trails, binding tethers.",
+      "acceptance": "Reuse candidate; not a fresh visual or Studio fetch approval"
+    },
+    {
+      "name": "gust_strokes",
+      "kind": "texture",
+      "path": "assets/vfx/textures/gust_strokes.png",
+      "sha256": "287dc048ad5244bd4ab6642564d6e3a715a12e55f072d21a95b1d72b332b6bc8",
+      "proposal": "Reuse alpha, layout and timing; review palette and internal value shapes",
+      "usage": "U-tiling curved brush-stroke gusts with hooked ends; wind trails and beams.",
+      "acceptance": "Reuse candidate; not a fresh visual or Studio fetch approval"
+    },
+    {
+      "name": "heat_haze",
+      "kind": "texture",
+      "path": "assets/vfx/textures/heat_haze.png",
+      "sha256": "abbe7cc2631fa7106cb15380e5bd7391f4db5dc56a90afe528886df6c57628bb",
+      "proposal": "Reuse alpha, layout and timing; review palette and internal value shapes",
+      "usage": "Very low-contrast shimmer noise; faked distortion via low-opacity overlay.",
+      "acceptance": "Reuse candidate; not a fresh visual or Studio fetch approval"
+    },
+    {
+      "name": "hex_seal",
+      "kind": "texture",
+      "path": "assets/vfx/textures/hex_seal.png",
+      "sha256": "3ef8e8c531ed0b2d047d3f0b8b1a3e443f40941d66a655174200274e1e6a58df",
+      "proposal": "Reuse alpha, layout and timing; review palette and internal value shapes",
+      "usage": "Ground decal: hexagonal ward seal, spoked lattice and corner glyphs; arcane fields, wards, shields.",
+      "acceptance": "Reuse candidate; not a fresh visual or Studio fetch approval"
+    },
+    {
+      "name": "hourglass_mote",
+      "kind": "texture",
+      "path": "assets/vfx/textures/hourglass_mote.png",
+      "sha256": "abbe782c5051943780bb0824a699325c6d8e8108b97da4b14f773dc6ca5c0d4b",
+      "proposal": "Reuse alpha, layout and timing; review palette and internal value shapes",
+      "usage": "Hourglass icon with falling sand; time motes, slow/haste marks.",
+      "acceptance": "Reuse candidate; not a fresh visual or Studio fetch approval"
+    },
+    {
+      "name": "ice_glint",
+      "kind": "texture",
+      "path": "assets/vfx/textures/ice_glint.png",
+      "sha256": "882e597928698f020b96dd6da456f4fc6f8f133f88d6363e464d4ff2d8fca237",
+      "proposal": "Reuse alpha, layout and timing; review palette and internal value shapes",
+      "usage": "Six-point crystalline glint with diffraction spikes; frost motes.",
+      "acceptance": "Reuse candidate; not a fresh visual or Studio fetch approval"
+    },
+    {
+      "name": "ice_shatter",
+      "kind": "texture",
+      "path": "assets/vfx/textures/ice_shatter.png",
+      "sha256": "3f98dd964ae53ae9f58f18a0adea4535ed703e31eb9c3c2c9478859d6b03e8c9",
+      "proposal": "Reuse alpha, layout and timing; review palette and internal value shapes",
+      "usage": "16-frame OneShot burst of angular ice shards flying out and fading; ice impacts.",
+      "acceptance": "Reuse candidate; not a fresh visual or Studio fetch approval"
+    },
+    {
+      "name": "ice_trail",
+      "kind": "texture",
+      "path": "assets/vfx/textures/ice_trail.png",
+      "sha256": "3a24a967660a04240f1926b0180938bc8dafb601e3325e59d2219e1fab817938",
+      "proposal": "Reuse alpha, layout and timing; review palette and internal value shapes",
+      "usage": "U-tiling crystalline streak with faceted shards along the edge; ice trails and beams.",
+      "acceptance": "Reuse candidate; not a fresh visual or Studio fetch approval"
+    },
+    {
+      "name": "impact_frame",
+      "kind": "texture",
+      "path": "assets/vfx/textures/impact_frame.png",
+      "sha256": "c02794bbba5d231f31917ad5abf033c5cb90aca4885912cba05a79e95230d20b",
+      "proposal": "Reuse alpha, layout and timing; review palette and internal value shapes",
+      "usage": "Single-frame stylized impact: jagged star-burst with ink speed wedges, for 1-2 frame hit flashes.",
+      "acceptance": "Reuse candidate; not a fresh visual or Studio fetch approval"
+    },
+    {
+      "name": "impact_star",
+      "kind": "texture",
+      "path": "assets/vfx/textures/impact_star.png",
+      "sha256": "ede31f993836ba8ab00a025aee59e2e9d0734d858a5647dcaaf78a44024d6d6e",
+      "proposal": "Reuse alpha, layout and timing; review palette and internal value shapes",
+      "usage": "Irregular radial flash for the first frames of an impact.",
+      "acceptance": "Reuse candidate; not a fresh visual or Studio fetch approval"
+    },
+    {
+      "name": "kinetic_burst",
+      "kind": "texture",
+      "path": "assets/vfx/textures/kinetic_burst.png",
+      "sha256": "4e615d9c84b892741776639d9f8f76a5eb90f0f2ee5ad3a8f819d415c4d8799d",
+      "proposal": "Reuse alpha, layout and timing; review palette and internal value shapes",
+      "usage": "16-frame OneShot: hard concentric shock rings with radial speed lines punching outward; force impacts.",
+      "acceptance": "Reuse candidate; not a fresh visual or Studio fetch approval"
+    },
+    {
+      "name": "leaf_scrap",
+      "kind": "texture",
+      "path": "assets/vfx/textures/leaf_scrap.png",
+      "sha256": "fdae5078da888e8cfeccd50927d261910b1c7ace357fe60d68ef5f0be7ee140c",
+      "proposal": "Reuse alpha, layout and timing; review palette and internal value shapes",
+      "usage": "4 torn leaf/ash scraps (random-start flipbook) for debris caught in wind.",
+      "acceptance": "Reuse candidate; not a fresh visual or Studio fetch approval"
+    },
+    {
+      "name": "miasma",
+      "kind": "texture",
+      "path": "assets/vfx/textures/miasma.png",
+      "sha256": "c53cc31f576ebaaa880504137296bbe71e569d19b5934eb552f6943330867389",
+      "proposal": "Reuse alpha, layout and timing; review palette and internal value shapes",
+      "usage": "Looping 16-frame lumpy toxic gas with dripping tendrils and dark pockets; poison clouds/fields.",
+      "acceptance": "Reuse candidate; not a fresh visual or Studio fetch approval"
+    },
+    {
+      "name": "plasma_orb",
+      "kind": "texture",
+      "path": "assets/vfx/textures/plasma_orb.png",
+      "sha256": "10f82430440fc3882d4e78f885e02d6b7ce9ef4ad2b3d3328eb04b0d44e97e94",
+      "proposal": "Reuse alpha, layout and timing; review palette and internal value shapes",
+      "usage": "Looping 16-frame ball of writhing electric filaments with hot center; lightning cores.",
+      "acceptance": "Reuse candidate; not a fresh visual or Studio fetch approval"
+    },
+    {
+      "name": "portal_rings",
+      "kind": "texture",
+      "path": "assets/vfx/textures/portal_rings.png",
+      "sha256": "f0370ab7e138de8d833920f99026ea23f9d745469230c597449260bddfb33146",
+      "proposal": "Reuse alpha, layout and timing; review palette and internal value shapes",
+      "usage": "Ground/portal decal: warped concentric rings around a void centre with orbiting stars; space fields.",
+      "acceptance": "Reuse candidate; not a fresh visual or Studio fetch approval"
+    },
+    {
+      "name": "pressure_wave",
+      "kind": "texture",
+      "path": "assets/vfx/textures/pressure_wave.png",
+      "sha256": "f0cc30615612382825d201733fb36efed9f692a8dace0d3db548ece7f5fdaa62",
+      "proposal": "Reuse alpha, layout and timing; review palette and internal value shapes",
+      "usage": "16-frame OneShot directional pressure crescent; compressed air front for force magic.",
+      "acceptance": "Reuse candidate; not a fresh visual or Studio fetch approval"
+    },
+    {
+      "name": "rift_tear",
+      "kind": "texture",
+      "path": "assets/vfx/textures/rift_tear.png",
+      "sha256": "ca07a8b1d829a86a320ba605f3d509cb934891dfa039cc7ddeadd489ca0d44bb",
+      "proposal": "Reuse alpha, layout and timing; review palette and internal value shapes",
+      "usage": "16-frame OneShot jagged tear in space: splits open on a void, holds, seals shut; space casts/portals.",
+      "acceptance": "Reuse candidate; not a fresh visual or Studio fetch approval"
+    },
+    {
+      "name": "ripple_ring",
+      "kind": "texture",
+      "path": "assets/vfx/textures/ripple_ring.png",
+      "sha256": "9dcf1486ffd9d5de4832c86f1bd0baf0167772a79e3f9d0d7c1395f03cce911e",
+      "proposal": "Reuse alpha, layout and timing; review palette and internal value shapes",
+      "usage": "16-frame OneShot concentric ripples expanding and fading; flat (ground-facing) water impacts/fields.",
+      "acceptance": "Reuse candidate; not a fresh visual or Studio fetch approval"
+    },
+    {
+      "name": "rock_burst",
+      "kind": "texture",
+      "path": "assets/vfx/textures/rock_burst.png",
+      "sha256": "c633028db1e7b2799445ffa3f9209c8f936bd95ea337462ac9745d31977512b1",
+      "proposal": "Reuse alpha, layout and timing; review palette and internal value shapes",
+      "usage": "16-frame OneShot: faceted rock chunks blast outward and arc down with a grit cloud; earth impacts.",
+      "acceptance": "Reuse candidate; not a fresh visual or Studio fetch approval"
+    },
+    {
+      "name": "rubble_trail",
+      "kind": "texture",
+      "path": "assets/vfx/textures/rubble_trail.png",
+      "sha256": "508a9628dc3315b2edf33f0eab76bc0ffea9aaaa0dcb3dd67ccd38a699411d46",
+      "proposal": "Reuse alpha, layout and timing; review palette and internal value shapes",
+      "usage": "U-tiling dragged grit and pebbles with a dust band; earth trails, ground-skimming projectiles.",
+      "acceptance": "Reuse candidate; not a fresh visual or Studio fetch approval"
+    },
+    {
+      "name": "rune_circle",
+      "kind": "texture",
+      "path": "assets/vfx/textures/rune_circle.png",
+      "sha256": "677ff24bb07ed218ea7f3bed6c37cf4d1d1943ba3accb8a8b6adc035629b680c",
+      "proposal": "Reuse alpha, layout and timing; review palette and internal value shapes",
+      "usage": "Industrial sigil: geared outer ring, angular glyph band, inner lattice. Ground casting circles.",
+      "acceptance": "Reuse candidate; not a fresh visual or Studio fetch approval"
+    },
+    {
+      "name": "sand_trail",
+      "kind": "texture",
+      "path": "assets/vfx/textures/sand_trail.png",
+      "sha256": "28182b03cefaca4b6457d9e6a5998db981cd8ba6aa4fa27f0d6d4b303e5095b9",
+      "proposal": "Reuse alpha, layout and timing; review palette and internal value shapes",
+      "usage": "U-tiling stream of drifting sand grains thinning at the edges; time trails, decay.",
+      "acceptance": "Reuse candidate; not a fresh visual or Studio fetch approval"
+    },
+    {
+      "name": "scorch_lichtenberg",
+      "kind": "texture",
+      "path": "assets/vfx/textures/scorch_lichtenberg.png",
+      "sha256": "f3727ad23cb4d87a49f26ea917e32fc9c4d6908206c876d1d3637886a7f9307e",
+      "proposal": "Reuse alpha, layout and timing; review palette and internal value shapes",
+      "usage": "Ground decal: branching Lichtenberg burn figure with charred core; lightning strikes/fields.",
+      "acceptance": "Reuse candidate; not a fresh visual or Studio fetch approval"
+    },
+    {
+      "name": "shard_trail",
+      "kind": "texture",
+      "path": "assets/vfx/textures/shard_trail.png",
+      "sha256": "052a0edb41e47ee840d2293f2a097abfa2b310da6fbf7a6d6a4ed83294964bdd",
+      "proposal": "Reuse alpha, layout and timing; review palette and internal value shapes",
+      "usage": "U-tiling stream of broken-glass reality shards with void gaps; space trails, folds.",
+      "acceptance": "Reuse candidate; not a fresh visual or Studio fetch approval"
+    },
+    {
+      "name": "shockwave_ring",
+      "kind": "texture",
+      "path": "assets/vfx/textures/shockwave_ring.png",
+      "sha256": "7898dd51d10ab62ca2b9be306ec0624728c81b9f94968b5c9194fc0e7eee76a9",
+      "proposal": "Reuse alpha, layout and timing; review palette and internal value shapes",
+      "usage": "Thin ragged ring with inner falloff; flat ring billboards and impact fronts.",
+      "acceptance": "Reuse candidate; not a fresh visual or Studio fetch approval"
+    },
+    {
+      "name": "sinew_trail",
+      "kind": "texture",
+      "path": "assets/vfx/textures/sinew_trail.png",
+      "sha256": "fcb16c05e8793fa56653d5bb346539aad01c7c0133db32b432dfa9e6ce8995a6",
+      "proposal": "Reuse alpha, layout and timing; review palette and internal value shapes",
+      "usage": "U-tiling twisting fibrous strands; organic/body trails and tethers.",
+      "acceptance": "Reuse candidate; not a fresh visual or Studio fetch approval"
+    },
+    {
+      "name": "skull_mote",
+      "kind": "texture",
+      "path": "assets/vfx/textures/skull_mote.png",
+      "sha256": "10c501a3698b2617d91dc2fc58d8d50dfa8159ececa6ccb90f43ac1a4232ef28",
+      "proposal": "Reuse alpha, layout and timing; review palette and internal value shapes",
+      "usage": "Stylized horned skull icon; spirit motes, curse marks, death accents.",
+      "acceptance": "Reuse candidate; not a fresh visual or Studio fetch approval"
+    },
+    {
+      "name": "slash_arc",
+      "kind": "texture",
+      "path": "assets/vfx/textures/slash_arc.png",
+      "sha256": "22865749b331fad90e2961e8b3989d5d3b412a74a62b4448562e36c68d09cbe7",
+      "proposal": "Reuse alpha, layout and timing; review palette and internal value shapes",
+      "usage": "Crescent slash with tapered tips and fibrous streaks.",
+      "acceptance": "Reuse candidate; not a fresh visual or Studio fetch approval"
+    },
+    {
+      "name": "smoke_billow",
+      "kind": "texture",
+      "path": "assets/vfx/textures/smoke_billow.png",
+      "sha256": "1947d7defc0acf73bb2186c44d141d8b0c9472c8f5ad26bd34b5f60caa6cb8f2",
+      "proposal": "Reuse alpha, layout and timing; review palette and internal value shapes",
+      "usage": "16-frame OneShot smoke puff that billows then thins; impact smoke, dissipation.",
+      "acceptance": "Reuse candidate; not a fresh visual or Studio fetch approval"
+    },
+    {
+      "name": "soul_burst",
+      "kind": "texture",
+      "path": "assets/vfx/textures/soul_burst.png",
+      "sha256": "2796948c3525b58fdcec7734ed6d7b03b570f45aa5d728f721a4e75c59eb10bd",
+      "proposal": "Reuse alpha, layout and timing; review palette and internal value shapes",
+      "usage": "16-frame OneShot: hollow-eyed wisps tear outward from a dark core and dissolve; spirit impacts.",
+      "acceptance": "Reuse candidate; not a fresh visual or Studio fetch approval"
+    },
+    {
+      "name": "soul_sigil",
+      "kind": "texture",
+      "path": "assets/vfx/textures/soul_sigil.png",
+      "sha256": "beed28e8aa0fe53ae3d210689c086d27ef0fbb552b293b733536ddd37d58570d",
+      "proposal": "Reuse alpha, layout and timing; review palette and internal value shapes",
+      "usage": "Ground decal: sunken eye within thorned rings and spectral script; spirit fields, curses, summons.",
+      "acceptance": "Reuse candidate; not a fresh visual or Studio fetch approval"
+    },
+    {
+      "name": "soul_wisp",
+      "kind": "texture",
+      "path": "assets/vfx/textures/soul_wisp.png",
+      "sha256": "5ceefec05786400957b59b82674851ddae75e0c383a0cb8d524750fd97a5f124",
+      "proposal": "Reuse alpha, layout and timing; review palette and internal value shapes",
+      "usage": "Looping 16-frame wailing ghost wisp: tattered rising flame shape with two hollow eyes and a mouth.",
+      "acceptance": "Reuse candidate; not a fresh visual or Studio fetch approval"
+    },
+    {
+      "name": "spark_burst",
+      "kind": "texture",
+      "path": "assets/vfx/textures/spark_burst.png",
+      "sha256": "88e3f3913a86461b564265a577295fa4cc46e23273f8e1c99431f9cfcf305338",
+      "proposal": "Reuse alpha, layout and timing; review palette and internal value shapes",
+      "usage": "16-frame OneShot electrical discharge: white flash, radial forks racing out, flicker off.",
+      "acceptance": "Reuse candidate; not a fresh visual or Studio fetch approval"
+    },
+    {
+      "name": "star_mote",
+      "kind": "texture",
+      "path": "assets/vfx/textures/star_mote.png",
+      "sha256": "3cc50eeb046a349422e244009129dfbea387921a1297169043d367111c9e0b40",
+      "proposal": "Reuse alpha, layout and timing; review palette and internal value shapes",
+      "usage": "Four-point star with long vertical spike; space motes, void sparkle.",
+      "acceptance": "Reuse candidate; not a fresh visual or Studio fetch approval"
+    },
+    {
+      "name": "time_ripple",
+      "kind": "texture",
+      "path": "assets/vfx/textures/time_ripple.png",
+      "sha256": "19b7467aec33954cba115b076bd9f695cb7c9c220137f52a600adf8da636e329",
+      "proposal": "Reuse alpha, layout and timing; review palette and internal value shapes",
+      "usage": "Looping 16-frame ticking ring: notched dial ring rotates in steps with trailing afterimages; time auras.",
+      "acceptance": "Reuse candidate; not a fresh visual or Studio fetch approval"
+    },
+    {
+      "name": "toxic_bubble",
+      "kind": "texture",
+      "path": "assets/vfx/textures/toxic_bubble.png",
+      "sha256": "0c5cdae5d6d0600ab5f1043f931de7324d242763b0eeb7ca55297d57f600c226",
+      "proposal": "Reuse alpha, layout and timing; review palette and internal value shapes",
+      "usage": "Thick-rimmed bubble with crescent highlight and dark inner pool; poison motes, boiling fields.",
+      "acceptance": "Reuse candidate; not a fresh visual or Studio fetch approval"
+    },
+    {
+      "name": "toxic_pool",
+      "kind": "texture",
+      "path": "assets/vfx/textures/toxic_pool.png",
+      "sha256": "b246aa07726b55c3a7f93c59553cdba241ace6f0277f901e10b26643071d40ab",
+      "proposal": "Reuse alpha, layout and timing; review palette and internal value shapes",
+      "usage": "Ground decal: irregular bubbling toxic pool with splatter rim and burst-bubble rings; poison fields.",
+      "acceptance": "Reuse candidate; not a fresh visual or Studio fetch approval"
+    },
+    {
+      "name": "trail_flame",
+      "kind": "texture",
+      "path": "assets/vfx/textures/trail_flame.png",
+      "sha256": "6158332ed302b3c556b9849334da334c5035a2af9cd45b7def34c3d116732212",
+      "proposal": "Reuse alpha, layout and timing; review palette and internal value shapes",
+      "usage": "U-tiling ragged flame streak for Trails (TextureMode Wrap/Stretch).",
+      "acceptance": "Reuse candidate; not a fresh visual or Studio fetch approval"
+    },
+    {
+      "name": "void_orb",
+      "kind": "texture",
+      "path": "assets/vfx/textures/void_orb.png",
+      "sha256": "3591f8a93801f8fd73d6186d9b09789639940909c9c1935d7205f084fb5fe244",
+      "proposal": "Reuse alpha, layout and timing; review palette and internal value shapes",
+      "usage": "Looping 16-frame black hole: dark core, bright lensed ring and spiralling accretion streaks.",
+      "acceptance": "Reuse candidate; not a fresh visual or Studio fetch approval"
+    },
+    {
+      "name": "ward_hex",
+      "kind": "texture",
+      "path": "assets/vfx/textures/ward_hex.png",
+      "sha256": "615a47db328515dd4d02d4d8529b35968a8a038b4acdeb674b98209acb5fbcd3",
+      "proposal": "Reuse alpha, layout and timing; review palette and internal value shapes",
+      "usage": "Tiling hexagonal barrier lattice with bright cell edges; shields, wards, force fields (MeshPart/Beam).",
+      "acceptance": "Reuse candidate; not a fresh visual or Studio fetch approval"
+    },
+    {
+      "name": "warp_implode",
+      "kind": "texture",
+      "path": "assets/vfx/textures/warp_implode.png",
+      "sha256": "afea41d5c9fce6c997e0ae86032b3b5d7191543a4aba352729babd9e71c0fee7",
+      "proposal": "Reuse alpha, layout and timing; review palette and internal value shapes",
+      "usage": "16-frame OneShot: rings and debris streaks collapse inward to a point, then a sharp pop; teleports.",
+      "acceptance": "Reuse candidate; not a fresh visual or Studio fetch approval"
+    },
+    {
+      "name": "water_orb",
+      "kind": "texture",
+      "path": "assets/vfx/textures/water_orb.png",
+      "sha256": "54fa2d8b68f47317f8c675ae2618352793448892ad2152c3114f2883390fce36",
+      "proposal": "Reuse alpha, layout and timing; review palette and internal value shapes",
+      "usage": "Looping 16-frame sphere of churning water with caustic highlights and bright rim; water cores.",
+      "acceptance": "Reuse candidate; not a fresh visual or Studio fetch approval"
+    },
+    {
+      "name": "water_splash",
+      "kind": "texture",
+      "path": "assets/vfx/textures/water_splash.png",
+      "sha256": "668d628c19df520759ff647b27386ed326ed942b98279ba7a24f7ee292df4dde",
+      "proposal": "Reuse alpha, layout and timing; review palette and internal value shapes",
+      "usage": "16-frame OneShot crown splash: sheet rises, breaks into droplets, falls; water impacts.",
+      "acceptance": "Reuse candidate; not a fresh visual or Studio fetch approval"
+    },
+    {
+      "name": "water_trail",
+      "kind": "texture",
+      "path": "assets/vfx/textures/water_trail.png",
+      "sha256": "8ceb5fd17c57fccd8eaa5172496890645b1aca10dbdd67492fd47d7f92a3a79d",
+      "proposal": "Reuse alpha, layout and timing; review palette and internal value shapes",
+      "usage": "U-tiling flowing water ribbon with foam edges and streaks; water trails/beams.",
+      "acceptance": "Reuse candidate; not a fresh visual or Studio fetch approval"
+    },
+    {
+      "name": "wind_swirl",
+      "kind": "texture",
+      "path": "assets/vfx/textures/wind_swirl.png",
+      "sha256": "a0b230d9e13619be486aaaf5089e2ef15aa182ec7d4788db35113edf49244be5",
+      "proposal": "Reuse alpha, layout and timing; review palette and internal value shapes",
+      "usage": "Looping 16-frame spiral of tapered gust strokes; wind cores, cyclones, auras.",
+      "acceptance": "Reuse candidate; not a fresh visual or Studio fetch approval"
+    }
+  ]
+}

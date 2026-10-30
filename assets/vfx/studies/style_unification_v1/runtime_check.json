@@ -1,0 +1,9 @@
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "{\"Textures\":91,\"Meshes\":60,\"ConnectedFire\":{\"Created\":8,\"Updates\":2,\"Active\":0,\"Pooled\":8,\"MaxUpdateMS\":0.8611000084783882,\"MeanUpdateMS\":0.4315000114729628},\"Scope\":\"Cosmetic renderer, real spell definitions, identity/layout and pooling checks; no GPU performance claim\",\"Spells\":[\"Fireball\",\"BurningGround\",\"LightningLance\",\"BodyReinforcement\",\"BodyBurst\",\"StoneShot\",\"RecruitMagicDischarge\",\"StoneRaise\",\"RecruitMagicBolt\"],\"Cleanup\":{\"Lights\":0,\"Meshes\":0,\"Trails\":0,\"Sessions\":0,\"Emitters\":0,\"Rate\":0}}"
+    }
+  ],
+  "isError": false
+}

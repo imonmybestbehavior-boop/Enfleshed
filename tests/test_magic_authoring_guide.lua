@@ -41,6 +41,8 @@ local schema = {
 		return { "OnCast" }
 	end,
 }
+-- Shapes and starter effects are pre-validated so the guide never offers a
+-- choice the server would reject; this stub accepts every draft.
 local spec = {
 	createDraft = function(form, principle)
 		return { Form = form, Principle = principle, Triggers = {} }
@@ -53,7 +55,7 @@ local spec = {
 		return copy
 	end,
 	validate = function()
-		error("authoring choices must not be filtered by hidden runtime validation")
+		return true
 	end,
 }
 

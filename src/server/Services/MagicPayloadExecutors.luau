@@ -13,6 +13,18 @@ local MagicLab = require(game:GetService("ReplicatedStorage").Shared.Configurati
 local TemporalRate = require(game:GetService("ReplicatedStorage").Shared.Modules.MagicTemporalRate)
 local BodyRegion = require(game:GetService("ReplicatedStorage").Shared.Modules.MagicBodyRegionSpec)
 local ElementalInteractions = require(game:GetService("ReplicatedStorage").Shared.Modules.MagicElementalInteractionSpec)
+local CombatPolicy = require(game:GetService("ReplicatedStorage").Shared.Modules.CombatPolicy)
+local StatCaps = require(game:GetService("ReplicatedStorage").Shared.Modules.SpellStatCaps)
+local CapProfiles = require(game:GetService("ReplicatedStorage").Shared.Configuration.SpellStatCaps)
+local Schema = require(game:GetService("ReplicatedStorage").Shared.Configuration.MagicSchema)
+local ScaleSpec = require(game:GetService("ReplicatedStorage").Shared.Modules.MagicScaleSpec)
+local BloodCostSpec = require(game:GetService("ReplicatedStorage").Shared.Modules.MagicBloodCostSpec)
+local CrowdControl = require(game:GetService("ReplicatedStorage").Shared.Modules.MagicCrowdControlSpec)
+local OperationBudget = require(game:GetService("ReplicatedStorage").Shared.Modules.MagicOperationBudget)
+local HealSpec = require(game:GetService("ReplicatedStorage").Shared.Modules.MagicHealSpec)
+local TransformState = require(game:GetService("ReplicatedStorage").Shared.Modules.MagicTransformStateSpec)
+local Transform = require(script.Parent.MagicTransformService)
+local Players = game:GetService("Players")
 local Payloads = {}
 local periodicEffects = {}
 local RunService = game:GetService("RunService")
@@ -117,6 +129,82 @@ local function applyForce(root, velocity)
 	root:ApplyImpulse(velocity * root.AssemblyMass)
 end
 
+-- Effects a mark or a reaction applies on its own (starter effects, reaction
+-- effects). They go through Payloads.execute, so they get the same hostility
+-- filter and PvP SpellStatCaps as authored payloads, credited to the caster of
+-- the incoming mark. FromMark/FromReaction stop them triggering reactions.
+local function applySecondary(effect, target, context, reactionSpellId: string?)
+	local effectContext = table.clone(context)
+	effectContext.Targets = { target }
+	effectContext.RequiredElementalMark = effect.RequiresElementalMark
+	effectContext.FromMark = true
+	if reactionSpellId then
+		effectContext.FromReaction = true
+		effectContext.SpellId = reactionSpellId
+	end
+	Payloads.execute({ effect }, effectContext)
+end
+
+-- One elemental reaction on `target` (MagicLab.ElementalInteractions), paid
+-- from the cascade budget of the event that caused it.
+local function applyReaction(reaction, target, context, markDuration)
+	local budget = context.DamageContext and context.DamageContext.OperationBudget
+	if budget and not OperationBudget.spend(budget, 1 + #reaction.Effects) then
+		return
+	end
+	local spellId = ElementalInteractions.spellId(reaction)
+	local model = target.Parent
+	local root = model and model:FindFirstChild("HumanoidRootPart")
+	local position = if root and root:IsA("BasePart") then root.Position else context.Origin
+	for _, effect in ElementalInteractions.reactionEffects(reaction, markDuration) do
+		if effect.Kind == "Chain" then
+			-- Conduct: the hit jumps to other marked targets nearby.
+			for _, other in (context.FindHumanoidsNear and context.FindHumanoidsNear(position, effect.Radius)) or {} do
+				if
+					other ~= target
+					and (
+						not effect.RequiresElementalMark
+						or Status.hasElementalMark(other, effect.RequiresElementalMark)
+					)
+				then
+					applySecondary({ Kind = "Damage", Amount = effect.Damage }, other, context, spellId)
+				end
+			end
+		elseif effect.Kind == "SpawnField" or effect.Kind == "Smoke" then
+			if effect.Kind == "Smoke" then
+				Status.addConcealment(position, effect.Radius, effect.Duration)
+			end
+			if context.SpawnReactionField then
+				context.SpawnReactionField(effect, position)
+			end
+		else
+			applySecondary(effect, target, context, spellId)
+		end
+	end
+end
+
+-- Authored amount -> ScaleBy (per target) -> potency (Locus x charge). Final
+-- caps come later: DamageService for damage, Status.heal for healing.
+local function scaledAmount(payload, context, humanoid): number
+	local amount = payload.Amount
+	if payload.ScaleBy and context.ScaleRead then
+		local units = ScaleSpec.units(payload.ScaleBy, function(source, element)
+			return context.ScaleRead(source, humanoid, element)
+		end)
+		amount = ScaleSpec.amount(amount, payload.ScaleBy, units)
+		-- PvP: the HealthPaid bonus is at most MaxHealthPaidBonus of the authored amount.
+		local profile = context.CapProfile
+		if payload.ScaleBy.Source == "HealthPaid" and profile and profile.MaxHealthPaidBonus then
+			amount = BloodCostSpec.capPaidBonus(payload.Amount, amount, profile.MaxHealthPaidBonus)
+		end
+	end
+	-- Ratio modes on Heal and Shield (MagicHealSpec): Amount becomes a percent.
+	if (payload.Kind == "Heal" or payload.Kind == "Shield") and payload.Mode and payload.Mode ~= "Flat" then
+		amount = HealSpec.base(payload.Mode, amount, humanoid and humanoid.MaxHealth, context.DamageDealt)
+	end
+	return amount * context.Potency
+end
+
 local function payloadDamageContext(payload, context, target)
 	if not context.DamageContext then
 		return nil
@@ -137,6 +225,14 @@ local function payloadDamageContext(payload, context, target)
 	damageContext.HitPart = hitPart
 	damageContext.DamageRegion = region
 	damageContext.RegionMultiplier = multiplier
+	-- PvP per-tick cap for damage over time, applied last in DamageService.
+	if payload.Kind == "DamageOverTime" and context.CapProfile then
+		damageContext.PerHitCap = context.CapProfile.MaxDotPerTick
+	end
+	-- DoT ticks never trigger Interception (OnBeforeDamageTaken).
+	if payload.Kind == "DamageOverTime" then
+		damageContext.Periodic = true
+	end
 	return damageContext
 end
 
@@ -235,10 +331,15 @@ local function displaceTarget(payload, context, humanoid)
 	return ok
 end
 
+local function targetModel(target: Instance): Instance?
+	return if target:IsA("Humanoid") then target.Parent else target:FindFirstAncestorOfClass("Model")
+end
+
 -- Payload metadata stays beside the executor registry so cross-cutting runtime
 -- behavior does not need to grow a payload-kind conditional list.
 Payloads.Metadata = {
-	Damage = { TracksHumanoidTargets = true },
+	-- DamagesStructures: an impact on a Construct part with health takes Amount.
+	Damage = { TracksHumanoidTargets = true, DamagesStructures = true },
 	DamageOverTime = { TracksHumanoidTargets = true },
 	Heal = { TracksHumanoidTargets = true },
 	Restoration = { TracksHumanoidTargets = true },
@@ -255,6 +356,14 @@ Payloads.Metadata = {
 	Enhancement = { TracksHumanoidTargets = true },
 	ElementalMark = { TracksHumanoidTargets = true },
 	ConsumeElementalMark = { TracksHumanoidTargets = true },
+	Stun = { TracksHumanoidTargets = true },
+	Silence = { TracksHumanoidTargets = true },
+	Taunt = { TracksHumanoidTargets = true },
+	Fear = { TracksHumanoidTargets = true },
+	Stealth = { TracksHumanoidTargets = true },
+	DrainResource = { TracksHumanoidTargets = true },
+	RestoreResource = { TracksHumanoidTargets = true },
+	Cleanse = { TracksHumanoidTargets = true },
 }
 
 Payloads.Executors = {
@@ -264,19 +373,24 @@ Payloads.Executors = {
 			return
 		end
 		for _, target in context.Targets or {} do
-			if
-				Status.elementalMark(context.Caster, target, context.SpellId, element, payload.Stacks, payload.Duration)
-			then
+			local applied, reaction = Status.elementalMark(
+				context.Caster,
+				target,
+				context.SpellId,
+				element,
+				payload.Stacks,
+				payload.Duration,
+				not context.FromReaction
+			)
+			if applied then
+				-- Starter effects: unchanged behaviour, now through the PvP caps.
 				for _, effect in ElementalInteractions.effectsFor(element, payload.Duration) do
-					local executor = Payloads.Executors[effect.Kind]
-					if executor then
-						local effectContext = table.clone(context)
-						effectContext.Targets = { target }
-						effectContext.RequiredElementalMark = effect.RequiresElementalMark
-						effect.Element = effect.Element or element
-						executor(effect, effectContext)
-					end
+					effect.Element = effect.Element or element
+					applySecondary(effect, target, context)
 				end
+			end
+			if reaction and not context.FromReaction then
+				applyReaction(reaction, target, context, payload.Duration)
 			end
 		end
 	end,
@@ -312,7 +426,7 @@ Payloads.Executors = {
 				-- Refresh duration/strength, never postpone the already scheduled next tick.
 				existing.Remaining = payload.Duration
 				existing.LastUpdateAt = now
-				existing.Amount = payload.Amount * context.Potency
+				existing.Amount = scaledAmount(payload, context, target)
 				existing.Interval = payload.Interval
 				existing.Feedback = context.HitFeedback
 				existing.EffectFeedback = context.EffectFeedback
@@ -328,7 +442,8 @@ Payloads.Executors = {
 					Caster = context.Caster,
 					Target = target,
 					SpellId = context.SpellId,
-					Amount = payload.Amount * context.Potency,
+					Polarity = Schema.Payloads.DamageOverTime.Polarity,
+					Amount = scaledAmount(payload, context, target),
 					Interval = payload.Interval,
 					UntilNext = payload.Interval,
 					Remaining = payload.Duration,
@@ -376,6 +491,7 @@ Payloads.Executors = {
 					Caster = context.Caster,
 					Target = target,
 					SpellId = context.SpellId,
+					Polarity = Schema.Payloads.Restoration.Polarity,
 					Amount = payload.Amount * context.Potency,
 					Interval = payload.Interval,
 					UntilNext = payload.Interval,
@@ -392,7 +508,7 @@ Payloads.Executors = {
 		for _, humanoid in context.Targets or {} do
 			local damageContext = payloadDamageContext(payload, context, humanoid)
 			local dealt, absorbed =
-				Damage.apply(context.Caster, humanoid, payload.Amount * context.Potency, damageContext)
+				Damage.apply(context.Caster, humanoid, scaledAmount(payload, context, humanoid), damageContext)
 			if dealt > 0 then
 				context.HitFeedback(humanoid, dealt)
 			end
@@ -403,7 +519,32 @@ Payloads.Executors = {
 	end,
 	Heal = function(payload: any, context: any)
 		for _, humanoid in context.Targets or {} do
-			local restored = Status.heal(context.Caster, humanoid, payload.Amount * context.Potency)
+			local amount = scaledAmount(payload, context, humanoid)
+			local healCap = context.CapProfile and context.CapProfile.MaxHealPerHit
+			local restored = Status.heal(context.Caster, humanoid, amount, healCap)
+			-- Overflow = "Shield": what could not be healed becomes a short shield.
+			if payload.Overflow == "Shield" then
+				local limit = if healCap then math.min(healCap, MagicLab.MaxHeal) else MagicLab.MaxHeal
+				local excess = HealSpec.overflow(amount, restored, limit)
+				local shieldCap = context.CapProfile and context.CapProfile.MaxShield
+				if shieldCap then
+					excess = math.min(excess, shieldCap)
+				end
+				if
+					excess > 0
+					and Status.shield(
+						context.Caster,
+						humanoid,
+						context.SpellId,
+						excess,
+						MagicLab.HealOverflowShieldDuration,
+						nil,
+						context.TargetDeathCallback and context.TargetDeathCallback(humanoid)
+					)
+				then
+					context.EffectFeedback("Shield", humanoid, excess)
+				end
+			end
 			if restored > 0 then
 				context.EffectFeedback("Heal", humanoid, restored)
 			end
@@ -416,17 +557,22 @@ Payloads.Executors = {
 					context.DamageContext.EmitEvent("OnBreak", target)
 				end
 				else nil
+			local amount = scaledAmount(payload, context, humanoid)
+			local shieldCap = context.CapProfile and context.CapProfile.MaxShield
+			if shieldCap then
+				amount = math.min(amount, shieldCap)
+			end
 			local added = Status.shield(
 				context.Caster,
 				humanoid,
 				context.SpellId,
-				payload.Amount * context.Potency,
+				amount,
 				payload.Duration,
 				onBreak,
 				context.TargetDeathCallback and context.TargetDeathCallback(humanoid)
 			)
 			if added then
-				context.EffectFeedback("Shield", humanoid, payload.Amount * context.Potency)
+				context.EffectFeedback("Shield", humanoid, amount)
 			end
 		end
 	end,
@@ -443,7 +589,8 @@ Payloads.Executors = {
 					amount,
 					payload.Duration,
 					context.TargetDeathCallback and context.TargetDeathCallback(humanoid),
-					context.RequiredElementalMark
+					context.RequiredElementalMark,
+					payload.Element
 				)
 			then
 				context.EffectFeedback(payload.Attribute, humanoid, amount)
@@ -451,7 +598,50 @@ Payloads.Executors = {
 		end
 	end,
 	Transformation = function(payload: any, context: any)
-		if payload.Mode ~= "Scale" then
+		if payload.Mode == "Polymorph" then
+			-- Against players: the PvP duration cap, and it always breaks on damage.
+			local cap = context.CapProfile and context.CapProfile.MaxPolymorphDurationVsPlayer
+			local duration = TransformState.polymorphDuration(
+				payload.Duration,
+				MagicLab.MinPolymorphDuration,
+				MagicLab.MaxPolymorphDuration,
+				cap
+			)
+			for _, humanoid in context.Targets or {} do
+				if
+					Transform.polymorph(
+						context.Caster,
+						humanoid,
+						context.SpellId,
+						duration,
+						payload.BreakOnDamage ~= false or cap ~= nil,
+						context.SpellColor,
+						context.TransformEnded and context.TransformEnded(humanoid)
+					)
+				then
+					context.EffectFeedback("Transformation", humanoid, duration)
+				end
+			end
+			return
+		elseif payload.Mode == "Shapeshift" then
+			-- Self only: the caster's own character.
+			local own = context.Caster:FindFirstChildOfClass("Humanoid")
+			for _, humanoid in context.Targets or {} do
+				if
+					humanoid == own
+					and Transform.shapeshift(
+						humanoid,
+						context.SpellId,
+						payload.Profile,
+						payload.Duration,
+						context.TransformEnded and context.TransformEnded(humanoid)
+					)
+				then
+					context.EffectFeedback("Transformation", humanoid, payload.Duration)
+				end
+			end
+			return
+		elseif payload.Mode ~= "Scale" then
 			return
 		end
 		for _, humanoid in context.Targets or {} do
@@ -503,6 +693,156 @@ Payloads.Executors = {
 			end
 		end
 	end,
+	Stun = function(payload: any, context: any)
+		for _, humanoid in context.Targets or {} do
+			if
+				Status.stun(
+					context.Caster,
+					humanoid,
+					context.SpellId,
+					payload.Duration,
+					context.TargetDeathCallback and context.TargetDeathCallback(humanoid),
+					context.RequiredElementalMark
+				)
+			then
+				context.EffectFeedback("Stun", humanoid, payload.Duration)
+			end
+		end
+	end,
+	Silence = function(payload: any, context: any)
+		for _, humanoid in context.Targets or {} do
+			-- Players only: monster and Nascent attacks are not spells.
+			if
+				Players:GetPlayerFromCharacter(humanoid.Parent)
+				and Status.silence(
+					context.Caster,
+					humanoid,
+					context.SpellId,
+					payload.Duration,
+					context.TargetDeathCallback and context.TargetDeathCallback(humanoid),
+					context.RequiredElementalMark
+				)
+			then
+				context.EffectFeedback("Silence", humanoid, payload.Duration)
+			end
+		end
+	end,
+	Taunt = function(payload: any, context: any)
+		-- Creatures only (players are skipped inside Status.taunt).
+		for _, humanoid in context.Targets or {} do
+			if
+				Status.taunt(
+					context.Caster,
+					humanoid,
+					context.SpellId,
+					payload.Duration,
+					context.TargetDeathCallback and context.TargetDeathCallback(humanoid),
+					context.RequiredElementalMark
+				)
+			then
+				context.EffectFeedback("Taunt", humanoid, payload.Duration)
+			end
+		end
+	end,
+	Fear = function(payload: any, context: any)
+		for _, humanoid in context.Targets or {} do
+			if
+				Status.fear(
+					context.Caster,
+					humanoid,
+					context.SpellId,
+					payload.Duration,
+					context.TargetDeathCallback and context.TargetDeathCallback(humanoid),
+					context.RequiredElementalMark
+				)
+			then
+				context.EffectFeedback("Fear", humanoid, payload.Duration)
+			end
+		end
+	end,
+	Stealth = function(payload: any, context: any)
+		for _, humanoid in context.Targets or {} do
+			if
+				Status.stealth(
+					context.Caster,
+					humanoid,
+					context.SpellId,
+					payload.Duration,
+					context.TargetDeathCallback and context.TargetDeathCallback(humanoid),
+					context.RequiredElementalMark
+				)
+			then
+				context.EffectFeedback("Stealth", humanoid, payload.Duration)
+			end
+		end
+	end,
+	DrainResource = function(payload: any, context: any)
+		-- Players only; MagicService moves the resource (creatures have none).
+		for _, humanoid in context.Targets or {} do
+			local moved = if context.TransferResource
+				then context.TransferResource("Drain", humanoid, payload.Resource, payload.Amount * context.Potency)
+				else 0
+			if moved > 0 then
+				context.EffectFeedback("DrainResource", humanoid, moved)
+			end
+		end
+	end,
+	RestoreResource = function(payload: any, context: any)
+		for _, humanoid in context.Targets or {} do
+			local moved = if context.TransferResource
+				then context.TransferResource("Restore", humanoid, payload.Resource, payload.Amount * context.Potency)
+				else 0
+			if moved > 0 then
+				context.EffectFeedback("RestoreResource", humanoid, moved)
+			end
+		end
+	end,
+	-- Dispel acts only on spells (MagicSpellTargets through MagicService).
+	Dispel = function(payload: any, context: any)
+		if context.SpellTargets and context.DispelSpells then
+			context.DispelSpells(payload, context.SpellTargets)
+		end
+	end,
+	Cleanse = function(payload: any, context: any)
+		-- One pool across timed statuses, periodic effects and Enchantments,
+		-- removed longest-lasting first (MagicCrowdControlSpec.select).
+		for _, humanoid in context.Targets or {} do
+			local candidates = Status.cleanseCandidates(humanoid)
+			-- Polymorph (Bane) and Shapeshift (Boon) are cleansed like timed statuses.
+			for _, candidate in Transform.cleanseCandidates(humanoid) do
+				table.insert(candidates, candidate)
+			end
+			for _, effect in periodicEffects do
+				if effect.Target == humanoid then
+					table.insert(candidates, {
+						Source = "Periodic",
+						Polarity = effect.Polarity,
+						Element = effect.DamageContext and effect.DamageContext.Element,
+						Remaining = effect.Remaining or 0,
+						AppliedAt = effect.LastUpdateAt or 0,
+						Remove = function()
+							for index, other in periodicEffects do
+								if other == effect then
+									removePeriodicEffect(index)
+									break
+								end
+							end
+						end,
+					})
+				end
+			end
+			for _, candidate in (context.EnchantmentCandidates and context.EnchantmentCandidates(humanoid)) or {} do
+				table.insert(candidates, candidate)
+			end
+			local selected = CrowdControl.select(candidates, payload.Remove, payload.Count or 1, payload.Element)
+			for _, candidate in selected do
+				candidate.Remove()
+			end
+			if #selected > 0 then
+				context.EffectFeedback("Cleanse", humanoid, #selected)
+			end
+		end
+	end,
 	Reveal = function(payload: any, context: any)
 		for _, humanoid in context.Targets or {} do
 			if
@@ -543,6 +883,14 @@ Payloads.Executors = {
 		end
 	end,
 	Force = function(payload: any, context: any)
+		-- Force on spells (TargetKind = "Spell"): moves Field/Aura centres and
+		-- unattached Constructs (MagicSpellTargets).
+		if context.SpellTargets then
+			if context.ForceSpells then
+				context.ForceSpells(payload, context.SpellTargets)
+			end
+			return
+		end
 		for _, target in context.Targets or {} do
 			local root = if target:IsA("Humanoid")
 				then target.Parent and target.Parent:FindFirstChild("HumanoidRootPart")
@@ -554,6 +902,14 @@ Payloads.Executors = {
 					direction = if delta.Magnitude > 0.001 then delta.Unit else Vector3.yAxis
 				end
 				applyForce(root, direction * payload.Magnitude + Vector3.new(0, payload.Upward or 0, 0))
+			end
+			-- Shatter: an authored Force hit on a Frozen target (marks' own Force
+			-- effects and reaction effects never trigger reactions).
+			if target:IsA("Humanoid") and not context.FromMark and not context.FromReaction then
+				local reaction = Status.checkReaction(target, "Force")
+				if reaction then
+					applyReaction(reaction, target, context, nil)
+				end
 			end
 		end
 	end,
@@ -594,18 +950,67 @@ Payloads.Executors = {
 }
 
 function Payloads.execute(payloads: { any }, context: any)
+	local casterOwner = CombatPolicy.owner(context.Caster, Players)
+	-- Wet conducts Lightning: note which targets are Wet before this group's
+	-- payloads and reactions run, so a Water mark used up by the same hit counts.
+	local damageContext = context.DamageContext
+	if
+		damageContext
+		and context.IsWet
+		and not context.FromMark
+		and damageContext.Element == "Lightning"
+		and not damageContext.IgnoreEnvironment
+	then
+		damageContext.WetBefore = damageContext.WetBefore or setmetatable({}, { __mode = "k" })
+		for _, target in context.Targets or {} do
+			if damageContext.WetBefore[target] == nil then
+				damageContext.WetBefore[target] = context.IsWet(target)
+			end
+		end
+	end
 	for _, payload in payloads do
 		local executor = Payloads.Executors[payload.Kind]
-		if executor then
-			local metadata = Payloads.Metadata[payload.Kind]
-			if metadata and metadata.TracksHumanoidTargets then
-				for _, target in context.Targets or {} do
-					if context.TrackAffected then
-						context.TrackAffected(target)
-					end
-				end
+		if not executor then
+			continue
+		end
+		-- Partition targets by stat-cap profile; hostile effects also drop
+		-- player-owned targets the caster may not attack.
+		local hostile = CombatPolicy.isHostilePayload(payload)
+		local groups: { [string]: { Instance } } = {}
+		local allowed: { Instance } = {}
+		local split = false
+		for _, target in context.Targets or {} do
+			local owner = CombatPolicy.owner(targetModel(target), Players)
+			if not hostile or CombatPolicy.allows(casterOwner, owner) then
+				local profile = StatCaps.profileName(casterOwner, owner)
+				groups[profile] = groups[profile] or {}
+				table.insert(groups[profile], target)
+				table.insert(allowed, target)
+				split = split or profile ~= "PvE"
 			end
-			executor(payload, context)
+		end
+		local metadata = Payloads.Metadata[payload.Kind]
+		if metadata and metadata.TracksHumanoidTargets and context.TrackAffected then
+			for _, target in allowed do
+				context.TrackAffected(target)
+			end
+		end
+		-- An impact on a Construct part with health (MagicConstructHealth):
+		-- once per payload, flat Amount x potency, owner and PvP rules there.
+		local hitPart = context.DamageContext and context.DamageContext.HitPart
+		if metadata and metadata.DamagesStructures and hitPart and context.DamageStructure then
+			context.DamageStructure(hitPart, payload.Amount * (context.Potency or 1))
+		end
+		if not context.Targets or (not split and #allowed == #context.Targets) then
+			executor(payload, context) -- common case: no PvP targets, nothing filtered
+		else
+			for profile, targets in groups do
+				local groupContext = table.clone(context)
+				groupContext.Targets = targets
+				-- Final per-hit caps for this target group (damage over time, heal, shield).
+				groupContext.CapProfile = CapProfiles[profile]
+				executor(StatCaps.payload(payload, CapProfiles[profile], context.Potency), groupContext)
+			end
 		end
 	end
 end

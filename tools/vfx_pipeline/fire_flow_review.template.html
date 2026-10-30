@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Enfleshed — Supplied Fire Cycle</title>
+<style>
+:root{color-scheme:dark;font:15px system-ui,sans-serif;color:#eee5df;background:#110f16}*{box-sizing:border-box}body{max-width:900px;margin:0 auto;padding:22px 16px}h1{font-size:23px;margin:0 0 8px}p{color:#bcafbd;line-height:1.5}canvas{display:block;width:100%;height:auto;background:#19151e;border:1px solid #51414f;border-radius:7px}.controls{display:flex;flex-wrap:wrap;align-items:center;gap:12px;margin:16px 0}button,select,input{font:inherit}button,select{background:#302435;color:#ffe6c7;border:1px solid #69506a;border-radius:5px;padding:9px 12px;cursor:pointer}label{display:flex;gap:8px;align-items:center}input{accent-color:#ff923a}#frame-slider{flex:1;min-width:140px}.small{font-size:13px}
+</style></head><body>
+<h1>Your eight-frame fire cycle</h1>
+<p>Only the supplied frames, played at a fixed size and position. Watch the bright folds and dark gaps to see whether fire travels through the body toward the left.</p>
+<canvas id="fire" width="800" height="520" role="img" aria-label="Eight supplied painted fireball frames played as a loop"></canvas>
+<div class="controls"><button id="play" type="button">Pause</button><button id="previous" type="button">Previous</button><button id="next" type="button">Next</button><label>Playback <select id="fps"><option value="6">6 fps</option><option value="8" selected>8 fps</option><option value="12">12 fps</option><option value="16">16 fps</option></select></label><label><input id="light" type="checkbox">Light backdrop</label></div>
+<div class="controls"><label for="frame-slider">Frame</label><input id="frame-slider" type="range" min="0" max="7" value="0" step="1"><span id="frame-label">1 / 8</span></div>
+<p class="small">This review preserves the original sheet. Alignment, the last-to-first transition, and whether flame folds move rather than simply change shape still need visual approval. Source cells use fractional boundaries; production export remains pending.</p>
+<script>
+const image=new Image(),canvas=document.getElementById('fire'),ctx=canvas.getContext('2d');
+const play=document.getElementById('play'),fps=document.getElementById('fps'),slider=document.getElementById('frame-slider'),label=document.getElementById('frame-label'),light=document.getElementById('light');
+let playing=!matchMedia('(prefers-reduced-motion: reduce)').matches,frame=0,accumulator=0,last=0,loaded=false;
+function draw(){if(!loaded)return;ctx.fillStyle=light.checked?'#d8d1c8':'#19151e';ctx.fillRect(0,0,800,520);const sw=image.width/4,sh=image.height/2;ctx.drawImage(image,(frame%4)*sw,Math.floor(frame/4)*sh,sw,sh,190,50,420,420);slider.value=frame;label.textContent=(frame+1)+' / 8';}
+function animate(now){const dt=last?Math.min((now-last)/1000,.1):0;last=now;if(playing){accumulator+=dt;const interval=1/Number(fps.value);if(accumulator>=interval){const advance=Math.floor(accumulator/interval);frame=(frame+advance)%8;accumulator-=advance*interval;draw();}}requestAnimationFrame(animate);}
+function pause(){playing=false;accumulator=0;play.textContent='Play';}
+play.addEventListener('click',()=>{playing=!playing;play.textContent=playing?'Pause':'Play';accumulator=0;});
+document.getElementById('previous').addEventListener('click',()=>{pause();frame=(frame+7)%8;draw();});
+document.getElementById('next').addEventListener('click',()=>{pause();frame=(frame+1)%8;draw();});
+slider.addEventListener('input',()=>{pause();frame=Number(slider.value);draw();});light.addEventListener('change',draw);
+image.onload=()=>{loaded=true;draw();play.textContent=playing?'Pause':'Play';requestAnimationFrame(animate);};image.onerror=()=>{label.textContent='Artwork could not load';};image.src=__SHEET__;
+</script></body></html>

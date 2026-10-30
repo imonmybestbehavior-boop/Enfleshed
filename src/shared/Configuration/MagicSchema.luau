@@ -7,6 +7,21 @@ local Limits = require(script.Parent.MagicLab)
 local SummonLimits = require(script.Parent.MagicSummons)
 local PrincipleSpec = require(script.Parent.Parent.Modules.MagicPrincipleSpec)
 local DamageRules = require(script.Parent.Parent.Modules.MagicDamageRules)
+local AttributeSpec = require(script.Parent.Parent.Modules.MagicAttributeSpec)
+local LocusConfiguration = require(script.Parent.MagicLocus)
+local MeleeProfiles = require(script.Parent.MeleeProfiles)
+-- DrainResource / RestoreResource: Mana plus every configured special resource.
+local resourceOptions = { "Mana" }
+do
+	local ids = {}
+	for id in pairs(LocusConfiguration.SpecialResources or {}) do
+		table.insert(ids, id)
+	end
+	table.sort(ids)
+	for _, id in ids do
+		table.insert(resourceOptions, id)
+	end
+end
 local ConstructGeometrySpec = require(script.Parent.Parent.Modules.MagicConstructGeometrySpec)
 local TargetDeathSpec = require(script.Parent.Parent.Modules.MagicTargetDeathSpec)
 local AudioSpec = require(script.Parent.Parent.Modules.MagicAudioSpec)
@@ -95,6 +110,7 @@ Schema.VisualOptions = {
 	CastingStyles = VisualSpec.CastingStyles,
 	SurfaceBehaviors = VisualSpec.SurfaceBehaviors,
 	EnvironmentalVisuals = VisualSpec.EnvironmentalVisuals,
+	VFXDefinitions = VisualSpec.VFXDefinitions,
 }
 Schema.PresentationProfiles = MagicPresentation.Profiles
 Schema.VisualAssetGroups = VisualAssets.Groups
@@ -105,17 +121,34 @@ Schema.EventOrder = {
 	"OnImpact",
 	"OnProximity",
 	"OnDamageDealt",
+	"OnBeforeDamageTaken",
 	"OnDamageTaken",
+	"OnMeleeHit",
+	"OnHolderDealtDamage",
 	"OnThreshold",
 	"OnBreak",
+	"OnDestroyed",
 	"OnTargetDeath",
 	"OnCasterDeath",
 	"OnCommand",
+	"OnRecast",
+	"OnTransformEnd",
+	"OnDispelled",
 	"OnEnter",
 	"OnExit",
 	"OnInterval",
 	"OnTick",
 	"OnExpire",
+}
+-- Who an OnDamageTaken step acts on: the spell's holder (default) or the attacker.
+Schema.TargetFromOptions = { "Holder", "Attacker" }
+-- Which TargetFrom values each event allows. OnDamageDealt: Holder = the
+-- damaged target (default), Caster = the spell's caster (e.g. lifesteal).
+Schema.TargetFromByEvent = {
+	OnDamageTaken = Schema.TargetFromOptions,
+	-- Interception: the holder (default), whoever is hitting them, or the caster.
+	OnBeforeDamageTaken = { "Holder", "Attacker", "Caster" },
+	OnDamageDealt = { "Holder", "Caster" },
 }
 Schema.EventLabels = {
 	OnCast = "On cast",
@@ -123,15 +156,22 @@ Schema.EventLabels = {
 	OnImpact = "On impact",
 	OnProximity = "On target approaches",
 	OnDamageDealt = "On damage dealt",
+	OnBeforeDamageTaken = "Before damage taken",
 	OnDamageTaken = "On damage taken",
+	OnMeleeHit = "On melee hit",
+	OnHolderDealtDamage = "On holder deals spell damage",
 	OnThreshold = "Target crosses health threshold",
 	OnEnter = "On target enters",
 	OnExit = "On target exits",
 	OnInterval = "On interval",
 	OnBreak = "On shield break",
+	OnDestroyed = "On destroyed",
 	OnTick = "On each pulse",
 	OnExpire = "On expire",
 	OnCommand = "On command",
+	OnRecast = "On recast",
+	OnTransformEnd = "When the transformation ends",
+	OnDispelled = "When it's dispelled",
 }
 Schema.EventDescriptions = {
 	OnCast = "Runs immediately when this spell is cast.",
@@ -139,9 +179,13 @@ Schema.EventDescriptions = {
 	OnImpact = "Runs when a Projectile hits something, or when a Beam resolves. Instant Beams use their server-resolved contact point, or their maximum-range endpoint if unobstructed; channeled Beams run this event on contact.",
 	OnProximity = "Happens when someone gets close enough to the moving projectile, your construct, or your active self spell. The proximity settings control the distance and repeat limits.",
 	OnDamageDealt = "Runs after this spell successfully deals health damage.",
-	OnDamageTaken = "Runs when the active spell's caster takes health damage.",
+	OnBeforeDamageTaken = "Runs when the character holding this spell is about to be hit (spell, melee or monster attack), before any protection. A step can cancel the hit, reduce it, or send part of it to the caster or back to the attacker. Uses one charge per hit; damage over time and redirected damage never trigger it.",
+	OnDamageTaken = "Runs when the active spell's caster takes health damage. A step can target the attacker instead of you.",
+	OnMeleeHit = "Runs each time the holder's weapon or claw strike lands while this Enchantment, Aura, or caster-following Field is active. Its target is the creature that was hit.",
+	OnHolderDealtDamage = "Runs when the Enchantment's holder deals damage with one of their own spells. Its target is the holder.",
 	OnThreshold = "Runs when this spell's health damage moves a target from above its configured health percentage to that percentage or lower.",
 	OnBreak = "Runs when a shield created by this spell absorbs damage and its remaining shield points reach zero.",
+	OnDestroyed = "Runs when this Construct's health reaches zero, where it stood. Its target is whoever broke it, if the spell's relationship allows them. A destroyed Construct does not also run On expire.",
 	OnTargetDeath = "Runs when this spell defeats a target or an active effect it applied is on the target when it dies. Each step can filter which cause should run it.",
 	OnCasterDeath = "Runs when the active spell's caster dies.",
 	OnEnter = "Runs when a valid target first enters an active Field or Aura, sampled at its pulse interval.",
@@ -150,6 +194,9 @@ Schema.EventDescriptions = {
 	OnTick = "Runs at the configured interval while a Channeled Beam/Wave/Field/Aura, area, traveling Pulse, or lingering projectile is active.",
 	OnExpire = "Runs once when the spell's active duration ends.",
 	OnCommand = "Runs when the owner gives this spell's active summon group a validated Follow, Protect, Attack, Hold, Support, or Dismiss order. A step may be limited to one command.",
+	OnRecast = "Runs when you press this spell's slot again while its effect is still active, instead of casting it again. Free, up to the spell's recast limit; the trigger count (1, 2, 3) tells the stages apart.",
+	OnDispelled = "Runs once when a Dispel ends this Field, Aura, Construct or Tether, before it is removed (it then does not run On expire). Not when it is only shortened.",
+	OnTransformEnd = "Runs when a Polymorph or Shapeshift from this spell ends (it ran out, broke on damage, was cleansed or recast), on the character who was transformed. Not when they die or leave.",
 }
 
 Schema.TargetingModes = {
@@ -510,7 +557,16 @@ Schema.Forms = {
 		Draft = {
 			Targeting = "WorldPoint",
 			Lifetime = { Mode = "FixedDuration", Duration = 8 },
-			Mechanics = { Radius = 8, Interval = 0.6, DebugHeight = 0.2, Yaw = 0, FollowTarget = false },
+			Mechanics = {
+				Radius = 8,
+				Interval = 0.6,
+				DebugHeight = 0.2,
+				Yaw = 0,
+				FollowTarget = false,
+				ArmDelay = 0,
+				Hidden = false,
+				ConsumeOnTrigger = false,
+			},
 		},
 		-- A Field may be placed on a world point or centered on a living entity.
 		-- It remains at cast-time position by default; FollowTarget opts into attachment.
@@ -522,6 +578,7 @@ Schema.Forms = {
 			"OnSpawn",
 			"OnDamageDealt",
 			"OnDamageTaken",
+			"OnMeleeHit",
 			"OnTargetDeath",
 			"OnCasterDeath",
 			"OnEnter",
@@ -534,6 +591,7 @@ Schema.Forms = {
 			"OnSpawn",
 			"OnDamageDealt",
 			"OnDamageTaken",
+			"OnMeleeHit",
 			"OnTargetDeath",
 			"OnCasterDeath",
 			"OnEnter",
@@ -640,6 +698,29 @@ Schema.Forms = {
 				Max = 30,
 				Help = "Time to reach the end scale; the area holds that size afterward.",
 			},
+			{
+				Object = "Field",
+				Key = "ArmDelay",
+				Label = "Arm delay (seconds)",
+				Min = 0,
+				Max = Limits.MaxTrapArmDelay,
+				Required = false,
+				Help = "Trap option. Entering, leaving and pulse effects wait this long after placement; anyone already inside counts as entering when it arms.",
+			},
+			{
+				Object = "Field",
+				Key = "Hidden",
+				Label = "Hidden from opponents",
+				Required = false,
+				Help = "Trap option. Players who can fight you are never sent its marker; you and your allies still see it. Cannot follow a target or grow.",
+			},
+			{
+				Object = "Field",
+				Key = "ConsumeOnTrigger",
+				Label = "Ends when triggered",
+				Required = false,
+				Help = "Trap option. The first time a target enters (after arming), its entering effects run and then the Field ends.",
+			},
 		},
 	},
 	Aura = {
@@ -661,6 +742,7 @@ Schema.Forms = {
 			"OnSpawn",
 			"OnDamageDealt",
 			"OnDamageTaken",
+			"OnMeleeHit",
 			"OnTargetDeath",
 			"OnCasterDeath",
 			"OnEnter",
@@ -673,6 +755,7 @@ Schema.Forms = {
 			"OnSpawn",
 			"OnDamageDealt",
 			"OnDamageTaken",
+			"OnMeleeHit",
 			"OnTargetDeath",
 			"OnCasterDeath",
 			"OnEnter",
@@ -782,8 +865,8 @@ Schema.Forms = {
 		},
 	},
 	SelfEnhancement = {
-		Label = "Self Enhancement",
-		Description = "An active spell on yourself. Add Movement to run faster or jump higher, or choose other supported effects. You can also add effects that happen when someone approaches you.",
+		Label = "Enchantment",
+		Description = "An enchantment on yourself or on another character. Add Swiftness to run faster or jump higher, or choose other supported effects. Its events happen from the holder's point of view: when they take damage, land a melee hit, deal spell damage, or when someone approaches them.",
 		Geometry = "Self",
 		Motion = "Stationary",
 		Draft = {
@@ -791,12 +874,31 @@ Schema.Forms = {
 			Lifetime = { Mode = "FixedDuration", Duration = 10 },
 			Mechanics = {},
 		},
-		Targeting = set({ "Self" }),
+		-- Self by default; EntityTarget puts it on an ally or enemy (the holder).
+		Targeting = set({ "Self", "EntityTarget" }),
 		TargetTypes = set({ "Humanoid" }),
-		Events = set({ "OnCast", "OnExpire", "OnDamageTaken", "OnCasterDeath", "OnProximity" }),
-		EffectEvents = set({ "OnCast", "OnExpire", "OnDamageTaken", "OnCasterDeath", "OnProximity" }),
+		Events = set({
+			"OnCast",
+			"OnExpire",
+			"OnDamageTaken",
+			"OnMeleeHit",
+			"OnHolderDealtDamage",
+			"OnTargetDeath",
+			"OnCasterDeath",
+			"OnProximity",
+		}),
+		EffectEvents = set({
+			"OnCast",
+			"OnExpire",
+			"OnDamageTaken",
+			"OnMeleeHit",
+			"OnHolderDealtDamage",
+			"OnTargetDeath",
+			"OnCasterDeath",
+			"OnProximity",
+		}),
 		DefaultEvent = "OnCast",
-		TargetRules = false,
+		TargetRules = true,
 		Mechanics = {},
 	},
 	Construct = {
@@ -813,8 +915,26 @@ Schema.Forms = {
 		-- Air placement is the default; explicit object/entity attachment is optional.
 		Targeting = set({ "AimDirection", "WorldPoint", "EntityTarget", "ObjectTarget" }),
 		TargetTypes = set({ "Humanoid" }),
-		Events = set({ "OnCast", "OnExpire", "OnProximity", "OnDamageTaken", "OnCasterDeath" }),
-		EffectEvents = set({ "OnCast", "OnExpire", "OnProximity", "OnDamageTaken", "OnCasterDeath" }),
+		-- OnTick runs every Construct.Interval seconds when an interval is set.
+		-- OnDestroyed needs Construct.Health.
+		Events = set({
+			"OnCast",
+			"OnTick",
+			"OnExpire",
+			"OnDestroyed",
+			"OnProximity",
+			"OnDamageTaken",
+			"OnCasterDeath",
+		}),
+		EffectEvents = set({
+			"OnCast",
+			"OnTick",
+			"OnExpire",
+			"OnDestroyed",
+			"OnProximity",
+			"OnDamageTaken",
+			"OnCasterDeath",
+		}),
 		DefaultEvent = nil,
 		TargetRules = true,
 		Mechanics = {
@@ -874,6 +994,24 @@ Schema.Forms = {
 				Max = 30,
 				Help = "Time to reach the end scale. Growth pauses if the expanded geometry would overlap another solid or character.",
 			},
+			{
+				Object = "Construct",
+				Key = "Interval",
+				Label = "Pulse interval",
+				Min = Limits.MinInterval,
+				Max = Limits.MaxConstructInterval,
+				Required = false,
+				Help = "Optional. Runs On each pulse at this interval while the Construct stands (a turret, a healing totem). Pulses reach characters within its proximity radius, or the character it is attached to.",
+			},
+			{
+				Object = "Construct",
+				Key = "Health",
+				Label = "Health",
+				Min = 1,
+				Max = Limits.MaxConstructHealth,
+				Required = false,
+				Help = "Optional. Spell damage and melee hits on its parts lower this; at zero it breaks and runs On destroyed. Your own attacks never damage it. Leave empty for an unbreakable Construct.",
+			},
 		},
 	},
 	Manipulation = {
@@ -894,9 +1032,152 @@ Schema.Forms = {
 		TargetRules = false,
 		Mechanics = {},
 	},
+	Rush = {
+		Label = "Rush",
+		Description = "Moves you along your aim. Dash travels and hits what it passes through; Blink appears at the end instantly. The server stops you short of walls and ledges.",
+		Geometry = "Sphere",
+		Motion = "Dash",
+		Draft = {
+			Targeting = "AimDirection",
+			Lifetime = { Mode = "Instantaneous" },
+			Mechanics = { Mode = "Dash", Distance = 16, Speed = 80, Radius = 3, StopOnHit = false },
+		},
+		Targeting = set({ "AimDirection" }),
+		TargetTypes = set({ "Humanoid" }),
+		-- OnCast: around you where the rush starts. OnImpact: each target a Dash
+		-- passes through (once each). OnExpire: around you where you arrive.
+		Events = set({ "OnCast", "OnImpact", "OnExpire", "OnDamageDealt", "OnTargetDeath" }),
+		EffectEvents = set({ "OnCast", "OnImpact", "OnExpire", "OnDamageDealt", "OnTargetDeath" }),
+		DefaultEvent = "OnImpact",
+		TargetRules = true,
+		Mechanics = {
+			{
+				Object = "Rush",
+				Key = "Mode",
+				Label = "Rush mode",
+				Options = { "Dash", "Blink" },
+				Help = "Dash travels along the path and hits targets it passes. Blink appears at the end instantly and hits nothing on the way.",
+			},
+			{
+				Object = "Rush",
+				Key = "Distance",
+				Label = "Rush distance",
+				Min = 2,
+				Max = Limits.MaxRushDistance,
+				Help = "How far you move. Walls, ledges, steep slopes and tall steps stop you sooner.",
+			},
+			{
+				Object = "Rush",
+				Key = "Speed",
+				Label = "Dash speed",
+				Min = 20,
+				Max = Limits.MaxRushSpeed,
+				ShowWhen = { Key = "Mode", Values = { "Dash" } },
+				Help = "Studs per second while dashing.",
+			},
+			{
+				Object = "Rush",
+				Key = "Radius",
+				Label = "Hit radius",
+				Min = 0.5,
+				Max = Limits.MaxRushRadius,
+				Help = "How close a target must be to the dash path to be hit, and the reach of effects at the start and end.",
+			},
+			{
+				Object = "Rush",
+				Key = "StopOnHit",
+				Label = "Stop at the first hit",
+				ShowWhen = { Key = "Mode", Values = { "Dash" } },
+				Help = "On: the Dash ends at the first target it hits. Off: it passes through and hits each target once.",
+			},
+		},
+	},
+	Tether = {
+		Label = "Tether",
+		Description = "A visible link between you and a target, or between two targets. It snaps when they move too far apart or lose sight of each other. Pulse effects can act on either end, so one end can be drained while the other is healed.",
+		Geometry = "Line",
+		Motion = "Stationary",
+		Draft = {
+			Targeting = "EntityTarget",
+			Lifetime = { Mode = "FixedDuration", Duration = 6 },
+			Mechanics = {
+				Anchors = "CasterToTarget",
+				MaxLength = 30,
+				BreakOnLineOfSight = true,
+				Interval = 1,
+				Pull = false,
+			},
+		},
+		Targeting = set({ "EntityTarget" }),
+		TargetTypes = set({ "Humanoid" }),
+		-- OnBreak on a Tether is the snap (distance or line of sight), not a shield breaking.
+		Events = set({ "OnCast", "OnTick", "OnBreak", "OnExpire", "OnDamageDealt", "OnTargetDeath" }),
+		EffectEvents = set({ "OnCast", "OnTick", "OnBreak", "OnExpire", "OnDamageDealt", "OnTargetDeath" }),
+		DefaultEvent = "OnTick",
+		TargetRules = true,
+		Mechanics = {
+			{
+				Object = "Tether",
+				Key = "Anchors",
+				Label = "Links",
+				Options = { "CasterToTarget", "TargetToTarget" },
+				Help = "Caster to target: you and the character you pick. Target to target: the character you pick and the nearest other one within reach (chain two enemies).",
+			},
+			{
+				Object = "Tether",
+				Key = "MaxLength",
+				Label = "Maximum length",
+				Min = Limits.MinTetherLength,
+				Max = Limits.MaxTetherLength,
+				Help = "The link snaps when its ends move further apart than this.",
+			},
+			{
+				Object = "Tether",
+				Key = "BreakOnLineOfSight",
+				Label = "Snaps without line of sight",
+				Help = "On: the link snaps when something solid stays between its ends for more than half a second.",
+			},
+			{
+				Object = "Tether",
+				Key = "Interval",
+				Label = "Pulse interval",
+				Min = Limits.MinInterval,
+				Max = Limits.MaxTetherInterval,
+				Help = "Time between On each pulse effects.",
+			},
+			{
+				Object = "Tether",
+				Key = "Pull",
+				Label = "Pull ends together",
+				Help = "On: past 80% of the maximum length the ends are drawn together. It still snaps beyond the maximum.",
+			},
+			{
+				Object = "Tether",
+				Key = "ShareDamage",
+				Label = "Shared damage (%)",
+				Min = 10,
+				Max = 90,
+				Required = false,
+				Help = "Soul link. Optional. This share of the damage either end takes moves to the other end. Shared damage is never shared again.",
+			},
+		},
+	},
 }
 
-Schema.FormOrder = { "Projectile", "Beam", "Wave", "Field", "Aura", "SelfEnhancement", "Construct", "Manipulation" }
+Schema.FormOrder = {
+	"Projectile",
+	"Beam",
+	"Wave",
+	"Field",
+	"Aura",
+	"SelfEnhancement",
+	"Construct",
+	"Manipulation",
+	"Rush",
+	"Tether",
+}
+-- Tether step field Anchor: which end a step acts on (default Both).
+Schema.TetherAnchors = { "A", "B", "Both" }
 
 -- Commands are lifecycle events on summon-producing spell definitions. A
 -- group retains the validated definition independently of the original cast.
@@ -911,6 +1192,62 @@ end
 
 Schema.Forms.Projectile.Events.OnProximity = true
 Schema.Forms.Projectile.EffectEvents.OnProximity = true
+
+-- Spells as targets (TargetKind = "Spell"): Dispel and Force act on live
+-- Fields, Auras, Constructs and Tethers. OnDispelled runs on those Forms.
+Schema.TargetKinds = { "Character", "Spell" }
+Schema.SpellRelationships = { "Hostile", "Allied", "Any" }
+Schema.SpellTargetPayloads = { Dispel = true, Force = true }
+-- Dispel is a Bane only when it targets Hostile spells.
+Schema.DispelPolarity = { Hostile = "Bane", Allied = "Neutral", Any = "Neutral" }
+for _, formName in { "Field", "Aura", "Construct", "Tether" } do
+	Schema.Forms[formName].Events.OnDispelled = true
+	Schema.Forms[formName].EffectEvents.OnDispelled = true
+end
+-- Field lens (Field.AffectsSpells) settings.
+Schema.LensWho = { "Hostile", "Allied", "Any" }
+
+-- Transformation modes: polarity by mode (Scale is neither), and the melee
+-- profiles a Shapeshift can use.
+Schema.TransformModes = { "Scale", "Polymorph", "Shapeshift" }
+Schema.TransformPolarity = { Scale = "Neutral", Polymorph = "Bane", Shapeshift = "Boon" }
+Schema.ShapeshiftProfiles = (function()
+	local names = {}
+	for name in MeleeProfiles.Profiles do
+		table.insert(names, name)
+	end
+	table.sort(names)
+	return names
+end)()
+-- OnTransformEnd: every Form that can carry a Transformation.
+for _, form in Schema.Forms do
+	if form.TargetTypes and form.TargetTypes.Humanoid then
+		form.Events.OnTransformEnd = true
+		form.EffectEvents.OnTransformEnd = true
+	end
+end
+
+-- Interception (OnBeforeDamageTaken): spells a character holds. A Construct
+-- intercepts only while attached to a character.
+Schema.InterceptionForms = { "Aura", "SelfEnhancement", "Construct" }
+for _, formName in Schema.InterceptionForms do
+	Schema.Forms[formName].Events.OnBeforeDamageTaken = true
+	Schema.Forms[formName].EffectEvents.OnBeforeDamageTaken = true
+end
+-- Step field Intercept = { Action, Percent, To } and spell field
+-- Interception = { Charges, EndWhenSpent } (MagicInterceptionSpec).
+Schema.InterceptActions = { "Negate", "Reduce", "Redirect" }
+Schema.InterceptTargets = { "Owner", "Attacker" }
+Schema.InterceptPercentRange = { Reduce = { 1, 90 }, Redirect = { 10, 100 } }
+Schema.MaxInterceptionCharges = Limits.MaxInterceptionCharges
+
+-- OnRecast: Forms whose cast leaves an active effect a slot press can reach
+-- (same list as MagicRecastSpec.Forms).
+Schema.RecastForms = { "Projectile", "Field", "Aura", "Construct", "Rush" }
+for _, formName in Schema.RecastForms do
+	Schema.Forms[formName].Events.OnRecast = true
+	Schema.Forms[formName].EffectEvents.OnRecast = true
+end
 
 -- A shield-break event is available only to Forms that can target Humanoids.
 for _, form in Schema.Forms do
@@ -939,6 +1276,7 @@ Schema.Payloads = {
 	Damage = {
 		Label = "Damage",
 		Category = "Impact",
+		Polarity = "Bane",
 		Description = "Removes health immediately.",
 		Forms = set({ "Projectile", "Beam", "Wave", "Field", "Aura", "Construct", "SelfEnhancement" }),
 		Events = {
@@ -1020,6 +1358,7 @@ Schema.Payloads = {
 	DamageOverTime = {
 		Label = "Damage over time",
 		Category = "Impact",
+		Polarity = "Bane",
 		Description = "Applies repeated health damage for a limited time.",
 		Forms = set({ "Projectile", "Beam", "Wave", "Field", "Aura", "Construct", "SelfEnhancement" }),
 		Events = {
@@ -1119,6 +1458,7 @@ Schema.Payloads = {
 	ElementalMark = {
 		Label = "Elemental mark",
 		Category = "Condition",
+		Polarity = "Bane",
 		Description = "Adds stacks of this spell's selected element. Each element has a configurable starter interaction; other spell steps can check or consume its mark.",
 		Forms = HumanoidTargetForms,
 		Events = HumanoidTargetEvents,
@@ -1146,6 +1486,7 @@ Schema.Payloads = {
 	ConsumeElementalMark = {
 		Label = "Consume elemental mark",
 		Category = "Condition",
+		Polarity = "Neutral",
 		Description = "Removes stacks of an element from each target. Defaults to this spell's selected element, with an optional element override.",
 		Forms = HumanoidTargetForms,
 		Events = HumanoidTargetEvents,
@@ -1172,6 +1513,7 @@ Schema.Payloads = {
 	Force = {
 		Label = "Force",
 		Category = "Impact",
+		Polarity = "Neutral",
 		Description = "Pushes a character or explicitly targeted movable world object with a short physical impulse.",
 		Forms = set({ "Projectile", "Beam", "Wave", "Field", "Aura", "Construct", "SelfEnhancement", "Manipulation" }),
 		Events = {
@@ -1207,6 +1549,7 @@ Schema.Payloads = {
 	Heal = {
 		Label = "Healing",
 		Category = "Support",
+		Polarity = "Boon",
 		Description = "Restores missing health to valid targets.",
 		Forms = HumanoidTargetForms,
 		Events = HumanoidTargetEvents,
@@ -1218,13 +1561,28 @@ Schema.Payloads = {
 				Min = 0,
 				Max = Limits.MaxHeal,
 				Required = true,
-				Help = "Health restored, up to the target's maximum health.",
+				Help = "Health restored, up to the target's maximum health. A percent (0-100) in the percent modes.",
+			},
+			{
+				Key = "Mode",
+				Label = "Healing mode",
+				Options = { "Flat", "PercentMaxHealth", "PercentDamageDealt" },
+				Required = false,
+				Help = "Flat: Amount is health. PercentMaxHealth: percent of the target's max health. PercentDamageDealt: percent of the damage just dealt (On damage dealt only).",
+			},
+			{
+				Key = "Overflow",
+				Label = "Overflow",
+				Options = { "Shield" },
+				Required = false,
+				Help = "Shield: healing beyond max health becomes a short shield.",
 			},
 		},
 	},
 	Restoration = {
 		Label = "Restoration over time",
 		Category = "Support",
+		Polarity = "Boon",
 		Description = "Restores health in server-timed pulses while its duration remains active.",
 		Forms = HumanoidTargetForms,
 		Events = HumanoidTargetEvents,
@@ -1259,11 +1617,19 @@ Schema.Payloads = {
 	Shield = {
 		Label = "Shield",
 		Category = "Support",
+		Polarity = "Boon",
 		Description = "Adds a temporary damage-absorbing shield to valid targets.",
 		Forms = HumanoidTargetForms,
 		Events = HumanoidTargetEvents,
 		Defaults = { Amount = 25, Duration = 8 },
 		Fields = {
+			{
+				Key = "Mode",
+				Label = "Shield mode",
+				Options = { "Flat", "PercentMaxHealth", "PercentDamageDealt" },
+				Required = false,
+				Help = "Flat: Amount is shield points. PercentMaxHealth / PercentDamageDealt: Amount is a percent (On damage dealt only for the latter).",
+			},
 			{
 				Key = "Amount",
 				Label = "Shield points",
@@ -1285,7 +1651,8 @@ Schema.Payloads = {
 	ModifyAttribute = {
 		Label = "Modify attribute",
 		Category = "Support",
-		Description = "Temporarily changes a whitelisted target attribute. Magic armor modifies incoming magic damage only.",
+		Polarity = "Neutral",
+		Description = "Temporarily changes a whitelisted target attribute: armor, elemental resistance, damage taken, healing received, cast speed, cooldown rate or mana regeneration.",
 		Forms = HumanoidTargetForms,
 		Events = HumanoidTargetEvents,
 		Defaults = { Attribute = "MagicArmor", Amount = 15, Duration = 8 },
@@ -1293,17 +1660,27 @@ Schema.Payloads = {
 			{
 				Key = "Attribute",
 				Label = "Attribute",
-				Options = { "MagicArmor", "MagicStrength" },
+				Options = table.clone(AttributeSpec.Order),
 				Required = true,
 				Help = "Only explicitly supported numeric attributes can be modified by spells.",
 			},
 			{
+				Key = "Element",
+				Label = "Resistance element",
+				Options = table.clone(AttributeSpec.Elements),
+				Required = false,
+				ShowWhen = { Key = "Attribute", Values = { "Resistance" } },
+				Help = "The element this resistance applies to. Required for Resistance; not used by other attributes.",
+			},
+			{
+				-- Min/Max here are the widest range; each attribute's own range comes
+				-- from MagicAttributeSpec (Schema.resolveField, SpellSpec validation).
 				Key = "Amount",
 				Label = "Modifier amount",
-				Min = -Limits.MaxArmorModifier,
-				Max = Limits.MaxArmorModifier,
+				Min = -100,
+				Max = 100,
 				Required = true,
-				Help = "MagicArmor changes incoming magic mitigation. MagicStrength changes all outgoing damage by percentage points.",
+				Help = "Armor: points of mitigation. Strength: % outgoing damage. Resistance: -1 to 1 (negative = vulnerability). Damage taken, healing received, cast speed, cooldown rate and mana regeneration: percent.",
 			},
 			{
 				Key = "Duration",
@@ -1318,7 +1695,8 @@ Schema.Payloads = {
 	Transformation = {
 		Label = "Transformation",
 		Category = "Support",
-		Description = "Temporarily scales a target's full character model, then restores its original size.",
+		Polarity = "Neutral",
+		Description = "Temporarily changes a character, then restores them. Scale resizes the model; Polymorph turns another character into a harmless critter that can move but not attack or cast; Shapeshift gives you a different melee style.",
 		Forms = HumanoidTargetForms,
 		Events = HumanoidTargetEvents,
 		Defaults = { Mode = "Scale", Multiplier = 1.15, Duration = 6 },
@@ -1326,31 +1704,49 @@ Schema.Payloads = {
 			{
 				Key = "Mode",
 				Label = "Transform",
-				Options = { "Scale" },
+				Options = { "Scale", "Polymorph", "Shapeshift" },
 				Required = true,
-				Help = "Scale changes the target's complete character model while preserving its original scale for cleanup.",
+				Help = "Scale resizes the target. Polymorph (on others) turns them into a critter for 1-8 s; bosses are immune. Shapeshift (on yourself, 5-60 s) changes your melee to another weapon style.",
 			},
 			{
 				Key = "Multiplier",
 				Label = "Scale multiplier",
 				Min = Limits.MinTransformScale,
 				Max = Limits.MaxTransformScale,
-				Required = true,
+				Required = false,
+				ShowWhen = { Key = "Mode", Values = { "Scale" } },
 				Help = "1 keeps the current size; values below or above 1 shrink or enlarge the model.",
 			},
 			{
 				Key = "Duration",
 				Label = "Transform duration",
 				Min = 0.1,
-				Max = Limits.MaxDuration,
+				Max = Limits.MaxShapeshiftDuration,
 				Required = true,
-				Help = "The target returns to its original size when this duration ends.",
+				Help = "Scale: up to the usual effect limit. Polymorph: 1-8 s. Shapeshift: 5-60 s. The character is restored when it ends.",
+			},
+			{
+				Key = "BreakOnDamage",
+				Label = "Breaks on damage",
+				Boolean = true,
+				Required = false,
+				ShowWhen = { Key = "Mode", Values = { "Polymorph" } },
+				Help = "On: damage from anyone other than you ends the Polymorph early (always on against players).",
+			},
+			{
+				Key = "Profile",
+				Label = "Melee style",
+				Options = Schema.ShapeshiftProfiles,
+				Required = false,
+				ShowWhen = { Key = "Mode", Values = { "Shapeshift" } },
+				Help = "Your melee attacks use this weapon style while shapeshifted.",
 			},
 		},
 	},
 	Slow = {
 		Label = "Slow",
 		Category = "Control",
+		Polarity = "Bane",
 		Description = "Temporarily reduces a target's movement speed.",
 		Forms = set({ "Projectile", "Beam", "Wave", "Field", "Aura", "Construct", "SelfEnhancement" }),
 		Events = {
@@ -1385,6 +1781,7 @@ Schema.Payloads = {
 	Bind = {
 		Label = "Bind",
 		Category = "Control",
+		Polarity = "Bane",
 		Description = "Temporarily prevents target movement. It does not add damage or stun behavior to other payloads.",
 		Forms = set({ "Projectile", "Beam", "Wave", "Field", "Aura", "Construct", "SelfEnhancement" }),
 		Events = {
@@ -1408,9 +1805,251 @@ Schema.Payloads = {
 			},
 		},
 	},
+	Stun = {
+		Label = "Stun",
+		Category = "Control",
+		Polarity = "Bane",
+		Description = "Briefly stops the target from moving, attacking and casting. A second stun on the same target within 8 s lasts half as long; a third makes them immune for 8 s.",
+		Forms = set({ "Projectile", "Beam", "Wave", "Field", "Aura", "Construct", "SelfEnhancement" }),
+		Events = {
+			Projectile = set({ "OnImpact", "OnTick" }),
+			Beam = set({ "OnCast", "OnTick" }),
+			Wave = set({ "OnCast", "OnTick" }),
+			Field = set({ "OnCast", "OnSpawn", "OnEnter", "OnExit", "OnTick", "OnExpire" }),
+			Aura = set({ "OnCast", "OnSpawn", "OnEnter", "OnExit", "OnTick", "OnExpire" }),
+			Construct = set({ "OnProximity" }),
+			SelfEnhancement = set({ "OnProximity" }),
+		},
+		Defaults = { Duration = 0.8 },
+		Fields = {
+			{
+				Key = "Duration",
+				Label = "Stun duration",
+				Min = 0.1,
+				Max = Limits.MaxStunDuration,
+				Required = true,
+				Help = "Up to 1.5 s against creatures; at most 0.5 s against players in PvP.",
+			},
+		},
+	},
+	Silence = {
+		Label = "Silence",
+		Category = "Control",
+		Polarity = "Bane",
+		Description = "Stops a player from casting or channeling spells and cancels the channel they are holding. Monster attacks are not spells and are never silenced.",
+		Forms = set({ "Projectile", "Beam", "Wave", "Field", "Aura", "Construct", "SelfEnhancement" }),
+		Events = {
+			Projectile = set({ "OnImpact", "OnTick" }),
+			Beam = set({ "OnCast", "OnTick" }),
+			Wave = set({ "OnCast", "OnTick" }),
+			Field = set({ "OnCast", "OnSpawn", "OnEnter", "OnExit", "OnTick", "OnExpire" }),
+			Aura = set({ "OnCast", "OnSpawn", "OnEnter", "OnExit", "OnTick", "OnExpire" }),
+			Construct = set({ "OnProximity" }),
+			SelfEnhancement = set({ "OnProximity" }),
+		},
+		Defaults = { Duration = 2 },
+		Fields = {
+			{
+				Key = "Duration",
+				Label = "Silence duration",
+				Min = 0.1,
+				Max = Limits.MaxSilenceDuration,
+				Required = true,
+				Help = "How long the target cannot cast or channel spells.",
+			},
+		},
+	},
+	Taunt = {
+		Label = "Taunt",
+		Category = "Control",
+		Polarity = "Bane",
+		Description = "Forces a creature to attack you. It has no effect on players.",
+		Forms = set({ "Projectile", "Beam", "Wave", "Field", "Aura", "Construct", "SelfEnhancement" }),
+		Events = {
+			Projectile = set({ "OnImpact", "OnTick" }),
+			Beam = set({ "OnCast", "OnTick" }),
+			Wave = set({ "OnCast", "OnTick" }),
+			Field = set({ "OnCast", "OnSpawn", "OnEnter", "OnExit", "OnTick", "OnExpire" }),
+			Aura = set({ "OnCast", "OnSpawn", "OnEnter", "OnExit", "OnTick", "OnExpire" }),
+			Construct = set({ "OnProximity" }),
+			SelfEnhancement = set({ "OnProximity" }),
+		},
+		Defaults = { Duration = 3 },
+		Fields = {
+			{
+				Key = "Duration",
+				Label = "Taunt duration",
+				Min = 0.1,
+				Max = Limits.MaxTauntDuration,
+				Required = true,
+				Help = "How long the creature must target you; up to 6 s.",
+			},
+		},
+	},
+	Fear = {
+		Label = "Fear",
+		Category = "Control",
+		Polarity = "Bane",
+		Description = "Makes a creature drop its target and hold back. It has no effect on players.",
+		Forms = set({ "Projectile", "Beam", "Wave", "Field", "Aura", "Construct", "SelfEnhancement" }),
+		Events = {
+			Projectile = set({ "OnImpact", "OnTick" }),
+			Beam = set({ "OnCast", "OnTick" }),
+			Wave = set({ "OnCast", "OnTick" }),
+			Field = set({ "OnCast", "OnSpawn", "OnEnter", "OnExit", "OnTick", "OnExpire" }),
+			Aura = set({ "OnCast", "OnSpawn", "OnEnter", "OnExit", "OnTick", "OnExpire" }),
+			Construct = set({ "OnProximity" }),
+			SelfEnhancement = set({ "OnProximity" }),
+		},
+		Defaults = { Duration = 2 },
+		Fields = {
+			{
+				Key = "Duration",
+				Label = "Fear duration",
+				Min = 0.1,
+				Max = Limits.MaxFearDuration,
+				Required = true,
+				Help = "How long the creature stays disengaged; up to 4 s.",
+			},
+		},
+	},
+	Stealth = {
+		Label = "Stealth",
+		Category = "Support",
+		Polarity = "Boon",
+		Description = "Creatures cannot see or target the holder until it ends, the holder deals damage, or someone Reveals them.",
+		Forms = HumanoidTargetForms,
+		Events = HumanoidTargetEvents,
+		Defaults = { Duration = 4 },
+		Fields = {
+			{
+				Key = "Duration",
+				Label = "Stealth duration",
+				Min = 0.1,
+				Max = Limits.MaxStealthDuration,
+				Required = true,
+				Help = "Ends early when the holder deals damage or is Revealed.",
+			},
+		},
+	},
+	DrainResource = {
+		Label = "Drain resource",
+		Category = "Impact",
+		Polarity = "Bane",
+		Description = "Takes Mana or a special resource from a player and gives it to you. Creatures have no mana, so it does nothing to them.",
+		Forms = HumanoidTargetForms,
+		Events = HumanoidTargetEvents,
+		Defaults = { Resource = "Mana", Amount = 10 },
+		Fields = {
+			{
+				Key = "Resource",
+				Label = "Resource",
+				Options = resourceOptions,
+				Required = true,
+				Help = "Mana or a special resource. Players only: creatures have no mana.",
+			},
+			{
+				Key = "Amount",
+				Label = "Amount",
+				Min = 1,
+				Max = Limits.MaxResourceTransfer,
+				Required = true,
+				Help = "How much to move per target.",
+			},
+		},
+	},
+	RestoreResource = {
+		Label = "Restore resource",
+		Category = "Support",
+		Polarity = "Boon",
+		Description = "Gives a player Mana or a special resource, up to their capacity. Creatures have no mana, so it does nothing to them.",
+		Forms = HumanoidTargetForms,
+		Events = HumanoidTargetEvents,
+		Defaults = { Resource = "Mana", Amount = 10 },
+		Fields = {
+			{
+				Key = "Resource",
+				Label = "Resource",
+				Options = resourceOptions,
+				Required = true,
+				Help = "Mana or a special resource. Players only: creatures have no mana.",
+			},
+			{
+				Key = "Amount",
+				Label = "Amount",
+				Min = 1,
+				Max = Limits.MaxResourceTransfer,
+				Required = true,
+				Help = "How much to move per target.",
+			},
+		},
+	},
+	Cleanse = {
+		Label = "Cleanse",
+		Category = "Support",
+		Polarity = "Neutral",
+		Description = "Removes Banes from an ally or Boons from an enemy, including periodic effects and Enchantments, longest-lasting first.",
+		Forms = HumanoidTargetForms,
+		Events = HumanoidTargetEvents,
+		Defaults = { Remove = "Banes", Count = 1 },
+		Fields = {
+			{
+				Key = "Remove",
+				Label = "Remove",
+				Options = { "Banes", "Boons" },
+				Required = true,
+				Help = "Banes: harmful effects such as Slow, Stun or damage over time. Boons: helpful ones such as Shield or Swiftness.",
+			},
+			{
+				Key = "Count",
+				Label = "Effects removed",
+				Min = 1,
+				Max = Limits.MaxCleanseCount,
+				Integer = true,
+				Required = true,
+				Help = "How many matching effects to remove, longest-lasting first.",
+			},
+			{
+				Key = "Element",
+				Label = "Only this element",
+				Options = { "Fire", "Ice", "Lightning", "Earth", "Water", "Wind", "Poison" },
+				Required = false,
+				Help = "Optional: only remove effects of this element, such as Fire marks.",
+			},
+		},
+	},
+	Dispel = {
+		Label = "Dispel",
+		Category = "Control",
+		-- Bane when the step targets Hostile spells, otherwise Neutral (Schema.DispelPolarity).
+		Polarity = "Bane",
+		Description = "Acts on spells, not characters: shortens or ends Fields, Auras, Constructs and Tethers its step touches (use Target spells on the step). End only removes spells no more complex than this one; stronger spells lose half their remaining time instead.",
+		Forms = HumanoidTargetForms,
+		Events = HumanoidTargetEvents,
+		Defaults = { Mode = "End" },
+		Fields = {
+			{
+				Key = "Mode",
+				Label = "Dispel",
+				Options = { "Shorten", "End" },
+				Required = true,
+				Help = "Shorten cuts time off a timed spell. End removes it if it is no more complex than this spell; otherwise it halves its remaining time.",
+			},
+			{
+				Key = "Seconds",
+				Label = "Time removed (seconds)",
+				Min = 1,
+				Max = Limits.MaxDispelSeconds,
+				Required = false,
+				ShowWhen = { Key = "Mode", Values = { "Shorten" } },
+				Help = "How much remaining time Shorten removes.",
+			},
+		},
+	},
 	Reveal = {
 		Label = "Reveal",
 		Category = "Detection",
+		Polarity = "Neutral",
 		Description = "Temporarily highlights valid targets through world obstruction for the spell's owner only.",
 		Forms = HumanoidTargetForms,
 		Events = HumanoidTargetEvents,
@@ -1429,6 +2068,7 @@ Schema.Payloads = {
 	Control = {
 		Label = "Physical control",
 		Category = "Control",
+		Polarity = "Neutral",
 		Description = "Maintains a bounded horizontal pull or push on a character or explicitly targeted movable world object. It does not stun or lock movement.",
 		Forms = set({ "Projectile", "Beam", "Wave", "Field", "Aura", "Construct", "SelfEnhancement", "Manipulation" }),
 		Events = {
@@ -1487,6 +2127,7 @@ Schema.Payloads = {
 	Displacement = {
 		Label = "Displacement",
 		Category = "Movement",
+		Polarity = "Neutral",
 		Description = "Moves a valid living target through clear space to a nearby grounded position. Walls, occupied destinations, and unsafe drops prevent the move.",
 		Principle = "Space",
 		Forms = set({ "Projectile", "Beam", "Wave", "Field", "Aura", "Construct", "SelfEnhancement" }),
@@ -1521,6 +2162,7 @@ Schema.Payloads = {
 	TimeDilation = {
 		Label = "Time dilation",
 		Category = "Temporal",
+		Polarity = "Neutral",
 		Description = "Changes a target's movement speed and the rate of its ongoing status and periodic magic effects. Below 1 slows; above 1 accelerates.",
 		Principle = "Time",
 		Forms = HumanoidTargetForms,
@@ -1546,9 +2188,10 @@ Schema.Payloads = {
 		},
 	},
 	Enhancement = {
-		Label = "Movement enhancement",
+		Label = "Swiftness",
 		Category = "Movement",
-		Description = "Improves your movement while this Self Enhancement is active.",
+		Polarity = "Boon",
+		Description = "Improves your movement while this Enchantment is active.",
 		Forms = set({ "SelfEnhancement" }),
 		Events = { SelfEnhancement = set({ "OnCast" }) },
 		Defaults = { SpeedMultiplier = 1.2, WalkSpeedBonus = 0, JumpPowerBonus = 0 },
@@ -1582,7 +2225,8 @@ Schema.Payloads = {
 	AerialMovement = {
 		Label = "Aerial movement",
 		Category = "Movement",
-		Description = "Lets you steer in three dimensions while this Self Enhancement is active. WASD moves horizontally; Space rises and Left Control descends.",
+		Polarity = "Boon",
+		Description = "Lets you steer in three dimensions while this Enchantment is active. WASD moves horizontally; Space rises and Left Control descends.",
 		Forms = set({ "SelfEnhancement" }),
 		Events = { SelfEnhancement = set({ "OnCast" }) },
 		Defaults = { Speed = 32 },
@@ -1600,6 +2244,7 @@ Schema.Payloads = {
 	Manipulation = {
 		Label = "Material manipulation",
 		Category = "World interaction",
+		Polarity = "Neutral",
 		Description = "Performs the currently supported discrete operation on authorized tagged material.",
 		Forms = set({ "Manipulation", "Projectile", "Beam", "Wave" }),
 		Events = {
@@ -1630,6 +2275,7 @@ Schema.Payloads = {
 	Summon = {
 		Label = "Summon",
 		Category = "Summoning",
+		Polarity = "Neutral",
 		Description = "Calls a bounded companion when its trigger fires. The trigger decides when it appears; spawn position decides whether it appears beside you or at the event point.",
 		TargetIndependent = true,
 		Forms = (function()
@@ -1739,6 +2385,24 @@ for kind, payload in Schema.Payloads do
 	end
 end
 
+-- Construct pulses: effects that run on a Construct also run on its OnTick.
+for kind, payload in Schema.Payloads do
+	if kind ~= "Summon" and payload.Forms ~= HumanoidTargetForms and payload.Events.Construct then
+		payload.Events.Construct.OnTick = true
+		payload.Events.Construct.OnDestroyed = true
+	end
+end
+
+-- Rush: effects that reach Humanoids on a Wave also run on a Rush's events.
+for kind, payload in Schema.Payloads do
+	if kind ~= "Summon" and payload.Forms ~= HumanoidTargetForms and payload.Forms.Wave and payload.Events.Wave then
+		payload.Forms.Rush = true
+		payload.Events.Rush = table.clone(Schema.Forms.Rush.EffectEvents)
+		payload.Forms.Tether = true
+		payload.Events.Tether = table.clone(Schema.Forms.Tether.EffectEvents)
+	end
+end
+
 -- Reactive events are shared by payloads on Forms that actually own the
 -- corresponding runtime lifecycle. Instantaneous Forms receive damage events
 -- during their resolving payload; lifetime Forms additionally observe damage
@@ -1746,11 +2410,18 @@ end
 local reactiveEvents = {
 	"OnDamageDealt",
 	"OnDamageTaken",
+	"OnMeleeHit",
+	"OnHolderDealtDamage",
 	"OnThreshold",
 	"OnBreak",
+	"OnDestroyed",
 	"OnTargetDeath",
 	"OnCasterDeath",
 	"OnCommand",
+	"OnRecast",
+	"OnBeforeDamageTaken",
+	"OnTransformEnd",
+	"OnDispelled",
 }
 for kind, payload in Schema.Payloads do
 	if kind ~= "Summon" then
@@ -1776,6 +2447,15 @@ Schema.PayloadOrder = {
 	"Transformation",
 	"Slow",
 	"Bind",
+	"Stun",
+	"Silence",
+	"Taunt",
+	"Fear",
+	"Stealth",
+	"DrainResource",
+	"RestoreResource",
+	"Cleanse",
+	"Dispel",
 	"Reveal",
 	"Control",
 	"Displacement",
@@ -1784,6 +2464,9 @@ Schema.PayloadOrder = {
 	"Manipulation",
 	"Summon",
 }
+-- Effect pickers group payloads by Polarity first, then by Category.
+Schema.PolarityOrder = { "Boon", "Bane", "Neutral" }
+Schema.PolarityLabels = { Boon = "Boons", Bane = "Banes", Neutral = "Other" }
 Schema.PayloadCategories =
 	{ "Support", "Impact", "Control", "Detection", "Movement", "Temporal", "World interaction", "Summoning" }
 
@@ -1796,10 +2479,24 @@ for _, payload in Schema.Payloads do
 	end
 end
 
+-- Channeled Beam and Wave resolve a final hit set when they expire
+-- (MagicService emitExpiry). Schema.supportsEvent still rejects OnExpire for
+-- instant casts, so this only opens the event where it can actually run.
+for kind, payload in Schema.Payloads do
+	if kind ~= "Summon" then
+		for _, formName in { "Beam", "Wave" } do
+			local events = payload.Events[formName]
+			if payload.Forms[formName] and events and Schema.Forms[formName].Events.OnExpire then
+				events.OnExpire = true
+			end
+		end
+	end
+end
+
 Schema.Behaviors = {
 	Explode = {
 		Label = "Explode at event location",
-		Description = "Creates a bounded area effect where this trigger occurred.",
+		Description = "Creates a bounded area effect where this trigger occurred and applies its effects to everything inside.",
 		Forms = set({ "Projectile", "Beam", "Wave", "Field", "Aura", "Construct", "SelfEnhancement" }),
 		Events = {
 			Projectile = set({
@@ -1822,13 +2519,50 @@ Schema.Behaviors = {
 				"OnCasterDeath",
 			}),
 			Wave = set({ "OnExpire", "OnDamageDealt", "OnDamageTaken", "OnTargetDeath", "OnCasterDeath" }),
-			Field = set({ "OnExpire", "OnDamageDealt", "OnDamageTaken", "OnTargetDeath", "OnCasterDeath" }),
-			Aura = set({ "OnExpire", "OnDamageDealt", "OnDamageTaken", "OnTargetDeath", "OnCasterDeath" }),
+			Field = set({
+				"OnExpire",
+				"OnDamageDealt",
+				"OnDamageTaken",
+				"OnMeleeHit",
+				"OnTargetDeath",
+				"OnCasterDeath",
+			}),
+			Aura = set({ "OnExpire", "OnDamageDealt", "OnDamageTaken", "OnMeleeHit", "OnTargetDeath", "OnCasterDeath" }),
 			Construct = set({ "OnProximity", "OnExpire", "OnDamageTaken", "OnCasterDeath" }),
-			SelfEnhancement = set({ "OnExpire", "OnDamageTaken", "OnCasterDeath" }),
+			SelfEnhancement = set({
+				"OnExpire",
+				"OnDamageTaken",
+				"OnMeleeHit",
+				"OnHolderDealtDamage",
+				"OnTargetDeath",
+				"OnCasterDeath",
+			}),
 		},
 		Defaults = { Radius = 7 },
-		PayloadKinds = { "Damage" },
+		-- Any payload that acts on the Humanoids inside the blast. Caster-only
+		-- (Enhancement, AerialMovement), object (Manipulation) and spawning
+		-- (Summon) payloads have no per-target meaning here.
+		PayloadKinds = {
+			"Damage",
+			"DamageOverTime",
+			"Heal",
+			"Restoration",
+			"Shield",
+			"ModifyAttribute",
+			"Transformation",
+			"Slow",
+			"Bind",
+			"Reveal",
+			"Control",
+			"Force",
+			"Displacement",
+			"TimeDilation",
+			"ElementalMark",
+			"ConsumeElementalMark",
+			-- With Target spells: dispel the spells inside the blast.
+			"Dispel",
+		},
+		DefaultPayloadKinds = { "Damage" },
 		MinimumPayloads = 1,
 		Fields = {
 			{
@@ -1847,7 +2581,69 @@ for formName, events in Schema.Behaviors.Explode.Events do
 	if Schema.Forms[formName] and Schema.Forms[formName].Events.OnBreak then
 		events.OnBreak = true
 	end
+	if formName == "Construct" then
+		events.OnTick = true
+		events.OnDestroyed = true
+	end
+	if Schema.Forms[formName] and Schema.Forms[formName].Events.OnBeforeDamageTaken then
+		events.OnBeforeDamageTaken = true
+	end
+	if Schema.Forms[formName] and Schema.Forms[formName].Events.OnTransformEnd then
+		events.OnTransformEnd = true
+	end
+	if Schema.Forms[formName] and Schema.Forms[formName].Events.OnDispelled then
+		events.OnDispelled = true
+	end
+	-- Recast to detonate: Explode where the active effect is now.
+	if Schema.Forms[formName] and Schema.Forms[formName].Events.OnRecast then
+		events.OnRecast = true
+	end
 end
+
+-- Starts a separate Projectile, Field, or Wave at the event, with its own
+-- settings and triggers (step.Effect; see SpellSpec.expandSpawnEffect). It is
+-- offered at the same timings as Explode.
+Schema.Behaviors.SpawnEffect = {
+	Label = "Spawn an effect at event location",
+	Description = "Starts a separate Projectile, Field, or Wave where this trigger occurred. It has its own settings and its own effects.",
+	Forms = Schema.Behaviors.Explode.Forms,
+	Events = (function()
+		local events = {}
+		for formName, formEvents in Schema.Behaviors.Explode.Events do
+			events[formName] = table.clone(formEvents)
+		end
+		-- Unlike Explode, spawning also fits area entry/exit and pulses (a
+		-- Field that reacts to entry, or fires a Projectile on each pulse).
+		-- Active-effect caps and the cascade budget bound how many start.
+		for _, formName in { "Field", "Aura" } do
+			events[formName].OnEnter = true
+			events[formName].OnExit = true
+			events[formName].OnTick = true
+		end
+		events.Projectile.OnTick = true
+		return events
+	end)(),
+	Defaults = { Count = 1, SpreadAngle = 0 },
+	PayloadKinds = {},
+	MinimumPayloads = 0,
+	Fields = {
+		{
+			Key = "Count",
+			Label = "Projectiles spawned",
+			Min = 1,
+			Max = Limits.MaxSpawnCount,
+			Integer = true,
+			Help = "Only spawned Projectiles can use more than one.",
+		},
+		{
+			Key = "SpreadAngle",
+			Label = "Fan angle (degrees)",
+			Min = 0,
+			Max = Limits.MaxSpawnSpreadAngle,
+			Help = "Total angle the spawned Projectiles fan across.",
+		},
+	},
+}
 
 Schema.Conditions = {
 	{
@@ -1940,6 +2736,11 @@ function Schema.supportsEvent(form: string, event: string, castingMode: string?)
 	return true
 end
 
+-- Timings that fire without resolving a target. Under ObjectTarget, payloads
+-- marked TargetIndependent (Summon) may use these in addition to the events
+-- that resolve the selected object.
+Schema.TargetIndependentEvents = set({ "OnCast", "OnSpawn" })
+
 function Schema.eventsForEffects(form: string, castingMode: string?, targeting: string?): { string }
 	local events = {}
 	local definition = Schema.Forms[form]
@@ -1966,12 +2767,19 @@ function Schema.eventsForEffects(form: string, castingMode: string?, targeting: 
 			continue
 		end
 		local supported = false
-		for kind in Schema.PayloadOrder do
+		for _, kind in Schema.PayloadOrder do
 			local payload = Schema.Payloads[kind]
 			local objectEventAllowed = objectEvents == nil or objectEvents[runtimeEvent] == true
 			if
 				Schema.supportsPayloadCapability(kind, form, event)
-				and (objectEventAllowed or (payload and payload.TargetIndependent == true))
+				and (
+					objectEventAllowed
+					or (
+						payload
+						and payload.TargetIndependent == true
+						and Schema.TargetIndependentEvents[runtimeEvent] == true
+					)
+				)
 			then
 				supported = true
 				break
@@ -2004,6 +2812,71 @@ function Schema.payloadsFor(form: string, event: string, category: string?): { s
 		end
 	end
 	return result
+end
+
+-- Payload fields can depend on another field (Element only for Resistance) and
+-- on per-attribute ranges. Editors call these instead of reading Fields raw.
+function Schema.fieldVisible(object: any, field: any): boolean
+	local rule = field.ShowWhen
+	if not rule then
+		return true
+	end
+	return type(object) == "table" and table.find(rule.Values, object[rule.Key]) ~= nil
+end
+
+function Schema.resolveField(object: any, field: any): any
+	if
+		type(object) == "table"
+		and object.Kind == "ModifyAttribute"
+		and field.Key == "Amount"
+		and AttributeSpec.supports(object.Attribute)
+	then
+		local definition = AttributeSpec.Definitions[object.Attribute]
+		local resolved = table.clone(field)
+		resolved.Min, resolved.Max = definition.Minimum, definition.Maximum
+		return resolved
+	end
+	return field
+end
+
+-- Keeps a ModifyAttribute payload consistent after its Attribute changes:
+-- Element only for Resistance, Amount inside the attribute's range.
+function Schema.normalizePayload(payload: any)
+	-- Transformation: keep only the settings of the chosen mode, with defaults.
+	if type(payload) == "table" and payload.Kind == "Transformation" then
+		local mode = payload.Mode or "Scale"
+		payload.Multiplier = if mode == "Scale" then payload.Multiplier or 1.15 else nil
+		payload.BreakOnDamage = if mode == "Polymorph" then payload.BreakOnDamage ~= false else nil
+		payload.Profile = if mode == "Shapeshift" then payload.Profile or Schema.ShapeshiftProfiles[1] else nil
+		local low = if mode == "Polymorph"
+			then Limits.MinPolymorphDuration
+			elseif mode == "Shapeshift" then Limits.MinShapeshiftDuration
+			else 0.1
+		local high = if mode == "Polymorph"
+			then Limits.MaxPolymorphDuration
+			elseif mode == "Shapeshift" then Limits.MaxShapeshiftDuration
+			else Limits.MaxDuration
+		payload.Duration = math.clamp(type(payload.Duration) == "number" and payload.Duration or low, low, high)
+		return
+	end
+	if type(payload) ~= "table" or payload.Kind ~= "ModifyAttribute" then
+		return
+	end
+	local definition = AttributeSpec.Definitions[payload.Attribute]
+	if not definition then
+		return
+	end
+	if AttributeSpec.requiresElement(payload.Attribute) then
+		if not AttributeSpec.validElement(payload.Element) then
+			payload.Element = AttributeSpec.Elements[1]
+		end
+	else
+		payload.Element = nil
+	end
+	local amount = payload.Amount
+	if type(amount) ~= "number" or amount < definition.Minimum or amount > definition.Maximum then
+		payload.Amount = definition.Default
+	end
 end
 
 return Schema

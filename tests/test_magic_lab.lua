@@ -123,7 +123,26 @@ env.script.Parent.Parent = {
 		MagicVisualSpec = "visualSpec",
 	},
 }
+local schemaScript = env.script
+env.script = { Parent = { MagicDamageRules = "damageRules", Parent = { Configuration = { MagicLab = "limits" } } } }
+local attributeSpec = load("src/shared/Modules/MagicAttributeSpec.luau")
+env.script = schemaScript
+env.script.Parent.Parent.Modules.MagicAttributeSpec = "attributeSpec"
+env.script.Parent.MagicLocus = "locusConfig"
+env.script.Parent.MeleeProfiles = "meleeProfiles"
+local schemaRequire = env.require
+env.require = function(v)
+	if v == "attributeSpec" then
+		return attributeSpec
+	elseif v == "locusConfig" then
+		return locusConfig
+	elseif v == "meleeProfiles" then
+		return load("src/shared/Configuration/MeleeProfiles.luau")
+	end
+	return schemaRequire(v)
+end
 local schema = load("src/shared/Configuration/MagicSchema.luau")
+local scaleSpec = load("src/shared/Modules/MagicScaleSpec.luau")
 assert(#schema.Principles == 6, "Magic Lab should expose all six Principles")
 assert(schema.supportsPrincipleForm("Matter", "Manipulation"))
 assert(not schema.supportsPrincipleForm("Energy", "Manipulation"))
@@ -238,6 +257,10 @@ env.script = {
 		MagicLocusRequirementSpec = "locusRequirementSpec",
 		MagicSpecialResourceSpec = "specialResourceSpec",
 		MagicVisualSpec = "visualSpec",
+		MagicAttributeSpec = "attributeSpec",
+		MagicScaleSpec = "scaleSpec",
+		MagicBloodCostSpec = "bloodCostSpec",
+		MagicInterceptionSpec = "interceptionSpec",
 		Parent = {
 			Configuration = {
 				MagicLab = "limits",
@@ -248,9 +271,14 @@ env.script = {
 		},
 	},
 }
+local interceptionSpec = load("src/shared/Modules/MagicInterceptionSpec.luau")
 env.require = function(v)
 	if v == "limits" then
 		return limits
+	elseif v == "interceptionSpec" then
+		return interceptionSpec
+	elseif v == "bloodCostSpec" then
+		return load("src/shared/Modules/MagicBloodCostSpec.luau")
 	elseif v == "schema" then
 		return schema
 	elseif v == "projectileBehaviorSpec" then
@@ -291,6 +319,10 @@ env.require = function(v)
 		return audioSpec
 	elseif v == "visualSpec" then
 		return visualSpec
+	elseif v == "attributeSpec" then
+		return attributeSpec
+	elseif v == "scaleSpec" then
+		return scaleSpec
 	end
 	error(v)
 end
@@ -337,6 +369,7 @@ do
 	legacyBeam.Beam.SpreadRadius = nil
 	legacyBeam.Beam.DropHeight = nil
 	legacyBeam.Beam.StrikeInterval = nil
+	legacyBeam.Triggers.OnImpact = { { Payloads = { { Kind = "Damage", Amount = 8 } } } }
 	assert(spec.validate(legacyBeam), "Older version-3 Beam data should retain the Single default")
 	local channeledCascade = spec.copy(cascadeBeam)
 	channeledCascade.Casting.Mode = "Channeled"
@@ -371,6 +404,7 @@ do
 	assert(not spec.validate(activePersistentConstruct), "Persistent Constructs must reject held casting")
 	local specialResourceDraft = spec.createDraft("Projectile", "Energy")
 	specialResourceDraft.Cost.SpecialResources.Focus = 12
+	specialResourceDraft.Triggers.OnImpact = { { Payloads = { { Kind = "Damage", Amount = 8 } } } }
 	assert(spec.validate(specialResourceDraft), "Configured named-resource costs should validate")
 	local unknownResourceDraft = spec.copy(specialResourceDraft)
 	unknownResourceDraft.Cost.SpecialResources.UnknownPool = 1
@@ -389,7 +423,11 @@ do
 	)
 	local objectControl = spec.copy(objectForce)
 	objectControl.Triggers.OnCast = {
-		{ Payloads = { { Kind = "Control", Mode = "Pull", Acceleration = 24, Duration = 2, MaxSpeed = 32 } } },
+		{
+			Payloads = {
+				{ Kind = "Control", Mode = "Pull", Acceleration = 24, Duration = 2, MaxSpeed = 32, MaxMass = 500 },
+			},
+		},
 	}
 	local objectControlValid, objectControlReason = spec.validate(objectControl)
 	assert(
@@ -410,6 +448,7 @@ do
 	local audioDraft = spec.createDraft("Projectile", "Energy")
 	audioDraft.Audio.CastSoundId = "1234567890"
 	audioDraft.Audio.TravelSoundId = "9876543210"
+	audioDraft.Triggers.OnImpact = { { Payloads = { { Kind = "Damage", Amount = 8 } } } }
 	assert(spec.validate(audioDraft), "Numeric audio asset IDs should validate on new spell drafts")
 	local legacyAudio = spec.normalize(spells.Fireball)
 	assert(legacyAudio.Audio.CastSoundId == "", "Legacy spells should receive silent audio defaults")
@@ -469,6 +508,7 @@ do
 	assert(not spec.validate(conditionBoundWithoutRule), "Condition-bound Fields must include a keep-alive predicate")
 	local conditionBoundProjectile = spec.createDraft("Projectile", "Energy")
 	conditionBoundProjectile.Projectile.MaxDistance = 80
+	conditionBoundProjectile.Triggers.OnImpact = { { Payloads = { { Kind = "Damage", Amount = 8 } } } }
 	conditionBoundProjectile.Lifetime = {
 		Mode = "UntilConditionFails",
 		Duration = 4,
@@ -498,7 +538,8 @@ do
 	freeResourceBoundField.Lifetime = { Mode = "UntilResourceDepleted" }
 	freeResourceBoundField.Casting.ManaUpkeepPerSecond = 0
 	assert(not spec.validate(freeResourceBoundField), "Resource-bound effects must have positive mana upkeep")
-	local instantUpkeep = spec.normalize(spells.Fireball)
+	local instantUpkeep = spec.normalize(spells.LightningLance)
+	assert(instantUpkeep.Lifetime.Mode == "Instantaneous", "Upkeep fixture must use an Instantaneous lifetime")
 	instantUpkeep.Casting.ManaUpkeepPerSecond = 1
 	assert(not spec.validate(instantUpkeep), "Instantaneous spells cannot declare ongoing resource costs")
 	local earthInteraction = spec.normalize(spells.StoneRaise)
@@ -537,7 +578,10 @@ do
 	local nonSoulChannel = spec.normalize(spells.Fireball)
 	nonSoulChannel.Triggers.OnImpact[1].Payloads[1].DamageChannel = "Soul"
 	local nonSoulValid, nonSoulReason = spec.validate(nonSoulChannel)
-	assert(not nonSoulValid and string.find(nonSoulReason, "Invalid payload setting", 1, true))
+	assert(
+		not nonSoulValid and string.find(nonSoulReason, "Soul damage requires the Soul Principle", 1, true),
+		"Soul-channel damage must be rejected on a non-Soul spell: " .. tostring(nonSoulReason)
+	)
 	assert(schema.supportsPayload("Damage", "Projectile", "OnImpact", "Soul"))
 	assert(schema.supportsPayload("Damage", "Projectile", "OnImpact", "Energy"))
 	local displacement = spec.createDraft("Wave", "Space")
@@ -611,7 +655,9 @@ do
 		{ Payloads = { { Kind = "Restoration", Amount = 4, Duration = 5, Interval = 1 } } },
 	}
 	assert(spec.validate(restoration), "Any supported Aura should accept periodic Restoration")
+	-- 100 x floor(6 / 1) = 600 total healing, above the 500 aggregate cap.
 	restoration.Triggers.OnTick[1].Payloads[1].Amount = 100
+	restoration.Triggers.OnTick[1].Payloads[1].Duration = 6
 	assert(not spec.validate(restoration), "Periodic Restoration must respect its aggregate safety budget")
 	assert(schema.supportsPayload("Damage", "Field", "OnEnter"), "Fields should support OnEnter payloads")
 	assert(schema.supportsPayload("Reveal", "Aura", "OnEnter"), "Auras should support Reveal on entry")
@@ -673,7 +719,9 @@ do
 				schema.supportsPayload(kind, formName, eventName),
 				kind .. " should support the target-resolving " .. formName .. " event"
 			)
-			local supportDraft = spec.createDraft(formName, "Energy")
+			-- SelfEnhancement is not an Energy Form; Body is its baseline Principle.
+			local principle = if schema.supportsPrincipleForm("Energy", formName) then "Energy" else "Body"
+			local supportDraft = spec.createDraft(formName, principle)
 			local value = spec.copy(schema.Payloads[kind].Defaults)
 			value.Kind = kind
 			supportDraft.Triggers[eventName] = { { Payloads = { value } } }
@@ -790,7 +838,7 @@ do
 	local objectProjectileSummon = spec.createDraft("Projectile", "Energy")
 	objectProjectileSummon.Targeting = "ObjectTarget"
 	objectProjectileSummon.Triggers.OnCast = {
-		{ Payloads = { { Kind = "Summon", Archetype = "Wisp", SpawnAt = "Caster", Count = 1 } } },
+		{ Payloads = { { Kind = "Summon", Archetype = "Wisp", SpawnAt = "Caster", Count = 1, Duration = 10 } } },
 	}
 	local objectSummonValid, objectSummonReason = spec.validate(objectProjectileSummon)
 	assert(
@@ -824,7 +872,11 @@ do
 	assert(spec.validate(objectIntervalBeam), "Object-targeted Beam OnInterval should alias the validated OnTick path")
 	local mixedBeamIntervals = spec.copy(objectChannelBeam)
 	mixedBeamIntervals.Triggers.OnInterval = {
-		{ Payloads = { { Kind = "Control", Mode = "Pull", Acceleration = 24, Duration = 2, MaxSpeed = 32 } } },
+		{
+			Payloads = {
+				{ Kind = "Control", Mode = "Pull", Acceleration = 24, Duration = 2, MaxSpeed = 32, MaxMass = 500 },
+			},
+		},
 	}
 	local normalizedBeamIntervals = spec.normalize(mixedBeamIntervals)
 	assert(
@@ -938,7 +990,8 @@ do
 		{ Payloads = { { Kind = "Transformation", Mode = "Scale", Multiplier = 0.9, Duration = 5 } } },
 	}
 	assert(not spec.validate(duplicateTransform), "A spell should have one deterministic transformation payload")
-	for _, formName in ipairs({ "Beam", "Wave", "Field", "Aura", "Construct" }) do
+	-- Construct does not offer MaterialTarget; MagicMaterialSpec omits it.
+	for _, formName in ipairs({ "Beam", "Wave", "Field", "Aura" }) do
 		assert(
 			materialSpec.supports("Matter", "Earth", formName, "MaterialTarget", "Metal"),
 			"Metal sources should be usable by Earth-affinity Matter " .. formName
@@ -957,6 +1010,7 @@ do
 	assert(spec.validate(earthBeam), "Earth-affinity Matter Beams should validate a consumed Wood source requirement")
 	earthBeam.Material.Material = "Earth"
 	local waterField = spec.createDraft("Field", "Matter")
+	waterField.Source.Expression = "Water"
 	waterField.Targeting = "MaterialTarget"
 	waterField.Material = { Material = "Water", Amount = 1, SearchRadius = 12 }
 	waterField.Triggers.OnEnter = { { Payloads = { { Kind = "Damage", Amount = 2 } } } }
@@ -992,6 +1046,122 @@ do
 			{ Kind = "ModifyAttribute", Attribute = "MagicArmor", Amount = 20, Duration = 5 },
 		} } }
 	assert(not spec.validate(duplicateArmorModifier), "a spell must have one deterministic modifier per attribute")
+	-- Phase 2 attributes: each validates inside its own range; Element only for Resistance.
+	local function attributeDraft(payload)
+		local draft = spec.createDraft("Aura", "Energy")
+		payload.Kind = "ModifyAttribute"
+		payload.Duration = payload.Duration or 5
+		draft.Triggers.OnTick = { { Payloads = { payload } } }
+		return draft
+	end
+	for _, attribute in attributeSpec.Order do
+		local definition = attributeSpec.Definitions[attribute]
+		local element = if attributeSpec.requiresElement(attribute) then "Fire" else nil
+		assert(table.find(schema.Payloads.ModifyAttribute.Fields[1].Options, attribute), attribute .. " is selectable")
+		assert(
+			spec.validate(attributeDraft({ Attribute = attribute, Element = element, Amount = definition.Maximum })),
+			attribute .. " validates at its maximum"
+		)
+		assert(
+			spec.validate(attributeDraft({ Attribute = attribute, Element = element, Amount = definition.Minimum })),
+			attribute .. " validates at its minimum"
+		)
+		assert(
+			not spec.validate(
+				attributeDraft({ Attribute = attribute, Element = element, Amount = definition.Maximum + 0.5 })
+			),
+			attribute .. " rejects values above its own maximum"
+		)
+		assert(
+			conditionSpec.Properties.Status[attributeSpec.attributeName(attribute, element)],
+			attribute .. " bonus is available to Status conditions"
+		)
+	end
+	local ok, reason = spec.validate(attributeDraft({ Attribute = "Resistance", Amount = 0.3 }))
+	assert(not ok and string.find(reason, "Resistance element", 1, true), "Resistance requires an Element")
+	assert(not spec.validate(attributeDraft({ Attribute = "Resistance", Element = "Neutral", Amount = 0.3 })))
+	assert(not spec.validate(attributeDraft({ Attribute = "Resistance", Element = "Plasma", Amount = 0.3 })))
+	ok, reason = spec.validate(attributeDraft({ Attribute = "DamageTaken", Element = "Fire", Amount = 10 }))
+	assert(not ok and string.find(reason, "Only Resistance", 1, true), "Element is rejected for other attributes")
+	assert(spec.validate(attributeDraft({ Attribute = "Resistance", Element = "Ice", Amount = -0.5 })))
+	assert(not spec.validate(attributeDraft({ Attribute = "DamageTaken", Amount = 60 })), "DamageTaken caps at 50")
+	assert(not spec.validate(attributeDraft({ Attribute = "HealingReceived", Amount = -80 })), "-75 floor")
+	for _, element in attributeSpec.Elements do
+		assert(conditionSpec.Properties.Status["MagicResistance" .. element .. "Bonus"], element)
+	end
+	-- Editor helpers: Element shows only for Resistance; Amount uses the attribute's range.
+	local elementField, amountField
+	for _, field in schema.Payloads.ModifyAttribute.Fields do
+		if field.Key == "Element" then
+			elementField = field
+		elseif field.Key == "Amount" then
+			amountField = field
+		end
+	end
+	assert(elementField and not elementField.Required, "Element is optional at the schema level")
+	assert(schema.fieldVisible({ Kind = "ModifyAttribute", Attribute = "Resistance" }, elementField))
+	assert(not schema.fieldVisible({ Kind = "ModifyAttribute", Attribute = "CastSpeed" }, elementField))
+	local resolved = schema.resolveField({ Kind = "ModifyAttribute", Attribute = "Resistance" }, amountField)
+	assert(resolved.Min == -1 and resolved.Max == 1 and amountField.Min == -100, "per-attribute bounds")
+	local switching = { Kind = "ModifyAttribute", Attribute = "Resistance", Amount = 15, Duration = 5 }
+	schema.normalizePayload(switching)
+	assert(switching.Element == "Fire" and switching.Amount == 0.2, "switching to Resistance picks an element")
+	switching.Attribute = "CastSpeed"
+	schema.normalizePayload(switching)
+	assert(switching.Element == nil and switching.Amount == 0.2, "leaving Resistance drops the element")
+	assert(spec.validate(attributeDraft(switching)), "a normalized payload validates")
+	-- Cost weighs attributes on the armor scale, so a full Resistance is not free.
+	local fullArmor = spec.estimate(attributeDraft({ Attribute = "MagicArmor", Amount = 100 })).ManaDemand
+	local fullResist =
+		spec.estimate(attributeDraft({ Attribute = "Resistance", Element = "Fire", Amount = 1 })).ManaDemand
+	assert(math.abs(fullArmor - fullResist) < 1e-6, "full Resistance costs like full armor")
+	-- AerialMovement is an Enchantment OnCast payload.
+	assert(schema.supportsPayload("AerialMovement", "SelfEnhancement", "OnCast"), "AerialMovement on Enchantment")
+	-- Phase 6: Stun, Silence and Cleanse validate within their limits.
+	local function ccDraft(payload)
+		local draft = spec.createDraft("Projectile", "Energy")
+		draft.Triggers.OnImpact = { { Payloads = { payload } } }
+		return draft
+	end
+	assert(spec.validate(ccDraft({ Kind = "Stun", Duration = 1.5 })), "Stun up to 1.5 s against creatures")
+	assert(not spec.validate(ccDraft({ Kind = "Stun", Duration = 1.6 })), "Stun above 1.5 s is rejected")
+	assert(spec.validate(ccDraft({ Kind = "Silence", Duration = 2 })), "Silence validates")
+	assert(not spec.validate(ccDraft({ Kind = "Silence", Duration = 99 })), "Silence has a maximum")
+	assert(spec.validate(ccDraft({ Kind = "Cleanse", Remove = "Banes", Count = 2 })), "Cleanse Banes validates")
+	assert(spec.validate(ccDraft({ Kind = "Cleanse", Remove = "Boons", Count = 1, Element = "Fire" })))
+	assert(not spec.validate(ccDraft({ Kind = "Cleanse", Remove = "Everything", Count = 1 })), "Banes or Boons only")
+	assert(not spec.validate(ccDraft({ Kind = "Cleanse", Remove = "Banes", Count = 1.5 })), "whole numbers only")
+	assert(not spec.validate(ccDraft({ Kind = "Cleanse", Remove = "Banes", Count = 0 })), "at least one")
+	assert(schema.Payloads.Stun.Polarity == "Bane" and schema.Payloads.Silence.Polarity == "Bane")
+	assert(schema.Payloads.Cleanse.Polarity == "Neutral")
+	-- Phase 8: Taunt and Fear (creatures only) validate within their limits.
+	assert(spec.validate(ccDraft({ Kind = "Taunt", Duration = 6 })), "Taunt up to 6 s")
+	assert(not spec.validate(ccDraft({ Kind = "Taunt", Duration = 6.5 })), "Taunt has a maximum")
+	assert(spec.validate(ccDraft({ Kind = "Fear", Duration = 4 })), "Fear up to 4 s")
+	assert(not spec.validate(ccDraft({ Kind = "Fear", Duration = 5 })), "Fear has a maximum")
+	assert(schema.Payloads.Taunt.Polarity == "Bane" and schema.Payloads.Fear.Polarity == "Bane")
+	assert(spec.validate(ccDraft({ Kind = "Stealth", Duration = 8 })), "Stealth up to 8 s")
+	assert(not spec.validate(ccDraft({ Kind = "Stealth", Duration = 9 })), "Stealth has a maximum")
+	assert(schema.Payloads.Stealth.Polarity == "Boon", "Stealth is a Boon")
+	-- DrainResource / RestoreResource: Mana or a configured special resource.
+	assert(spec.validate(ccDraft({ Kind = "DrainResource", Resource = "Mana", Amount = 50 })), "drain mana")
+	assert(spec.validate(ccDraft({ Kind = "RestoreResource", Resource = "Focus", Amount = 10 })), "restore Focus")
+	assert(not spec.validate(ccDraft({ Kind = "DrainResource", Resource = "Gold", Amount = 10 })), "unknown resource")
+	assert(not spec.validate(ccDraft({ Kind = "RestoreResource", Resource = "Mana", Amount = 51 })), "transfer limit")
+	assert(schema.Payloads.DrainResource.Polarity == "Bane" and schema.Payloads.RestoreResource.Polarity == "Boon")
+	-- Charge scales the whole estimate, including control: a charged volley of Slows.
+	local volley = spec.createDraft("Projectile", "Energy")
+	volley.Casting.Mode = "Charged"
+	volley.Casting.MinimumCharge = 0.2
+	volley.Casting.MaximumCharge = 2
+	volley.Triggers.OnImpact = { { Payloads = { { Kind = "Slow", Multiplier = 0.5, Duration = 3 } } } }
+	local slowBase = spec.estimate(volley).ManaDemand
+	volley.Casting.ChargeScaling = { MinPotency = 1, MaxPotency = 1, MaxExtraProjectiles = 3 }
+	assert(spec.validate(volley), "charged Slow volley validates")
+	assert(spec.estimate(volley).ManaDemand > slowBase, "extra projectiles of Slow cost more")
+	local volleyCost = spec.estimate(volley).ManaDemand
+	volley.Casting.ChargeScaling.MaxPotency = 3
+	assert(spec.estimate(volley).ManaDemand > volleyCost, "charge potency also prices non-damage payloads")
 	local areaDraft = spec.createDraft("Field", "Matter")
 	assert(areaDraft, "Field draft should be available to Matter")
 	areaDraft.Triggers.OnEnter = { { Payloads = { { Kind = "Damage", Amount = 1 } } } }
@@ -1062,7 +1232,11 @@ do
 	assert(objectManipulation, "Manipulation draft should be available to Matter")
 	objectManipulation.Targeting = "ObjectTarget"
 	objectManipulation.Material = { Material = "Earth", SearchRadius = 12 }
-	assert(spec.validate(objectManipulation), "Tagged object manipulation should validate")
+	local manipulationPayload = spec.copy(schema.Payloads.Manipulation.Defaults)
+	manipulationPayload.Kind = "Manipulation"
+	objectManipulation.Triggers.OnCast = { { Payloads = { manipulationPayload } } }
+	local manipulationValid, manipulationReason = spec.validate(objectManipulation)
+	assert(manipulationValid, "Tagged object manipulation should validate: " .. tostring(manipulationReason))
 	objectManipulation.Material.Amount = 1
 	assert(not spec.validate(objectManipulation), "Manipulation object target must not consume source material")
 	local count = 0
@@ -1152,6 +1326,30 @@ do
 	}
 	assert(spec.validate(eventDraft), "Damage reaction trigger was rejected")
 	assert(table.find(schema.eventsForEffects("Projectile"), "OnDamageDealt"), "Lab hides OnDamageDealt")
+	-- Ratio heals: lifesteal on the caster; PercentDamageDealt only on OnDamageDealt.
+	eventDraft.Triggers.OnDamageDealt = {
+		{ TargetFrom = "Caster", Payloads = { { Kind = "Heal", Amount = 50, Mode = "PercentDamageDealt" } } },
+	}
+	assert(spec.validate(eventDraft), "Lifesteal heal was rejected")
+	eventDraft.Triggers.OnDamageDealt[1].TargetFrom = "Attacker"
+	assert(not spec.validate(eventDraft), "Attacker is not an OnDamageDealt target")
+	eventDraft.Triggers.OnDamageDealt = nil
+	eventDraft.Triggers.OnImpact = {
+		{ Payloads = { { Kind = "Heal", Amount = 50, Mode = "PercentDamageDealt" } } },
+	}
+	assert(not spec.validate(eventDraft), "PercentDamageDealt accepted outside OnDamageDealt")
+	eventDraft.Triggers.OnImpact[1].Payloads = {
+		{ Kind = "Heal", Amount = 20, Mode = "PercentMaxHealth", Overflow = "Shield" },
+		{ Kind = "Shield", Amount = 10, Duration = 3, Mode = "PercentMaxHealth" },
+	}
+	assert(spec.validate(eventDraft), "PercentMaxHealth heal/shield with overflow was rejected")
+	eventDraft.Triggers.OnImpact[1].Payloads = { { Kind = "Heal", Amount = 20, Mode = "Half" } }
+	assert(not spec.validate(eventDraft), "Unknown heal mode was accepted")
+	eventDraft.Triggers.OnImpact[1].Payloads = { { Kind = "Heal", Amount = 20, Overflow = "Mana" } }
+	assert(not spec.validate(eventDraft), "Unknown heal overflow was accepted")
+	eventDraft.Triggers.OnImpact[1].Payloads = { { Kind = "Shield", Amount = 10, Duration = 3, Overflow = "Shield" } }
+	assert(not spec.validate(eventDraft), "Overflow accepted on Shield")
+	eventDraft = spec.createDraft("Projectile", "Energy")
 	eventDraft = spec.createDraft("Aura", "Energy")
 	eventDraft.Triggers.OnDamageTaken = {
 		{ Payloads = { { Kind = "Shield", Amount = 10, Duration = 3 } } },
@@ -1169,6 +1367,525 @@ do
 		{ Payloads = { { Kind = "Damage", Amount = 3 } } },
 	}
 	assert(not spec.validate(eventDraft), "Unsupported lifecycle trigger was accepted")
+	do
+		-- Rush Form: Dash sweeps (OnImpact), Blink does not; Instant casts on the aim only.
+		local rush = spec.createDraft("Rush", "Body")
+		assert(rush and rush.Rush.Mode == "Dash" and rush.Targeting == "AimDirection", "Rush draft defaults")
+		rush.Triggers.OnImpact = { { Payloads = { { Kind = "Damage", Amount = 10 } } } }
+		rush.Triggers.OnExpire = { { Payloads = { { Kind = "Damage", Amount = 5 } } } }
+		local rushOk, rushReason = spec.validate(rush)
+		assert(rushOk, "Dash with impact and arrival effects was rejected: " .. tostring(rushReason))
+		local function rushVariant(mutate)
+			local copy = spec.copy(rush)
+			mutate(copy)
+			return spec.validate(copy)
+		end
+		assert(not rushVariant(function(d)
+			d.Rush.Mode = "Blink"
+		end), "Blink accepted OnImpact effects")
+		assert(
+			rushVariant(function(d)
+				d.Rush.Mode = "Blink"
+				d.Triggers.OnImpact = nil
+			end),
+			"Blink with arrival effects was rejected"
+		)
+		assert(not rushVariant(function(d)
+			d.Rush.Mode = "Teleport"
+		end), "Unknown Rush mode accepted")
+		assert(not rushVariant(function(d)
+			d.Rush.Distance = limits.MaxRushDistance + 1
+		end), "Rush distance limit")
+		assert(not rushVariant(function(d)
+			d.Rush.Speed = limits.MaxRushSpeed + 1
+		end), "Rush speed limit")
+		assert(not rushVariant(function(d)
+			d.Rush.Radius = limits.MaxRushRadius + 1
+		end), "Rush radius limit")
+		assert(not rushVariant(function(d)
+			d.Rush.StopOnHit = "yes"
+		end), "StopOnHit must be a boolean")
+		assert(
+			rushVariant(function(d)
+				d.Rush.StopOnHit = true
+			end),
+			"StopOnHit was rejected"
+		)
+		assert(not rushVariant(function(d)
+			d.Casting.Mode = "Channeled"
+		end), "Rush accepted a non-Instant cast")
+		assert(not rushVariant(function(d)
+			d.Targeting = "EntityTarget"
+		end), "Rush accepted EntityTarget")
+		assert(not rushVariant(function(d)
+			d.Triggers.OnTick = { { Payloads = { { Kind = "Damage", Amount = 1 } } } }
+		end), "Rush accepted OnTick")
+		-- Recast (OnRecast + Casting.MaxRecasts) on Forms that leave an active effect.
+		local recast = spec.createDraft("Field", "Energy")
+		recast.Casting.MaxRecasts = 2
+		recast.Triggers.OnRecast = { { Payloads = { { Kind = "Damage", Amount = 5 } } } }
+		local recastOk, recastReason = spec.validate(recast)
+		assert(recastOk, "Field recast was rejected: " .. tostring(recastReason))
+		assert(table.find(schema.eventsForEffects("Field"), "OnRecast"), "Lab hides OnRecast")
+		assert(not table.find(schema.eventsForEffects("Wave"), "OnRecast"), "Wave leaves nothing to recast")
+		for _, formName in schema.RecastForms do
+			assert(schema.Forms[formName].Events.OnRecast, formName .. " lacks OnRecast")
+		end
+		local badRecast = spec.copy(recast)
+		badRecast.Casting.MaxRecasts = 1.5
+		assert(not spec.validate(badRecast), "fractional MaxRecasts accepted")
+		badRecast = spec.copy(recast)
+		badRecast.Casting.MaxRecasts = 0
+		assert(not spec.validate(badRecast), "MaxRecasts 0 accepted")
+		badRecast = spec.copy(recast)
+		badRecast.Lifetime = { Mode = "UntilToggledOff" }
+		badRecast.Casting.Mode = "Toggle"
+		assert(not spec.validate(badRecast), "toggled spell accepted OnRecast")
+		assert(
+			rushVariant(function(d)
+				d.Triggers.OnRecast = { { Payloads = { { Kind = "Shield", Amount = 10, Duration = 2 } } } }
+			end),
+			"Rush recast was rejected"
+		)
+		do
+			-- Tether Form: links, length, line of sight, pulses on either end.
+			local tether = spec.createDraft("Tether", "Soul")
+			assert(tether and tether.Tether.Anchors == "CasterToTarget" and tether.Targeting == "EntityTarget")
+			tether.Triggers.OnTick = {
+				{ Anchor = "B", Payloads = { { Kind = "Damage", Amount = 4 } } },
+				{ Anchor = "A", Payloads = { { Kind = "Heal", Amount = 4 } } },
+			}
+			local tetherOk, tetherReason = spec.validate(tether)
+			assert(tetherOk, "drain tether was rejected: " .. tostring(tetherReason))
+			local function tetherVariant(mutate)
+				local copy = spec.copy(tether)
+				mutate(copy)
+				return spec.validate(copy)
+			end
+			assert(
+				tetherVariant(function(d)
+					d.Tether.Anchors = "TargetToTarget"
+					d.Triggers.OnBreak = { { Payloads = { { Kind = "Stun", Duration = 1 } } } }
+				end),
+				"chain with a snap stun was rejected"
+			)
+			assert(
+				tetherVariant(function(d)
+					d.Tether.ShareDamage = 50
+				end),
+				"soul link was rejected"
+			)
+			assert(not tetherVariant(function(d)
+				d.Tether.ShareDamage = 95
+			end), "shared damage is at most 90%")
+			assert(not tetherVariant(function(d)
+				d.Tether.MaxLength = limits.MaxTetherLength + 1
+			end), "length limit")
+			assert(not tetherVariant(function(d)
+				d.Tether.MaxLength = limits.MinTetherLength - 1
+			end), "minimum length")
+			assert(not tetherVariant(function(d)
+				d.Tether.Anchors = "CasterToCaster"
+			end), "unknown links")
+			assert(not tetherVariant(function(d)
+				d.Triggers.OnTick[1].Anchor = "C"
+			end), "unknown end")
+			assert(not tetherVariant(function(d)
+				d.Targeting = "AimDirection"
+			end), "a Tether is aimed at a character")
+			assert(not tetherVariant(function(d)
+				d.Lifetime = { Mode = "UntilToggledOff" }
+			end), "a Tether lasts a set duration")
+			assert(not tetherVariant(function(d)
+				d.Casting.Mode = "Channeled"
+			end), "a Tether is cast instantly")
+			assert(table.find(schema.eventsForEffects("Tether"), "OnBreak"), "Lab hides the snap")
+			assert(
+				schema.supportsPayload("Stun", "Tether", "OnBreak")
+					and schema.supportsPayload("Damage", "Tether", "OnTick")
+			)
+			assert(not schema.supportsPrincipleForm("Matter", "Tether"), "Matter has no Tether")
+			local plain = spec.createDraft("Projectile", "Energy")
+			plain.Triggers.OnImpact = { { Anchor = "A", Payloads = { { Kind = "Damage", Amount = 3 } } } }
+			assert(not spec.validate(plain), "Anchor only on Tether steps")
+		end
+		(function()
+			-- Transformation modes: Polymorph (others), Shapeshift (self).
+			local polymorph = spec.createDraft("Projectile", "Body")
+			polymorph.Triggers.OnImpact = {
+				{ Payloads = { { Kind = "Transformation", Mode = "Polymorph", Duration = 4, BreakOnDamage = true } } },
+			}
+			local ok, reason = spec.validate(polymorph)
+			assert(ok, "polymorph bolt was rejected: " .. tostring(reason))
+			local function variant(source, mutate)
+				local copy = spec.copy(source)
+				mutate(copy)
+				return spec.validate(copy)
+			end
+			assert(not variant(polymorph, function(d)
+				d.Triggers.OnImpact[1].Payloads[1].Duration = 9
+			end), "polymorph lasts at most 8 s")
+			assert(not variant(polymorph, function(d)
+				d.Triggers.OnImpact[1].Payloads[1].Multiplier = 1.2
+			end), "polymorph has no size")
+			assert(not variant(polymorph, function(d)
+				d.Triggers.OnImpact[1].Payloads[1].BreakOnDamage = "yes"
+			end), "BreakOnDamage is a boolean")
+			assert(
+				variant(polymorph, function(d)
+					d.Triggers.OnTransformEnd = { { Payloads = { { Kind = "Damage", Amount = 5 } } } }
+				end),
+				"When the transformation ends was rejected"
+			)
+			local scale = spec.createDraft("Projectile", "Body")
+			scale.Triggers.OnImpact = {
+				{ Payloads = { { Kind = "Transformation", Mode = "Scale", Multiplier = 1.2, Duration = 6 } } },
+			}
+			assert(spec.validate(scale), "Scale is unchanged")
+			assert(not variant(scale, function(d)
+				d.Triggers.OnTransformEnd = { { Payloads = { { Kind = "Damage", Amount = 5 } } } }
+			end), "a Scale alone has no transformation end")
+			local shift = spec.createDraft("SelfEnhancement", "Body")
+			shift.Triggers.OnCast = {
+				{
+					Payloads = {
+						{
+							Kind = "Transformation",
+							Mode = "Shapeshift",
+							Duration = 20,
+							Profile = schema.ShapeshiftProfiles[1],
+						},
+						{ Kind = "Transformation", Mode = "Scale", Multiplier = 1.25, Duration = 10 },
+					},
+				},
+			}
+			ok, reason = spec.validate(shift)
+			assert(ok, "shapeshift with a scale was rejected: " .. tostring(reason))
+			assert(table.find(schema.ShapeshiftProfiles, "Sword"), "profiles come from MeleeProfiles")
+			assert(not variant(shift, function(d)
+				d.Triggers.OnCast[1].Payloads[1].Duration = 61
+			end), "shapeshift lasts at most 60 s")
+			assert(not variant(shift, function(d)
+				d.Triggers.OnCast[1].Payloads[1].Profile = "Tentacle"
+			end), "unknown melee style")
+			assert(not variant(shift, function(d)
+				d.Targeting = "EntityTarget"
+				d.TargetPolicy = "Aim"
+			end), "shapeshift only on yourself")
+			assert(schema.TransformPolarity.Polymorph == "Bane" and schema.TransformPolarity.Shapeshift == "Boon")
+			-- normalizePayload keeps only the chosen mode's settings.
+			local payload = { Kind = "Transformation", Mode = "Polymorph", Multiplier = 1.2, Duration = 12 }
+			schema.normalizePayload(payload)
+			assert(
+				payload.Multiplier == nil
+					and payload.BreakOnDamage == true
+					and payload.Duration == limits.MaxPolymorphDuration
+			)
+		end)();
+		(function()
+			-- Environment reactions: on by default, IgnoreEnvironment turns them off.
+			local bolt = spec.createDraft("Projectile", "Energy")
+			bolt.Triggers.OnImpact = { { Payloads = { { Kind = "Damage", Amount = 10 } } } }
+			assert(spec.validate(bolt), "a spell without the setting reacts with the world")
+			bolt.IgnoreEnvironment = true
+			local ok, reason = spec.validate(bolt)
+			assert(ok, "Ignore the world was rejected: " .. tostring(reason))
+			bolt.IgnoreEnvironment = "yes"
+			assert(not spec.validate(bolt), "Ignore the world is on or off")
+			bolt.IgnoreEnvironment = true
+			local child = spec.expandSpawnEffect(bolt, spec.defaultSpawnEffect("Field", "Energy"))
+			assert(child and child.IgnoreEnvironment == true, "spawned effects inherit Ignore the world")
+			bolt.IgnoreEnvironment = nil
+			local effect = spec.defaultSpawnEffect("Field", "Energy")
+			effect.IgnoreEnvironment = true
+			child = spec.expandSpawnEffect(bolt, effect)
+			assert(child and child.IgnoreEnvironment == true, "a world-reaction spawn never reacts itself")
+			assert(limits.ElementalInteractions, "interactions configured")
+			for _, entry in limits.ElementalInteractions do
+				if entry.Name == "Conduct" then
+					assert(#entry.Effects == 0, "the Wet chain replaces Conduct's flat chain")
+				end
+			end
+		end)();
+		(function()
+			-- Blood magic: health costs, health for mana, upkeep, reprice.
+			local bolt = spec.createDraft("Projectile", "Energy")
+			bolt.Triggers.OnImpact = { { Payloads = { { Kind = "Damage", Amount = 40 } } } }
+			local full = spec.estimate(bolt)
+			bolt.Cost.Health = { Mode = "Flat", Amount = 30 }
+			bolt.Cost.HealthForMana = 100
+			local ok, reason = spec.validate(bolt)
+			assert(ok, "blood bolt was rejected: " .. tostring(reason))
+			local blood = spec.estimate(bolt)
+			assert(blood.ManaDemand == full.ManaDemand, "ManaDemand stays the full price (rank limits)")
+			assert(blood.ManaPaid == 0 and blood.HealthFromMana == 2 * full.ManaDemand, "fully blood-powered")
+			assert(blood.Strain == full.Strain and blood.Complexity == full.Complexity)
+			assert(blood.HealthCost.Amount == 30)
+			local function variant(mutate)
+				local copy = spec.copy(bolt)
+				mutate(copy)
+				return spec.validate(copy)
+			end
+			assert(not variant(function(d)
+				d.Cost.Health = { Mode = "PercentMax", Amount = 41 }
+			end), "at most 40% of max health")
+			assert(not variant(function(d)
+				d.Cost.HealthForMana = 120
+			end), "at most 100% of the mana")
+			assert(not variant(function(d)
+				d.Cost.HealthPerSecond = 2
+			end), "health upkeep only on held or toggled spells")
+			assert(not variant(function(d)
+				d.Cost.Blood = 1
+			end), "unknown cost keys are still refused")
+			local channel = spec.createDraft("Beam", "Energy")
+			channel.Casting.Mode = "Channeled"
+			channel.Casting.ManaUpkeepPerSecond = 2
+			channel.Lifetime = { Mode = "FixedDuration", Duration = 4 }
+			channel.Triggers.OnTick = { { Payloads = { { Kind = "Damage", Amount = 2 } } } }
+			channel.Cost.HealthPerSecond = 4
+			ok, reason = spec.validate(channel)
+			assert(ok, "a health-upkeep channel was rejected: " .. tostring(reason))
+			-- Repricing keeps the authored blood costs (Studio and live paths).
+			local LabCost = load("src/shared/Modules/MagicLabCost.luau")
+			LabCost.refresh(bolt, spec.estimate, spec.copy)
+			assert(bolt.Cost.Health.Amount == 30 and bolt.Cost.HealthForMana == 100, "Lab reprice keeps health")
+			assert(bolt.Cost.ManaDemand == full.ManaDemand)
+			assert(spec.validate(bolt), "a repriced blood spell still validates")
+		end)();
+		(function()
+			-- Spell vs Spell: Dispel and Force on spells, OnDispelled, Field lenses.
+			local dispel = spec.createDraft("Projectile", "Energy")
+			dispel.Triggers.OnImpact = {
+				{
+					TargetKind = "Spell",
+					Behavior = "Explode",
+					Radius = 6,
+					Payloads = { { Kind = "Dispel", Mode = "End" } },
+				},
+			}
+			local ok, reason = spec.validate(dispel)
+			assert(ok, "dispel bolt was rejected: " .. tostring(reason))
+			local function variant(source, mutate)
+				local copy = spec.copy(source)
+				mutate(copy)
+				return spec.validate(copy)
+			end
+			assert(
+				variant(dispel, function(d)
+					d.Triggers.OnImpact[1].Payloads[1] = { Kind = "Dispel", Mode = "Shorten", Seconds = 10 }
+					d.Triggers.OnImpact[1].SpellRelationship = "Any"
+				end),
+				"Shorten on any spell was rejected"
+			)
+			assert(not variant(dispel, function(d)
+				d.Triggers.OnImpact[1].Payloads[1] = { Kind = "Dispel", Mode = "Shorten", Seconds = 31 }
+			end), "at most 30 s")
+			assert(not variant(dispel, function(d)
+				d.Triggers.OnImpact[1].Payloads[1] = { Kind = "Damage", Amount = 5 }
+			end), "only Dispel and Force act on spells")
+			assert(not variant(dispel, function(d)
+				d.Triggers.OnImpact[1].TargetKind = nil
+			end), "Dispel needs Target spells")
+			assert(
+				variant(dispel, function(d)
+					d.Triggers.OnImpact[1].Payloads[1] = { Kind = "Force", Magnitude = 8 }
+				end),
+				"Force on spells was rejected"
+			)
+			assert(not variant(dispel, function(d)
+				d.Triggers.OnImpact[1].SpellRelationship = "Friends"
+			end), "unknown spell relationship")
+			-- OnDispelled on a Field; lens settings.
+			local wall = spec.createDraft("Field", "Energy")
+			wall.Triggers.OnDispelled = { { Payloads = { { Kind = "Damage", Amount = 5 } } } }
+			wall.Field.AffectsSpells = { Who = "Allied", AddMark = "Fire" }
+			ok, reason = spec.validate(wall)
+			assert(ok, "lens field with On dispelled was rejected: " .. tostring(reason))
+			assert(table.find(schema.eventsForEffects("Field"), "OnDispelled"), "Lab hides When it's dispelled")
+			assert(
+				not table.find(schema.eventsForEffects("Projectile"), "OnDispelled"),
+				"projectiles cannot be dispelled"
+			)
+			assert(not variant(wall, function(d)
+				d.Field.AffectsSpells = { Who = "Hostile" }
+			end), "a lens needs a modifier")
+			assert(not variant(wall, function(d)
+				d.Field.AffectsSpells = { Who = "Hostile", Slow = 0.2 }
+			end), "slow is at least 0.3")
+			assert(not variant(wall, function(d)
+				d.Field.AffectsSpells = { Who = "Hostile", ScalePotency = 1.6 }
+			end), "potency is at most 1.5")
+			assert(
+				variant(wall, function(d)
+					d.Field.AffectsSpells = { Who = "Hostile", Slow = 0.5, ScalePotency = 0.8 }
+				end),
+				"slow + potency lens was rejected"
+			)
+			assert(schema.DispelPolarity.Hostile == "Bane" and schema.DispelPolarity.Allied == "Neutral")
+		end)()
+		assert(not schema.supportsPrincipleForm("Matter", "Rush"), "Matter has no Rush")
+		do
+			-- Interception (OnBeforeDamageTaken).
+			local function hitRule(property, operator, value)
+				return {
+					Operator = "ALL",
+					Conditions = { { Family = "Hit", Property = property, Operator = operator, Value = value } },
+				}
+			end
+			local parry = spec.createDraft("SelfEnhancement", "Body")
+			parry.Element = "Fire"
+			parry.Interception = { Charges = 1, EndWhenSpent = true }
+			parry.Triggers.OnBeforeDamageTaken = {
+				{ Intercept = { Action = "Negate" }, Payloads = {} },
+				{
+					TargetFrom = "Attacker",
+					Payloads = { { Kind = "ElementalMark", Stacks = 1, Duration = 5 } },
+				},
+			}
+			local parryOk, parryReason = spec.validate(parry)
+			assert(parryOk, "parry was rejected: " .. tostring(parryReason))
+			assert(
+				table.find(schema.eventsForEffects("SelfEnhancement"), "OnBeforeDamageTaken"),
+				"Lab hides Before damage taken"
+			)
+			assert(table.find(schema.eventsForEffects("Aura"), "OnBeforeDamageTaken"))
+			assert(
+				not table.find(schema.eventsForEffects("Projectile"), "OnBeforeDamageTaken"),
+				"projectiles hold nothing"
+			)
+			local function parryVariant(mutate)
+				local copy = spec.copy(parry)
+				mutate(copy)
+				return spec.validate(copy)
+			end
+			assert(not parryVariant(function(d)
+				d.Interception = nil
+			end), "charges are required")
+			assert(not parryVariant(function(d)
+				d.Interception.Charges = limits.MaxInterceptionCharges + 1
+			end), "charge limit")
+			assert(not parryVariant(function(d)
+				d.Triggers.OnBeforeDamageTaken[1].Intercept = { Action = "Reduce", Percent = 95 }
+			end), "reduce is at most 90%")
+			assert(
+				parryVariant(function(d)
+					d.Triggers.OnBeforeDamageTaken[1].Intercept = { Action = "Reduce", Percent = 50 }
+				end),
+				"reduce 50% was rejected"
+			)
+			assert(
+				parryVariant(function(d)
+					d.Triggers.OnBeforeDamageTaken[1].Intercept = { Action = "Redirect", Percent = 50, To = "Owner" }
+				end),
+				"guardian redirect was rejected"
+			)
+			assert(not parryVariant(function(d)
+				d.Triggers.OnBeforeDamageTaken[1].Intercept = { Action = "Redirect", Percent = 5, To = "Owner" }
+			end), "redirect is at least 10%")
+			assert(not parryVariant(function(d)
+				d.Triggers.OnBeforeDamageTaken[1].Intercept = { Action = "Redirect", Percent = 50, To = "Bystander" }
+			end), "redirect target")
+			assert(
+				parryVariant(function(d)
+					d.Triggers.OnBeforeDamageTaken[1].Condition = hitRule("Damage", ">=", 20)
+				end),
+				"Hit conditions on Before damage taken"
+			)
+			assert(not parryVariant(function(d)
+				d.Triggers.OnBeforeDamageTaken = nil
+				d.Interception = nil
+				d.Triggers.OnDamageTaken = {
+					{
+						Condition = hitRule("Damage", ">=", 20),
+						Payloads = { { Kind = "Shield", Amount = 5, Duration = 2 } },
+					},
+				}
+			end), "Hit conditions only on Before damage taken")
+			assert(not parryVariant(function(d)
+				d.Triggers.OnBeforeDamageTaken = nil
+				d.Triggers.OnDamageTaken = { { Intercept = { Action = "Negate" }, Payloads = {} } }
+			end), "Intercept only on Before damage taken")
+			-- Cost: Negate is priced highest.
+			local function priced(intercept)
+				local copy = spec.copy(parry)
+				copy.Triggers.OnBeforeDamageTaken = { { Intercept = intercept, Payloads = {} } }
+				return spec.estimate(copy).ManaDemand
+			end
+			local negateCost = priced({ Action = "Negate" })
+			local redirectCost = priced({ Action = "Redirect", Percent = 100, To = "Owner" })
+			local reduceCost = priced({ Action = "Reduce", Percent = 90 })
+			-- Normalization keeps charges in step with the event.
+			local bare = spec.copy(parry)
+			bare.Interception = nil
+			assert(spec.normalize(bare).Interception.Charges == 1, "charges default to 1")
+			bare.Triggers.OnBeforeDamageTaken = nil
+			bare.Interception = { Charges = 3 }
+			assert(spec.normalize(bare).Interception == nil, "charges go with the event")
+			assert(
+				negateCost > redirectCost and redirectCost > reduceCost,
+				"Negate costs the most: " .. negateCost .. " " .. redirectCost .. " " .. reduceCost
+			)
+		end
+		-- Construct pulses (Construct.Interval + OnTick).
+		local totem = spec.createDraft("Construct", "Body")
+		totem.Construct.Interval = 2
+		totem.Triggers.OnTick = { { Payloads = { { Kind = "Heal", Amount = 5 } } } }
+		local totemOk, totemReason = spec.validate(totem)
+		assert(totemOk, "Construct pulse was rejected: " .. tostring(totemReason))
+		assert(table.find(schema.eventsForEffects("Construct"), "OnTick"), "Lab hides Construct OnTick")
+		local badTotem = spec.copy(totem)
+		badTotem.Construct.Interval = nil
+		assert(not spec.validate(badTotem), "Construct OnTick without an interval")
+		badTotem = spec.copy(totem)
+		badTotem.Construct.Interval = limits.MaxConstructInterval + 1
+		assert(not spec.validate(badTotem), "Construct interval limit")
+		assert(schema.supportsPayload("Damage", "Construct", "OnTick"), "Damage on Construct pulses")
+		-- Construct health and OnDestroyed.
+		local wall = spec.createDraft("Construct", "Matter")
+		wall.Construct.Health = 200
+		wall.Triggers.OnDestroyed = { { Payloads = { { Kind = "Damage", Amount = 10 } } } }
+		local wallOk, wallReason = spec.validate(wall)
+		assert(wallOk, "breakable wall was rejected: " .. tostring(wallReason))
+		local badWall = spec.copy(wall)
+		badWall.Construct.Health = limits.MaxConstructHealth + 1
+		assert(not spec.validate(badWall), "Construct health limit")
+		badWall = spec.copy(wall)
+		badWall.Construct.Health = nil
+		assert(not spec.validate(badWall), "OnDestroyed without health")
+		assert(table.find(schema.eventsForEffects("Construct"), "OnDestroyed"), "Lab hides OnDestroyed")
+		-- Field traps.
+		local trap = spec.createDraft("Field", "Energy")
+		assert(trap.Field.ArmDelay == 0 and trap.Field.Hidden == false and trap.Field.ConsumeOnTrigger == false)
+		trap.Field.ArmDelay = 2
+		trap.Field.Hidden = true
+		trap.Field.ConsumeOnTrigger = true
+		trap.Triggers.OnEnter = { { Payloads = { { Kind = "Damage", Amount = 30 } } } }
+		local trapOk, trapReason = spec.validate(trap)
+		assert(trapOk, "hidden trap was rejected: " .. tostring(trapReason))
+		local function trapVariant(mutate)
+			local copy = spec.copy(trap)
+			mutate(copy)
+			return spec.validate(copy)
+		end
+		assert(not trapVariant(function(d)
+			d.Field.ArmDelay = limits.MaxTrapArmDelay + 1
+		end), "arm delay limit")
+		assert(not trapVariant(function(d)
+			d.Field.Hidden = "yes"
+		end), "Hidden must be a boolean")
+		assert(not trapVariant(function(d)
+			d.Field.GrowthStartScale, d.Field.GrowthEndScale, d.Field.GrowthDuration = 0.5, 1, 2
+			d.Casting.Mode = "Channeled"
+		end), "a hidden Field cannot grow")
+		assert(not trapVariant(function(d)
+			d.Lifetime = { Mode = "UntilDestroyed" }
+		end), "a hidden Field needs a duration")
+		assert(schema.supportsPrincipleForm("Space", "Rush") and schema.supportsPrincipleForm("Energy", "Rush"))
+		assert(
+			schema.supportsPayload("Damage", "Rush", "OnImpact") and schema.supportsPayload("Stun", "Rush", "OnExpire")
+		)
+	end
 	reject(function(d)
 		d.Source = nil
 	end)
@@ -1289,7 +2006,7 @@ do
 		objectControl.Triggers[eventName] = {
 			{
 				Payloads = {
-					{ Kind = "Control", Mode = "Pull", Acceleration = 24, Duration = 2, MaxSpeed = 32 },
+					{ Kind = "Control", Mode = "Pull", Acceleration = 24, Duration = 2, MaxSpeed = 32, MaxMass = 500 },
 				},
 			},
 		}
@@ -1431,6 +2148,7 @@ do
 	assert(channelWave.Geometry == "Cone", "Existing Wave drafts should remain cone-shaped by default")
 	local sphereWave = spec.copy(channelWave)
 	sphereWave.Geometry = "Sphere"
+	sphereWave.Triggers.OnCast = { { Payloads = { { Kind = "Damage", Amount = 4 } } } }
 	assert(spec.validate(sphereWave), "Wave should support an omnidirectional spherical hit shape")
 	sphereWave.Geometry = "Ring"
 	assert(not spec.validate(sphereWave), "Wave should reject geometries outside its authored shape choices")
@@ -1529,6 +2247,7 @@ do
 	assert(not spec.validate(excessiveInterrupt), "Movement interruption must obey its safety bound")
 	local freeHandSpell = spec.createDraft("Projectile", "Energy")
 	freeHandSpell.Casting.RequiresFreeHand = true
+	freeHandSpell.Triggers.OnImpact = { { Payloads = { { Kind = "Damage", Amount = 4 } } } }
 	assert(spec.validate(freeHandSpell), "A valid spell may explicitly require a free hand")
 	freeHandSpell.Casting.RequiresFreeHand = "yes"
 	assert(not spec.validate(freeHandSpell), "Free-hand rules must use a validated boolean")
@@ -1582,6 +2301,7 @@ do
 	returningProjectile.Projectile.Behaviors = {
 		{ Kind = "Return", ReturnAtDistance = 90, CatchRadius = 2, TurnRate = 240 },
 	}
+	returningProjectile.Triggers.OnImpact = { { Payloads = { { Kind = "Damage", Amount = 4 } } } }
 	assert(spec.validate(returningProjectile), "A bounded returning Projectile should validate")
 	local invalidReturn = spec.copy(returningProjectile)
 	invalidReturn.Projectile.Behaviors[1].ReturnAtDistance = 121
@@ -1636,7 +2356,9 @@ do
 	for _, formName in schema.FormOrder do
 		local form = schema.Forms[formName]
 		if form.TargetTypes and form.TargetTypes.Humanoid then
-			local effectEvent = form.DefaultEvent
+			-- Constructs start without a default effect timing; their support
+			-- effects resolve on approach.
+			local effectEvent = form.DefaultEvent or "OnProximity"
 			assert(schema.supportsPayload("Heal", formName, effectEvent), formName .. " is missing Healing")
 			assert(schema.supportsPayload("Shield", formName, effectEvent), formName .. " is missing Shield")
 			local principle = schema.supportsPrincipleForm("Body", formName) and "Body" or "Energy"
@@ -1647,7 +2369,8 @@ do
 			if form.CanIncludeCaster then
 				formDraft.TargetRules.IncludeCaster = true
 			end
-			assert(spec.validate(formDraft), formName .. " support payloads failed validation")
+			local supportOk, supportReason = spec.validate(formDraft)
+			assert(supportOk, formName .. " support payloads failed validation: " .. tostring(supportReason))
 			humanoidFormCount = humanoidFormCount + 1
 		end
 	end
@@ -1667,6 +2390,9 @@ do
 		toggleDraft.Lifetime = { Mode = "UntilToggledOff" }
 		if formName == "SelfEnhancement" then
 			toggleDraft.Triggers.OnCast = { { Payloads = { { Kind = "Enhancement", SpeedMultiplier = 1.1 } } } }
+		elseif formName == "Construct" then
+			-- Constructs have no pulse timing; their active effects resolve on approach.
+			toggleDraft.Triggers.OnProximity = { { Payloads = { { Kind = "Heal", Amount = 1 } } } }
 		else
 			toggleDraft.Triggers.OnTick = { { Payloads = { { Kind = "Heal", Amount = 1 } } } }
 		end
@@ -1771,8 +2497,11 @@ do
 		{ Payloads = { { Kind = "Summon", Archetype = "Wisp", Count = 3, Duration = 30 } } },
 	}
 	assert(spec.validate(summonDraft), "Field should support an owner-bound summon payload")
+	-- The editor copies Summon Defaults, so new summons start unassigned; a
+	-- payload without SpellSlot is also unassigned at runtime (SummonService).
 	assert(
-		summonDraft.Triggers.OnCast[1].Payloads[1].SpellSlot == "None",
+		schema.Payloads.Summon.Defaults.SpellSlot == "None"
+			and summonDraft.Triggers.OnCast[1].Payloads[1].SpellSlot == nil,
 		"new summons should explicitly start without an arbitrary companion spell assignment"
 	)
 	local assignedSummonSpell = spec.copy(summonDraft)
@@ -1841,7 +2570,7 @@ do
 	assert(schema.supportsPayload("Heal", "Field", "OnCommand"), "Payloads should compose with summon commands")
 	assert(table.find(schema.eventsForEffects("Field"), "OnCommand"), "The Lab should expose OnCommand")
 	local invalidCommand = spec.copy(commandedSummon)
-	invalidCommand.Triggers.OnCommand[1].Command = "Patrol"
+	invalidCommand.Triggers.OnCommand[1].Command = "Dance"
 	assert(not spec.validate(invalidCommand), "OnCommand must reject commands outside the server command list")
 	invalidCommand = spec.copy(commandedSummon)
 	invalidCommand.Triggers.OnCast = nil

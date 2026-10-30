@@ -219,7 +219,7 @@ function Validator.validate(definition)
 			or not definition.Triggers
 			or not payloadsValid(definition.Triggers.OnCast)
 		then
-			return false, "Unsupported self enhancement definition"
+			return false, "Unsupported enchantment definition"
 		end
 		return true
 	end

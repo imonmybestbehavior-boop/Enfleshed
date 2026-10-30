@@ -37,8 +37,8 @@ return {
 	ParticleRate = 12,
 	AreaNodes = 8,
 	ParticleBudget = {
-		MaxEmitters = 64,
-		MaxContinuousRate = 360,
+		MaxEmitters = 32,
+		MaxContinuousRate = 180,
 		MaxBurstPerSecond = 240,
 		BurstCapacity = 300,
 	},
