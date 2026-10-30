@@ -16,6 +16,9 @@ local LocusProfile = if RunService:IsStudio() and DevelopmentSandbox.Enabled
 	else LocusConfiguration.Combat
 local LocusModel = require(Shared.Modules.MagicLocusModel)
 local SpecialResourceSpec = require(Shared.Modules.MagicSpecialResourceSpec)
+local AttributeSpec = require(Shared.Modules.MagicAttributeSpec)
+local EnchantmentSpec = require(Shared.Modules.MagicEnchantmentSpec)
+local ScaleSpec = require(Shared.Modules.MagicScaleSpec)
 local SpecialResourceDefinitions = LocusConfiguration.SpecialResources
 local specialResourcesValid, specialResourcesReason =
 	SpecialResourceSpec.validateDefinitions(SpecialResourceDefinitions)
@@ -63,6 +66,27 @@ local LoadBudget = require(Shared.Modules.MagicLoadBudget)
 local Telemetry = require(script.Parent.TelemetryService)
 local MagicWorldQuery = require(script.Parent.MagicWorldQuery)
 local MagicConstructBuilder = require(script.Parent.MagicConstructBuilder)
+local MagicRush = require(script.Parent.MagicRush)
+local Ownership = require(script.Parent.MagicPhysicsOwnership)
+local RushSpec = require(Shared.Modules.MagicRushSpec)
+local RecastSpec = require(Shared.Modules.MagicRecastSpec)
+local CombatPolicy = require(Shared.Modules.CombatPolicy)
+local StatCaps = require(Shared.Modules.SpellStatCaps)
+local CapProfiles = require(Shared.Configuration.SpellStatCaps)
+local ConstructHealth = require(script.Parent.MagicConstructHealth)
+local ConstructHealthSpec = require(Shared.Modules.MagicConstructHealthSpec)
+local TrapSpec = require(Shared.Modules.MagicTrapSpec)
+local Interception = require(script.Parent.MagicInterception)
+local TetherRuntime = require(script.Parent.MagicTether)
+local Transform = require(script.Parent.MagicTransformService)
+local SpellTargets = require(script.Parent.MagicSpellTargets)
+local SpellTargetSpec = require(Shared.Modules.MagicSpellTargetSpec)
+local BloodMagic = require(script.Parent.MagicBloodMagic)
+local BloodCostSpec = require(Shared.Modules.MagicBloodCostSpec)
+local Schema = require(Shared.Configuration.MagicSchema)
+-- Spell vs Spell runtime (assigned before Magic.start; see spellRuntime below).
+local spellRuntime: any = {}
+local TetherSpec = require(Shared.Modules.MagicTetherSpec)
 local buildConstructModel, watchPersistentConstruct, persistentConstructRecord, restorePersistentConstruct =
 	MagicConstructBuilder.buildConstructModel,
 	MagicConstructBuilder.watchPersistentConstruct,
@@ -88,6 +112,7 @@ type CastContext = { Origin: Vector3, CommandCast: boolean?, CommandId: number? 
 type Charge = {
 	SpellId: string,
 	BeganAt: number,
+	Rate: number,
 	Definition: any,
 	Character: Model,
 	StartPosition: Vector3,
@@ -125,6 +150,12 @@ local function isSpellCooling(stats, spellId: string, now: number): boolean
 	-- Accept old in-memory timestamp entries while the service is hot-reloaded.
 	return type(cooldown) == "number" and now < cooldown
 end
+-- Enchantments (SelfEnhancement Form), keyed by owner, then by
+-- EnchantmentSpec.key (the SpellId for self casts, SpellId@holder otherwise).
+--   Owner / OwnerState: the caster. Pays costs, owns the cascade budget, gets
+--     feedback, is credited as `Caster` for the enchantment's own effects.
+--   State: the HOLDER the enchantment is on (the owner's own state for self casts).
+--     Movement, visuals, proximity and holder-view events use it.
 local enhancements: {
 	[Player]: {
 		[string]: {
@@ -137,6 +168,62 @@ local enhancements: {
 	},
 } =
 	{}
+
+local holderIds: { [Model]: string } = setmetatable({}, { __mode = "k" }) :: any
+local nextHolderId = 0
+local function holderKey(model: Model): string
+	local id = holderIds[model]
+	if not id then
+		nextHolderId += 1
+		id = tostring(nextHolderId)
+		holderIds[model] = id
+	end
+	return id
+end
+
+local function enchantmentType(definition: any): string
+	return EnchantmentSpec.typeOf(definition, function(kind)
+		local payload = Spec.Schema.Payloads[kind]
+		return payload and payload.Polarity
+	end)
+end
+
+-- Gameplay identity per definition table (the same spell in two casters'
+-- libraries has the same identity).
+local enchantmentIdentities: { [any]: string } = setmetatable({}, { __mode = "k" }) :: any
+local function enchantmentIdentity(definition: any): string
+	local identity = enchantmentIdentities[definition]
+	if not identity then
+		identity = EnchantmentSpec.identity(definition)
+		enchantmentIdentities[definition] = identity
+	end
+	return identity
+end
+
+-- Whether `owner` may put `definition` on `holder`. The same caster recasting
+-- the same Enchantment refreshes it (refreshKey: their record to replace);
+-- different casters may stack the same Enchantment at most
+-- MaxSameEnchantmentPerHolder times. There is no other cap.
+local function canHoldEnchantment(owner: Player, definition: any, holder: Model): (boolean, string?, string?)
+	local existing = {}
+	for otherOwner, effects in enhancements do
+		for key, effect in effects do
+			if effect.State.Character == holder then
+				table.insert(existing, {
+					Owner = tostring(otherOwner.UserId),
+					Key = key,
+					Identity = effect.Identity or enchantmentIdentity(effect.Definition),
+				})
+			end
+		end
+	end
+	return EnchantmentSpec.canAdd(
+		existing,
+		tostring(owner.UserId),
+		enchantmentIdentity(definition),
+		Limits.MaxSameEnchantmentPerHolder
+	)
+end
 
 local function feedback(remote: RemoteEvent, player: Player, result: string, spell: any?, data: { [string]: any }?)
 	remote:FireClient(player, {
@@ -194,7 +281,32 @@ local function getDefinition(id: any): any?
 end
 
 local function costs(definition: any, charge: number, resources: any): (number, number, number)
-	return LocusModel.cost(definition.Cost, charge, Sandbox.Magic.ChargeCostScale, resources)
+	local cost = definition.Cost
+	-- Blood magic: Cost.ManaDemand is the full price; health pays its share.
+	if (cost.HealthForMana or 0) > 0 then
+		cost = table.clone(cost)
+		cost.ManaDemand = (BloodCostSpec.split(cost.ManaDemand, cost.HealthForMana, Limits.HealthPerMana))
+	end
+	return LocusModel.cost(cost, charge, Sandbox.Magic.ChargeCostScale, resources)
+end
+
+-- Blood magic: HP this cast costs, scaled by charge like mana, with the
+-- caster's PvP MaxHealthCostPercent on the PercentMax sacrifice.
+local function healthCost(state: any, definition: any, charge: number): number
+	if not BloodCostSpec.uses(definition.Cost) then
+		return 0
+	end
+	local profile = CapProfiles[StatCaps.selfProfileName(CombatPolicy.owner(state.Character, Players))]
+	return BloodMagic.quote(
+		definition.Cost,
+		state.Humanoid.MaxHealth,
+		1 + charge * Sandbox.Magic.ChargeCostScale,
+		profile and profile.MaxHealthCostPercent
+	)
+end
+
+local function setCasterHealth(humanoid: Humanoid, value: number)
+	humanoid.Health = value
 end
 
 local function setCastingMovement(player: Player, state: State?, definition: any?, direction: Vector3?)
@@ -278,6 +390,93 @@ local function hasPayloadAnywhere(definition, kind: string): boolean
 		end
 	end
 	return false
+end
+
+-- Rush: authored distance within the hard limit and, while the caster can
+-- fight players, the PvP MaxRushDistance of their zone.
+local function rushDistance(state: State, definition: any): number
+	local profile = CapProfiles[StatCaps.selfProfileName(CombatPolicy.owner(state.Character, Players))]
+	return RushSpec.distance(definition.Rush.Distance, 1, profile and profile.MaxRushDistance, Limits.MaxRushDistance)
+end
+
+-- Construct.Health within the hard limit and, in PvP, MaxConstructHealth.
+local function constructMaxHealth(state: State, definition: any): number?
+	local profile = CapProfiles[StatCaps.selfProfileName(CombatPolicy.owner(state.Character, Players))]
+	return ConstructHealthSpec.maxHealth(
+		definition.Construct and definition.Construct.Health,
+		profile and profile.MaxConstructHealth,
+		Limits.MaxConstructHealth
+	)
+end
+
+local function rushPath(state: State, definition: any, direction: Vector3): MagicRush.Path?
+	return MagicRush.plan(state.Character, state.Humanoid, state.Root, direction, rushDistance(state, definition))
+end
+
+-- Tether: length within the hard limit and the caster's PvP MaxTetherLength.
+local function tetherLength(state: State, definition: any): number
+	local profile = CapProfiles[StatCaps.selfProfileName(CombatPolicy.owner(state.Character, Players))]
+	return TetherSpec.length(definition.Tether.MaxLength, profile and profile.MaxTetherLength, Limits.MaxTetherLength)
+end
+
+local function tetherAnchorCount(humanoid: Humanoid): number
+	local count = 0
+	for _, spell in active do
+		if spell.Kind == "Tether" and (spell.AnchorA == humanoid or spell.AnchorB == humanoid) then
+			count += 1
+		end
+	end
+	return count
+end
+
+-- The two anchors: CasterToTarget = caster and the picked character;
+-- TargetToTarget = the picked character and the nearest other eligible one
+-- within reach. Refused when an anchor already holds the most tethers.
+local function tetherAnchors(
+	state: State,
+	definition: any,
+	picked: Model?,
+	player: Player
+): (Humanoid?, Humanoid?, string?)
+	local pickedHumanoid = picked and picked:FindFirstChildOfClass("Humanoid")
+	local pickedRoot = picked and picked:FindFirstChild("HumanoidRootPart")
+	if not pickedHumanoid or not pickedRoot or not pickedRoot:IsA("BasePart") then
+		return nil, nil, "Aim at a character to tether"
+	end
+	local first, second = state.Humanoid, pickedHumanoid
+	if definition.Tether.Anchors == "TargetToTarget" then
+		first, second = pickedHumanoid, nil
+		local found =
+			HitDetection.findSphere(state.Character, CFrame.new(pickedRoot.Position), tetherLength(state, definition), {
+				OverlapCollisionGroup = Sandbox.Combat.OverlapCollisionGroup,
+				RequireLineOfSight = definition.Tether.BreakOnLineOfSight,
+				IncludeAttacker = false,
+			})
+		local eligible = Conditions.targets(definition, state.Character, pickedRoot.Position, found, {
+			Player = player,
+			Resources = resourceSnapshot(playerData[player]),
+			SpellState = {},
+		})
+		local best = math.huge
+		for _, humanoid in eligible do
+			local root = humanoid.Parent and humanoid.Parent:FindFirstChild("HumanoidRootPart")
+			if humanoid ~= pickedHumanoid and root and root:IsA("BasePart") then
+				local distance = (root.Position - pickedRoot.Position).Magnitude
+				if distance < best then
+					best, second = distance, humanoid
+				end
+			end
+		end
+		if not second then
+			return nil, nil, "No second character within reach"
+		end
+	end
+	for _, humanoid in { first, second } do
+		if TetherSpec.anchorFull(tetherAnchorCount(humanoid :: Humanoid), Limits.MaxTethersPerCharacter) then
+			return nil, nil, "That character is already tethered too many times"
+		end
+	end
+	return first, second, nil
 end
 
 local function validate(
@@ -369,6 +568,19 @@ local function validate(
 		end
 		if not selectedTarget then
 			return "IMPOSSIBLE", targetReason or "No valid target in the aim cone"
+		end
+		if definition.Form == "SelfEnhancement" then
+			-- Check the holder's enchantment caps before any cost is paid.
+			local allowed, capReason = canHoldEnchantment(player, definition, selectedTarget)
+			if not allowed then
+				return "IMPOSSIBLE", capReason
+			end
+		end
+		if definition.Form == "Tether" then
+			local anchorA, _, anchorReason = tetherAnchors(state, definition, selectedTarget, player)
+			if not anchorA then
+				return "IMPOSSIBLE", anchorReason
+			end
 		end
 		direction = targetDirection or direction
 	elseif targeting == "WorldPoint" or targeting == "Area" then
@@ -557,6 +769,18 @@ local function validate(
 			return "IMPOSSIBLE", "Target is obstructed"
 		end
 	end
+	if definition.Form == "Rush" then
+		-- Refused before any cost is paid.
+		if state.Humanoid:GetAttribute("MagicMovementBound") == true then
+			return "IMPOSSIBLE", "You cannot move right now"
+		end
+		if not Movement.canMagicRush(state, workspace:GetServerTimeNow()) then
+			return "IMPOSSIBLE", "Already moving"
+		end
+		if not rushPath(state, definition, direction) then
+			return "IMPOSSIBLE", "No safe space to rush"
+		end
+	end
 	local stats = playerData[player]
 	if not stats then
 		return "IMPOSSIBLE", "Locus state unavailable"
@@ -570,6 +794,9 @@ local function validate(
 		local label = SpecialResourceDefinitions[missingSpecial] and SpecialResourceDefinitions[missingSpecial].Label
 		return "IMPOSSIBLE", "Insufficient " .. tostring(label or "special resource")
 	end
+	if not BloodMagic.canPay(state.Humanoid, healthCost(state, definition, charge)) then
+		return "IMPOSSIBLE", BloodMagic.FloorReason
+	end
 	if definition.Development then
 		return "VALID", nil, material, direction, selectedTarget, objectPosition
 	end
@@ -578,32 +805,121 @@ local function validate(
 	return result, reason, material, direction, selectedTarget, objectPosition
 end
 
-local function updateEnhancement(player: Player, fallbackState: any?)
+-- Recomputes everything one holder gets from every owner's enchantments on it:
+-- the replicated overhead summary (all holders) and movement (player holders only).
+local function refreshHolder(holderState: any)
+	local character = holderState and holderState.Character
+	if not character then
+		return
+	end
 	local walkSpeedBonus, jumpPowerBonus = 0, 0
 	local multiplier = 1
 	local aerialSpeed = 0
-	for _, effect in enhancements[player] or {} do
-		walkSpeedBonus += effect.WalkSpeedBonus
-		jumpPowerBonus += effect.JumpPowerBonus
-		multiplier = math.max(multiplier, effect.SpeedMultiplier)
-		aerialSpeed = math.max(aerialSpeed, effect.AerialSpeed or 0)
+	local types = {}
+	for _, effects in enhancements do
+		for _, effect in effects do
+			if effect.State.Character == character then
+				table.insert(types, effect.Type or "Neutral")
+				local allowed = EnchantmentSpec.movement(effect.IsSelf ~= false, true)
+				if allowed.Swiftness then
+					walkSpeedBonus += effect.WalkSpeedBonus
+					jumpPowerBonus += effect.JumpPowerBonus
+					multiplier = math.max(multiplier, effect.SpeedMultiplier)
+				end
+				if allowed.Aerial then
+					aerialSpeed = math.max(aerialSpeed, effect.AerialSpeed or 0)
+				end
+			end
+		end
+	end
+	-- Overhead icon: same replicated attribute + tag path Reveal uses.
+	local summary = EnchantmentSpec.encode(types)
+	if character:IsDescendantOf(workspace) then
+		character:SetAttribute("MagicEnchantments", if summary == "" then nil else summary)
+		if summary == "" then
+			CollectionService:RemoveTag(character, "MagicEnchanted")
+		else
+			CollectionService:AddTag(character, "MagicEnchanted")
+		end
+	end
+	if not Players:GetPlayerFromCharacter(character) then
+		return -- Swiftness and Aerial movement apply to player holders only.
 	end
 	walkSpeedBonus = math.min(walkSpeedBonus, 30)
 	jumpPowerBonus = math.min(jumpPowerBonus, Limits.MaxJumpBonus)
 	multiplier = math.min(multiplier, Limits.MaxMultiplier)
-	local _, effect = next(enhancements[player] or {})
-	if effect then
-		Movement.setMagicEnhancement(effect.State, walkSpeedBonus, jumpPowerBonus, multiplier)
-		Movement.setMagicAerial(effect.State, aerialSpeed)
-	elseif fallbackState then
-		Movement.setMagicEnhancement(fallbackState, 0, 0, 1)
-		Movement.setMagicAerial(fallbackState, 0)
+	Movement.setMagicEnhancement(holderState, walkSpeedBonus, jumpPowerBonus, multiplier)
+	Movement.setMagicAerial(holderState, aerialSpeed)
+end
+
+-- Refreshes every holder this owner's enchantments sit on, plus `fallbackState`
+-- (a holder whose enchantment was just removed).
+local function updateEnhancement(player: Player, fallbackState: any?)
+	local seen = {}
+	for _, effect in enhancements[player] or {} do
+		if not seen[effect.State.Character] then
+			seen[effect.State.Character] = true
+			refreshHolder(effect.State)
+		end
+	end
+	if fallbackState and not seen[fallbackState.Character] then
+		refreshHolder(fallbackState)
 	end
 end
 
 local emit: any
 local finishBeamChannel: any
+local cleanseEnchantment: any -- assigned after the enchantment expiry helpers
 local spawnEffect: any
+
+-- Environment reactions (MagicEnvironmentReactions): what the world is made of.
+-- Map parts opt in with the CollectionService tags "Flammable" and "Water";
+-- Terrain water needs no tag. One table (this file is at the local limit).
+local World: any = { Reactions = require(script.Parent.MagicEnvironmentReactions) }
+World.State = World.Reactions.newState()
+function World.isWaterAt(part: Instance, position: Vector3): boolean
+	if CollectionService:HasTag(part, "Water") then
+		return true
+	end
+	if part:IsA("Terrain") then
+		local params = RaycastParams.new()
+		params.FilterType = Enum.RaycastFilterType.Include
+		params.FilterDescendantsInstances = { workspace.Terrain }
+		params.IgnoreWater = false
+		local hit = workspace:Raycast(position + Vector3.new(0, 1, 0), Vector3.new(0, -3, 0), params)
+		return hit ~= nil and hit.Material == Enum.Material.Water
+	end
+	return false
+end
+function World.isFlammable(part: Instance): boolean
+	return CollectionService:HasTag(part, "Flammable")
+		or (part:IsA("BasePart") and table.find(Limits.FlammableMaterials, part.Material.Name) ~= nil)
+end
+-- Wet: a Water mark, swimming, or standing in water (Terrain or a Water part).
+function World.isWet(humanoid: Humanoid): boolean
+	if StatusEffects.hasElementalMark(humanoid, "Water") then
+		return true
+	end
+	if humanoid:GetState() == Enum.HumanoidStateType.Swimming or humanoid.FloorMaterial == Enum.Material.Water then
+		return true
+	end
+	local model = humanoid.Parent
+	local root = model and model:FindFirstChild("HumanoidRootPart")
+	if not root or not root:IsA("BasePart") then
+		return false
+	end
+	for _, part in workspace:GetPartBoundsInRadius(root.Position, 2.5) do
+		if CollectionService:HasTag(part, "Water") then
+			return true
+		end
+	end
+	local params = RaycastParams.new()
+	params.FilterType = Enum.RaycastFilterType.Exclude
+	params.FilterDescendantsInstances = { model }
+	params.IgnoreWater = false
+	local hit = workspace:Raycast(root.Position, Vector3.new(0, -4, 0), params)
+	return hit ~= nil and (hit.Material == Enum.Material.Water or CollectionService:HasTag(hit.Instance, "Water"))
+end
 -- Spends from the cascade budget carried by runtimeState; reports exhaustion once.
 local function spendOperations(runtimeState, cost: number, definition, remote, player): boolean
 	local budget = runtimeState and runtimeState.OperationBudget
@@ -620,7 +936,10 @@ end
 local function context(definition, caster, position, targets, direction, remote, player, potency, runtimeState)
 	local stats = playerData[player]
 	local eventDepth = runtimeState and runtimeState.EventDepth or 0
-	local resolvedPotency = potency or (if stats then stats.Potency else LocusProfile.Potency)
+	-- Charge potency (ChargeScaling) multiplies every event of a charged cast;
+	-- execute stores it on that cast's own copy of the definition.
+	local resolvedPotency = (potency or (if stats then stats.Potency else LocusProfile.Potency))
+		* (definition._ChargePotency or 1)
 	local ctx = {
 		Caster = caster,
 		Player = player,
@@ -643,6 +962,7 @@ local function context(definition, caster, position, targets, direction, remote,
 				AllowCasterTarget = runtimeState
 					and (
 						runtimeState.EventName == "OnDamageTaken"
+						or runtimeState.EventName == "OnHolderDealtDamage"
 						or runtimeState.EventName == "OnBreak"
 						or runtimeState.EventName == "OnThreshold"
 						or runtimeState.EventName == "OnCasterDeath"
@@ -657,6 +977,40 @@ local function context(definition, caster, position, targets, direction, remote,
 		SpellState = runtimeState,
 		SpellTags = definition.Tags,
 		HealthThreshold = runtimeState and runtimeState.HealthThreshold or nil,
+		ChargeFraction = definition._ChargeFraction or 0,
+		HealthPaid = definition._HealthPaid or 0,
+		-- OnBeforeDamageTaken: the incoming hit and MagicInterception's hooks.
+		IncomingHit = runtimeState and runtimeState.IncomingHit or nil,
+		-- Tether steps with Anchor = "A" / "B" act on one end.
+		AnchorTargets = runtimeState and runtimeState.AnchorTargets or nil,
+		-- Spell vs Spell: steps with TargetKind = "Spell" (MagicSpellTargets).
+		ResolveSpellTargets = function(step, stepContext)
+			return spellRuntime.resolve(definition, caster, step, stepContext, runtimeState)
+		end,
+		DispelSpells = function(payload, entries)
+			spellRuntime.dispel(definition, caster, player, payload, entries, runtimeState)
+		end,
+		ForceSpells = function(payload, entries)
+			spellRuntime.force(definition, caster, payload, entries, direction, runtimeState)
+		end,
+		InterceptHooks = runtimeState and runtimeState.InterceptHooks or nil,
+		-- OnDamageDealt: how much the triggering hit dealt (PercentDamageDealt).
+		DamageDealt = runtimeState and runtimeState.DamageDealt or nil,
+		-- TargetFrom = "Caster" (OnDamageDealt): the caster, if alive.
+		CasterTargets = (function()
+			local casterHumanoid = caster and caster:FindFirstChildOfClass("Humanoid")
+			return if casterHumanoid and casterHumanoid.Health > 0 then { casterHumanoid } else {}
+		end)(),
+		-- OnDamageTaken: the attacker, filtered like any target (relationship, consent,
+		-- spell conditions). Steps with TargetFrom = "Attacker" use this instead of Targets.
+		EventAttackers = if runtimeState and runtimeState.EventAttacker
+			then Conditions.targets(definition, caster, position, { runtimeState.EventAttacker }, {
+				Player = player,
+				Resources = resourceSnapshot(stats),
+				SpellState = runtimeState,
+				AllowDeadTargets = true,
+			})
+			else {},
 		Command = runtimeState and runtimeState.Command or nil,
 		DeathCause = runtimeState and runtimeState.DeathCause or nil,
 		TrackAffected = function(humanoid)
@@ -725,6 +1079,48 @@ local function context(definition, caster, position, targets, direction, remote,
 			end
 		end,
 	}
+	-- Cleanse: every Enchantment on this humanoid, from any owner, as a candidate
+	-- (its type is its Polarity; ongoing ones count as unending).
+	ctx.EnchantmentCandidates = function(humanoid: any)
+		local candidates = {}
+		local now = workspace:GetServerTimeNow()
+		for owner, effects in enhancements do
+			for key, effect in effects do
+				if effect.State.Humanoid == humanoid then
+					table.insert(candidates, {
+						Source = "Enchantment",
+						Polarity = effect.Type,
+						Remaining = effect.ExpiresAt - now,
+						AppliedAt = effect.StartedAt or 0,
+						Remove = function()
+							cleanseEnchantment(owner, key, effect)
+						end,
+					})
+				end
+			end
+		end
+		return candidates
+	end
+	-- ScaleBy sources, read through the condition value adapters; mark stacks
+	-- come from the status service. No extra state is kept.
+	ctx.ScaleRead = function(source: string, humanoid: any, element: string?)
+		if source == "ElementalMarkStacks" then
+			return if humanoid then StatusEffects.elementalMarkStacks(humanoid, element) else 0
+		elseif source == "ChargePercent" then
+			return ctx.ChargeFraction
+		elseif source == "HealthPaid" then
+			return ctx.HealthPaid
+		end
+		local model = humanoid and humanoid.Parent
+		return Conditions.scaleValue(source, {
+			Caster = caster,
+			Target = if model and model:IsA("Model") then model else nil,
+			Player = player,
+			SpellId = definition.SpellId,
+			Resources = ctx.Resources,
+			SpellState = runtimeState,
+		})
+	end
 	ctx.ApplyManipulation = function(operation)
 		local target = runtimeState and runtimeState.ObjectTarget
 		if
@@ -738,14 +1134,26 @@ local function context(definition, caster, position, targets, direction, remote,
 			Manipulation.execute(operation.Operation, target, operation.Distance)
 		end
 	end
+	-- Damage on a Construct part with health (MagicPayloadExecutors.execute).
+	ctx.DamageStructure = function(part: Instance, amount: number)
+		ConstructHealth.damage(part, amount, caster)
+	end
 	ctx.DamageContext = {
 		Depth = eventDepth,
+		-- Reactions to this damage (OnDamageTaken) share the chain's cascade budget.
+		OperationBudget = runtimeState and runtimeState.OperationBudget or nil,
+		OriginEvent = runtimeState and runtimeState.EventName or nil,
 		SourceRuntimeState = runtimeState and runtimeState.RuntimeOrigin or nil,
 		HitPart = runtimeState and runtimeState.HitPart or nil,
 		Element = definition.Element or "Neutral",
+		IgnoreEnvironment = definition.IgnoreEnvironment == true or nil,
 		ThresholdSteps = definition.Triggers.OnThreshold,
 		EmitEvent = function(eventName, targetHumanoid, eventData)
 			if eventDepth >= Limits.MaxMagicEventDepth or not emit then
+				return
+			end
+			-- On a Tether, OnBreak is the snap: its own shields breaking do not fire it.
+			if eventName == "OnBreak" and definition.Form == "Tether" then
 				return
 			end
 			local runtime = runtimeState and (runtimeState.RuntimeOrigin or runtimeState)
@@ -771,6 +1179,7 @@ local function context(definition, caster, position, targets, direction, remote,
 					then (eventData and eventData.DeathCause or "KilledByThisSpell")
 					else nil,
 				HealthThreshold = eventData and eventData.HealthThreshold or nil,
+				DamageDealt = eventData and eventData.DamageDealt or nil,
 				UsePreviousTargetSet = eventName == "OnBreak",
 			}
 			local eventPosition = position
@@ -801,6 +1210,17 @@ local function context(definition, caster, position, targets, direction, remote,
 	ctx.SpawnEffect = function(step, eventTargets)
 		spawnEffect(definition, step, caster, position, direction, remote, player, potency, runtimeState, eventTargets)
 	end
+	-- OnTransformEnd: a Polymorph or Shapeshift from this spell ended (expiry,
+	-- break, Cleanse, recast) on `targetHumanoid`.
+	ctx.TransformEnded = function(targetHumanoid)
+		if not definition.Triggers or not definition.Triggers.OnTransformEnd then
+			return nil
+		end
+		return function()
+			ctx.DamageContext.EmitEvent("OnTransformEnd", targetHumanoid)
+		end
+	end
+	ctx.SpellColor = definition.Visual and definition.Visual.Color
 	ctx.TargetDeathCallback = function(targetHumanoid)
 		if not definition.Triggers or not definition.Triggers.OnTargetDeath then
 			return nil
@@ -808,6 +1228,87 @@ local function context(definition, caster, position, targets, direction, remote,
 		return function()
 			ctx.DamageContext.EmitEvent("OnTargetDeath", targetHumanoid, { DeathCause = "DiedWhileAffected" })
 		end
+	end
+	-- DrainResource / RestoreResource: players only (creatures have no mana).
+	-- Drain moves from the target to this caster's owner; Restore adds to the
+	-- target. Returns the amount moved.
+	ctx.TransferResource = function(mode: string, humanoid: any, resource: string, amount: number): number
+		local targetPlayer = humanoid and humanoid.Parent and Players:GetPlayerFromCharacter(humanoid.Parent)
+		local targetStats = targetPlayer and playerData[targetPlayer]
+		if not targetStats then
+			return 0
+		end
+		local special = resource ~= "Mana" and SpecialResourceDefinitions[resource] or nil
+		if resource ~= "Mana" and (not special or type(targetStats.SpecialResources) ~= "table") then
+			return 0
+		end
+		local function read(stats: any): number
+			return if special then stats.SpecialResources[resource] or 0 else stats.Mana
+		end
+		local function capacity(stats: any): number
+			return if special then special.Capacity else stats.Capacity
+		end
+		local function write(stats: any, value: number)
+			if special then
+				stats.SpecialResources[resource] = value
+			else
+				stats.Mana = value
+			end
+		end
+		local moved = 0
+		if mode == "Drain" then
+			local casterStats = playerData[player]
+			if not casterStats or targetPlayer == player then
+				return 0
+			end
+			local targetAfter, casterAfter, taken =
+				SpecialResourceSpec.drain(read(targetStats), read(casterStats), capacity(casterStats), amount)
+			write(targetStats, targetAfter)
+			write(casterStats, casterAfter)
+			moved = taken
+			syncHUDResourceAttributes(player, casterStats)
+			syncSpecialResourceAttributes(player)
+		else
+			local targetAfter, added = SpecialResourceSpec.restore(read(targetStats), capacity(targetStats), amount)
+			write(targetStats, targetAfter)
+			moved = added
+		end
+		syncHUDResourceAttributes(targetPlayer, targetStats)
+		syncSpecialResourceAttributes(targetPlayer)
+		return moved
+	end
+	-- Environment: Wet targets are snapshotted before a hit's reactions run.
+	ctx.IsWet = World.isWet
+	-- Elemental reactions: nearby humanoids (Conduct), and short reaction Fields
+	-- (Firestorm, Toxic smoke) spawned through the ordinary SpawnEffect path.
+	ctx.FindHumanoidsNear = function(at: Vector3, radius: number)
+		local candidates = HitDetection.findSphere(caster, CFrame.new(at), radius, {
+			OverlapCollisionGroup = Sandbox.Combat.OverlapCollisionGroup,
+		})
+		return Conditions.targets(definition, caster, at, candidates, {
+			Player = player,
+			Resources = resourceSnapshot(stats),
+			SpellState = runtimeState,
+		})
+	end
+	ctx.SpawnReactionField = function(effect: any, at: Vector3)
+		local triggers = {}
+		if effect.TickDamage then
+			triggers.OnTick = { { Payloads = { { Kind = "Damage", Amount = effect.TickDamage } } } }
+		end
+		local step = {
+			Behavior = "SpawnEffect",
+			Payloads = {},
+			Effect = {
+				Form = "Field",
+				Geometry = "Sphere",
+				Element = effect.Element,
+				Lifetime = { Mode = "FixedDuration", Duration = effect.Duration },
+				Field = { Radius = effect.Radius, Interval = effect.Interval or 0.6 },
+				Triggers = triggers,
+			},
+		}
+		spawnEffect(definition, step, caster, at, direction, remote, player, potency, runtimeState, {})
 	end
 	ctx.ApplySpherePayloads = function(radius, payloads)
 		Presentation.marker(
@@ -839,6 +1340,93 @@ local function context(definition, caster, position, targets, direction, remote,
 	end
 	return ctx
 end
+-- One SpawnEffect step per spell and reaction, so the spawned child keeps that
+-- spell's relationship rules (spawnEffect caches children by effect table).
+World.Steps = setmetatable({}, { __mode = "k" })
+function World.step(definition: any, kind: string): any
+	local steps = World.Steps[definition]
+	if not steps then
+		steps = {
+			Burn = { Behavior = "SpawnEffect", Payloads = {}, Effect = World.Reactions.fireEffect() },
+			Freeze = { Behavior = "SpawnEffect", Payloads = {}, Effect = World.Reactions.platformEffect() },
+		}
+		World.Steps[definition] = steps
+	end
+	return steps[kind]
+end
+
+-- Fire / Ice impacts on world parts (never on characters).
+function World.impact(definition, caster, part, position, eventState, direction, remote, player, potency)
+	local model = part:FindFirstAncestorOfClass("Model")
+	if model and model:FindFirstChildOfClass("Humanoid") then
+		return
+	end
+	World.Reactions.impact(World.State, {
+		Definition = definition,
+		Caster = caster,
+		Part = part,
+		Position = position,
+		Depth = eventState.EventDepth or 0,
+		Budget = eventState.OperationBudget,
+	}, {
+		Now = os.clock,
+		IsFlammable = World.isFlammable,
+		IsWater = World.isWaterAt,
+		Spend = OperationBudget.spend,
+		SpawnFire = function(at: Vector3)
+			return spawnEffect(
+				definition,
+				World.step(definition, "Burn"),
+				caster,
+				at,
+				direction,
+				remote,
+				player,
+				potency,
+				eventState,
+				{}
+			)
+		end,
+		SpawnPlatform = function(at: Vector3)
+			local platform = spawnEffect(
+				definition,
+				World.step(definition, "Freeze"),
+				caster,
+				at + Vector3.new(0, Limits.IcePlatformThickness / 2, 0),
+				direction,
+				remote,
+				player,
+				potency,
+				eventState,
+				{}
+			)
+			if platform and platform.Visual then
+				-- Construct health (Phase 10): the platform can be broken.
+				ConstructHealth.register(
+					platform,
+					platform.Visual,
+					player and player.UserId,
+					Limits.IcePlatformHealth,
+					nil,
+					{
+						OnDestroyed = function(_, attacker)
+							platform.Destroyed = true
+							platform.DestroyedBy = attacker
+						end,
+					}
+				)
+			end
+			return platform
+		end,
+		Alive = function(record)
+			return not record.Destroyed and (record.RemainingLifetime or 0) > 0
+		end,
+		End = function(record)
+			record.RemainingLifetime = 0
+		end,
+	})
+end
+
 emit = function(definition, event, caster, position, targets, direction, remote, player, potency, runtimeState)
 	definition._VFXCaster = caster
 	local eventState = table.clone(runtimeState or {})
@@ -859,6 +1447,9 @@ emit = function(definition, event, caster, position, targets, direction, remote,
 		else nil
 	if audioCue then
 		Presentation.playSound(definition, audioCue, position)
+	end
+	if event == "OnImpact" and typeof(eventState.HitPart) == "Instance" and typeof(position) == "Vector3" then
+		World.impact(definition, caster, eventState.HitPart, position, eventState, direction, remote, player, potency)
 	end
 	Triggers.execute(
 		definition,
@@ -961,8 +1552,223 @@ local function interruptWindupForDamage(target: Humanoid, amount: number)
 	end
 end
 
-Damage.Applied:Connect(function(attacker: Model, target: Humanoid, amount: number, killed: boolean, damageContext: any?)
+-- Interception (OnBeforeDamageTaken): spells the hit character holds -
+-- Auras following them, Enchantments on them, Constructs attached to them.
+local function interceptionCandidates(hit: any): { any }
+	local target: Humanoid = hit.Target
+	local holder = target.Parent
+	local context = hit.Context
+	local fromSpell = context ~= nil and type(context.Depth) == "number"
+	local depth = if fromSpell then context.Depth + 1 else 0
+	if not holder or depth >= Limits.MaxMagicEventDepth then
+		return {}
+	end
+	local attackerHumanoid = hit.Attacker:FindFirstChildOfClass("Humanoid")
+	local candidates = {}
+	local function add(record, definition, caster, position, direction, remote, player, appliedAt, finish)
+		if not definition or not definition.Interception or not hasEvent(definition, "OnBeforeDamageTaken") then
+			return
+		end
+		table.insert(candidates, {
+			Record = record,
+			Definition = definition,
+			AppliedAt = appliedAt or 0,
+			Owner = caster and caster:FindFirstChildOfClass("Humanoid"),
+			Run = function(hooks)
+				local eventState = lifecycleState(record, "OnBeforeDamageTaken", depth)
+				eventState.EventAttacker = attackerHumanoid
+				eventState.IncomingHit = hooks.IncomingHit
+				eventState.InterceptHooks = hooks
+				if fromSpell then
+					eventState.OperationBudget = context.OperationBudget
+				end
+				emit(
+					definition,
+					"OnBeforeDamageTaken",
+					caster or holder,
+					position,
+					{ target },
+					direction or Vector3.zero,
+					remote,
+					player,
+					nil,
+					eventState
+				)
+			end,
+			End = finish,
+		})
+	end
+	for _, spell in active do
+		local holds = false
+		if spell.Kind == "Aura" and not spell.FollowPart then
+			local follow = spell.FollowTargetModel or spell.FollowTarget
+			holds = (if typeof(follow) == "Instance" then follow else spell.Caster) == holder
+		elseif spell.Kind == "Construct" then
+			holds = spell.AttachedHumanoid ~= nil and spell.AttachedHumanoid.Parent == holder
+		end
+		if holds then
+			add(
+				spell,
+				spell.Definition,
+				spell.Caster,
+				spell.Position,
+				spell.Direction,
+				spell.Remote,
+				spell.Player,
+				spell.StartedAt,
+				function()
+					spell.RemainingLifetime = 0
+				end
+			)
+		end
+	end
+	for player, effects in enhancements do
+		for _, effect in effects do
+			if effect.State.Character == holder and effect.State.Humanoid.Health > 0 then
+				add(
+					effect,
+					effect.Definition,
+					effect.Caster or holder,
+					effect.State.Root.Position,
+					effect.Direction,
+					effect.Remote,
+					player,
+					effect.StartedAt,
+					function()
+						effect.ExpiresAt = workspace:GetServerTimeNow()
+					end
+				)
+			end
+		end
+	end
+	return candidates
+end
+
+-- Soul links on a character: live Tethers with ShareDamage anchored on it.
+local function tetherLinks(target: Humanoid): { any }
+	local links = {}
+	for _, spell in active do
+		local percent = spell.Kind == "Tether" and spell.Definition.Tether.ShareDamage
+		if percent and not spell.Ended and (spell.AnchorA == target or spell.AnchorB == target) then
+			table.insert(links, {
+				Record = spell,
+				Percent = percent,
+				Other = if spell.AnchorA == target then spell.AnchorB else spell.AnchorA,
+				StartedAt = spell.StartedAt or 0,
+			})
+		end
+	end
+	return links
+end
+
+local function shareSoulLinks(attacker: Model, target: Humanoid, amount: number, eventContext: any?): number
+	return TetherRuntime.share(attacker, target, amount, eventContext, {
+		Links = tetherLinks,
+		ShareCap = function(source: Model, receiver: Humanoid)
+			local receiverOwner = CombatPolicy.owner(receiver.Parent, Players)
+			if not receiverOwner then
+				return nil
+			end
+			local profile = CapProfiles[StatCaps.profileName(CombatPolicy.owner(source, Players), receiverOwner)]
+			return profile and profile.MaxTetherShareDamagePercent
+		end,
+		CanDamage = function(source: Model, recipient: Humanoid)
+			return recipient.Health > 0
+				and recipient.Parent ~= source
+				and CombatPolicy.canDamage(source, recipient.Parent, Players)
+		end,
+		-- Shared damage is marked like redirected damage: never shared or
+		-- intercepted again, and it continues the cascade depth.
+		Deal = function(source: Model, recipient: Humanoid, share: number, hitContext: any?)
+			Damage.apply(source, recipient, share, {
+				Redirected = true,
+				Shared = true,
+				Depth = (if hitContext and type(hitContext.Depth) == "number" then hitContext.Depth else 0) + 1,
+				OperationBudget = hitContext and hitContext.OperationBudget,
+				DamageChannel = (hitContext and hitContext.DamageChannel) or "Physical",
+				Element = (hitContext and hitContext.Element) or "Neutral",
+			})
+		end,
+	})
+end
+
+Damage.setInterceptor(function(attacker: Model, target: Humanoid, amount: number, eventContext: any?, melee: boolean)
+	local kept = Interception.resolve({
+		Attacker = attacker,
+		Target = target,
+		Amount = amount,
+		Context = eventContext,
+		Melee = melee,
+	}, {
+		Candidates = interceptionCandidates,
+		Now = os.clock,
+		Profile = function(source: Model, holderHumanoid: Humanoid)
+			return CapProfiles[StatCaps.profileName(
+				CombatPolicy.owner(source, Players),
+				CombatPolicy.owner(holderHumanoid.Parent, Players)
+			)]
+		end,
+		AttackerIsPlayer = function(source: Model)
+			return CombatPolicy.owner(source, Players) ~= nil
+		end,
+		CanDamage = function(source: Model, recipient: Humanoid)
+			return recipient.Health > 0
+				and recipient.Parent ~= source
+				and CombatPolicy.canDamage(source, recipient.Parent, Players)
+		end,
+		-- Redirected damage: the recipient's own mitigation and caps apply; it is
+		-- never intercepted again and continues the cascade depth.
+		Deal = function(source: Model, recipient: Humanoid, share: number, hitContext: any?)
+			Damage.apply(source, recipient, share, {
+				Redirected = true,
+				Depth = (if hitContext and type(hitContext.Depth) == "number" then hitContext.Depth else 0) + 1,
+				OperationBudget = hitContext and hitContext.OperationBudget,
+				DamageChannel = (hitContext and hitContext.DamageChannel) or "Physical",
+				Element = (hitContext and hitContext.Element) or "Neutral",
+			})
+		end,
+	})
+	-- Then a soul link splits what lands (DoT ticks included).
+	return shareSoulLinks(attacker, target, kept, eventContext)
+end)
+
+Damage.Applied:Connect(function(attacker: Model, target: Humanoid, amount: number, killed, damageContext: any?, melee)
 	interruptWindupForDamage(target, amount)
+	-- Wet conducts Lightning: the hit hops to other Wet characters nearby.
+	World.Reactions.chain({ Attacker = attacker, Target = target, Amount = amount, Context = damageContext }, {
+		IsWet = World.isWet,
+		Position = function(humanoid: Humanoid)
+			local root = humanoid.Parent and humanoid.Parent:FindFirstChild("HumanoidRootPart")
+			return if root and root:IsA("BasePart") then root.Position else nil
+		end,
+		Nearby = function(at: Vector3, radius: number)
+			return HitDetection.findSphere(attacker, CFrame.new(at), radius, {
+				OverlapCollisionGroup = Sandbox.Combat.OverlapCollisionGroup,
+			})
+		end,
+		CanDamage = function(source: Model, humanoid: Humanoid)
+			local model = humanoid.Parent
+			local sourceOwner = CombatPolicy.owner(source, Players)
+			return humanoid.Health > 0
+				and model ~= source
+				and model ~= nil
+				and not (sourceOwner ~= nil and sourceOwner == CombatPolicy.owner(model, Players))
+				and CombatPolicy.canDamage(source, model, Players)
+		end,
+		PvP = function(source: Model, humanoid: Humanoid)
+			local profile = CapProfiles[StatCaps.profileName(
+				CombatPolicy.owner(source, Players),
+				CombatPolicy.owner(humanoid.Parent, Players)
+			)]
+			return if profile and profile.MaxWetChainPlayerJumps
+				then { MaxJumps = profile.MaxWetChainPlayerJumps, MaxFraction = profile.MaxWetChainFraction }
+				else nil
+		end,
+		Spend = OperationBudget.spend,
+		Deal = function(source: Model, humanoid: Humanoid, share: number, hitContext: any)
+			Damage.apply(source, humanoid, share, hitContext)
+		end,
+	})
 	if damageContext and type(damageContext.EmitEvent) == "function" then
 		local maxHealth = target.MaxHealth
 		local healthBefore = 0
@@ -971,7 +1777,7 @@ Damage.Applied:Connect(function(attacker: Model, target: Humanoid, amount: numbe
 			healthBefore = math.min(maxHealth, target.Health + amount) / maxHealth * 100
 			healthAfter = target.Health / maxHealth * 100
 		end
-		damageContext.EmitEvent("OnDamageDealt", target)
+		damageContext.EmitEvent("OnDamageDealt", target, { DamageDealt = amount })
 		if maxHealth > 0 then
 			for _, step in ipairs(damageContext.ThresholdSteps or {}) do
 				local threshold = step.HealthPercent
@@ -992,6 +1798,21 @@ Damage.Applied:Connect(function(attacker: Model, target: Humanoid, amount: numbe
 	if depth >= Limits.MaxMagicEventDepth then
 		return
 	end
+	-- A hit that did not come from a spell (melee, enemy, guard) starts a new root
+	-- reaction at depth 0 with its own budget. A hit dealt by a spell continues
+	-- that spell's chain (depth + 1, shared budget) so two thorns spells cannot
+	-- reflect damage back and forth forever.
+	local fromSpell = damageContext ~= nil and type(damageContext.Depth) == "number"
+	local reactionDepth = if fromSpell then depth + 1 else 0
+	local attackerHumanoid = attacker:FindFirstChildOfClass("Humanoid")
+	local function damageTakenState(source: any): any
+		local eventState = lifecycleState(source, "OnDamageTaken", reactionDepth)
+		eventState.EventAttacker = attackerHumanoid
+		if fromSpell then
+			eventState.OperationBudget = damageContext.OperationBudget
+		end
+		return eventState
+	end
 	for _, spell in active do
 		if spell.Caster == targetModel and hasEvent(spell.Definition, "OnDamageTaken") then
 			emit(
@@ -1004,7 +1825,7 @@ Damage.Applied:Connect(function(attacker: Model, target: Humanoid, amount: numbe
 				spell.Remote,
 				spell.Player,
 				nil,
-				lifecycleState(spell, "OnDamageTaken", depth + 1)
+				damageTakenState(spell)
 			)
 		end
 	end
@@ -1016,18 +1837,104 @@ Damage.Applied:Connect(function(attacker: Model, target: Humanoid, amount: numbe
 				and effect.Definition
 				and hasEvent(effect.Definition, "OnDamageTaken")
 			then
+				-- Holder view: the holder took damage; the owner casts the reaction.
 				emit(
 					effect.Definition,
 					"OnDamageTaken",
-					targetModel,
+					effect.Caster or targetModel,
 					effect.State.Root.Position,
 					{ target },
 					effect.Direction,
 					effect.Remote,
 					player,
 					nil,
-					lifecycleState(effect, "OnDamageTaken", depth + 1)
+					damageTakenState(effect)
 				)
+			end
+		end
+	end
+	-- OnHolderDealtDamage: the holder of an enchantment dealt damage with one of
+	-- their own spells. Continues that spell's chain (depth + 1, shared budget);
+	-- damage from the enchantment itself never counts.
+	if fromSpell then
+		for player, effects in enhancements do
+			for _, effect in effects do
+				if
+					effect.State.Character == attacker
+					and effect.State.Humanoid.Health > 0
+					and effect.Definition
+					and damageContext.SourceRuntimeState ~= effect
+					and hasEvent(effect.Definition, "OnHolderDealtDamage")
+				then
+					local eventState = lifecycleState(effect, "OnHolderDealtDamage", reactionDepth)
+					eventState.OperationBudget = damageContext.OperationBudget
+					emit(
+						effect.Definition,
+						"OnHolderDealtDamage",
+						effect.Caster or attacker,
+						effect.State.Root.Position,
+						{ effect.State.Humanoid },
+						effect.Direction,
+						effect.Remote,
+						player,
+						nil,
+						eventState
+					)
+				end
+			end
+		end
+	end
+	-- OnMeleeHit: a landed weapon/claw hit (DamageService.applyMelee) fires on every
+	-- active spell or enchantment the attacker holds. Spell damage never carries
+	-- IsMelee, so damage from an OnMeleeHit step cannot re-trigger it.
+	if melee == true and damageContext == nil then
+		local targetRoot = targetModel:FindFirstChild("HumanoidRootPart")
+		local hitPosition = if targetRoot and targetRoot:IsA("BasePart")
+			then targetRoot.Position
+			else targetModel:GetPivot().Position
+		for _, spell in table.clone(active) do
+			local holds = spell.Caster == attacker
+				and (spell.Kind ~= "Field" or (spell.FollowTarget == true and spell.FollowTargetModel == attacker))
+			if holds and hasEvent(spell.Definition, "OnMeleeHit") then
+				local eventState = lifecycleState(spell, "OnMeleeHit", 0)
+				eventState.Position = hitPosition
+				emit(
+					spell.Definition,
+					"OnMeleeHit",
+					spell.Caster,
+					hitPosition,
+					{ target },
+					spell.Direction or Vector3.zero,
+					spell.Remote,
+					spell.Player,
+					nil,
+					eventState
+				)
+			end
+		end
+		for player, effects in enhancements do
+			for _, effect in effects do
+				if
+					effect.State.Character == attacker
+					and effect.State.Humanoid.Health > 0
+					and effect.Definition
+					and hasEvent(effect.Definition, "OnMeleeHit")
+				then
+					local eventState = lifecycleState(effect, "OnMeleeHit", 0)
+					eventState.Position = hitPosition
+					emit(
+						effect.Definition,
+						"OnMeleeHit",
+						effect.Caster or attacker,
+						hitPosition,
+						{ target },
+						effect.Direction,
+						effect.Remote,
+						player,
+						nil,
+						eventState
+					)
+				end
 			end
 		end
 	end
@@ -1082,7 +1989,7 @@ Damage.Applied:Connect(function(attacker: Model, target: Humanoid, amount: numbe
 					emit(
 						effect.Definition,
 						"OnTargetDeath",
-						effect.State.Character,
+						effect.Caster or effect.State.Character,
 						position,
 						{ target },
 						effect.Direction or Vector3.zero,
@@ -1121,6 +2028,176 @@ local function areaTargets(spell, position, radius)
 	)
 end
 
+-- Rush (Dash/Blink). The record moves the caster's root while the server owns
+-- it; OnImpact fires once per target a Dash sweeps, OnExpire on arrival.
+local function finishRush(rush, silent: boolean?)
+	if rush.Finished then
+		return
+	end
+	rush.Finished = true
+	local root = rush.Root
+	if root.Parent then
+		local velocity = root.AssemblyLinearVelocity
+		root.AssemblyLinearVelocity = Vector3.new(0, math.min(0, velocity.Y), 0)
+		rush.Position = root.Position
+	end
+	-- End the movement grace now (a StopOnHit Dash ends early).
+	Movement.magicRush(rush.State, workspace:GetServerTimeNow())
+	task.delay(0.1, function()
+		Ownership.release(root, rush.OwnershipToken)
+	end)
+	if rush.Visual then
+		Presentation.endRush(rush.Visual, root)
+		rush.Visual = nil
+	end
+	if not silent then
+		emitExpiry(rush, rush.Position, areaTargets(rush, rush.Position, rush.Definition.Rush.Radius))
+	end
+end
+
+local function stepRush(rush, delta: number): boolean
+	local d = rush.Definition
+	if rush.Finished or not rush.Root.Parent then
+		finishRush(rush, true)
+		return true
+	end
+	local from = MagicRush.positionAt(rush.Path, rush.Travelled)
+	local travelled, arrived = RushSpec.advance(rush.Travelled, rush.Path.Distance, d.Rush.Speed, delta)
+	local to = MagicRush.positionAt(rush.Path, travelled)
+	rush.Travelled = travelled
+	rush.Position = to
+	MagicRush.place(rush.Root, to, rush.Path.Direction, if arrived then 0 else d.Rush.Speed)
+	if rush.Visual then
+		rush.Visual.CFrame = rush.Root.CFrame
+	end
+	local candidates, seen = {}, {}
+	for _, center in MagicRush.sweepCenters(from, to, d.Rush.Radius) do
+		for _, humanoid in areaTargets(rush, center, d.Rush.Radius) do
+			if not seen[humanoid] then
+				seen[humanoid] = true
+				table.insert(candidates, humanoid)
+			end
+		end
+	end
+	local hits, stop = RushSpec.impacts(candidates, rush.HitHumanoids, d.Rush.StopOnHit)
+	for _, humanoid in hits do
+		local hitRoot = humanoid.Parent and humanoid.Parent:FindFirstChild("HumanoidRootPart")
+		emit(
+			d,
+			"OnImpact",
+			rush.Caster,
+			if hitRoot and hitRoot:IsA("BasePart") then hitRoot.Position else to,
+			{ humanoid },
+			rush.Direction,
+			rush.Remote,
+			rush.Player,
+			nil,
+			rush
+		)
+	end
+	if arrived or stop or rush.Finished then
+		finishRush(rush)
+		return true
+	end
+	return false
+end
+
+-- Tether runtime (MagicTether): events act on both ends; Anchor A/B steps on one.
+local function tetherEnds(spell): { Humanoid }
+	local ends = {}
+	for _, humanoid in { spell.AnchorA, spell.AnchorB } do
+		if humanoid.Health > 0 and humanoid:IsDescendantOf(workspace) then
+			table.insert(ends, humanoid)
+		end
+	end
+	return ends
+end
+
+local function tetherRoot(humanoid: Humanoid): BasePart?
+	local root = humanoid.Parent and humanoid.Parent:FindFirstChild("HumanoidRootPart")
+	return if root and root:IsA("BasePart") then root else nil
+end
+
+local tetherDeps: any = {
+	Alive = function(spell)
+		return #tetherEnds(spell) == 2 and tetherRoot(spell.AnchorA) ~= nil and tetherRoot(spell.AnchorB) ~= nil
+	end,
+	Distance = function(spell)
+		return ((tetherRoot(spell.AnchorA) :: BasePart).Position - (tetherRoot(spell.AnchorB) :: BasePart).Position).Magnitude
+	end,
+	LineOfSight = function(spell)
+		local from = (tetherRoot(spell.AnchorA) :: BasePart).Position
+		local to = (tetherRoot(spell.AnchorB) :: BasePart).Position
+		return sweep(from, to - from, spell.AnchorA.Parent, nil, 0, { spell.AnchorB.Parent }) == nil
+	end,
+	Emit = function(spell, event)
+		local eventState = lifecycleState(spell, event, spell.EventDepth or 0)
+		eventState.AnchorTargets = { A = { spell.AnchorA }, B = { spell.AnchorB } }
+		emit(
+			spell.Definition,
+			event,
+			spell.Caster,
+			spell.Position,
+			tetherEnds(spell),
+			spell.Direction or Vector3.zero,
+			spell.Remote,
+			spell.Player,
+			nil,
+			eventState
+		)
+	end,
+	-- Pull: nudge each end toward the other (players only where the PvP profile allows).
+	Pull = function(spell, speed)
+		local rootA, rootB = tetherRoot(spell.AnchorA), tetherRoot(spell.AnchorB)
+		if not rootA or not rootB or speed <= 0 then
+			return
+		end
+		for _, pair in { { rootA, rootB, spell.AnchorA }, { rootB, rootA, spell.AnchorB } } do
+			local root, other, humanoid = pair[1], pair[2], pair[3]
+			local owner = CombatPolicy.owner(humanoid.Parent, Players)
+			local profile = if owner
+				then CapProfiles[StatCaps.profileName(CombatPolicy.owner(spell.Caster, Players), owner)]
+				else nil
+			if not root.Anchored and not (profile and profile.TetherPullOnPlayers == false) then
+				local delta = Vector3.new(other.Position.X - root.Position.X, 0, other.Position.Z - root.Position.Z)
+				if delta.Magnitude > 0.01 then
+					local direction = delta.Unit
+					local velocity = root.AssemblyLinearVelocity
+					local boost = math.max(0, speed - velocity:Dot(direction))
+					Movement.allowMagicImpulse(root, direction * speed)
+					root.AssemblyLinearVelocity = velocity + direction * boost
+				end
+			end
+		end
+	end,
+	-- Snap: no OnExpire. Expire / Lost: OnExpire at the midpoint.
+	Finish = function(spell, how)
+		spell.Ended = true
+		local rootA, rootB = tetherRoot(spell.AnchorA), tetherRoot(spell.AnchorB)
+		local midpoint = if rootA and rootB then (rootA.Position + rootB.Position) / 2 else spell.Position
+		spell.Position = midpoint
+		if how == "Snap" then
+			LifetimeSpec.claimExpiry(spell)
+		else
+			emitExpiry(spell, midpoint, tetherEnds(spell))
+		end
+		Presentation.endTether(spell.Visual, how == "Snap", midpoint, spell.Definition)
+		spell.Visual = nil
+	end,
+}
+
+local function stepTether(spell, dt: number): boolean
+	if spell.Ended then
+		return true
+	end
+	local rootA, rootB = tetherRoot(spell.AnchorA), tetherRoot(spell.AnchorB)
+	if rootA and rootB then
+		spell.Position = (rootA.Position + rootB.Position) / 2
+		Presentation.updateTether(spell.Visual)
+	end
+	return TetherRuntime.update(spell, dt, os.clock(), tetherDeps) ~= nil
+end
+
 local function expireProjectile(spell)
 	local targets = if spell.Kind == "ProjectileLinger"
 		then areaTargets(spell, spell.Position, spell.LingerRadius)
@@ -1140,6 +2217,24 @@ local function formAreaCandidates(definition, caster, position, age)
 		RequireLineOfSight = definition.TargetRules.RequiresLineOfSight,
 		IncludeAttacker = definition.TargetRules.IncludeCaster,
 	})
+end
+
+-- Live projectiles within `radius` (plus their own size) of `position` that
+-- pass `accept`: the scan Absorb, Reflect and Field lenses share.
+local function projectilesNear(position: Vector3, radius: number, accept: (any) -> boolean): { any }
+	local found = {}
+	for _, candidate in ipairs(active) do
+		if
+			candidate.Kind == "Projectile"
+			and not candidate.AbsorbedBy
+			and candidate.Caster:IsDescendantOf(workspace)
+			and (candidate.Position - position).Magnitude <= radius + candidate.Definition.Projectile.Radius
+			and accept(candidate)
+		then
+			table.insert(found, candidate)
+		end
+	end
+	return found
 end
 
 local function formAreaTargets(spell, position)
@@ -1222,6 +2317,11 @@ local function updateAreaMembership(spell, targets)
 	for _, humanoid in ipairs(exited) do
 		emitAreaTransition(spell, "OnExit", humanoid)
 	end
+	-- Trap: ConsumeOnTrigger ends the Field after its first entry.
+	if spell.Kind == "Field" and TrapSpec.consumes(spell.Definition.Field.ConsumeOnTrigger, #entered) then
+		spell.Consumed = true
+		spell.RemainingLifetime = 0
+	end
 end
 
 emitAreaTransition = function(spell, event, humanoid)
@@ -1277,33 +2377,96 @@ local function finishInterruptedArea(spell)
 	end
 end
 
-local function expireSelfEnhancement(player: Player, effect: any)
+-- Ends an enchantment once. `reason` comes from EnchantmentSpec.endReason
+-- (nil: "Duration", or "HolderDeath" if the holder is already dead). Events
+-- run from the owner (caster) at the holder's position, targeting the holder.
+local function expireSelfEnhancement(player: Player, effect: any, reason: string?)
 	if not LifetimeSpec.claimExpiry(effect) then
 		return
 	end
-	local state = effect.State
-	local humanoid = state.Humanoid
-	local character = state.Character
-	local position = state.Root.Position
-	if humanoid.Health <= 0 and not effect.CasterDeathEventFired and hasEvent(effect.Definition, "OnCasterDeath") then
-		effect.CurrentPhase = "CasterDeath"
-		emit(
-			effect.Definition,
-			"OnCasterDeath",
-			character,
-			position,
-			{ humanoid },
-			effect.Direction,
-			effect.Remote,
-			player,
-			nil,
-			lifecycleState(effect, "OnCasterDeath", 0)
-		)
+	local holder = effect.State
+	local humanoid = holder.Humanoid
+	local owner = effect.Caster or holder.Character
+	local position = if holder.Root and holder.Root.Parent then holder.Root.Position else effect.LastPosition
+	position = position or holder.Character:GetPivot().Position
+	local endReason = reason or (if humanoid.Health <= 0 then "HolderDeath" else "Duration")
+	for _, event in EnchantmentSpec.endEvents(endReason, effect.IsSelf ~= false) do
+		if event == "OnCasterDeath" then
+			if not effect.CasterDeathEventFired and hasEvent(effect.Definition, "OnCasterDeath") then
+				effect.CasterDeathEventFired = true
+				effect.CurrentPhase = "CasterDeath"
+				emit(
+					effect.Definition,
+					"OnCasterDeath",
+					owner,
+					position,
+					{ humanoid },
+					effect.Direction,
+					effect.Remote,
+					player,
+					nil,
+					lifecycleState(effect, "OnCasterDeath", 0)
+				)
+			end
+		elseif event == "OnTargetDeath" then
+			-- claim: the damage listener may already have reported this death.
+			if hasEvent(effect.Definition, "OnTargetDeath") and TargetDeathSpec.claim(effect, humanoid) then
+				-- The owner learns their holder died while enchanted.
+				local eventState = lifecycleState(effect, "OnTargetDeath", 0)
+				eventState.DeathCause = "DiedWhileAffected"
+				emit(
+					effect.Definition,
+					"OnTargetDeath",
+					owner,
+					position,
+					{ humanoid },
+					effect.Direction,
+					effect.Remote,
+					player,
+					nil,
+					eventState
+				)
+			end
+		end
 	end
 	if effect.ComposedVisual then
 		Presentation.finish(effect.ComposedVisual)
 	end
-	dispatchClaimedExpiry(effect, position, { humanoid }, nil, character, player)
+	dispatchClaimedExpiry(effect, position, { humanoid }, nil, owner, player)
+end
+
+-- Ends every enchantment `player` owns for this spell (self and on others) and
+-- refreshes each holder. Returns how many ended.
+cleanseEnchantment = function(owner: Player, key: string, effect: any)
+	local effects = enhancements[owner]
+	if not effects or effects[key] ~= effect then
+		return
+	end
+	expireSelfEnhancement(owner, effect, "Cleansed")
+	Presentation.stopSound(effect.AmbientSound)
+	effects[key] = nil
+	refreshHolder(effect.State)
+end
+
+local function endOwnedEnchantments(player: Player, spellId: string, reason: string?): number
+	local effects = enhancements[player]
+	if not effects then
+		return 0
+	end
+	local ended = {}
+	for key, effect in effects do
+		if effect.Definition and effect.Definition.SpellId == spellId then
+			table.insert(ended, key)
+		end
+	end
+	for _, key in ended do
+		local effect = effects[key]
+		expireSelfEnhancement(player, effect, reason)
+		Presentation.stopSound(effect.AmbientSound)
+		effects[key] = nil
+		refreshHolder(effect.State)
+	end
+	return #ended
 end
 
 local function stopToggledEffect(player: Player, caster: Model, definition: any): boolean
@@ -1507,22 +2670,18 @@ local function projectileBehaviorContext(spell)
 		FindIncomingProjectile = function(projectile, radius, maxReflections)
 			local closest = nil
 			local closestDistance = math.huge
-			for _, candidate in ipairs(active) do
-				if
-					candidate ~= projectile
-					and candidate.Kind == "Projectile"
-					and not candidate.AbsorbedBy
-					and candidate.Caster ~= projectile.Caster
-					and (maxReflections == nil or (candidate.ReflectionCount or 0) < maxReflections)
-					and candidate.Caster:IsDescendantOf(workspace)
-					and Conditions.relationshipMatches(projectile.Caster, candidate.Caster, "Hostile")
-				then
-					local separation = (candidate.Position - projectile.Position).Magnitude
-					local contactRange = radius + definition.Projectile.Radius + candidate.Definition.Projectile.Radius
-					if separation <= contactRange and separation < closestDistance then
-						closest = candidate
-						closestDistance = separation
-					end
+			for _, candidate in
+				projectilesNear(projectile.Position, radius + definition.Projectile.Radius, function(candidate)
+					return candidate ~= projectile
+						and candidate.Caster ~= projectile.Caster
+						and (maxReflections == nil or (candidate.ReflectionCount or 0) < maxReflections)
+						and Conditions.relationshipMatches(projectile.Caster, candidate.Caster, "Hostile")
+				end)
+			do
+				local separation = (candidate.Position - projectile.Position).Magnitude
+				if separation < closestDistance then
+					closest = candidate
+					closestDistance = separation
 				end
 			end
 			return closest
@@ -1750,8 +2909,18 @@ end
 -- Applies a SelfEnhancement to the caster's combat state: runs its OnCast
 -- payloads, records the enhancement, and refreshes movement. Shared by the
 -- cast path (formContext.ApplySelf) and spawned effects.
-local function startSelfEnhancement(d, state, direction, remote, player)
-	local ctx = context(d, state.Character, state.Root.Position, { state.Humanoid }, direction, remote, player)
+-- `state` is the owner (caster); `holderState` the character it goes on
+-- (defaults to the owner). Returns false and a reason when the holder's
+-- enchantment caps are full.
+local function startSelfEnhancement(d, state, direction, remote, player, holderState: any?): (boolean, string?)
+	local holder = holderState or state
+	local isSelf = holder.Character == state.Character
+	local allowed, capReason, refreshKey = canHoldEnchantment(player, d, holder.Character)
+	if not allowed then
+		return false, capReason
+	end
+	local key = EnchantmentSpec.key(d.SpellId, holderKey(holder.Character), isSelf)
+	local ctx = context(d, state.Character, holder.Root.Position, { holder.Humanoid }, direction, remote, player)
 	local combined = { WalkSpeedBonus = 0, JumpPowerBonus = 0, SpeedMultiplier = 1, AerialSpeed = 0 }
 	ctx.ApplyEnhancement = function(payload)
 		combined.WalkSpeedBonus += payload.WalkSpeedBonus or 0
@@ -1763,12 +2932,28 @@ local function startSelfEnhancement(d, state, direction, remote, player)
 	end
 	Triggers.execute(d, "OnCast", ctx)
 	enhancements[player] = enhancements[player] or {}
-	local previousVisual = enhancements[player][d.SpellId] and enhancements[player][d.SpellId].ComposedVisual
-	if previousVisual then
-		Presentation.finish(previousVisual)
+	-- Recasting the same Enchantment on the same holder refreshes it, even from
+	-- another library slot with identical content (refreshKey).
+	for _, oldKey in { key, refreshKey } do
+		local previous = enhancements[player][oldKey]
+		if previous then
+			if previous.ComposedVisual then
+				Presentation.finish(previous.ComposedVisual)
+			end
+			Presentation.stopSound(previous.AmbientSound)
+			enhancements[player][oldKey] = nil
+		end
 	end
-	enhancements[player][d.SpellId] = {
-		State = state,
+	enhancements[player][key] = {
+		State = holder,
+		OwnerState = state,
+		Owner = player,
+		Player = player,
+		Caster = state.Character,
+		IsSelf = isSelf,
+		Key = key,
+		Type = enchantmentType(d),
+		Identity = enchantmentIdentity(d),
 		Definition = d,
 		Remote = remote,
 		Direction = direction,
@@ -1787,10 +2972,11 @@ local function startSelfEnhancement(d, state, direction, remote, player)
 		AerialSpeed = combined.AerialSpeed,
 		ProximityState = if d.Proximity then ProximitySpec.newState(workspace:GetServerTimeNow()) else nil,
 		IsChannel = d.Casting.Mode == "Channeled",
-		AmbientSound = Presentation.attachLoop(d, "AmbientLoopSoundId", state.Root),
-		ComposedVisual = Presentation.follow(d, state.Root, Vector3.new(5, 6, 5)),
+		AmbientSound = Presentation.attachLoop(d, "AmbientLoopSoundId", holder.Root),
+		ComposedVisual = Presentation.follow(d, holder.Root, Vector3.new(5, 6, 5)),
 	}
 	updateEnhancement(player)
+	return true, nil
 end
 
 -- Latest combat state per player, so a spawned SelfEnhancement can reach the
@@ -1868,10 +3054,22 @@ spawnEffect = function(parent, step, caster, position, direction, remote, player
 			child.Field.DebugHeight,
 			child
 		)
-		Presentation.attachLoop(child, "AmbientLoopSoundId", marker)
+		local hidden = child.Field.Hidden == true
+		if hidden then
+			Presentation.hideMarker(marker, player)
+		else
+			Presentation.attachLoop(child, "AmbientLoopSoundId", marker)
+		end
+		local trapProfile = CapProfiles[StatCaps.selfProfileName(CombatPolicy.owner(caster, Players))]
 		local targets = formAreaCandidates(child, caster, position, 0)
 		local field = {
 			Kind = "Field",
+			Hidden = hidden,
+			ArmDelay = TrapSpec.armDelay(
+				child.Field.ArmDelay,
+				hidden,
+				trapProfile and trapProfile.MinHiddenTrapArmDelay
+			),
 			Caster = caster,
 			Player = player,
 			Remote = remote,
@@ -1891,6 +3089,7 @@ spawnEffect = function(parent, step, caster, position, direction, remote, player
 		table.insert(active, field)
 		emit(child, "OnCast", caster, position, targets, forward, remote, player, potency, field)
 		emit(child, "OnSpawn", caster, position, targets, forward, remote, player, potency, field)
+		return field
 	elseif child.Form == "Wave" then
 		local wave = AreaGrowth.area(child.Wave, AreaGrowth.scale(child.Wave, 0))
 		local waveRange = math.min(wave.Range, child.TargetRules.Range)
@@ -2004,7 +3203,7 @@ spawnEffect = function(parent, step, caster, position, direction, remote, player
 		local model, pivot, componentLifetimes, startScale = buildConstructModel(child, components, frame, true)
 		Presentation.attachLoop(child, "AmbientLoopSoundId", pivot)
 		emit(child, "OnCast", caster, position, {}, flat, remote, player, potency)
-		table.insert(active, {
+		local construct = {
 			Kind = "Construct",
 			AnchorPoint = position,
 			AnchorNormal = Vector3.yAxis,
@@ -2026,7 +3225,9 @@ spawnEffect = function(parent, step, caster, position, direction, remote, player
 			RemainingLifetime = configuredLifetime(child),
 			Visual = model,
 			ComponentLifetimes = componentLifetimes,
-		})
+		}
+		table.insert(active, construct)
+		return construct
 	elseif child.Form == "SelfEnhancement" then
 		-- Applies to the caster, using the combat state of their latest cast.
 		local state = player and castStates[player]
@@ -2110,6 +3311,26 @@ local function execute(
 	objectPosition
 )
 	local stats = playerData[player]
+	if CastingSpec.isChargeMode(definition.Casting.Mode) then
+		-- This cast's own copy carries how long it was held: ChargePercent for
+		-- ScaleBy and the ChargeScaling potency used by every event it causes.
+		local casting = definition.Casting
+		definition = table.clone(definition)
+		definition._ChargeFraction = ScaleSpec.chargeFraction(charge, casting.MinimumCharge, casting.MaximumCharge)
+		definition._ChargePotency =
+			ScaleSpec.chargePotency(casting.ChargeScaling, charge, casting.MinimumCharge, casting.MaximumCharge)
+	end
+	-- Blood magic: players only; the HP this cast costs is fixed now and
+	-- carried on this cast's copy for HealthPaid scaling.
+	local healthDue = healthCost(state, definition, charge)
+	if healthDue > 0 or BloodCostSpec.uses(definition.Cost) then
+		if castContext then
+			feedback(remote, player, "IMPOSSIBLE", definition, { Reason = BloodMagic.PlayersOnlyReason })
+			return
+		end
+		definition = table.clone(definition)
+		definition._HealthPaid = healthDue
+	end
 	local channelProjectile = definition.Form == "Projectile" and definition.Casting.Mode == "Channeled"
 	local persistentConstruct = definition.Form == "Construct" and definition.Lifetime.Mode == "Persistent"
 	if not stats or (not persistentConstruct and not hasCapacity(player, if channelProjectile then 2 else 1)) then
@@ -2174,6 +3395,11 @@ local function execute(
 		feedback(remote, player, "IMPOSSIBLE", definition, { Reason = "Not enough mana to begin the held spell" })
 		return
 	end
+	-- Checked here (nothing paid yet); paid below once every other cost is paid.
+	if not BloodMagic.canPay(state.Humanoid, healthDue) then
+		feedback(remote, player, "IMPOSSIBLE", definition, { Reason = BloodMagic.FloorReason })
+		return
+	end
 	local specialCosts = definition.Cost.SpecialResources or {}
 	local specialAffordable, missingSpecial =
 		SpecialResourceSpec.canAfford(stats.SpecialResources, specialCosts, SpecialResourceDefinitions)
@@ -2218,7 +3444,13 @@ local function execute(
 		stats.PersistentConstructCastInProgress = true
 		local saved, id, saveReason = pcall(
 			PersistentConstructStore.add,
-			persistentConstructRecord(player, constructFrame, constructComponents, definition)
+			persistentConstructRecord(
+				player,
+				constructFrame,
+				constructComponents,
+				definition,
+				constructMaxHealth(state, definition)
+			)
 		)
 		stats.PersistentConstructCastInProgress = nil
 		if not saved or not id then
@@ -2253,9 +3485,16 @@ local function execute(
 		paidSpecialResources = true
 		syncSpecialResourceAttributes(player)
 	end
+	-- Blood magic: health is set directly, never dealt as damage, before any
+	-- effect runs. Lab drafts skip it like mana unless held.
+	if healthDue > 0 and (not definition.Development or CastingSpec.isHeldMode(definition.Casting.Mode)) then
+		BloodMagic.pay(state.Humanoid, healthDue, setCasterHealth)
+	end
 	Summons.clearDismissal(player, definition.SpellId)
+	-- CooldownRate +50 recovers 1.5x faster; -50 takes twice as long.
+	local cooldownRate = math.max(0.01, AttributeSpec.multiplier(state.Humanoid, "CooldownRate"))
 	stats.Ready[definition.SpellId] = {
-		Remaining = math.max(definition.Casting.Cooldown, definition.Casting.RecoveryTime),
+		Remaining = math.max(definition.Casting.Cooldown, definition.Casting.RecoveryTime) / cooldownRate,
 		Caster = state.Humanoid,
 	}
 	if materialAmount and material then
@@ -2277,7 +3516,7 @@ local function execute(
 	local origin = castContext and castContext.Origin or state.Root.Position + Vector3.new(0, 1.5, 0)
 	local commandCastId = if castContext
 			and castContext.CommandCast == true
-			and CompanionSpellPolicy.requiresCommandSlot(d)
+			and CompanionSpellPolicy.requiresCommandSlot(definition)
 		then castContext.CommandId
 		else nil
 	local function registerActiveEffect(effect)
@@ -2322,6 +3561,13 @@ local function execute(
 			model:SetAttribute("MagicPersistentConstructId", persistentRecordId)
 			model:SetAttribute("MagicPersistentConstructOwner", player.UserId)
 			watchPersistentConstruct(model, persistentRecordId)
+			MagicConstructBuilder.trackPersistentHealth(
+				model,
+				persistentRecordId,
+				player.UserId,
+				constructMaxHealth(state, d),
+				nil
+			)
 			return
 		end
 		Presentation.attachLoop(d, "AmbientLoopSoundId", pivot)
@@ -2367,6 +3613,16 @@ local function execute(
 		}
 		registerActiveEffect(construct)
 		formContext.RegisterChannel(construct)
+		-- Construct.Health: hits on its parts can break it (OnDestroyed).
+		local maxHealth = constructMaxHealth(state, d)
+		if maxHealth then
+			ConstructHealth.register(construct, model, player.UserId, maxHealth, nil, {
+				OnDestroyed = function(_, attacker)
+					construct.Destroyed = true
+					construct.DestroyedBy = attacker
+				end,
+			})
+		end
 	end
 	formContext.CreateAura = function(d)
 		local followPart = if d.Targeting == "ObjectTarget"
@@ -2691,10 +3947,20 @@ local function execute(
 			d.Field.DebugHeight,
 			d
 		)
-		Presentation.attachLoop(d, "AmbientLoopSoundId", marker)
+		-- Trap options: a Hidden marker never replicates (only non-opponents are
+		-- sent a local copy) and has no ambient sound.
+		local hidden = d.Field.Hidden == true
+		if hidden then
+			Presentation.hideMarker(marker, player)
+		else
+			Presentation.attachLoop(d, "AmbientLoopSoundId", marker)
+		end
+		local trapProfile = CapProfiles[StatCaps.selfProfileName(CombatPolicy.owner(state.Character, Players))]
 		local targets = formAreaCandidates(d, state.Character, point, 0)
 		local field = {
 			Kind = "Field",
+			Hidden = hidden,
+			ArmDelay = TrapSpec.armDelay(d.Field.ArmDelay, hidden, trapProfile and trapProfile.MinHiddenTrapArmDelay),
 			Caster = state.Character,
 			Player = player,
 			Remote = remote,
@@ -2727,7 +3993,21 @@ local function execute(
 		end
 	end
 	formContext.ApplySelf = function(d)
-		startSelfEnhancement(d, state, direction, remote, player)
+		local holderState = nil
+		if d.Targeting == "EntityTarget" and selectedTarget then
+			local holderHumanoid = selectedTarget:FindFirstChildOfClass("Humanoid")
+			local holderRoot = selectedTarget:FindFirstChild("HumanoidRootPart")
+			if not holderHumanoid or not holderRoot or not holderRoot:IsA("BasePart") then
+				feedback(remote, player, "IMPOSSIBLE", d, { Reason = "Target is no longer a living character" })
+				return
+			end
+			holderState = { Character = selectedTarget, Humanoid = holderHumanoid, Root = holderRoot }
+		end
+		local started, startReason = startSelfEnhancement(d, state, direction, remote, player, holderState)
+		if not started then
+			feedback(remote, player, "IMPOSSIBLE", d, { Reason = startReason })
+			return
+		end
 		if d.Casting.Mode == "Channeled" then
 			local channel = {
 				Kind = "SelfEnhancementChannel",
@@ -2751,6 +4031,108 @@ local function execute(
 			stats.Channel = channel
 			registerActiveEffect(channel)
 		end
+	end
+	formContext.CreateTether = function(d)
+		local anchorA, anchorB, reason = tetherAnchors(state, d, selectedTarget, player)
+		local rootA = anchorA and tetherRoot(anchorA)
+		local rootB = anchorB and tetherRoot(anchorB)
+		if not anchorA or not anchorB or not rootA or not rootB then
+			feedback(remote, player, "IMPOSSIBLE", d, { Reason = reason or "Tether ends are no longer available" })
+			return
+		end
+		-- At most MaxTethersPerCaster live Tethers per caster: the oldest ends.
+		local mine = {}
+		for _, spell in active do
+			if spell.Kind == "Tether" and spell.Player == player and not spell.Ended then
+				table.insert(mine, spell)
+			end
+		end
+		for _, oldest in TetherSpec.toEnd(mine, Limits.MaxTethersPerCaster) do
+			tetherDeps.Finish(oldest, "Expire")
+		end
+		local length = tetherLength(state, d)
+		local tether = {
+			Kind = "Tether",
+			SpellId = d.SpellId,
+			Caster = state.Character,
+			Player = player,
+			Remote = remote,
+			Definition = d,
+			AnchorA = anchorA,
+			AnchorB = anchorB,
+			Settings = TetherRuntime.settings(d, length),
+			TetherState = TetherSpec.newState(),
+			NextPulse = os.clock() + d.Tether.Interval,
+			Age = 0,
+			CurrentPhase = "Active",
+			TargetsHit = {},
+			StartedAt = os.clock(),
+			RemainingLifetime = configuredLifetime(d),
+			Position = (rootA.Position + rootB.Position) / 2,
+			Direction = direction,
+			Visual = Presentation.tether(rootA, rootB, d.Visual.Color, d),
+		}
+		registerActiveEffect(tether)
+		tetherDeps.Emit(tether, "OnCast")
+	end
+	formContext.ExecuteRush = function(d)
+		local path = rushPath(state, d, direction)
+		local token = {}
+		if not path or not Ownership.claim(state.Root, token) then
+			feedback(remote, player, "IMPOSSIBLE", d, { Reason = "No safe space to rush" })
+			return
+		end
+		local now = workspace:GetServerTimeNow()
+		local dash = d.Rush.Mode == "Dash"
+		local duration = if dash then RushSpec.duration(path.Distance, d.Rush.Speed) else 0
+		Movement.magicRush(state, now + duration)
+		local rush = {
+			Kind = "Rush",
+			SpellId = d.SpellId,
+			Caster = state.Character,
+			State = state,
+			Root = state.Root,
+			Player = player,
+			Remote = remote,
+			Definition = d,
+			Age = 0,
+			CurrentPhase = "Active",
+			TargetsHit = {},
+			HitHumanoids = {},
+			StartedAt = now,
+			RemainingLifetime = duration + 1,
+			Position = path.Origin,
+			Direction = path.Direction,
+			Path = path,
+			Travelled = 0,
+			OwnershipToken = token,
+			-- Generated Rush visuals ride the caster (a Blink flashes out and in).
+			Visual = Presentation.rush(d, state.Root),
+		}
+		emit(
+			d,
+			"OnCast",
+			state.Character,
+			path.Origin,
+			areaTargets(rush, path.Origin, d.Rush.Radius),
+			path.Direction,
+			remote,
+			player,
+			nil,
+			rush
+		)
+		if dash then
+			registerActiveEffect(rush)
+			return
+		end
+		-- Blink: one validated move to the destination, like displaceTarget.
+		pcall(function()
+			state.Character:PivotTo(
+				CFrame.lookAt(path.Destination, path.Destination + path.Direction)
+					* (state.Root.CFrame:ToObjectSpace(state.Character:GetPivot()))
+			)
+		end)
+		finishRush(rush)
 	end
 	formContext.ApplyManipulation = function(d)
 		local target = if material and material:IsA("BasePart") then material else nil
@@ -2843,6 +4225,38 @@ local function execute(
 			stats.Channel = channel
 			registerActiveEffect(channel)
 		end
+		-- ChargeScaling.MaxExtraProjectiles: floor(charge x max) more projectiles,
+		-- fanned out like the Spread behavior (its angle, past its side pairs).
+		local extras = ScaleSpec.extraProjectiles(d.Casting.ChargeScaling, d._ChargeFraction or 0)
+		if extras > 0 and d.Casting.Mode ~= "Channeled" then
+			local spreadAngle, spreadPairs = 16, 0
+			for _, behavior in d.Projectile.Behaviors or {} do
+				if behavior.Kind == "Spread" then
+					spreadAngle = behavior.SpreadAngle or spreadAngle
+					spreadPairs = behavior.SidePairs or 0
+				end
+			end
+			local axis = if math.abs(direction:Dot(Vector3.yAxis)) > 0.95 then Vector3.xAxis else Vector3.yAxis
+			for _, offset in ScaleSpec.extraOffsets(extras, spreadAngle, spreadPairs) do
+				if not hasCapacity(player) then
+					break
+				end
+				local extraDirection = CFrame.fromAxisAngle(axis, math.rad(offset)):VectorToWorldSpace(direction).Unit
+				local extra = table.clone(projectile)
+				extra.Age = 0
+				extra.TargetsHit = {}
+				extra.HitHumanoids = {}
+				extra.IgnoredTargetModels = {}
+				extra.StartedAt = os.clock()
+				extra.Direction = extraDirection
+				extra.Velocity = extraDirection * d.Projectile.Speed
+				extra.Distance = 0
+				extra.Visual = Presentation.projectile(d, start)
+				initializeProjectileMotion(extra, d)
+				registerActiveEffect(extra)
+				emit(d, "OnSpawn", state.Character, start, {}, extraDirection, remote, player)
+			end
+		end
 		ProjectileBehaviors.spawn(projectile, projectileBehaviorContext(projectile))
 	end
 	Forms.execute(definition.Form, definition, formContext)
@@ -2907,7 +4321,9 @@ local function queueCast(player, state, intent, remote, definition, charge, cast
 	end
 	local timing = Presentation.timing(definition)
 	local now = workspace:GetServerTimeNow()
-	local windup = definition.Casting.CastTime + timing.Gather
+	-- CastSpeed +50 casts 1.5x faster; -50 takes twice as long.
+	local castSpeed = math.max(0.01, AttributeSpec.multiplier(state.Humanoid, "CastSpeed"))
+	local windup = definition.Casting.CastTime / castSpeed + timing.Gather
 	local releaseAt = now + windup
 	local impactAt = releaseAt + timing.Release
 	local pendingIntent = Spec.copy(intent)
@@ -2938,6 +4354,269 @@ local function movementInterrupted(windup): boolean
 		and CastInterruption.movement(windup.Definition.Casting, (root.Position - windup.StartPosition).Magnitude)
 end
 
+-- OnRecast on an active effect: free, counted on the record so
+-- SpellState.TriggerCount is the stage (1, 2, 3).
+local function recastActive(record, now: number)
+	RecastSpec.use(record, now)
+	local position = record.Position or record.Caster:GetPivot().Position
+	local targets = {}
+	if record.Kind == "Field" or record.Kind == "Aura" then
+		targets = formAreaTargets(record, position)
+	elseif record.Kind == "Rush" then
+		local humanoid = record.Caster:FindFirstChildOfClass("Humanoid")
+		targets = if humanoid then { humanoid } else {}
+	end
+	emit(
+		record.Definition,
+		"OnRecast",
+		record.Caster,
+		position,
+		targets,
+		record.Direction or Vector3.zero,
+		record.Remote,
+		record.Player,
+		nil,
+		lifecycleState(record, "OnRecast", record.EventDepth or 0)
+	)
+end
+
+-- Spell vs Spell: live spells as MagicSpellTargets entries, and the world
+-- changes Dispel / Force / lenses make.
+local function relationTo(caster: Model, owner: Model?): string
+	if owner == nil then
+		return "Neutral"
+	elseif owner == caster then
+		return "Self"
+	elseif Conditions.relationshipMatches(caster, owner, "Hostile") then
+		return "Hostile"
+	elseif Conditions.relationshipMatches(caster, owner, "Ally") then
+		return "Ally"
+	end
+	return "Neutral"
+end
+
+local function complexityOf(definition: any): number
+	if definition._DispelComplexity == nil then
+		local estimate = Spec.estimate(definition)
+		definition._DispelComplexity = estimate and estimate.Complexity or 0
+	end
+	return definition._DispelComplexity
+end
+
+local function spellEntries(): { any }
+	local entries = {}
+	for _, spell in active do
+		local d = spell.Definition
+		if spell.Ended or spell.Dispelled or not d then
+			continue
+		end
+		if spell.Kind == "Field" or spell.Kind == "Aura" then
+			local area = d.Field or d.Aura
+			local size = Geometry.areaSize(d.Geometry, AreaGrowth.area(area, AreaGrowth.scale(area, spell.Age or 0)))
+			table.insert(entries, {
+				Record = spell,
+				Kind = spell.Kind,
+				Owner = spell.Caster,
+				Center = spell.Position,
+				Radius = math.max(size.X, size.Z) / 2,
+				Attached = spell.Kind == "Aura" or spell.FollowTarget == true,
+				Complexity = complexityOf(d),
+			})
+		elseif spell.Kind == "Construct" and spell.Visual and spell.Visual.Parent then
+			table.insert(entries, {
+				Record = spell,
+				Kind = "Construct",
+				Owner = spell.Caster,
+				Center = spell.Visual:GetPivot().Position,
+				HalfExtent = spell.Visual:GetExtentsSize().Magnitude / 2,
+				Model = spell.Visual,
+				Attached = spell.Attachment ~= nil or spell.AttachedHumanoid ~= nil,
+				Complexity = complexityOf(d),
+			})
+		elseif spell.Kind == "Tether" then
+			local rootA, rootB = tetherRoot(spell.AnchorA), tetherRoot(spell.AnchorB)
+			if rootA and rootB then
+				table.insert(entries, {
+					Record = spell,
+					Kind = "Tether",
+					Owner = spell.Caster,
+					A = rootA.Position,
+					B = rootB.Position,
+					Attached = true,
+					Complexity = complexityOf(d),
+				})
+			end
+		end
+	end
+	-- Persistent (saved) Constructs: owner-only, End only.
+	for _, model in workspace:GetChildren() do
+		if model:IsA("Model") and model:GetAttribute("MagicPersistentConstruct") == true then
+			local ownerId = model:GetAttribute("MagicPersistentConstructOwner")
+			local ownerPlayer = if type(ownerId) == "number" then Players:GetPlayerByUserId(ownerId) else nil
+			table.insert(entries, {
+				Record = model,
+				Kind = "Construct",
+				Owner = ownerPlayer and ownerPlayer.Character,
+				OwnerUserId = ownerId,
+				Center = model:GetPivot().Position,
+				HalfExtent = model:GetExtentsSize().Magnitude / 2,
+				Model = model,
+				Persistent = true,
+			})
+		end
+	end
+	return entries
+end
+
+local function touchedSet(runtimeState: any): { [any]: boolean }
+	local budget = runtimeState and runtimeState.OperationBudget
+	if type(budget) == "table" then
+		budget.SpellTouched = budget.SpellTouched or {}
+		return budget.SpellTouched
+	end
+	return {}
+end
+
+spellRuntime.resolve = function(definition, caster, step, stepContext, runtimeState)
+	local point = stepContext.Origin or (caster and caster:GetPivot().Position)
+	if not point then
+		return {}
+	end
+	local reach = if step.Behavior == "Explode" then step.Radius or 0 else 0
+	local hitPart = stepContext.DamageContext and stepContext.DamageContext.HitPart
+	return SpellTargets.resolve(spellEntries(), step.SpellRelationship, point, reach, hitPart, function(owner)
+		return relationTo(caster, owner)
+	end)
+end
+
+spellRuntime.dispel = function(definition, caster, player, payload, entries, runtimeState)
+	local depth = (runtimeState and runtimeState.EventDepth or 0) + 1
+	SpellTargets.dispel(payload, entries, {
+		CasterUserId = player and player.UserId,
+		Complexity = complexityOf(definition),
+		Touched = touchedSet(runtimeState),
+		Remaining = function(entry)
+			local record = entry.Record
+			if record.Definition and record.Definition.Lifetime.Mode == "FixedDuration" then
+				return record.RemainingLifetime
+			end
+			return nil
+		end,
+		SetRemaining = function(entry, value)
+			entry.Record.RemainingLifetime = value
+		end,
+		-- OnDispelled (or a Tether snap), then removal without OnExpire.
+		End = function(entry)
+			local record = entry.Record
+			if entry.Persistent then
+				record:Destroy()
+				return
+			end
+			if entry.Kind == "Tether" then
+				if not record.Ended then
+					tetherDeps.Emit(record, "OnBreak")
+					tetherDeps.Finish(record, "Snap")
+				end
+				return
+			end
+			if record.Dispelled then
+				return
+			end
+			record.Dispelled = true
+			if hasEvent(record.Definition, "OnDispelled") and depth < Limits.MaxMagicEventDepth then
+				local eventState = lifecycleState(record, "OnDispelled", depth)
+				eventState.OperationBudget = runtimeState and runtimeState.OperationBudget
+				local targets = if entry.Kind == "Field" or entry.Kind == "Aura"
+					then formAreaTargets(record, record.Position)
+					else {}
+				emit(
+					record.Definition,
+					"OnDispelled",
+					record.Caster,
+					record.Position,
+					targets,
+					record.Direction or Vector3.zero,
+					record.Remote,
+					record.Player,
+					nil,
+					eventState
+				)
+			end
+			LifetimeSpec.claimExpiry(record)
+			record.RemainingLifetime = 0
+		end,
+	})
+end
+
+spellRuntime.force = function(definition, caster, payload, entries, direction, runtimeState)
+	local flat = Vector3.new(direction.X, 0, direction.Z)
+	if flat.Magnitude < 0.001 then
+		return
+	end
+	flat = flat.Unit
+	local profile = CapProfiles[StatCaps.selfProfileName(CombatPolicy.owner(caster, Players))]
+	SpellTargets.force(payload, entries, {
+		Touched = touchedSet(runtimeState),
+		Cap = profile and profile.MaxSpellForceDistance,
+		-- Same wall rule as Displacement: never through solid geometry; stop
+		-- short of it, and skip moves under half a stud.
+		Move = function(entry, distance)
+			local record = entry.Record
+			local from = entry.Center
+			local params = RaycastParams.new()
+			params.FilterType = Enum.RaycastFilterType.Exclude
+			params.FilterDescendantsInstances = if entry.Model then { caster, entry.Model } else { caster }
+			params.RespectCanCollide = true
+			local hit = workspace:Raycast(from + Vector3.new(0, 1, 0), flat * distance, params)
+			local travel = SpellTargetSpec.pushTravel(distance, hit and hit.Distance, 1, 0.5)
+			if travel <= 0 then
+				return false
+			end
+			local delta = flat * travel
+			if entry.Kind == "Construct" then
+				record.Visual:PivotTo(record.Visual:GetPivot() + delta)
+				if record.AnchorPoint then
+					record.AnchorPoint += delta
+				end
+				if record.GrowthAnchorPoint then
+					record.GrowthAnchorPoint += delta
+				end
+			else
+				record.Position += delta
+			end
+			return true
+		end,
+	})
+end
+
+-- Field lens: projectiles inside the Field whose owner matches Who.
+spellRuntime.lens = function(field, size: Vector3)
+	local lens = field.Definition.Field.AffectsSpells
+	local radius = math.max(size.X, size.Z) / 2
+	local projectiles = projectilesNear(field.Position, radius, function(projectile)
+		local relation = relationTo(field.Caster, projectile.Caster)
+		if relation == "Ally" then
+			relation = "Allied"
+		end
+		return lens.Who == "Any"
+			or (lens.Who == "Allied" and (relation == "Allied" or relation == "Self"))
+			or (lens.Who == "Hostile" and relation == "Hostile")
+	end)
+	SpellTargets.lens(field, lens, projectiles, function(projectile)
+		-- PvP floors when a hostile player's projectile is weakened.
+		local owner = CombatPolicy.owner(projectile.Caster, Players)
+		local fieldOwner = CombatPolicy.owner(field.Caster, Players)
+		if not owner or relationTo(field.Caster, projectile.Caster) ~= "Hostile" then
+			return nil
+		end
+		local profile = CapProfiles[StatCaps.profileName(owner, fieldOwner)]
+		if not profile or profile.MinLensPotencyVsPlayers == nil then
+			return nil
+		end
+		return { Potency = profile.MinLensPotencyVsPlayers, Slow = profile.MinLensSlowVsPlayers }
+	end)
+end
+
 function Magic.start(player, state, intent, remote, castContext, temporaryDefinition): (boolean, string?)
 	castStates[player] = state
 	local definition = temporaryDefinition or getDefinition(intent.SpellId)
@@ -2961,13 +4640,10 @@ function Magic.start(player, state, intent, remote, castContext, temporaryDefini
 		feedback(remote, player, "IMPOSSIBLE", definition, { Reason = "Locus resources are still loading" })
 		return false, "Locus resources are still loading"
 	end
-	local effects = enhancements[player]
 	if definition.Lifetime.Mode == "UntilToggledOff" then
-		if definition.Form == "SelfEnhancement" and effects and effects[definition.SpellId] then
-			local effect = effects[definition.SpellId]
-			expireSelfEnhancement(player, effect)
-			Presentation.stopSound(effect.AmbientSound)
-			effects[definition.SpellId] = nil
+		-- The owner recasting a toggled Enchantment turns off every copy they own
+		-- (on themselves and on others).
+		if definition.Form == "SelfEnhancement" and endOwnedEnchantments(player, definition.SpellId, "Toggle") > 0 then
 			updateEnhancement(player, state)
 			feedback(remote, player, "OFF", definition, nil)
 			return true
@@ -2977,6 +4653,22 @@ function Magic.start(player, state, intent, remote, castContext, temporaryDefini
 		end
 	end
 	local now = workspace:GetServerTimeNow()
+	-- Recast ends your own Shapeshift from this spell (free; OnTransformEnd runs).
+	if state.Humanoid and Transform.endShapeshift(state.Humanoid, definition.SpellId) then
+		feedback(remote, player, "OFF", definition, nil)
+		return true
+	end
+	-- Recast: a press while this spell's effect is active runs OnRecast on it
+	-- instead of a new cast (before the cooldown gate; costs nothing).
+	local maxRecasts = if castContext then 0 else RecastSpec.allowed(definition)
+	if maxRecasts > 0 then
+		local record = RecastSpec.pick(active, player, definition.SpellId, maxRecasts, now, Limits.MinRecastInterval)
+		if record then
+			recastActive(record, now)
+			feedback(remote, player, "RECAST", definition, nil)
+			return true
+		end
+	end
 	if stats.Pending or stats.Channel or isSpellCooling(stats, definition.SpellId, now) then
 		local reason = if stats.Pending
 			then "Owner is already completing another cast"
@@ -2996,11 +4688,14 @@ function Magic.start(player, state, intent, remote, castContext, temporaryDefini
 		end
 		local chargeIntent = Spec.copy(intent)
 		chargeIntent.AimDirection = chargeDirection
+		-- CastSpeed also speeds up charging; the rate is fixed when charging starts.
+		local chargeRate = math.max(0.01, AttributeSpec.multiplier(state.Humanoid, "CastSpeed"))
 		stats.Charge = {
 			SpellId = definition.SpellId,
 			Definition = definition,
 			Character = state.Character,
 			BeganAt = now,
+			Rate = chargeRate,
 			State = state,
 			Intent = chargeIntent,
 			AimDirection = chargeDirection,
@@ -3011,8 +4706,8 @@ function Magic.start(player, state, intent, remote, castContext, temporaryDefini
 		Presentation.gather(
 			state.Character,
 			definition,
-			definition.Casting.MaximumCharge,
-			definition.Casting.MaximumCharge,
+			definition.Casting.MaximumCharge / chargeRate,
+			definition.Casting.MaximumCharge / chargeRate,
 			"Charge"
 		)
 		feedback(remote, player, "CHARGING", definition, nil)
@@ -3020,6 +4715,72 @@ function Magic.start(player, state, intent, remote, castContext, temporaryDefini
 		return true
 	end
 	return queueCast(player, state, intent, remote, definition, 0, castContext)
+end
+
+-- Construct.Interval: OnTick every interval while it stands. Pulses reach
+-- characters within its proximity radius, else the attached character.
+local function pulseConstruct(spell, step: number)
+	local d = spell.Definition
+	local interval = d.Construct and d.Construct.Interval
+	if not interval or not hasEvent(d, "OnTick") then
+		return
+	end
+	spell.PulseElapsed = (spell.PulseElapsed or 0) + step
+	if spell.PulseElapsed < interval then
+		return
+	end
+	spell.PulseElapsed -= interval
+	local targets
+	if d.Proximity then
+		targets = areaTargets(spell, spell.Position, d.Proximity.Radius)
+	else
+		local attached = spell.AttachedHumanoid
+		targets = if attached and attached.Health > 0 then { attached } else {}
+	end
+	emit(
+		d,
+		"OnTick",
+		spell.Caster,
+		spell.Position,
+		targets,
+		spell.Direction or Vector3.zero,
+		spell.Remote,
+		spell.Player,
+		nil,
+		lifecycleState(spell, "OnTick", spell.EventDepth or 0)
+	)
+end
+
+-- Health reached zero: OnDestroyed where it stood (targeting whoever broke
+-- it, if eligible). The expiry is claimed so OnExpire never also runs.
+local function destroyConstruct(spell)
+	local d = spell.Definition
+	LifetimeSpec.claimExpiry(spell)
+	if not hasEvent(d, "OnDestroyed") then
+		return
+	end
+	local attacker = spell.DestroyedBy
+	local humanoid = attacker and attacker:FindFirstChildOfClass("Humanoid")
+	local targets = if humanoid and humanoid.Health > 0
+		then Conditions.targets(d, spell.Caster, spell.Position, { humanoid }, {
+			Player = spell.Player,
+			Resources = resourceSnapshot(playerData[spell.Player]),
+			SpellState = spell,
+		})
+		else {}
+	spell.CurrentPhase = "Destroyed"
+	emit(
+		d,
+		"OnDestroyed",
+		spell.Caster,
+		spell.Position,
+		targets,
+		spell.Direction or Vector3.zero,
+		spell.Remote,
+		spell.Player,
+		nil,
+		lifecycleState(spell, "OnDestroyed", spell.EventDepth or 0)
+	)
 end
 
 local function expireConstruct(spell)
@@ -3071,6 +4832,37 @@ finishBeamChannel = function(channel)
 	setCastingMovement(channel.Player, channel.State, nil)
 end
 
+-- Stun or Silence: cancel the cast being prepared, the charge and the channel.
+local function interruptCasting(player: Player, stats: any, reason: string)
+	for _, key in { "Charge", "Pending" } do
+		local windup = stats[key]
+		if windup then
+			stats[key] = nil
+			setCastingMovement(player, windup.State, nil)
+			Presentation.cancel(windup.State.Character, windup.Definition)
+			feedback(
+				windup.Remote,
+				player,
+				"IMPOSSIBLE",
+				windup.Definition,
+				{ Reason = "Cast interrupted: " .. reason }
+			)
+		end
+	end
+	local channel = stats.Channel
+	if channel then
+		for index = #active, 1, -1 do
+			if active[index] == channel then
+				finishBeamChannel(channel)
+				table.remove(active, index)
+				break
+			end
+		end
+		stats.Channel = nil
+		feedback(channel.Remote, player, "OFF", channel.Definition, { Reason = "Channel interrupted: " .. reason })
+	end
+end
+
 function Magic.release(player, state, intent, remote)
 	local stats = playerData[player]
 	local spellId = intent and intent.SpellId
@@ -3107,7 +4899,11 @@ function Magic.release(player, state, intent, remote)
 		setCastingMovement(player, charge.State, nil)
 		return
 	end
-	local elapsed = math.clamp(workspace:GetServerTimeNow() - charge.BeganAt, 0, definition.Casting.MaximumCharge)
+	local elapsed = math.clamp(
+		(workspace:GetServerTimeNow() - charge.BeganAt) * (charge.Rate or 1),
+		0,
+		definition.Casting.MaximumCharge
+	)
 	if elapsed < definition.Casting.MinimumCharge then
 		setCastingMovement(player, state, nil)
 		Presentation.cancel(state.Character, definition)
@@ -3199,13 +4995,8 @@ function Magic.clearTemporary(player, state, spellId)
 		end
 		table.remove(active, index)
 	end
-	local playerEnhancements = enhancements[player]
-	local effect = playerEnhancements and playerEnhancements[spellId]
-	if effect then
-		expireSelfEnhancement(player, effect)
-		Presentation.stopSound(effect.AmbientSound)
-		playerEnhancements[spellId] = nil
-		updateEnhancement(player, state or effect.State)
+	if endOwnedEnchantments(player, spellId) > 0 and state then
+		updateEnhancement(player, state)
 	end
 	-- Expiry triggers can create summons, so dismiss after all old-definition
 	-- callbacks have run.
@@ -3441,14 +5232,17 @@ function Magic.bind(player)
 end
 function Magic.reset(player)
 	clearActive(player)
+	local holders = {}
 	for _, effect in enhancements[player] or {} do
-		expireSelfEnhancement(player, effect)
+		expireSelfEnhancement(player, effect, "OwnerDeath")
 		Presentation.stopSound(effect.AmbientSound)
-		Movement.setMagicEnhancement(effect.State, 0, 0, 1)
-		Movement.setMagicAerial(effect.State, 0)
+		table.insert(holders, effect.State)
 	end
 	enhancements[player] = nil
-	-- Active spell and Self Enhancement expiry triggers can contain Summon
+	for _, holder in holders do
+		refreshHolder(holder)
+	end
+	-- Active spell and Enchantment expiry triggers can contain Summon
 	-- payloads, so dismiss groups after every final event has run.
 	Summons.clearOwner(player)
 	local old = playerData[player]
@@ -3537,15 +5331,30 @@ RunService.Heartbeat:Connect(function(delta)
 				end
 			end
 		end
+		local character = player.Character
+		if character and (stats.Pending or stats.Charge or stats.Channel) then
+			local stunned = character:GetAttribute("MagicStunned") == true
+			local silenced = character:GetAttribute("MagicSilenced") == true
+			local polymorphed = character:GetAttribute("MagicPolymorphed") == true
+			if stunned or silenced or polymorphed then
+				interruptCasting(
+					player,
+					stats,
+					if stunned then "Stunned" elseif silenced then "Silenced" else "Polymorphed"
+				)
+			end
+		end
 		local manaBefore, strainBefore = stats.Mana, stats.Strain
+		-- ManaRegen +100 doubles mana and special-resource recovery; -100 stops it.
+		local regen = AttributeSpec.multiplier(player.Character, "ManaRegen")
 		LocusModel.advance(
 			stats,
 			delta,
-			ResourceBalance.ManaRegenerationPerSecond,
+			ResourceBalance.ManaRegenerationPerSecond * regen,
 			ResourceBalance.StrainRecoveryPerSecond
 		)
 		local specialResourcesChanged =
-			SpecialResourceSpec.advance(stats.SpecialResources, SpecialResourceDefinitions, delta)
+			SpecialResourceSpec.advance(stats.SpecialResources, SpecialResourceDefinitions, delta, regen)
 		if specialResourcesChanged then
 			syncSpecialResourceAttributes(player)
 		end
@@ -3565,7 +5374,7 @@ RunService.Heartbeat:Connect(function(delta)
 				charge.Definition,
 				charge.Context and charge.Context.CommandCast == true
 			)
-			and now - charge.BeganAt >= charge.Definition.Casting.MaximumCharge
+			and (now - charge.BeganAt) * (charge.Rate or 1) >= charge.Definition.Casting.MaximumCharge
 		then
 			stats.Charge = nil
 			queueCast(
@@ -3581,7 +5390,8 @@ RunService.Heartbeat:Connect(function(delta)
 		elseif
 			charge
 			and charge.Definition.Casting.Mode == "HoldAndRelease"
-			and now - charge.BeganAt >= charge.Definition.Casting.MaximumCharge + Limits.MaxChargeReadyHoldSeconds
+			and now - charge.BeganAt
+				>= charge.Definition.Casting.MaximumCharge / (charge.Rate or 1) + Limits.MaxChargeReadyHoldSeconds
 		then
 			stats.Charge = nil
 			setCastingMovement(player, charge.State, nil)
@@ -3684,6 +5494,12 @@ RunService.Heartbeat:Connect(function(delta)
 				if spell.Visual then
 					Presentation.finish(spell.Visual)
 				end
+			elseif spell.Kind == "Rush" then
+				finishRush(spell, true)
+			elseif spell.Kind == "Tether" then
+				if not spell.Ended then
+					tetherDeps.Finish(spell, "Lost")
+				end
 			elseif spell.Visual then
 				Presentation.finish(spell.Visual)
 			end
@@ -3708,6 +5524,17 @@ RunService.Heartbeat:Connect(function(delta)
 		local paid = true
 		if manaRate > 0 or strainRate > 0 then
 			paid = stats ~= nil and LocusModel.upkeep(stats, manaRate, strainRate, step)
+		end
+		-- Blood upkeep ends the spell before a tick that would cross the floor.
+		local bloodRate = d.Cost.HealthPerSecond or 0
+		local bloodHumanoid = bloodRate > 0
+			and not spell.ResourceEnded
+			and spell.Caster
+			and spell.Caster:FindFirstChildOfClass("Humanoid")
+		if bloodHumanoid and paid and not BloodMagic.upkeep(bloodHumanoid, bloodRate, step, setCasterHealth) then
+			spell.ResourceEnded = true
+			spell.RemainingLifetime = 0
+			feedback(spell.Remote, spell.Player, "EXPIRED", d, { Reason = BloodMagic.UpkeepReason })
 		end
 		-- Exact depletion is also exhaustion even when the final payment was fully covered.
 		if not paid or (stats and manaRate > 0 and stats.Mana <= 0) then
@@ -3736,10 +5563,18 @@ RunService.Heartbeat:Connect(function(delta)
 				if not spell.ResourceEnded then
 					feedback(spell.Remote, spell.Player, "EXPIRED", d, {
 						Reason = if not stats or stats.Mana <= 0
-							then "Self Enhancement ended · mana depleted"
-							else "Self Enhancement channel limit reached",
+							then "Enchantment ended · mana depleted"
+							else "Enchantment channel limit reached",
 					})
 				end
+				table.remove(active, i)
+			end
+		elseif spell.Kind == "Rush" then
+			if stepRush(spell, step) then
+				table.remove(active, i)
+			end
+		elseif spell.Kind == "Tether" then
+			if stepTether(spell, step) then
 				table.remove(active, i)
 			end
 		elseif spell.Kind == "BeamCascade" then
@@ -4027,9 +5862,15 @@ RunService.Heartbeat:Connect(function(delta)
 			if not gone and not dead then
 				spell.Position = spell.Visual:GetPivot().Position
 				updateActiveProximity(spell, spell.Position, now)
+				pulseConstruct(spell, step)
 			end
-			if spell.RemainingLifetime <= 0 or gone or dead then
-				expireConstruct(spell)
+			if spell.Destroyed or spell.RemainingLifetime <= 0 or gone or dead then
+				if spell.Destroyed then
+					destroyConstruct(spell)
+				else
+					expireConstruct(spell)
+				end
+				ConstructHealth.unregister(spell)
 				if spell.IsChannel then
 					spell.IsChannel = false
 					if stats and stats.Channel == spell then
@@ -4118,27 +5959,37 @@ RunService.Heartbeat:Connect(function(delta)
 				if spell.Kind == "Field" then d.Field.DebugHeight else nil
 			)
 			local targets = nil
-			if spell.RemainingLifetime > 0 and now >= spell.NextInterval then
+			-- Trap ArmDelay: no entry, exit or pulse effects until armed.
+			local armed = TrapSpec.armed(spell.Age, spell.ArmDelay or 0)
+			if spell.RemainingLifetime > 0 and armed and now >= spell.NextInterval then
 				spell.NextInterval = now + area.Interval
 				targets = formAreaTargets(spell, spell.Position)
 				updateAreaMembership(spell, targets)
-				emit(
-					d,
-					"OnTick",
-					spell.Caster,
-					spell.Position,
-					targets,
-					spell.Direction,
-					spell.Remote,
-					spell.Player,
-					nil,
-					spell
-				)
+				if not spell.Consumed then
+					emit(
+						d,
+						"OnTick",
+						spell.Caster,
+						spell.Position,
+						targets,
+						spell.Direction,
+						spell.Remote,
+						spell.Player,
+						nil,
+						spell
+					)
+				end
+			end
+			-- Field lens: change projectiles crossing the Field (once per projectile).
+			if spell.Kind == "Field" and d.Field.AffectsSpells and spell.RemainingLifetime > 0 then
+				spellRuntime.lens(spell, Geometry.areaSize(d.Geometry, scaledArea))
 			end
 			if spell.RemainingLifetime <= 0 then
 				if not targets then
 					targets = formAreaTargets(spell, spell.Position)
-					updateAreaMembership(spell, targets)
+					if armed then
+						updateAreaMembership(spell, targets)
+					end
 				end
 				local wasChannel = spell.IsChannel == true
 				spell.IsChannel = false
@@ -4451,6 +6302,13 @@ RunService.Heartbeat:Connect(function(delta)
 				)
 				spell.HitPart = nil
 				spell.AllowObjectTarget = nil
+				-- Lens marks: the target hit gets each mark this projectile picked up.
+				if hitHumanoid and spell.LensMarks then
+					local markDuration = Schema.Payloads.ElementalMark.Defaults.Duration
+					for _, element in spell.LensMarks do
+						StatusEffects.elementalMark(spell.Caster, hitHumanoid, d.SpellId, element, 1, markDuration)
+					end
+				end
 				local continue = ProjectileBehaviors.impact(spell, hit, projectileBehaviorContext(spell))
 				if projectileHasBehavior(spell, "Return") and hitHumanoid then
 					continue = true
@@ -4500,7 +6358,7 @@ RunService.Heartbeat:Connect(function(delta)
 		end
 	end
 	for player, effects in enhancements do
-		local fallback = nil
+		local fallback: { any }? = nil
 		for id, effect in effects do
 			effect.Age += delta
 			local manaRate = effect.Definition.Casting.ManaUpkeepPerSecond or 0
@@ -4527,30 +6385,56 @@ RunService.Heartbeat:Connect(function(delta)
 					})
 				end
 			end
+			-- Blood upkeep on a toggled enchantment, paid by its owner.
+			local bloodRate = effect.Definition.Cost.HealthPerSecond or 0
+			local bloodPayer = effect.OwnerState or effect.State
+			if
+				bloodRate > 0
+				and not effect.IsChannel
+				and not effect.ResourceEnded
+				and now < effect.ExpiresAt
+				and bloodPayer.Humanoid
+				and not BloodMagic.upkeep(bloodPayer.Humanoid, bloodRate, delta, setCasterHealth)
+			then
+				effect.ResourceEnded = true
+				effect.ExpiresAt = now
+				feedback(effect.Remote, player, "EXPIRED", effect.Definition, { Reason = BloodMagic.UpkeepReason })
+			end
 			if not effect.EndConditionEnded and Conditions.endWhen(effect.Definition, effect, playerData[player]) then
 				effect.EndConditionEnded = true
 				effect.ExpiresAt = now
 			end
-			if
-				now < effect.ExpiresAt
-				and effect.State.Character == player.Character
-				and effect.State.Humanoid.Health > 0
-			then
-				updateActiveProximity(effect, effect.State.Root.Position, now)
-			end
-			if
-				now >= effect.ExpiresAt
-				or effect.State.Character ~= player.Character
-				or effect.State.Humanoid.Health <= 0
-			then
-				expireSelfEnhancement(player, effect)
+			-- Lifecycle (EnchantmentSpec.endReason): duration, holder death or
+			-- departure, and owner death or respawn all end it.
+			local holder, owner = effect.State, effect.OwnerState or effect.State
+			local ownerIsPlayerCharacter = owner.Character == player.Character
+				or Players:GetPlayerFromCharacter(owner.Character) == player
+			local reason = EnchantmentSpec.endReason(effect, {
+				Now = now,
+				HolderAlive = holder.Humanoid.Health > 0 and holder.Humanoid.Parent ~= nil,
+				HolderPresent = holder.Character:IsDescendantOf(workspace)
+					and (effect.IsSelf == false or holder.Character == player.Character),
+				OwnerAlive = owner.Humanoid.Health > 0,
+				-- Player owners must still be on the same character; companion
+				-- (summon) owners just need to still exist.
+				OwnerPresent = owner.Character:IsDescendantOf(workspace)
+					and (not ownerIsPlayerCharacter or owner.Character == player.Character),
+			})
+			if not reason then
+				effect.LastPosition = holder.Root.Position
+				updateActiveProximity(effect, holder.Root.Position, now)
+			else
+				expireSelfEnhancement(player, effect, reason)
 				Presentation.stopSound(effect.AmbientSound)
-				fallback = effect.State
+				fallback = fallback or {}
+				table.insert(fallback, effect.State)
 				effects[id] = nil
 			end
 		end
 		if fallback then
-			updateEnhancement(player, fallback)
+			for _, holderState in fallback do
+				updateEnhancement(player, holderState)
+			end
 		end
 	end
 end)
@@ -4560,6 +6444,17 @@ task.spawn(function()
 	if not ready then
 		warn("Persistent Construct storage unavailable: " .. tostring(reason))
 	end
+end)
+
+-- Damaged persistent Constructs: save remaining health in one batched write.
+task.spawn(function()
+	while true do
+		task.wait(Limits.PersistentHealthSaveInterval)
+		PersistentConstructStore.flushHealth()
+	end
+end)
+game:BindToClose(function()
+	PersistentConstructStore.flushHealth()
 end)
 
 return Magic

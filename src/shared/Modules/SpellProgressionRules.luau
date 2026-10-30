@@ -81,12 +81,16 @@ end
 
 function Rules.reprice(definition, estimate, clone)
 	local values = estimate(definition)
-	local special = if type(definition.Cost) == "table" then definition.Cost.SpecialResources else nil
+	local previous = if type(definition.Cost) == "table" then definition.Cost else {}
+	-- Authored costs survive repricing: special resources and blood magic.
 	definition.Cost = {
 		ManaDemand = values.ManaDemand,
 		Strain = values.Strain,
 		Complexity = values.Complexity,
-		SpecialResources = clone(special or {}),
+		SpecialResources = clone(previous.SpecialResources or {}),
+		Health = if previous.Health then clone(previous.Health) else nil,
+		HealthForMana = previous.HealthForMana,
+		HealthPerSecond = previous.HealthPerSecond,
 	}
 	definition.Casting.Cooldown = math.max(
 		definition.Casting.Cooldown or 0,

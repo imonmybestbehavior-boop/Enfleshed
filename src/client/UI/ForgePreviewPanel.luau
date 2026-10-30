@@ -2,6 +2,8 @@
 -- Spell Forge preview panel: the schematic arena, sigil and sequence readout,
 -- redrawn from the draft and animated every frame. Extracted from GuidedSpellForge
 -- (Phase 1.7); owns only its own widgets inside `previewPanel`.
+local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
+local EnvironmentSpec = require(Shared.Modules.MagicEnvironmentSpec)
 local SpellVisual = require(script.Parent.GrimoireSpellVisual)
 local C = require(script.Parent.SpellForgeTheme).C
 local K = require(script.Parent.SpellForgeComponents)
@@ -262,6 +264,11 @@ function PreviewPanel.mount(previewPanel: Frame, draft: any, schema: any, payloa
 			end
 		end
 		describe(draft, "")
+		-- Environment reactions (Wet chains, burning Flammable parts, freezing water).
+		local worldLine = EnvironmentSpec.previewLine(draft.Element, draft.IgnoreEnvironment)
+		if worldLine then
+			line("WORLD · " .. worldLine, C.Arcane)
+		end
 	end
 
 	local function stepAnimation()

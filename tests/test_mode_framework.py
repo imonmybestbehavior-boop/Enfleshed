@@ -9,8 +9,8 @@ SERVICES = ROOT / "src/server/Services"
 
 class ModeFramework(unittest.TestCase):
     def setUp(self):
-        self.runner = (SERVICES / "ModeRunner.luau").read_text()
-        self.mode = (SERVICES / "DefendTheWallsService.luau").read_text()
+        self.runner = (SERVICES / "ModeRunner.luau").read_text(encoding="utf-8")
+        self.mode = (SERVICES / "DefendTheWallsService.luau").read_text(encoding="utf-8")
 
     def test_definition_supplies_every_required_hook(self):
         block = self.runner[self.runner.index("export type ModeDefinition = {"):self.runner.index("export type Runner")]
@@ -37,7 +37,7 @@ class ModeFramework(unittest.TestCase):
 
     def test_runner_preserves_round_rules(self):
         r = self.runner
-        self.assertIn("table.find", (SERVICES / "MissionProgression.luau").read_text())  # receipts keep commits idempotent
+        self.assertIn("table.find", (SERVICES / "MissionProgression.luau").read_text(encoding="utf-8"))  # receipts keep commits idempotent
         self.assertIn("Progression.commit(player.UserId, completedId, reward)", r)
         self.assertIn('if now - (lastRequest[player] or 0) < 0.3 then', r)
         self.assertIn("FeatureFlags.enabled(definition.Id, player)", r)

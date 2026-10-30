@@ -46,12 +46,12 @@ class AssetAuditTests(unittest.TestCase):
             self.assertTrue(errors)
 
     def test_source_tampering_and_publication_claim_are_rejected(self):
-        study = json.loads(audit.STUDY.read_text())
+        study = json.loads(audit.STUDY.read_text(encoding="utf-8"))
         study["assets"]["core"]["sources"][0]["sha256"] = "tampered"
         study["assets"]["core"]["studio_verified"] = True
         with tempfile.TemporaryDirectory() as folder:
             path = Path(folder)/"manifest.json"
-            path.write_text(json.dumps(study))
+            path.write_text(json.dumps(study), encoding="utf-8")
             errors = audit.inspect(study_path=path)["errors"]
             self.assertTrue(any("source hash mismatch" in value for value in errors))
             self.assertTrue(any("publication receipt" in value for value in errors))

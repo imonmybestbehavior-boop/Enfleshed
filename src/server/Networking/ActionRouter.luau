@@ -7,6 +7,7 @@ local Config = require(Shared:WaitForChild("Configuration"):WaitForChild("Sandbo
 local Protocol = require(Shared:WaitForChild("Networking"):WaitForChild("Protocol"))
 local Types = require(Shared:WaitForChild("Types"):WaitForChild("CombatTypes"))
 local TargetConsent = require(Shared.Modules.MagicTargetConsentSpec)
+local CrowdControl = require(Shared.Modules.MagicCrowdControlSpec)
 local Services = script.Parent.Parent.Services
 local Movement = require(Services.MovementService)
 local Combat = require(Services.CombatService)
@@ -19,6 +20,20 @@ local Telemetry = require(Services.TelemetryService)
 local StudioSandbox = require(Shared.Configuration.DevelopmentSandbox)
 local SandboxSpawn = require(Shared.Configuration.CombatBattleMap).Spawn
 local Router = {}
+
+local ItemRules = require(Shared.Modules.ItemRules)
+
+-- Melee loadout: a Shapeshift's profile replaces the equipped weapon.
+local function meleeLoadoutFor(player: Player, state: any): any?
+	local profile = state.Humanoid and state.Humanoid:GetAttribute("MagicShapeshiftProfile")
+	if type(profile) == "string" then
+		local shifted = ItemRules.profileLoadout(profile)
+		if shifted then
+			return shifted
+		end
+	end
+	return Equipment.meleeLoadout(player)
+end
 
 local function playerReady(player: Player): boolean
 	return player:GetAttribute("CharacterReady") == true or (RunService:IsStudio() and StudioSandbox.Enabled == true)
@@ -307,17 +322,26 @@ function Router.start()
 		local now = workspace:GetServerTimeNow()
 		local accepted = false
 		local validPosition = true
-		if action == Protocol.Sprint and typeof(payload.Sprinting) == "boolean" then
+		-- Stun blocks melee, blocking, dashing and casting; Silence blocks casting.
+		local blocked = CrowdControl.blocks(
+			CrowdControl.ActionCategories[action] or "",
+			state.Humanoid:GetAttribute("MagicStunned") == true,
+			state.Humanoid:GetAttribute("MagicSilenced") == true,
+			state.Humanoid:GetAttribute("MagicPolymorphed") == true
+		)
+		if blocked then
+			accepted = false
+		elseif action == Protocol.Sprint and typeof(payload.Sprinting) == "boolean" then
 			Movement.sprint(state, payload.Sprinting)
 			accepted = true
 		elseif action == Protocol.Light then
 			validPosition = Movement.update(player, state, now, feedback)
-			accepted = validPosition and Combat.request(state, now, Equipment.meleeLoadout(player), payload.Direction)
+			accepted = validPosition and Combat.request(state, now, meleeLoadoutFor(player, state), payload.Direction)
 		elseif action == Protocol.Heavy then
 			validPosition = Movement.update(player, state, now, feedback)
-			accepted = validPosition and Combat.heavy(state, now, Equipment.meleeLoadout(player), payload.Direction)
+			accepted = validPosition and Combat.heavy(state, now, meleeLoadoutFor(player, state), payload.Direction)
 		elseif action == Protocol.BlockStart then
-			accepted = Combat.blockStart(player, state, now, Equipment.meleeLoadout(player), feedback)
+			accepted = Combat.blockStart(player, state, now, meleeLoadoutFor(player, state), feedback)
 		elseif action == Protocol.BlockEnd then
 			accepted = Combat.blockEnd(state, now)
 		elseif action == Protocol.Dash and validPosition then

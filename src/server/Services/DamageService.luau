@@ -3,12 +3,20 @@
 local applied = Instance.new("BindableEvent")
 local Damage = { Applied = applied.Event }
 local Status = require(script.Parent.MagicStatusEffectService)
+local Transform = require(script.Parent.MagicTransformService)
 local Defense = require(script.Parent.MeleeDefenseService)
 local Players = game:GetService("Players")
 local DamageRules = require(game:GetService("ReplicatedStorage").Shared.Modules.MagicDamageRules)
 local CombatPolicy = require(game:GetService("ReplicatedStorage").Shared.Modules.CombatPolicy)
 local StatCaps = require(game:GetService("ReplicatedStorage").Shared.Modules.SpellStatCaps)
 local CapProfiles = require(game:GetService("ReplicatedStorage").Shared.Configuration.SpellStatCaps)
+
+-- Interception (OnBeforeDamageTaken), set by MagicService at start: returns
+-- the damage that still lands. DamageService cannot require MagicService.
+local interceptor: ((Model, Humanoid, number, any?, boolean) -> number)? = nil
+function Damage.setInterceptor(fn: (Model, Humanoid, number, any?, boolean) -> number)
+	interceptor = fn
+end
 
 local function apply(
 	attacker: Model,
@@ -42,12 +50,26 @@ local function apply(
 		incoming *= scales[attacker:GetAttribute("MissionRole") or "Basic"] or scales.Basic
 	end
 	incoming = DamageRules.applyOutgoingStrength(incoming, attacker:GetAttribute("MagicStrengthBonus"))
+	-- Before mitigation: spells the target holds may negate, reduce or redirect
+	-- the hit, then a soul link (Tether ShareDamage) may split it. Redirected
+	-- and shared damage skip both; DoT ticks reach only the soul link
+	-- (MagicInterception checks InterceptionSpec.eligible itself).
+	if interceptor and not (eventContext and eventContext.Redirected == true) then
+		incoming = interceptor(attacker, target, incoming, eventContext, melee)
+		if incoming <= 0 then
+			return 0, 0, false
+		end
+	end
 	if eventContext then
 		local regionMultiplier = eventContext.RegionMultiplier
 		if type(regionMultiplier) == "number" and regionMultiplier == regionMultiplier then
 			incoming *= math.clamp(regionMultiplier, 0, 4)
 		end
+		-- Spell hits: mitigation, then the target's DamageTaken modifier.
 		incoming = DamageRules.applyChannel(incoming, targetModel, eventContext.DamageChannel, eventContext.Element)
+	else
+		-- Melee and other context-free hits still honour DamageTaken.
+		incoming = DamageRules.applyDamageTaken(incoming, targetModel)
 	end
 	if targetModel and targetModel:IsA("Model") then
 		incoming = Defense.resolve(attacker, targetModel, incoming, melee)
@@ -60,6 +82,10 @@ local function apply(
 	local capProfile =
 		StatCaps.profileName(CombatPolicy.owner(attacker, Players), CombatPolicy.owner(targetModel, Players))
 	incoming = StatCaps.damage(incoming, CapProfiles[capProfile])
+	-- Per-hit cap carried by the hit (PvP damage-over-time ticks), applied last.
+	if eventContext and type(eventContext.PerHitCap) == "number" then
+		incoming = math.min(incoming, eventContext.PerHitCap)
+	end
 	local remaining, absorbed, brokenShields = Status.absorb(target, incoming)
 	local dealt = 0
 	local killed = false
@@ -70,7 +96,15 @@ local function apply(
 		killed = before > 0 and target.Health <= 0
 	end
 	if dealt > 0 then
-		applied:Fire(attacker, target, dealt, killed, eventContext)
+		-- Dealing damage ends the attacker's Stealth.
+		local attackerHumanoid = attacker:FindFirstChildOfClass("Humanoid")
+		if attackerHumanoid then
+			Status.breakStealth(attackerHumanoid)
+		end
+		-- Damage from anyone but the caster breaks a BreakOnDamage Polymorph.
+		Transform.onDamaged(target, attacker)
+		-- Last argument: IsMelee, true only for DamageService.applyMelee hits (OnMeleeHit).
+		applied:Fire(attacker, target, dealt, killed, eventContext, melee)
 	end
 	for _, effect in brokenShields do
 		if effect.OnBreak then

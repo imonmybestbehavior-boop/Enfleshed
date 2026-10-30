@@ -3,6 +3,7 @@
 -- Companion casting accepts bounded target spells whose payloads imply one
 -- unambiguous target relationship. Charged spells auto-release at full charge.
 local Policy = {}
+-- Rush is left out: it moves its caster, and companions cast from their own body.
 local forms = { Projectile = true, Beam = true, Wave = true, Field = true, Aura = true, Construct = true }
 local offensive = {
 	Damage = true,
@@ -14,10 +15,91 @@ local offensive = {
 	Control = true,
 	Force = true,
 	Displacement = true,
+	Stun = true,
+	Silence = true,
+	Taunt = true,
+	Fear = true,
 }
 local supportive = { Heal = true, Restoration = true, Shield = true }
 local auxiliary = { ElementalMark = true, ConsumeElementalMark = true }
-local control = { Slow = true, Bind = true, Control = true, Displacement = true, ElementalMark = true }
+local control = {
+	Slow = true,
+	Bind = true,
+	Control = true,
+	Displacement = true,
+	ElementalMark = true,
+	Stun = true,
+	Silence = true,
+	Taunt = true,
+	Fear = true,
+}
+-- Payload kinds companions never cast, and why. Listed so every Schema.Payloads
+-- kind is accounted for here (test_magic_registry_parity).
+Policy.UnsupportedKinds = {
+	Transformation = "Changes character scale; not a companion combat or support effect",
+	AerialMovement = "Steers from the holder's own input, so it only works on yourself",
+	Manipulation = "Needs a material target, which companions cannot select",
+	Summon = "Companions cannot summon further companions",
+	Cleanse = "Helps or harms depending on what it removes, so a companion cannot pick its target safely",
+	Dispel = "Acts on spells, which companions cannot target",
+	Stealth = "Hiding an ally from monsters is a player decision, not a companion behaviour",
+	DrainResource = "Moves player resources; companions only use combat and support spells",
+	RestoreResource = "Moves player resources; companions only use combat and support spells",
+}
+-- Payloads a companion may put on an ally as an Enchantment: Boons only
+-- (Aerial movement is self-only, so it is not here).
+local enchantmentBoons = { Heal = true, Restoration = true, Shield = true, Enhancement = true }
+
+-- Medic companions may cast Boon-only Enchantments on allies.
+local function classifyEnchantment(definition)
+	if definition.Targeting ~= "EntityTarget" then
+		return nil, "Companion Enchantments must target an ally"
+	end
+	if definition.Casting.Mode == "Channeled" then
+		return nil, "Companions cannot hold a Channeled Enchantment on someone else"
+	end
+	if definition.TargetRules.Relationship ~= "Ally" then
+		return nil, "Companion Enchantments need an Ally target rule"
+	end
+	local hasHeal, hasShield, shieldAmount, count = false, false, 0, 0
+	for _, steps in pairs(definition.Triggers or {}) do
+		for _, step in ipairs(steps) do
+			for _, payload in ipairs(step.Payloads or {}) do
+				if not enchantmentBoons[payload.Kind] then
+					return nil, "Companion Enchantments may only contain Boons (heal, restoration, shield, swiftness)"
+				end
+				count += 1
+				hasHeal = hasHeal or payload.Kind == "Heal" or payload.Kind == "Restoration"
+				if payload.Kind == "Shield" then
+					hasShield = true
+					shieldAmount = math.max(shieldAmount, payload.Amount or 0)
+				end
+			end
+		end
+	end
+	if count == 0 then
+		return nil, "Companion Enchantment needs at least one Boon"
+	end
+	return {
+		Mode = "Ally",
+		IsEnchantment = true,
+		CanEnchant = true,
+		RequiresCommand = definition.Casting.Mode == "CommandCast",
+		AutoReleasesAtFullCharge = Policy.autoReleasesAtFullCharge(definition, true),
+		AutoChannelsToLifetime = false,
+		CanDamage = false,
+		CanControl = false,
+		CanHeal = hasHeal,
+		CanShield = hasShield,
+		ShieldAmount = shieldAmount,
+		CanModifyAttribute = false,
+		CanTimeDilation = false,
+		TimeRate = nil,
+		ArmorAmount = 0,
+		Range = definition.TargetRules.Range,
+	},
+		nil
+end
 
 function Policy.executionDefinition(definition, spellId)
 	local execution = {}
@@ -64,6 +146,17 @@ function Policy.classify(definition)
 		)
 	then
 		return nil, "Companions support Instant, charged, bounded Channeled, or CommandCast spells"
+	end
+	-- Blood magic (MagicBloodCostSpec.uses) is for players only.
+	local cost = definition.Cost
+	if
+		type(cost) == "table"
+		and (cost.Health ~= nil or (cost.HealthForMana or 0) > 0 or (cost.HealthPerSecond or 0) > 0)
+	then
+		return nil, "Companions cannot pay with health; blood magic is for players only"
+	end
+	if definition.Form == "SelfEnhancement" then
+		return classifyEnchantment(definition)
 	end
 	if not forms[definition.Form] then
 		return nil, "This Form is not supported by companion casting"

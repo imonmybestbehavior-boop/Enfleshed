@@ -50,6 +50,8 @@ Library.FormArrangement = {
 	Construct = "Lattice",
 	SelfEnhancement = "Mantle",
 	Manipulation = "Lattice",
+	Rush = "Comet",
+	Tether = "Helix",
 }
 
 local function range(min, max)
@@ -232,6 +234,56 @@ Library.Forms = {
 		},
 	},
 	-- Casting cue (gather / release around the caster): a contracting ring, no hit silhouette.
+	-- Rush: a streak wrapped around the dashing caster (anchor rides the root).
+	Rush = {
+		{
+			Id = "Rush.Core",
+			Kind = "Nodes",
+			Arrangement = "Core",
+			Motif = "Sphere",
+			Priority = 1,
+			Params = { Count = 1, Scale = 0.5, Stretch = 0.6, Brightness = 0.6, PulseAmplitude = 0.05 },
+			Limits = { Scale = range(0.4, 0.9), Stretch = range(0.3, 1), Brightness = range(0.4, 1) },
+			Drivers = {
+				{ "Scale", "Size", 0.1 },
+				{ "Stretch", "Speed", 0.9, "Late" },
+				{ "Brightness", "Direct", 0.4 },
+			},
+		},
+		{
+			Id = "Rush.Streak",
+			Kind = "Trail",
+			Priority = 2,
+			Params = { Count = 2, Lifetime = 0.35, Width = 0.8, Opacity = 0.9 },
+			Limits = { Count = range(1, 2), Lifetime = range(0.25, 1), Width = range(0.5, 1.6) },
+			Drivers = {
+				{ "Lifetime", "Speed", 0.4 },
+				{ "Width", "Size", 0.6 },
+			},
+		},
+	},
+	-- Tether: a thin core along the link with a slow, chain-like helix around it.
+	Tether = {
+		{
+			Id = "Tether.Core",
+			Kind = "Nodes",
+			Arrangement = "BeamCore",
+			Motif = "BeamCore",
+			Priority = 1,
+			Params = { Count = 1, Scale = 0.16, Brightness = 0.65, PulseAmplitude = 0.08 },
+			Limits = { Scale = range(0.12, 0.3), Brightness = range(0.5, 1) },
+			Drivers = { { "Scale", "Direct", 0.1, "Soft" }, { "Brightness", "Direct", 0.3 } },
+		},
+		{
+			Id = "Tether.Links",
+			Kind = "Nodes",
+			Arrangement = "Helix",
+			Priority = 2,
+			Params = { Count = 8, Spread = 0.22, RotationSpeed = 0.6, Links = 1, LinkWidth = 0.5 },
+			Limits = { Count = range(6, 16), Spread = range(0.18, 0.35), RotationSpeed = range(0.4, 2) },
+			Drivers = { { "Count", "Range", 8 }, { "RotationSpeed", "Repeat", 1.5 } },
+		},
+	},
 	Cue = {
 		{
 			Id = "Cue.Ring",
@@ -288,7 +340,7 @@ Library.Elements = {
 				Arrangement = "Core",
 				Motif = "Sphere",
 				Priority = 2,
-				Forms = { Projectile = true },
+				Forms = { Projectile = true, Rush = true },
 				Params = { Count = 1, Scale = 0.18, Brightness = 0.7 },
 				Limits = { Scale = range(0.15, 0.4), Brightness = range(0.6, 1) },
 				Drivers = { { "Scale", "Direct", 0.22, "Soft" }, { "Brightness", "Direct", 0.3 } },

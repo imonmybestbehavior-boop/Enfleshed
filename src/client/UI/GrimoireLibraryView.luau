@@ -39,7 +39,7 @@ end
 
 function View.new(ctx)
 	local descriptions = {}
-	for _, build in ipairs({ Starters.buildShowcase, Starters.buildShowcaseExpansion }) do
+	for _, build in ipairs({ Starters.buildShowcase, Starters.buildShowcaseExpansion, Starters.buildFeatureShowcase }) do
 		for _, template in ipairs(build()) do
 			descriptions[template.Definition.Name] = template.Description
 		end

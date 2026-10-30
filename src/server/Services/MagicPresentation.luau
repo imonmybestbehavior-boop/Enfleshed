@@ -22,6 +22,20 @@ local function signatureCovered(definition)
 	return ok and covered
 end
 local castRemote
+local hiddenRemote: RemoteEvent? = nil
+local Players = game:GetService("Players")
+local CombatPolicy = require(game:GetService("ReplicatedStorage").Shared.Modules.CombatPolicy)
+local TrapSpec = require(game:GetService("ReplicatedStorage").Shared.Modules.MagicTrapSpec)
+local function hiddenStorage(): Instance
+	local ServerStorage = game:GetService("ServerStorage")
+	local folder = ServerStorage:FindFirstChild("MagicHiddenMarkers")
+	if not folder then
+		folder = Instance.new("Folder")
+		folder.Name = "MagicHiddenMarkers"
+		folder.Parent = ServerStorage
+	end
+	return folder :: Instance
+end
 local particleBudget = BudgetSpec.new(Config.ParticleBudget, os.clock())
 function Presentation.start(folder)
 	local existing = folder:FindFirstChild("MagicPresentation")
@@ -32,7 +46,93 @@ function Presentation.start(folder)
 		castRemote.Name = "MagicPresentation"
 		castRemote.Parent = folder
 	end
+	local hiddenExisting = folder:FindFirstChild("MagicHiddenMarkers")
+	if hiddenExisting and hiddenExisting:IsA("RemoteEvent") then
+		hiddenRemote = hiddenExisting
+	else
+		hiddenRemote = Instance.new("RemoteEvent")
+		hiddenRemote.Name = "MagicHiddenMarkers"
+		hiddenRemote.Parent = folder
+	end
 end
+
+-- Hidden Field markers (MagicTrapSpec): the marker Part lives in ServerStorage,
+-- so it never replicates. Its description (frame, size, VFX stamp attributes)
+-- is sent only to players who cannot fight the owner; the client builds a
+-- local copy (MagicHiddenMarkerController). Viewers are re-checked every second.
+local hiddenMarkers: { [BasePart]: { Owner: Player?, Viewers: { [Player]: boolean }, Id: string } } = {}
+local hiddenSerial = 0
+
+local function hiddenDescription(marker: BasePart, id: string)
+	return {
+		Kind = "Show",
+		Id = id,
+		Name = marker.Name,
+		CFrame = marker.CFrame,
+		Size = marker.Size,
+		Shape = if marker:IsA("Part") then marker.Shape.Name else "Block",
+		Attributes = marker:GetAttributes(),
+	}
+end
+
+local function refreshHiddenMarker(marker: BasePart, entry)
+	if not hiddenRemote then
+		return
+	end
+	local ownerPolicy = if entry.Owner then CombatPolicy.owner(entry.Owner.Character, Players) else nil
+	local desired = {}
+	for _, viewer in Players:GetPlayers() do
+		local viewerPolicy = CombatPolicy.owner(viewer.Character, Players)
+			or { UserId = viewer.UserId, Zone = nil, DuelOpponent = nil }
+		local canFight = ownerPolicy ~= nil and CombatPolicy.allows(viewerPolicy, ownerPolicy)
+		if TrapSpec.canSee(viewer.UserId, entry.Owner and entry.Owner.UserId, canFight) then
+			table.insert(desired, viewer)
+		end
+	end
+	local show, hide = TrapSpec.diffViewers(entry.Viewers, desired)
+	for _, viewer in show do
+		entry.Viewers[viewer] = true
+		hiddenRemote:FireClient(viewer, hiddenDescription(marker, entry.Id))
+	end
+	for _, viewer in hide do
+		entry.Viewers[viewer] = nil
+		if viewer.Parent == Players then
+			hiddenRemote:FireClient(viewer, { Kind = "Hide", Id = entry.Id })
+		end
+	end
+end
+
+function Presentation.hideMarker(marker: BasePart, owner: Player?)
+	hiddenSerial += 1
+	marker.Parent = hiddenStorage()
+	local entry = { Owner = owner, Viewers = {}, Id = "hidden-" .. hiddenSerial }
+	hiddenMarkers[marker] = entry
+	refreshHiddenMarker(marker, entry)
+end
+
+local function releaseHiddenMarker(marker: Instance): boolean
+	local entry = if marker:IsA("BasePart") then hiddenMarkers[marker] else nil
+	if not entry then
+		return false
+	end
+	hiddenMarkers[marker :: BasePart] = nil
+	for viewer in entry.Viewers do
+		if hiddenRemote and viewer.Parent == Players then
+			hiddenRemote:FireClient(viewer, { Kind = "Hide", Id = entry.Id })
+		end
+	end
+	marker:Destroy()
+	return true
+end
+
+task.spawn(function()
+	while true do
+		task.wait(1)
+		for marker, entry in hiddenMarkers do
+			refreshHiddenMarker(marker, entry)
+		end
+	end
+end)
 local function visualSettings(definition)
 	return (definition and definition.Visual) or {}
 end
@@ -423,6 +523,107 @@ local function surfacePulse(hit, definition)
 	Debris:AddItem(pulse, 0.65)
 end
 
+-- Generated visuals ride an invisible path part stamped with the spell's own
+-- Form (SpellVFXAnalyzer.stamp), like Beams' MagicBeamPath.
+local function pathPart(name: string, frame: CFrame): BasePart
+	local part = Instance.new("Part")
+	part.Name = name
+	part.Anchored, part.CanCollide, part.CanTouch, part.CanQuery = true, false, false, false
+	part.Transparency = 1
+	part.Size = Vector3.one * 0.1
+	part.CFrame = frame
+	part.Parent = workspace
+	return part
+end
+
+-- Rush: the path rides the dashing caster (MagicService moves it each step).
+function Presentation.rush(definition: any, root: BasePart): BasePart
+	local anchor = pathPart("MagicRushPath", root.CFrame)
+	local width = math.max(1, 2 * ((definition.Rush and definition.Rush.Radius) or 0.5))
+	Analyzer.stamp(anchor, definition, Vector3.new(width, width, width), "Sustain")
+	return anchor
+end
+
+function Presentation.endRush(anchor: BasePart, root: BasePart?)
+	if root and root.Parent then
+		anchor.CFrame = root.CFrame
+	end
+	Presentation.finish(anchor)
+	Debris:AddItem(anchor, 1.5)
+end
+
+-- Tether links: the stamped path spanning the two ends, refreshed by updateTether.
+local tetherPaths: { [Beam]: { Path: BasePart, A: BasePart, B: BasePart } } = setmetatable({}, { __mode = "k" }) :: any
+
+function Presentation.updateTether(beam: Beam?)
+	local entry = beam and tetherPaths[beam]
+	if not entry or not entry.A.Parent or not entry.B.Parent then
+		return
+	end
+	local a, b = entry.A.Position, entry.B.Position
+	local length = (b - a).Magnitude
+	if length < 0.01 then
+		return
+	end
+	local size = entry.Path:GetAttribute("VFXSize")
+	-- Replicate only real changes (attribute writes go to every client).
+	if (entry.Path.Position - a).Magnitude > 0.25 or typeof(size) ~= "Vector3" or math.abs(size.Z - length) > 0.25 then
+		entry.Path.CFrame = CFrame.lookAt(a, b)
+		entry.Path:SetAttribute("VFXSize", Vector3.new(0.35, 0.35, length))
+	end
+end
+
+-- Tether: a Beam between the anchors' roots in the spell's colour; removed
+-- (with a short impact flash at the midpoint on a snap) by endTether. With the
+-- spell's definition, the link also gets generated visuals along its path.
+function Presentation.tether(rootA: BasePart, rootB: BasePart, color: Color3, definition: any?): Beam
+	local start = Instance.new("Attachment")
+	start.Name = "MagicTetherStart"
+	start.Parent = rootA
+	local finish = Instance.new("Attachment")
+	finish.Name = "MagicTetherEnd"
+	finish.Parent = rootB
+	local beam = Instance.new("Beam")
+	beam.Name = "MagicTether"
+	beam.Attachment0, beam.Attachment1 = start, finish
+	beam.Color = ColorSequence.new(color)
+	beam.Width0, beam.Width1 = 0.35, 0.35
+	beam.LightEmission = 0.6
+	beam.FaceCamera = true
+	beam.Segments = 8
+	beam.Parent = rootA
+	beam.Destroying:Connect(function()
+		start:Destroy()
+		finish:Destroy()
+	end)
+	if definition then
+		local length = math.max(0.1, (rootB.Position - rootA.Position).Magnitude)
+		local path = pathPart("MagicTetherPath", CFrame.lookAt(rootA.Position, rootB.Position))
+		Analyzer.stamp(path, definition, Vector3.new(0.35, 0.35, length), "Sustain")
+		tetherPaths[beam] = { Path = path, A = rootA, B = rootB }
+	end
+	return beam
+end
+
+function Presentation.endTether(beam: Beam?, snapped: boolean, midpoint: Vector3?, definition: any?)
+	if snapped and midpoint and definition then
+		Presentation.impact(
+			midpoint,
+			(definition.Visual and definition.Visual.Color) or Color3.new(1, 1, 1),
+			definition
+		)
+	end
+	local entry = beam and tetherPaths[beam]
+	if entry then
+		tetherPaths[beam :: Beam] = nil
+		Presentation.finish(entry.Path)
+		Debris:AddItem(entry.Path, 1)
+	end
+	if beam then
+		beam:Destroy()
+	end
+end
+
 function Presentation.impact(position, color, definition, hit)
 	local settings = visualSettings(definition)
 	playCustomVFX(
@@ -570,6 +771,9 @@ function Presentation.construct(part: BasePart, particleCount: number?, definiti
 	end
 end
 function Presentation.finish(part: Instance)
+	if releaseHiddenMarker(part) then
+		return
+	end
 	part:SetAttribute("VFXPhase", "End")
 	for _, child in part:GetDescendants() do
 		if child:IsA("BasePart") then

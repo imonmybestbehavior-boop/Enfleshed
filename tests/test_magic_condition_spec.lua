@@ -78,6 +78,14 @@ assert(
 	}),
 	"zone tags and exposed status values should be authorable"
 )
+-- Phase 7: steps can check the target's last elemental reaction ("was frozen recently").
+local frozenRecently = { Family = "Status", Property = "Reaction", Operator = "==", Value = "Freeze" }
+assert(spec.validate(frozenRecently), "Status.Reaction is authorable")
+assert(spec.validateStep({ Operator = "ALL", Conditions = { frozenRecently } }), "and usable as a step condition")
+assert(
+	not spec.validate({ Family = "Status", Property = "Reaction", Operator = ">", Value = "Freeze" }),
+	"Reaction is a name, not a number"
+)
 assert(
 	not spec.validate({ Family = "Status", Property = "ElementalMarks", Operator = "Has", Value = string.rep("x", 49) })
 )

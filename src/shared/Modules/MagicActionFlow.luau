@@ -71,6 +71,17 @@ function Flow.branchCondition()
 	}
 end
 
+-- "Stronger when you're hurt": a branch that runs while the caster's health
+-- is below `percent` (the existing Caster.HealthPercent condition).
+function Flow.casterHealthBelow(percent: number)
+	return {
+		Operator = "ALL",
+		Conditions = {
+			{ Family = "Caster", Property = "HealthPercent", Operator = "<", Value = math.clamp(percent, 1, 99) / 100 },
+		},
+	}
+end
+
 local function depth(node): number
 	if type(node) ~= "table" or not (node.Operator == "ALL" or node.Operator == "ANY" or node.Operator == "NOT") then
 		return 1

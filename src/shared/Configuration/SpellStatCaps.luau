@@ -21,7 +21,40 @@ return {
 		MinTimeRate = 0.6,
 		MaxTransformScale = 1.2,
 		MinTransformScale = 0.85,
-		MaxAttributeChange = 25,
+		MaxAttributeChange = 25, -- armor/strength points and the percent attributes
+		MaxDamageTakenChange = 15, -- DamageTaken percentage points (vulnerability or protection)
+		MaxResistanceChange = 0.25, -- Resistance fraction per element (-1..1 scale)
+		MaxStunDuration = 0.5, -- stuns on players (diminishing returns apply too)
+		MaxSilenceDuration = 1.5,
+		-- Stealth hides only from monsters for now. Turning this on hides stealthed
+		-- players from opponents (MagicStealthSpec / MagicStealthController).
+		StealthHidesFromPlayers = false,
+		MaxResourceDrainPerHit = 15, -- DrainResource against players (Mana or a special resource)
+		MaxRushDistance = 24, -- Rush (Dash/Blink) while the caster can fight players
+		MaxConstructHealth = 150, -- Construct.Health cast while the caster can fight players
+		MinHiddenTrapArmDelay = 1, -- a Hidden Field trap arms no sooner than this in PvP
+		-- Interception (OnBeforeDamageTaken) against hits from players.
+		MaxInterceptReducePercent = 50,
+		MaxInterceptNegateChargesVsPlayer = 1, -- per spell
+		MaxInterceptRedirectToAttackerPercent = 50,
+		-- Tether: length while the caster can fight players, soul-link share onto
+		-- a player, and whether Pull may move players.
+		MaxTetherLength = 40,
+		MaxTetherShareDamagePercent = 50,
+		TetherPullOnPlayers = true,
+		-- Polymorph on a player (always breaks on damage).
+		MaxPolymorphDurationVsPlayer = 1.5,
+		-- Spell vs Spell: lenses never weaken a hostile player's projectile below
+		-- these, and Force moves spells at most this far.
+		MinLensPotencyVsPlayers = 0.7,
+		MinLensSlowVsPlayers = 0.6,
+		MaxSpellForceDistance = 10,
+		-- Blood magic: PercentMax health cost per cast, and the HealthPaid scaling bonus.
+		MaxHealthCostPercent = 40,
+		MaxHealthPaidBonus = 0.5,
+		-- Environment: Wet chain hops onto players, and their share of the hit.
+		MaxWetChainPlayerJumps = 2,
+		MaxWetChainFraction = 0.4,
 	},
 	PvPRanked = {
 		DamageMultiplier = 0.5,
@@ -39,5 +72,28 @@ return {
 		MaxTransformScale = 1.15,
 		MinTransformScale = 0.9,
 		MaxAttributeChange = 20,
+		MaxDamageTakenChange = 10,
+		MaxResistanceChange = 0.2,
+		MaxStunDuration = 0.5,
+		MaxSilenceDuration = 1,
+		StealthHidesFromPlayers = false,
+		MaxResourceDrainPerHit = 10,
+		MaxRushDistance = 18,
+		MaxConstructHealth = 100,
+		MinHiddenTrapArmDelay = 1.5,
+		MaxInterceptReducePercent = 35,
+		MaxInterceptNegateChargesVsPlayer = 1,
+		MaxInterceptRedirectToAttackerPercent = 30,
+		MaxTetherLength = 30,
+		MaxTetherShareDamagePercent = 35,
+		TetherPullOnPlayers = false,
+		MaxPolymorphDurationVsPlayer = 1.0,
+		MinLensPotencyVsPlayers = 0.8,
+		MinLensSlowVsPlayers = 0.7,
+		MaxSpellForceDistance = 6,
+		MaxHealthCostPercent = 30,
+		MaxHealthPaidBonus = 0.35,
+		MaxWetChainPlayerJumps = 1,
+		MaxWetChainFraction = 0.3,
 	},
 }

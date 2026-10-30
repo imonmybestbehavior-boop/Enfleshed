@@ -153,7 +153,7 @@ assert(curves.log(1, 10) < curves.log(5, 10) and curves.log(5, 10) < curves.log(
 -- Curated spells: every recipe validates and yields a bounded, deterministic plan.
 local definitions = {}
 local curatedCount = 0
-for _, build in ipairs({ starters.buildShowcase, starters.buildShowcaseExpansion }) do
+for _, build in ipairs({ starters.buildShowcase, starters.buildShowcaseExpansion, starters.buildFeatureShowcase }) do
 	for _, record in ipairs(build()) do
 		local d = record.Definition
 		cost.refresh(d, spec.estimate, spec.copy)
@@ -177,7 +177,37 @@ for _, build in ipairs({ starters.buildShowcase, starters.buildShowcaseExpansion
 		curatedCount += 1
 	end
 end
-assert(curatedCount == 65, "Expected 65 curated spells, got " .. curatedCount)
+assert(curatedCount == 76, "Expected 76 curated spells, got " .. curatedCount)
+
+-- Rush and Tether keep their own identity and layers (Phase 8-11f forms).
+do
+	local dash = analyzer.resolve(definitions["Ember Dash"])
+	assert(dash.Form == "Rush" and dash.Layout == "Comet", "a Rush keeps its form")
+	local link = analyzer.resolve(definitions["Siphon Thread"])
+	assert(link.Form == "Tether" and link.Layout == "Helix", "a Tether keeps its form")
+	local function ids(resolved)
+		local found = {}
+		for _, entry in ipairs(builder.build(resolved).Layers) do
+			found[entry.Id] = true
+		end
+		return found
+	end
+	local dashLayers, linkLayers = ids(dash), ids(link)
+	assert(dashLayers["Rush.Core"] and dashLayers["Rush.Streak"], "Rush uses its streak layers")
+	assert(dashLayers["Fire.HotCore"], "a fire Rush gets the hot core like a fire projectile")
+	assert(linkLayers["Tether.Core"] and linkLayers["Tether.Links"], "Tether uses its link layers")
+	assert(not linkLayers["Projectile.Core"], "a Tether is not drawn as a projectile")
+	-- Features follow the form's own settings.
+	local short, long = spec.copy(definitions["Binding Chain"]), spec.copy(definitions["Binding Chain"])
+	short.Tether.MaxLength, long.Tether.MaxLength = 10, 30
+	assert(
+		analyzer.resolve(long).FeatureVector ~= analyzer.resolve(short).FeatureVector,
+		"a longer Tether reads as a longer link"
+	)
+	local slow, fast = spec.copy(definitions["Ember Dash"]), spec.copy(definitions["Ember Dash"])
+	slow.Rush.Speed, fast.Rush.Speed = 40, 120
+	assert(analyzer.resolve(fast).FeatureVector ~= analyzer.resolve(slow).FeatureVector, "a faster Rush streaks more")
+end
 
 local function variant(baseName, mutate)
 	local d = spec.copy(definitions[baseName])
@@ -499,5 +529,5 @@ local lightning = summary(
 assert(param(lightning, "Mechanic.Forks", "Count") == 6)
 assert(param(lightning, "Lightning.Forks", "PulseFrequency") > 10, "Fast cascades flicker quickly")
 print(
-	"Visual plans: determinism, identity independence, monotonic bounded response, DoT orthogonality, direct/shield/speed/behavior channels, adversarial budgets, legacy compatibility, purity and 65 curated plans passed"
+	"Visual plans: determinism, identity independence, monotonic bounded response, DoT orthogonality, direct/shield/speed/behavior channels, adversarial budgets, legacy compatibility, purity and 76 curated plans passed"
 )

@@ -20,6 +20,9 @@ local TweenService = game:GetService("TweenService")
 local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
 local ProjectileBehaviorSpec = require(Shared.Modules.ProjectileBehaviorSpec)
 local SpellIdentitySpec = require(Shared.Modules.MagicSpellIdentitySpec)
+local SpellTargetSpec = require(Shared.Modules.MagicSpellTargetSpec)
+local BloodCostSpec = require(Shared.Modules.MagicBloodCostSpec)
+local Limits = require(Shared.Configuration.MagicLab)
 local SpellVisual = require(script.Parent.GrimoireSpellVisual)
 local PreviewPanel = require(script.Parent.ForgePreviewPanel)
 
@@ -484,6 +487,7 @@ function Forge.mount(parent, draft, schema, spec, callbacks)
 	local strainValue = stat("STRAIN", C.Ember)
 	local complexityValue = stat("COMPLEXITY", C.Arcane)
 	local upkeepValue, upkeepHolder = stat("UPKEEP / S", C.Warn)
+	local healthValue, healthHolder = stat("HEALTH", Color3.fromRGB(220, 72, 84))
 
 	------------------------------------------------------------------ layout
 	local function layout()
@@ -652,8 +656,15 @@ function Forge.mount(parent, draft, schema, spec, callbacks)
 		end
 		return table.concat(parts, " · ")
 	end
+	-- On a Tether, OnBreak is the snap.
+	local function phraseFor(eventName, scope)
+		if eventName == "OnBreak" and (scope or draft).Form == "Tether" then
+			return "When it snaps"
+		end
+		return EventPhrase[eventName]
+	end
 	local function eventTitle(eventName)
-		return string.upper(EventPhrase[eventName] or schema.EventLabels[eventName] or eventName)
+		return string.upper(phraseFor(eventName) or schema.EventLabels[eventName] or eventName)
 	end
 
 	------------------------------------------------------------------ tree
@@ -1224,10 +1235,12 @@ function Forge.mount(parent, draft, schema, spec, callbacks)
 				if picker.Step then
 					picker.Step.Payloads = picker.Step.Payloads or {}
 					table.insert(picker.Step.Payloads, payload)
+					SpellTargetSpec.syncStep(picker.Step, schema.SpellTargetPayloads)
 					state.Selection =
 						{ Kind = "Payload", Scope = scope, Event = eventName, Step = picker.Step, Payload = payload }
 				else
 					local step = { Payloads = { payload } }
+					SpellTargetSpec.syncStep(step, schema.SpellTargetPayloads)
 					table.insert(steps, step)
 					state.Selection =
 						{ Kind = "Payload", Scope = scope, Event = eventName, Step = step, Payload = payload }
@@ -1352,6 +1365,7 @@ function Forge.mount(parent, draft, schema, spec, callbacks)
 			CellSize = UDim2.new(if state.Mobile then 1 else 0.5, -8, 0, 84),
 			SortOrder = Enum.SortOrder.LayoutOrder,
 		}, body)
+		local tileParent = body
 		local function tile(icon, color, title, blurb, enabled, callback, badge)
 			local base = if enabled then C.Card else Color3.fromRGB(24, 21, 26)
 			local item = new("TextButton", {
@@ -1359,7 +1373,7 @@ function Forge.mount(parent, draft, schema, spec, callbacks)
 				AutoButtonColor = false,
 				BackgroundColor3 = base,
 				BorderSizePixel = 0,
-			}, body)
+			}, tileParent)
 			corner(item, 12)
 			stroke(item, if enabled then C.PanelEdge else C.Panel)
 			if enabled then
@@ -1406,7 +1420,7 @@ function Forge.mount(parent, draft, schema, spec, callbacks)
 				tile(
 					"◆",
 					C.Gold,
-					EventPhrase[eventName] or schema.EventLabels[eventName] or eventName,
+					phraseFor(eventName, scope) or schema.EventLabels[eventName] or eventName,
 					schema.EventDescriptions[eventName] or "",
 					true,
 					function()
@@ -1482,32 +1496,84 @@ function Forge.mount(parent, draft, schema, spec, callbacks)
 			end
 		else
 			local options = optionsFor(picker, picker.Intent or {})
+			-- Group by Polarity (Boons, Banes, Other); each tile keeps its Category as a sub-label.
+			-- Behaviors and spawned effects are not payloads, so they sit under Other.
+			local groups = {}
 			for _, option in options do
-				local icon, color, title, blurb
-				if option.Kind == "Payload" then
-					local definition = schema.Payloads[option.Id]
-					icon = PayloadIcon[option.Id] or "▲"
-					color = CategoryColor[definition.Category] or C.Muted
-					title = PayloadVerb[option.Id] or definition.Label
-					blurb = definition.Description
-				elseif option.Kind == "Spawn" then
-					local definition = schema.Forms[option.Id]
-					icon, color = FormIcon[option.Id] or "◆", C.Gold
-					title = FormVerb[option.Id] or ("Create " .. definition.Label)
-					blurb = "Starts a separate " .. definition.Label .. " here. It gets its own triggers and effects."
-				else
-					local definition = schema.Behaviors[option.Id]
-					icon, color, title, blurb = "*", C.Warn, definition.Label, definition.Description
+				local definition = option.Kind == "Payload" and schema.Payloads[option.Id]
+				local polarity = definition and definition.Polarity or "Neutral"
+				groups[polarity] = groups[polarity] or {}
+				table.insert(groups[polarity], option)
+			end
+			if #options > 0 then
+				grid:Destroy()
+				grid = nil
+				new("UIListLayout", { Padding = UDim.new(0, 8), SortOrder = Enum.SortOrder.LayoutOrder }, body)
+			end
+			for groupIndex, polarity in schema.PolarityOrder do
+				local groupOptions = groups[polarity]
+				if groupOptions then
+					text(body, string.upper(schema.PolarityLabels[polarity]), 12, C.Gold, Enum.Font.GothamBlack, {
+						Name = "PickerGroupHeading",
+						Size = UDim2.new(1, 0, 0, 22),
+						TextYAlignment = Enum.TextYAlignment.Bottom,
+						LayoutOrder = groupIndex * 2 - 1,
+					})
+					local section = new("Frame", {
+						Name = "PickerGroup",
+						BackgroundTransparency = 1,
+						Size = UDim2.new(1, 0, 0, 0),
+						AutomaticSize = Enum.AutomaticSize.Y,
+						LayoutOrder = groupIndex * 2,
+					}, body)
+					new("UIGridLayout", {
+						CellPadding = UDim2.fromOffset(12, 12),
+						CellSize = UDim2.new(if state.Mobile then 1 else 0.5, -8, 0, 84),
+						SortOrder = Enum.SortOrder.LayoutOrder,
+					}, section)
+					tileParent = section
+					for _, option in groupOptions do
+						local icon, color, title, blurb, category
+						if option.Kind == "Payload" then
+							local definition = schema.Payloads[option.Id]
+							icon = PayloadIcon[option.Id] or "▲"
+							color = CategoryColor[definition.Category] or C.Muted
+							title = PayloadVerb[option.Id] or definition.Label
+							blurb = definition.Description
+							category = definition.Category
+						elseif option.Kind == "Spawn" then
+							local definition = schema.Forms[option.Id]
+							icon, color = FormIcon[option.Id] or "◆", C.Gold
+							title = FormVerb[option.Id] or ("Create " .. definition.Label)
+							blurb = "Starts a separate "
+								.. definition.Label
+								.. " here. It gets its own triggers and effects."
+						else
+							local definition = schema.Behaviors[option.Id]
+							icon, color, title, blurb = "*", C.Warn, definition.Label, definition.Description
+						end
+						tile(
+							icon,
+							color,
+							title,
+							if option.Enabled then blurb else option.Reason,
+							option.Enabled,
+							function()
+								addOption(picker, option)
+							end,
+							if not option.Enabled then "UNAVAILABLE" elseif category then string.upper(category) else nil
+						)
+					end
+					tileParent = body
 				end
-				tile(icon, color, title, if option.Enabled then blurb else option.Reason, option.Enabled, function()
-					addOption(picker, option)
-				end, if option.Enabled then nil else "UNAVAILABLE")
 			end
 			if #options == 0 then
 				tile("—", C.Faint, "Nothing available", "The engine has no supported actions for this moment.", false)
 			end
 		end
-		grid.Parent = body
+		if grid then
+			grid.Parent = body
+		end
 	end
 
 	------------------------------------------------------------------ inspector
@@ -1745,10 +1811,12 @@ function Forge.mount(parent, draft, schema, spec, callbacks)
 		end)
 	end
 	local function genericField(target, field)
+		field = schema.resolveField(target, field)
 		local value = target[field.Key]
 		if field.Options then
 			choiceField(field.Label, field.Help, field.Options, value, function(choice)
 				target[field.Key] = choice
+				schema.normalizePayload(target)
 			end)
 		elseif type(value) == "boolean" then
 			choiceField(field.Label, field.Help, { true, false }, value, function(choice)
@@ -1780,6 +1848,93 @@ function Forge.mount(parent, draft, schema, spec, callbacks)
 			end)
 		end
 	end
+	-- OnDamageTaken steps can act on you (the holder) or on whoever hit you;
+	-- OnDamageDealt steps on the damaged target or on you (lifesteal).
+	local function targetFromField(step, eventName)
+		local options = schema.TargetFromByEvent[eventName]
+		if not options then
+			return
+		end
+		local dealt = eventName == "OnDamageDealt"
+		choiceField(
+			"Applies to",
+			if dealt
+				then "The target: the creature that was hit. You: the caster, for example to heal from damage dealt."
+				else "You: the effect lands on you. Attacker: it lands on whoever damaged you (thorns), if the spell's relationship allows them.",
+			options,
+			step.TargetFrom or "Holder",
+			function(choice)
+				step.TargetFrom = if choice == "Holder" then nil else choice
+			end,
+			function(choice)
+				return if choice == "Attacker"
+					then "THE ATTACKER"
+					elseif choice == "Caster" then "YOU"
+					elseif dealt then "THE TARGET"
+					else "YOU"
+			end
+		)
+	end
+	-- Tether steps: which end the effect acts on.
+	local function anchorField(step, scope)
+		if not scope or scope.Form ~= "Tether" then
+			return
+		end
+		local casterLinked = scope.Tether and scope.Tether.Anchors ~= "TargetToTarget"
+		choiceField(
+			"Acts on",
+			"Both ends, or only one (for example drain one end and heal the other).",
+			schema.TetherAnchors,
+			step.Anchor or "Both",
+			function(choice)
+				step.Anchor = if choice == "Both" then nil else choice
+			end,
+			function(choice)
+				if choice == "A" then
+					return if casterLinked then "YOU" else "FIRST TARGET"
+				elseif choice == "B" then
+					return if casterLinked then "THE TARGET" else "SECOND TARGET"
+				end
+				return "BOTH ENDS"
+			end
+		)
+	end
+	-- Spell steps (Dispel, Force): whether they act on live spells, and whose.
+	local function spellTargetField(step)
+		local mode = SpellTargetSpec.stepMode(step, schema.SpellTargetPayloads)
+		if not mode then
+			return
+		end
+		if mode == "Optional" then
+			choiceField(
+				"Target spells",
+				"Off: acts on creatures. On: acts on live Fields, Auras, Constructs and Tethers here instead.",
+				{ false, true },
+				step.TargetKind == "Spell",
+				function(choice)
+					step.TargetKind = if choice then "Spell" else nil
+					if not choice then
+						step.SpellRelationship = nil
+					end
+				end,
+				function(choice)
+					return if choice then "ON" else "OFF"
+				end
+			)
+		end
+		if step.TargetKind == "Spell" then
+			choiceField(
+				"Which spells",
+				"Hostile: spells of those you can fight. Allied: yours and your allies'. Any: every spell it touches. Each spell is affected once per cast.",
+				schema.SpellRelationships,
+				step.SpellRelationship or "Hostile",
+				function(choice)
+					step.SpellRelationship = if choice == "Hostile" then nil else choice
+				end,
+				string.upper
+			)
+		end
+	end
 	local function matches(label)
 		local query = string.lower(state.Search or "")
 		return query == "" or string.find(string.lower(tostring(label)), query, 1, true) ~= nil
@@ -1788,7 +1943,7 @@ function Forge.mount(parent, draft, schema, spec, callbacks)
 		fields = fields or {}
 		local primary, extra = {}, {}
 		for _, field in fields or {} do
-			if not matches(field.Label) then
+			if not matches(field.Label) or not schema.fieldVisible(target, field) then
 				continue
 			end
 			if field.Required == false and #fields > 3 and not advanced then
@@ -1835,7 +1990,7 @@ function Forge.mount(parent, draft, schema, spec, callbacks)
 	end
 	local function pruneStep(scope, eventName, step)
 		local steps = scope.Triggers[eventName]
-		if step and #(step.Payloads or {}) == 0 and not step.Behavior then
+		if step and #(step.Payloads or {}) == 0 and not step.Behavior and not step.Intercept then
 			local index = table.find(steps, step)
 			if index then
 				table.remove(steps, index)
@@ -2028,6 +2183,55 @@ function Forge.mount(parent, draft, schema, spec, callbacks)
 				end
 				fieldGroup(mechanics, fields, "mech:" .. tostring(scope.Form))
 			end
+			if scope.Form == "Field" and mechanics then
+				section("LENS")
+				local lens = mechanics.AffectsSpells
+				choiceField(
+					"Changes projectiles crossing it",
+					"Off, or whose projectiles it changes as they fly through (once per projectile per Field).",
+					{ "Off", "Hostile", "Allied", "Any" },
+					if lens then lens.Who else "Off",
+					function(choice)
+						if choice == "Off" then
+							mechanics.AffectsSpells = nil
+						elseif lens then
+							lens.Who = choice
+						else
+							mechanics.AffectsSpells = { Who = choice, Slow = 0.7 }
+						end
+					end,
+					string.upper
+				)
+				if lens then
+					local marks = { "None" }
+					for _, element in schema.MarkElements do
+						table.insert(marks, element)
+					end
+					choiceField(
+						"Adds a mark",
+						"The projectile marks what it hits with this element.",
+						marks,
+						lens.AddMark or "None",
+						function(choice)
+							lens.AddMark = if choice == "None" then nil else choice
+						end
+					)
+					numberField(lens, {
+						Key = "ScalePotency",
+						Label = "Potency (x)",
+						Min = 0.5,
+						Max = 1.5,
+						Help = "Scales the projectile's effects. Against players: at least 0.7 (0.8 in ranked).",
+					})
+					numberField(lens, {
+						Key = "Slow",
+						Label = "Speed (x)",
+						Min = 0.3,
+						Max = 1,
+						Help = "Slows the projectile. Against players: at least 0.6 (0.7 in ranked).",
+					})
+				end
+			end
 			if scope.Lifetime and scope.Lifetime.Mode == "FixedDuration" then
 				numberField(scope.Lifetime, {
 					Key = "Duration",
@@ -2036,6 +2240,90 @@ function Forge.mount(parent, draft, schema, spec, callbacks)
 					Max = 60,
 					Help = "How long it remains before it ends.",
 				})
+			end
+			if isRoot then
+				section("THE WORLD")
+				choiceField(
+					"Ignore the world",
+					"Off: Lightning chains through Wet targets, Fire sets Flammable parts alight, Ice freezes water into platforms. On: this spell does none of that.",
+					{ false, true },
+					draft.IgnoreEnvironment == true,
+					function(choice)
+						draft.IgnoreEnvironment = if choice then true else nil
+					end,
+					function(choice)
+						return if choice then "ON" else "OFF"
+					end
+				)
+				section("PAY WITH HEALTH")
+				local bloodCost = draft.Cost
+				local sacrifice = bloodCost.Health
+				choiceField(
+					"Health sacrifice",
+					"Blood magic, players only. Paying health is not damage, and a cast is refused if it would leave you below "
+						.. math.floor(Limits.BloodHealthFloor * 100 + 0.5)
+						.. "% health.",
+					{ "None", "Flat", "PercentMax" },
+					if sacrifice then sacrifice.Mode else "None",
+					function(choice)
+						if choice == "None" then
+							bloodCost.Health = nil
+						elseif sacrifice then
+							sacrifice.Mode = choice
+							sacrifice.Amount = math.min(
+								sacrifice.Amount,
+								if choice == "Flat" then Limits.MaxFlatHealthCost else Limits.MaxPercentHealthCost
+							)
+						else
+							bloodCost.Health = { Mode = choice, Amount = if choice == "Flat" then 20 else 10 }
+						end
+					end,
+					function(choice)
+						return if choice == "PercentMax"
+							then "% OF MAX"
+							elseif choice == "Flat" then "FLAT HP"
+							else "NONE"
+					end
+				)
+				if sacrifice then
+					numberField(sacrifice, {
+						Key = "Amount",
+						Label = if sacrifice.Mode == "Flat" then "Health cost (HP)" else "Health cost (% of max)",
+						Min = 1,
+						Max = if sacrifice.Mode == "Flat"
+							then Limits.MaxFlatHealthCost
+							else Limits.MaxPercentHealthCost,
+						Integer = true,
+						Help = "Scales with charge like mana. Against players: at most 40% of max (30% ranked).",
+					})
+				end
+				numberField(bloodCost, {
+					Key = "HealthForMana",
+					Label = "Mana paid with health (%)",
+					Min = 0,
+					Max = 100,
+					Integer = true,
+					Help = "Each mana replaced costs "
+						.. Limits.HealthPerMana
+						.. " HP, so health is always the worse rate.",
+				})
+				local casting = draft.Casting
+				if
+					casting.Mode == "Channeled"
+					or casting.Mode == "Sustained"
+					or (draft.Lifetime and draft.Lifetime.Mode == "UntilToggledOff")
+				then
+					numberField(bloodCost, {
+						Key = "HealthPerSecond",
+						Label = "Health per second",
+						Min = Limits.MinHealthPerSecond,
+						Max = Limits.MaxHealthPerSecond,
+						Help = "Paid while it stays active; it ends itself before a tick would cross the health floor.",
+					})
+				end
+				if BloodCostSpec.uses(bloodCost) then
+					note("COSTS · " .. BloodCostSpec.costLabel(spec.estimate(draft)) .. " per cast.", C.Muted)
+				end
 			end
 			if scope.Form == "Projectile" and scope.Projectile then
 				section("MOVEMENT BEHAVIOR")
@@ -2095,7 +2383,7 @@ function Forge.mount(parent, draft, schema, spec, callbacks)
 			end
 		elseif s.Kind == "Trigger" then
 			inspectSub.Text = "A moment this spell reacts to"
-			header("◆", C.Gold, EventPhrase[s.Event] or s.Event, schema.EventDescriptions[s.Event])
+			header("◆", C.Gold, phraseFor(s.Event, s.Scope) or s.Event, schema.EventDescriptions[s.Event])
 			local steps = s.Scope.Triggers[s.Event] or {}
 			if not eventSupported(s.Scope, s.Event) then
 				local formLabel = (schema.Forms[s.Scope.Form] or {}).Label or s.Scope.Form
@@ -2150,11 +2438,91 @@ function Forge.mount(parent, draft, schema, spec, callbacks)
 					pad(item, 12, 0)
 				end
 			end
+			if s.Event == "OnBeforeDamageTaken" then
+				-- Interception: the hit itself (cancel, cut, or send part of it away).
+				section("THE HIT")
+				local interceptStep = nil
+				for _, step in steps do
+					if step.Intercept then
+						interceptStep = step
+						break
+					end
+				end
+				local action = if interceptStep then interceptStep.Intercept.Action else "None"
+				choiceField(
+					"What happens to the hit",
+					"Negate cancels it. Reduce cuts it by a percentage. Redirect sends a share to your caster or back to the attacker. One spell intercepts each hit; damage over time is never intercepted.",
+					{ "None", "Negate", "Reduce", "Redirect" },
+					action,
+					function(choice)
+						local list = s.Scope.Triggers[s.Event] or {}
+						s.Scope.Triggers[s.Event] = list
+						if choice == "None" then
+							if interceptStep then
+								interceptStep.Intercept = nil
+								pruneStep(s.Scope, s.Event, interceptStep)
+							end
+							return
+						end
+						if not interceptStep then
+							interceptStep = { Payloads = {} }
+							table.insert(list, 1, interceptStep)
+						end
+						interceptStep.Intercept = if choice == "Negate"
+							then { Action = "Negate" }
+							elseif choice == "Reduce" then { Action = "Reduce", Percent = 50 }
+							else { Action = "Redirect", Percent = 50, To = "Owner" }
+						s.Scope.Interception = s.Scope.Interception or { Charges = 1 }
+					end
+				)
+				local intercept = interceptStep and interceptStep.Intercept
+				if intercept and intercept.Action ~= "Negate" then
+					local range = schema.InterceptPercentRange[intercept.Action]
+					numberField(intercept, {
+						Key = "Percent",
+						Label = if intercept.Action == "Reduce" then "Reduce by (%)" else "Share sent away (%)",
+						Min = range[1],
+						Max = range[2],
+					})
+				end
+				if intercept and intercept.Action == "Redirect" then
+					choiceField("Send it to", nil, schema.InterceptTargets, intercept.To, function(choice)
+						intercept.To = choice
+					end, function(choice)
+						return if choice == "Owner" then "THE CASTER" else "THE ATTACKER"
+					end)
+				end
+				if #steps > 0 then
+					s.Scope.Interception = s.Scope.Interception or { Charges = 1 }
+					numberField(s.Scope.Interception, {
+						Key = "Charges",
+						Label = "Charges",
+						Min = 1,
+						Max = schema.MaxInterceptionCharges,
+						Help = "One is used each time this spell intercepts a hit (at most every 0.25 s).",
+					})
+					choiceField(
+						"Ends when charges run out",
+						nil,
+						{ true, false },
+						s.Scope.Interception.EndWhenSpent == true,
+						function(choice)
+							s.Scope.Interception.EndWhenSpent = choice
+						end,
+						function(choice)
+							return if choice then "ON" else "OFF"
+						end
+					)
+				end
+			end
 			actionButton("+  Add an effect at this moment", function()
 				openPicker({ Mode = "Action", Scope = s.Scope, Event = s.Event })
 			end)
 			removeButton("Remove this trigger and its effects", function()
 				s.Scope.Triggers[s.Event] = nil
+				if s.Event == "OnBeforeDamageTaken" then
+					s.Scope.Interception = nil
+				end
 				state.Selection = { Kind = "Form", Scope = s.Scope }
 			end)
 			hosted({ "ConfigureEffects" }, if s.Scope == draft then s.Event else rootEvent(s.Scope))
@@ -2177,14 +2545,44 @@ function Forge.mount(parent, draft, schema, spec, callbacks)
 			if payload.Kind == "Damage" and (payload.DamageChannel or "Elemental") == "Elemental" then
 				note("Elemental damage uses the spell's element: " .. tostring(draft.Element) .. ".")
 			end
+			spellTargetField(s.Step)
+			if s.Step.TargetKind ~= "Spell" then
+				targetFromField(s.Step, s.Event)
+				anchorField(s.Step, s.Scope)
+			end
 			section("PROPERTIES")
 			fieldGroup(payload, definition.Fields, "payload:" .. payload.Kind)
+			local scalable = payload.Kind == "Damage"
+				or payload.Kind == "DamageOverTime"
+				or payload.Kind == "Heal"
+				or payload.Kind == "Shield"
+			if
+				scalable
+				and BloodCostSpec.uses(draft.Cost)
+				and (payload.ScaleBy == nil or payload.ScaleBy.Source == "HealthPaid")
+			then
+				choiceField(
+					"Grows with health paid",
+					"x (1 + HP paid / 100), up to double. Against players the bonus is at most +50% (+35% ranked).",
+					{ false, true },
+					payload.ScaleBy ~= nil,
+					function(choice)
+						payload.ScaleBy = if choice
+							then BloodCostSpec.paidScalePreset(payload.Amount or 0, Limits.MaxScaleBonus)
+							else nil
+					end,
+					function(choice)
+						return if choice then "ON" else "OFF"
+					end
+				)
+			end
 			section("")
 			removeButton("Remove this effect", function()
 				local index = table.find(s.Step.Payloads, payload)
 				if index then
 					table.remove(s.Step.Payloads, index)
 				end
+				SpellTargetSpec.syncStep(s.Step, schema.SpellTargetPayloads)
 				pruneStep(s.Scope, s.Event, s.Step)
 				state.Selection = { Kind = "Form", Scope = s.Scope }
 			end)
@@ -2196,6 +2594,11 @@ function Forge.mount(parent, draft, schema, spec, callbacks)
 			header("*", C.Warn, definition.Label or step.Behavior, definition.Description)
 			if step.Condition then
 				note("IF · Runs only when its condition passes. Edit the condition in Advanced view.", C.Arcane)
+			end
+			spellTargetField(step)
+			if step.TargetKind ~= "Spell" then
+				targetFromField(step, s.Event)
+				anchorField(step, s.Scope)
 			end
 			section("PROPERTIES")
 			fieldGroup(step, definition.Fields, "behavior:" .. tostring(step.Behavior))
@@ -2285,7 +2688,11 @@ function Forge.mount(parent, draft, schema, spec, callbacks)
 			then "Ready to test. Every action here is supported by the spell engine."
 			else "Needs attention: " .. tostring(reason)
 		statusText.TextColor3 = if ok then C.Ok else C.Warn
-		manaValue.Text = fmt(cost.ManaDemand or 0)
+		manaValue.Text = fmt(cost.ManaPaid or cost.ManaDemand or 0)
+		-- Blood magic: the health part of the cost line ("20 mana + 30 HP").
+		local healthPart = string.match(BloodCostSpec.costLabel(cost), "^.- mana %+ (.+)$")
+		healthValue.Text = healthPart or ""
+		healthHolder.Visible = healthPart ~= nil
 		strainValue.Text = fmt(cost.Strain or 0)
 		complexityValue.Text = fmt(cost.Complexity or 0)
 		upkeepValue.Text = fmt(cost.ManaUpkeepPerSecond or 0)

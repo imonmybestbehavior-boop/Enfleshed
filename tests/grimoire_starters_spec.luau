@@ -39,6 +39,7 @@ local collections = {
 		Tag = starters.ShowcaseExpansionTag,
 		Build = starters.buildShowcaseExpansion,
 	},
+	{ Name = starters.ShowcaseCollection, Tag = starters.ShowcaseTag, Build = starters.buildFeatureShowcase },
 	{ Name = starters.CombatCollection, Tag = starters.CombatTag, Build = starters.buildCombatStarters },
 }
 

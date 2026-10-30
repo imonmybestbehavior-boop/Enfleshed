@@ -128,8 +128,23 @@ local function scanPayloads(payloads, raw, weight)
 				raw.shield += num(p.Amount) * 0.6 * weight
 			elseif kind == "Slow" then
 				raw.slow = math.max(raw.slow, 1 - (if p.Multiplier == nil then 1 else num(p.Multiplier)))
-			elseif kind == "Bind" then
+			elseif kind == "Bind" or kind == "Stun" then
+				-- Stun reads like a bind; it reuses the Bind feature so the
+				-- canonical feature order (and encodings) stay unchanged.
 				raw.bind = math.max(raw.bind, duration)
+			elseif kind == "Silence" then
+				raw.bind = math.max(raw.bind, duration * 0.5)
+			elseif
+				kind == "Taunt"
+				or kind == "Fear"
+				or kind == "Stealth"
+				or kind == "DrainResource"
+				or kind == "RestoreResource"
+			then
+				-- Creature control with no visual feature of its own (keeps the
+				-- canonical feature order unchanged).
+			elseif kind == "Cleanse" or kind == "Dispel" then
+				-- Removes effects; no visual weight of its own (still counted in Payloads).
 			elseif kind == "Force" then
 				raw.force = math.max(raw.force, num(p.Magnitude) + num(p.Upward) * 0.5)
 			elseif kind == "Control" then
@@ -266,6 +281,22 @@ local function scanForms(spell, raw)
 			if raw.repeats and num(area.Interval) > 0 then
 				raw.repeatRate = math.max(raw.repeatRate, 1 / math.max(num(area.Interval), 0.1))
 			end
+		end
+	end
+	-- Rush: the caster's dash (speed, sweep width, distance).
+	local rush = spell.Rush
+	if type(rush) == "table" then
+		raw.speed = math.max(raw.speed, num(rush.Speed))
+		raw.size = math.max(raw.size, num(rush.Radius))
+		raw.range = math.max(raw.range, num(rush.Distance))
+	end
+	-- Tether: the link's length and its pulse rate.
+	local tether = spell.Tether
+	if type(tether) == "table" then
+		raw.range = math.max(raw.range, num(tether.MaxLength))
+		if num(tether.Interval) > 0 then
+			raw.repeats = true
+			raw.repeatRate = math.max(raw.repeatRate, 1 / math.max(num(tether.Interval), 0.1))
 		end
 	end
 	local construct = spell.Construct

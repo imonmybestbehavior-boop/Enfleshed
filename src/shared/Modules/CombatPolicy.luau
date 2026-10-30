@@ -68,6 +68,11 @@ local hostileKinds = {
 	Transformation = true,
 	ElementalMark = true,
 	ConsumeElementalMark = true,
+	Stun = true,
+	Silence = true,
+	Taunt = true,
+	Fear = true,
+	DrainResource = true,
 }
 
 function Policy.isHostilePayload(payload: any): boolean
@@ -81,6 +86,15 @@ function Policy.isHostilePayload(payload: any): boolean
 		return type(payload.Amount) ~= "number" or payload.Amount < 0
 	elseif kind == "TimeDilation" then
 		return type(payload.Rate) ~= "number" or payload.Rate < 1
+	elseif kind == "Transformation" then
+		-- Polymorph turns someone into a critter; Scale and Shapeshift do not harm.
+		return payload.Mode == "Polymorph"
+	elseif kind == "Dispel" then
+		-- Acts on spells, never on characters; its own relationship filter applies.
+		return false
+	elseif kind == "Cleanse" then
+		-- Stripping Boons harms the target; removing Banes helps them.
+		return payload.Remove ~= "Banes"
 	end
 	return false
 end

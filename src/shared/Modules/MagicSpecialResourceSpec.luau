@@ -128,14 +128,41 @@ function Spec.spend(current, costs, definitions)
 	return true, nil
 end
 
-function Spec.advance(current, definitions, delta)
+-- DrainResource / RestoreResource (players only). Pure amount math for one
+-- pool (Mana or a special resource):
+-- drain: the target loses up to `amount` (never below 0); the caster gains what
+-- was taken, up to its own capacity (any excess is lost). Returns
+-- targetAfter, casterAfter, taken.
+function Spec.drain(targetCurrent, casterCurrent, casterCapacity, amount)
+	local safe = if type(amount) == "number" and amount == amount then math.max(0, amount) else 0
+	local target = math.max(0, targetCurrent or 0)
+	local taken = math.min(safe, target)
+	local caster = math.min(casterCapacity or 0, (casterCurrent or 0) + taken)
+	return target - taken, caster, taken
+end
+
+-- restore: the target gains up to `amount`, never above its capacity.
+-- Returns targetAfter, added.
+function Spec.restore(targetCurrent, targetCapacity, amount)
+	local safe = if type(amount) == "number" and amount == amount then math.max(0, amount) else 0
+	local current = targetCurrent or 0
+	local after = math.min(targetCapacity or 0, current + safe)
+	return after, math.max(0, after - current)
+end
+
+-- rateMultiplier (default 1) scales recovery, e.g. from the ManaRegen attribute.
+function Spec.advance(current, definitions, delta, rateMultiplier)
 	if delta <= 0 or not Spec.validateCurrent(current, definitions) then
 		return false
+	end
+	local rate = 1
+	if type(rateMultiplier) == "number" and rateMultiplier == rateMultiplier then
+		rate = math.max(0, rateMultiplier)
 	end
 	local changed = false
 	for id, definition in pairs(definitions or {}) do
 		local before = current[id]
-		current[id] = math.min(definition.Capacity, before + definition.RecoveryPerSecond * delta)
+		current[id] = math.min(definition.Capacity, before + definition.RecoveryPerSecond * delta * rate)
 		changed = changed or current[id] ~= before
 	end
 	return changed

@@ -6,6 +6,7 @@ local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
 local Slots = require(Shared.Modules.MagicSlots)
+local AttributeSpec = require(Shared.Modules.MagicAttributeSpec)
 
 local State = {}
 local changed = Instance.new("BindableEvent")
@@ -16,6 +17,7 @@ export type SlotInfo = {
 	Element: string?,
 	Color: Color3?,
 	ManaCost: number,
+	HealthCost: string?, -- blood magic, e.g. "30 HP" or "15% HP + 40 HP"
 	Cooldown: number,
 	SpellId: string?,
 }
@@ -23,21 +25,30 @@ State.Slots = {} :: { [number]: SlotInfo }
 State.SlotLimit = 4
 State.Selected = 1
 State.CooldownEnds = {} :: { [number]: number }
+-- Length of the cooldown that is running, after CooldownRate (for the sweep fill).
+State.CooldownDurations = {} :: { [number]: number }
 State.Drag = nil :: { Id: string, Name: string, Color: Color3?, Start: Vector2, Active: boolean }?
 
-local costCache: { [any]: number } = setmetatable({}, { __mode = "k" }) :: any
-local function manaCost(definition: any): number
+local costCache: { [any]: { Mana: number, Health: string? } } = setmetatable({}, { __mode = "k" }) :: any
+-- Mana actually paid (health may pay part of it) and the blood-magic part of the cost line.
+local function castCost(definition: any): (number, string?)
 	local cached = costCache[definition]
 	if cached then
-		return cached
+		return cached.Mana, cached.Health
 	end
-	local ok, cost = pcall(function()
+	local ok, mana, health = pcall(function()
 		local Spec = require(Shared.Modules.SpellSpec)
-		return Spec.estimate(definition).ManaDemand
+		local BloodCostSpec = require(Shared.Modules.MagicBloodCostSpec)
+		local estimate = Spec.estimate(definition)
+		return estimate.ManaPaid or estimate.ManaDemand,
+			string.match(BloodCostSpec.costLabel(estimate), "^.- mana %+ (.+)$")
 	end)
-	local value = if ok and type(cost) == "number" then cost else 0
+	local value = {
+		Mana = if ok and type(mana) == "number" then mana else 0,
+		Health = if ok and type(health) == "string" then health else nil,
+	}
 	costCache[definition] = value
-	return value
+	return value.Mana, value.Health
 end
 
 local function describe(definition: any): SlotInfo?
@@ -45,19 +56,32 @@ local function describe(definition: any): SlotInfo?
 		return nil
 	end
 	local visual = definition.Visual
+	local mana, health = castCost(definition)
 	return {
 		Name = tostring(definition.Name or "Spell"),
 		Element = definition.Element,
 		Color = if visual and typeof(visual.Color) == "Color3" then visual.Color else nil,
-		ManaCost = manaCost(definition),
-		Cooldown = if definition.Casting and type(definition.Casting.Cooldown) == "number"
-			then definition.Casting.Cooldown
-			else 0,
+		ManaCost = mana,
+		HealthCost = health,
+		-- Same base the server uses: the longer of Cooldown and RecoveryTime.
+		Cooldown = math.max(
+			if definition.Casting and type(definition.Casting.Cooldown) == "number"
+				then definition.Casting.Cooldown
+				else 0,
+			if definition.Casting and type(definition.Casting.RecoveryTime) == "number"
+				then definition.Casting.RecoveryTime
+				else 0
+		),
 		SpellId = definition.SpellId,
 	}
 end
 
 local request: RemoteEvent? = nil
+
+-- Cooldown length after CooldownRate: +50 (multiplier 1.5) is 1.5x faster.
+function State.cooldownDuration(base: number, rateMultiplier: number): number
+	return base / math.max(0.01, rateMultiplier)
+end
 
 function State.equip(libraryId: string, slot: number)
 	if request and slot >= 1 and slot <= State.SlotLimit then
@@ -113,12 +137,22 @@ function State.start()
 	end
 	if feedback then
 		feedback.OnClientEvent:Connect(function(message)
-			if type(message) ~= "table" or message.Kind ~= "Magic" or message.Result == "IMPOSSIBLE" then
+			-- A recast is free and starts no cooldown (MagicRecastSpec).
+			if
+				type(message) ~= "table"
+				or message.Kind ~= "Magic"
+				or message.Result == "IMPOSSIBLE"
+				or message.Result == "RECAST"
+			then
 				return
 			end
+			-- The server divides the cooldown by the caster's CooldownRate multiplier.
+			local rate = math.max(0.01, AttributeSpec.multiplier(player.Character, "CooldownRate"))
 			for slot, info in State.Slots do
 				if info.SpellId and info.SpellId == message.SpellId and info.Cooldown > 0 then
-					State.CooldownEnds[slot] = os.clock() + info.Cooldown
+					local duration = State.cooldownDuration(info.Cooldown, rate)
+					State.CooldownEnds[slot] = os.clock() + duration
+					State.CooldownDurations[slot] = duration
 				end
 			end
 		end)

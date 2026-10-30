@@ -8,6 +8,7 @@ local ConditionSpec = require(script.Parent.MagicConditionSpec)
 local LifetimeSpec = require(script.Parent.MagicLifetimeSpec)
 local ProximitySpec = require(script.Parent.MagicProximitySpec)
 local CastingSpec = require(script.Parent.MagicCastingSpec)
+local InterceptionSpec = require(script.Parent.MagicInterceptionSpec)
 local MaterialSpec = require(script.Parent.MagicMaterialSpec)
 local AudioSpec = require(script.Parent.MagicAudioSpec)
 local ConstructGeometrySpec = require(script.Parent.MagicConstructGeometrySpec)
@@ -21,6 +22,9 @@ local SpecialResourceSpec = require(script.Parent.MagicSpecialResourceSpec)
 local SpecialResources = require(script.Parent.Parent.Configuration.MagicLocus).SpecialResources
 local SpellIdentitySpec = require(script.Parent.MagicSpellIdentitySpec)
 local TriggerSpec = require(script.Parent.MagicTriggerSpec)
+local AttributeSpec = require(script.Parent.MagicAttributeSpec)
+local ScaleSpec = require(script.Parent.MagicScaleSpec)
+local BloodCostSpec = require(script.Parent.MagicBloodCostSpec)
 local Spec = {}
 Spec.Principles = Schema.Principles
 Spec.PresentationProfiles = Schema.PresentationProfiles
@@ -50,6 +54,13 @@ function Spec.normalize(source)
 	d.Visual.ProjectileScale = d.Visual.ProjectileScale or 1
 	if d.Construct then
 		d.Construct.Components = d.Construct.Components or {}
+	end
+	-- Interception charges follow the Before damage taken steps.
+	local interceptSteps = d.Triggers and d.Triggers.OnBeforeDamageTaken
+	if type(interceptSteps) == "table" and #interceptSteps > 0 then
+		d.Interception = d.Interception or { Charges = 1 }
+	else
+		d.Interception = nil
 	end
 	d.Audio = d.Audio or Spec.copy(AudioSpec.Defaults)
 	d.Cost = d.Cost or { ManaDemand = 0, Strain = 0, Complexity = 0 }
@@ -123,6 +134,8 @@ function Spec.createDraft(formName: string, principle: string)
 		},
 		Form = formName,
 		Targeting = form.Draft.Targeting,
+		-- Forms that start aimed at a character (Tether) start with the usual policy.
+		TargetPolicy = if form.Draft.Targeting == "EntityTarget" then "Aim" else nil,
 		Geometry = form.Geometry,
 		Motion = form.Motion,
 		Casting = {
@@ -170,7 +183,8 @@ function Spec.createDraft(formName: string, principle: string)
 		if draft.Targeting == "ObjectTarget" and formName == "Manipulation" then
 			draft.Material = { SearchRadius = 12 }
 		elseif
-			draft.Targeting == "ObjectTarget" and (formName == "Projectile" or formName == "Beam" or formName == "Wave")
+			draft.Targeting == "ObjectTarget"
+			and (formName == "Projectile" or formName == "Beam" or formName == "Wave")
 		then
 			draft.Material = nil
 		else
@@ -328,6 +342,8 @@ local spawnEffectKeys = {
 	Geometry = true,
 	Lifetime = true,
 	Triggers = true,
+	Element = true, -- optional override (e.g. a burning Field from a Wind spell)
+	IgnoreEnvironment = true, -- world reactions spawn effects that never react themselves
 }
 for _, formName in Spec.SpawnForms do
 	spawnEffectKeys[formName] = true
@@ -401,7 +417,12 @@ function Spec.expandSpawnEffect(parent, effect)
 	child.Name = parent.Name
 	child.Tags = Spec.copy(parent.Tags or {})
 	child.Source = Spec.copy(parent.Source)
-	child.Element = parent.Element
+	if effect.Element ~= nil and not AttributeSpec.validElement(effect.Element) then
+		return nil, "Spawned effect has an unknown element"
+	end
+	child.Element = effect.Element or parent.Element
+	-- A spell that ignores the world spawns effects that do too.
+	child.IgnoreEnvironment = if effect.IgnoreEnvironment == true or parent.IgnoreEnvironment == true then true else nil
 	child.Visual = Spec.copy(parent.Visual)
 	if type(parent.Audio) == "table" then
 		child.Audio = Spec.copy(parent.Audio)
@@ -485,11 +506,19 @@ function Spec.validate(d, spawnNesting: number?)
 			Beam = true,
 			Field = true,
 			Wave = true,
+			Rush = true,
+			Tether = true,
+			Interception = true,
 			Material = true,
 			Proximity = true,
+			IgnoreEnvironment = true,
 		})
 	then
 		return false, "Unknown SpellSpec field"
+	end
+	-- Environment reactions (MagicEnvironmentSpec) are on unless a spell opts out.
+	if d.IgnoreEnvironment ~= nil and type(d.IgnoreEnvironment) ~= "boolean" then
+		return false, "Ignore the world must be on or off"
 	end
 	if type(d.SpellId) ~= "string" then
 		return false, "Missing spell identity"
@@ -537,9 +566,23 @@ function Spec.validate(d, spawnNesting: number?)
 		return false, "UNSUPPORTED Body/Form combination"
 	end
 	-- Which Principles may use SelfEnhancement is owned by MagicPrincipleSpec
-	-- (checked above); this Form always acts on the caster.
-	if d.Form == "SelfEnhancement" and d.Targeting ~= "Self" then
-		return false, "SelfEnhancement must target self"
+	-- (checked above). An Enchantment sits on its caster (Self) or on an aimed
+	-- character (EntityTarget), its holder.
+	if d.Form == "SelfEnhancement" then
+		if d.Targeting ~= "Self" and d.Targeting ~= "EntityTarget" then
+			return false, "An Enchantment targets yourself or an aimed character"
+		end
+		if d.Targeting == "EntityTarget" then
+			if d.TargetPolicy == "MaintainTarget" then
+				return false, "Enchantments use Aim, LockOn or AimOrLockOn to choose their holder"
+			end
+			if d.Casting and d.Casting.Mode == "Channeled" then
+				return false, "Channeled Enchantments can only be held on yourself"
+			end
+			if hasPayload(d, "AerialMovement") then
+				return false, "Aerial movement only works on yourself"
+			end
+		end
 	end
 	if d.Form == "Manipulation" and d.Source.Expression ~= "Earth" then
 		return false, "UNSUPPORTED Manipulation expression: Earth is required for current material interaction"
@@ -593,9 +636,25 @@ function Spec.validate(d, spawnNesting: number?)
 	elseif d.TargetPolicy ~= nil then
 		return false, "Target policy requires EntityTarget"
 	end
-	for _, f in ipairs({ "Projectile", "Beam", "Wave", "Field", "Aura", "Construct" }) do
+	for _, f in ipairs({ "Projectile", "Beam", "Wave", "Field", "Aura", "Construct", "Rush", "Tether" }) do
 		if d[f] and f ~= d.Form then
 			return false, f .. " mechanics do not apply to " .. d.Form
+		end
+	end
+	-- Interception (OnBeforeDamageTaken): charges are required with its steps.
+	local interceptSteps = d.Triggers and d.Triggers.OnBeforeDamageTaken
+	local intercepts = type(interceptSteps) == "table" and #interceptSteps > 0
+	if d.Interception ~= nil or intercepts then
+		local interception = d.Interception
+		if
+			not intercepts
+			or type(interception) ~= "table"
+			or not keys(interception, { Charges = true, EndWhenSpent = true })
+			or not bounded(interception.Charges, 1, Limits.MaxInterceptionCharges)
+			or interception.Charges % 1 ~= 0
+			or (interception.EndWhenSpent ~= nil and type(interception.EndWhenSpent) ~= "boolean")
+		then
+			return false, "Before damage taken needs Interception charges (1-" .. Limits.MaxInterceptionCharges .. ")"
 		end
 	end
 	local c = d.Casting
@@ -607,6 +666,7 @@ function Spec.validate(d, spawnNesting: number?)
 			RecoveryTime = true,
 			MinimumCharge = true,
 			MaximumCharge = true,
+			ChargeScaling = true,
 			ManaUpkeepPerSecond = true,
 			StrainPerSecond = true,
 			InterruptOnDamage = true,
@@ -615,12 +675,27 @@ function Spec.validate(d, spawnNesting: number?)
 			MovementPenalty = true,
 			CanRotateWhileCasting = true,
 			RequiresFreeHand = true,
+			MaxRecasts = true,
 		})
 		or not bounded(c.Cooldown, Limits.MinCooldown, 30)
 		or not bounded(c.CastTime, 0, 3)
 		or not bounded(c.RecoveryTime, 0, 3)
 	then
 		return false, "Invalid casting timing (cooldown minimum 0.15s)"
+	end
+	-- Recast: pressing the slot again while the effect is active runs OnRecast.
+	local recastSteps = d.Triggers and d.Triggers.OnRecast
+	local hasRecast = type(recastSteps) == "table" and #recastSteps > 0
+	if c.MaxRecasts ~= nil and (not bounded(c.MaxRecasts, 1, Limits.MaxRecasts) or c.MaxRecasts % 1 ~= 0) then
+		return false, "Recasts must be a whole number from 1 to " .. Limits.MaxRecasts
+	end
+	if hasRecast then
+		if CastingSpec.isHeldMode(c.Mode) then
+			return false, "Held spells end when released; they cannot be recast"
+		end
+		if d.Lifetime and d.Lifetime.Mode == "UntilToggledOff" then
+			return false, "Pressing a toggled spell again turns it off; it cannot also recast"
+		end
 	end
 	if
 		(c.InterruptOnDamage ~= nil and type(c.InterruptOnDamage) ~= "boolean")
@@ -661,6 +736,11 @@ function Spec.validate(d, spawnNesting: number?)
 	if not CastingSpec.isChargeMode(c.Mode) and (c.MinimumCharge ~= nil or c.MaximumCharge ~= nil) then
 		return false, "Charge timing is only valid for Charged or HoldAndRelease casting"
 	end
+	local chargeScalingOk, chargeScalingReason =
+		ScaleSpec.validateChargeScaling(c.ChargeScaling, CastingSpec.isChargeMode(c.Mode), d.Form, Limits.MaxSpawnCount)
+	if not chargeScalingOk then
+		return false, chargeScalingReason
+	end
 	if c.Mode == "Channeled" or c.Mode == "Sustained" then
 		if
 			(c.Mode == "Channeled" and not CastingSpec.supportsChannel(d.Form))
@@ -692,7 +772,8 @@ function Spec.validate(d, spawnNesting: number?)
 	then
 		return false, "UntilTargetLost requires an entity or object target"
 	elseif
-		life.Mode == "UntilResourceDepleted" and not bounded(c.ManaUpkeepPerSecond, 0.01, Limits.MaxManaUpkeepPerSecond)
+		life.Mode == "UntilResourceDepleted"
+		and not bounded(c.ManaUpkeepPerSecond, 0.01, Limits.MaxManaUpkeepPerSecond)
 	then
 		return false, "UntilResourceDepleted requires positive ongoing mana upkeep"
 	elseif
@@ -844,9 +925,33 @@ function Spec.validate(d, spawnNesting: number?)
 				GrowthEndScale = true,
 				GrowthDuration = true,
 				Components = true,
+				Interval = true,
+				Health = true,
 			})
 		then
 			return false, "Invalid Construct"
+		end
+		local pulses = (d.Triggers.OnTick and #d.Triggers.OnTick > 0)
+			or (d.Triggers.OnInterval and #d.Triggers.OnInterval > 0)
+		if
+			d.Construct.Interval ~= nil
+			and not bounded(d.Construct.Interval, Limits.MinInterval, Limits.MaxConstructInterval)
+		then
+			return false,
+				"Construct pulse interval must be "
+					.. Limits.MinInterval
+					.. "–"
+					.. Limits.MaxConstructInterval
+					.. " seconds"
+		end
+		if pulses and d.Construct.Interval == nil then
+			return false, "Set the Construct's pulse interval to use On each pulse"
+		end
+		if d.Construct.Health ~= nil and not bounded(d.Construct.Health, 1, Limits.MaxConstructHealth) then
+			return false, "Construct health must be 1–" .. Limits.MaxConstructHealth
+		end
+		if d.Triggers.OnDestroyed and #d.Triggers.OnDestroyed > 0 and d.Construct.Health == nil then
+			return false, "Give the Construct health to use On destroyed"
 		end
 		for _, axis in ipairs({ "Width", "Height", "Depth" }) do
 			if not bounded(d.Construct[axis], 0.5, 20) then
@@ -1007,6 +1112,89 @@ function Spec.validate(d, spawnNesting: number?)
 		if d.Field.FollowTarget == true and d.Targeting ~= "EntityTarget" and d.Targeting ~= "ObjectTarget" then
 			return false, "Following Fields require an entity or object target"
 		end
+		-- Field lens: changes projectiles crossing the Field (MagicSpellLensSpec).
+		local lens = d.Field.AffectsSpells
+		if lens ~= nil then
+			if
+				type(lens) ~= "table"
+				or not keys(lens, { Who = true, AddMark = true, ScalePotency = true, Slow = true })
+				or not table.find(Schema.LensWho, lens.Who)
+				or (lens.AddMark ~= nil and (not table.find(Schema.Elements, lens.AddMark) or lens.AddMark == "Neutral"))
+				or (lens.ScalePotency ~= nil and not bounded(lens.ScalePotency, 0.5, 1.5))
+				or (lens.Slow ~= nil and not bounded(lens.Slow, 0.3, 1))
+				or (lens.AddMark == nil and lens.ScalePotency == nil and lens.Slow == nil)
+			then
+				return false, "A lens needs Who and at least one of: mark element, potency 0.5-1.5, slow 0.3-1"
+			end
+		end
+		local field = d.Field
+		if
+			(field.ArmDelay ~= nil and not bounded(field.ArmDelay, 0, Limits.MaxTrapArmDelay))
+			or (field.Hidden ~= nil and type(field.Hidden) ~= "boolean")
+			or (field.ConsumeOnTrigger ~= nil and type(field.ConsumeOnTrigger) ~= "boolean")
+		then
+			return false, "Invalid trap options (arm delay, hidden, ends when triggered)"
+		end
+		if field.Hidden == true then
+			local grows = (field.GrowthStartScale ~= nil and field.GrowthStartScale ~= 0)
+				or (field.GrowthEndScale ~= nil and field.GrowthEndScale ~= 0)
+				or (field.GrowthDuration ~= nil and field.GrowthDuration ~= 0)
+			if field.FollowTarget == true or grows then
+				return false, "A hidden Field cannot follow a target or grow"
+			end
+			if d.Lifetime.Mode == "UntilDestroyed" then
+				return false, "A hidden Field needs a duration"
+			end
+		end
+	elseif d.Form == "Tether" then
+		local tether = d.Tether
+		if
+			type(tether) ~= "table"
+			or not keys(tether, {
+				Anchors = true,
+				MaxLength = true,
+				BreakOnLineOfSight = true,
+				Interval = true,
+				Pull = true,
+				ShareDamage = true,
+			})
+			or (tether.Anchors ~= "CasterToTarget" and tether.Anchors ~= "TargetToTarget")
+			or not bounded(tether.MaxLength, Limits.MinTetherLength, Limits.MaxTetherLength)
+			or type(tether.BreakOnLineOfSight) ~= "boolean"
+			or not bounded(tether.Interval, Limits.MinInterval, Limits.MaxTetherInterval)
+			or type(tether.Pull) ~= "boolean"
+			or (tether.ShareDamage ~= nil and not bounded(tether.ShareDamage, 10, 90))
+		then
+			return false, "Invalid Tether links, length, interval, pull or shared damage"
+		end
+		if c.Mode ~= "Instant" then
+			return false, "A Tether is cast instantly"
+		end
+		if d.Lifetime.Mode ~= "FixedDuration" then
+			return false, "A Tether lasts a set duration"
+		end
+	elseif d.Form == "Rush" then
+		local rush = d.Rush
+		if
+			type(rush) ~= "table"
+			or not keys(rush, { Mode = true, Distance = true, Speed = true, Radius = true, StopOnHit = true })
+			or (rush.Mode ~= "Dash" and rush.Mode ~= "Blink")
+			or not bounded(rush.Distance, 2, Limits.MaxRushDistance)
+			or not bounded(rush.Speed, 20, Limits.MaxRushSpeed)
+			or not bounded(rush.Radius, 0.5, Limits.MaxRushRadius)
+			or (rush.StopOnHit ~= nil and type(rush.StopOnHit) ~= "boolean")
+		then
+			return false, "Invalid Rush mode, distance, speed or radius"
+		end
+		if c.Mode ~= "Instant" then
+			return false, "Rush requires an Instant cast"
+		end
+		if d.Lifetime.Mode ~= "Instantaneous" then
+			return false, "Rush lasts as long as its movement"
+		end
+		if rush.Mode == "Blink" and d.Triggers.OnImpact and #d.Triggers.OnImpact > 0 then
+			return false, "Blink hits nothing on the way; use On cast or On expire"
+		end
 	elseif d.Form == "Wave" then
 		if
 			not keys(d.Wave, {
@@ -1143,11 +1331,34 @@ function Spec.validate(d, spawnNesting: number?)
 			return false, "Invalid presentation color"
 		end
 	end
-	if not keys(d.Cost, { ManaDemand = true, Strain = true, Complexity = true, SpecialResources = true }) then
+	if
+		not keys(d.Cost, {
+			ManaDemand = true,
+			Strain = true,
+			Complexity = true,
+			SpecialResources = true,
+			Health = true,
+			HealthForMana = true,
+			HealthPerSecond = true,
+		})
+	then
 		return false, "Invalid cost data"
 	end
+	-- Blood magic: health as a cost (MagicBloodCostSpec). Upkeep in health only
+	-- for spells that stay active while held or toggled.
+	local bloodValid, bloodReason = BloodCostSpec.validate(d.Cost, Limits)
+	if not bloodValid then
+		return false, bloodReason
+	end
+	if
+		d.Cost.HealthPerSecond ~= nil
+		and not CastingSpec.isHeldMode(c.Mode)
+		and not (d.Lifetime and d.Lifetime.Mode == "UntilToggledOff")
+	then
+		return false, "Health per second needs a channelled, sustained or toggled spell"
+	end
 	for key, v in pairs(d.Cost) do
-		if key == "SpecialResources" then
+		if key == "SpecialResources" or key == "Health" or key == "HealthForMana" or key == "HealthPerSecond" then
 			continue
 		end
 		if not bounded(v, 0, 100000) then
@@ -1176,6 +1387,7 @@ function Spec.validate(d, spawnNesting: number?)
 		return false, "Invalid triggers"
 	end
 	local hasShieldSource = false
+	local hasTransformSource = false
 	local hasSummonSource = false
 	local hasProjectileLinger = false
 	local hasProjectilePulse = false
@@ -1209,6 +1421,14 @@ function Spec.validate(d, spawnNesting: number?)
 						if type(payload) == "table" and payload.Kind == "Shield" then
 							hasShieldSource = true
 						end
+						if
+							event ~= "OnTransformEnd"
+							and type(payload) == "table"
+							and payload.Kind == "Transformation"
+							and (payload.Mode == "Polymorph" or payload.Mode == "Shapeshift")
+						then
+							hasTransformSource = true
+						end
 						if event ~= "OnCommand" and type(payload) == "table" and payload.Kind == "Summon" then
 							hasSummonSource = true
 						end
@@ -1235,8 +1455,20 @@ function Spec.validate(d, spawnNesting: number?)
 		if event == "OnCommand" and not hasSummonSource then
 			return false, "OnCommand requires a Summon payload on another trigger"
 		end
-		if event == "OnBreak" and not hasShieldSource then
+		if event == "OnTransformEnd" and not hasTransformSource then
+			return false, "When the transformation ends needs a Polymorph or Shapeshift on another trigger"
+		end
+		-- On a Tether, OnBreak is the snap and needs no shield.
+		if event == "OnBreak" and not hasShieldSource and d.Form ~= "Tether" then
 			return false, "OnBreak requires a Shield payload on another trigger"
+		end
+		if
+			event == "OnMeleeHit"
+			and d.Form == "Field"
+			and not (type(d.Field) == "table" and d.Field.FollowTarget == true)
+		then
+			-- At runtime it also fires only while the Field follows its own caster.
+			return false, "OnMeleeHit on a Field requires a Field that follows you"
 		end
 		local usedThresholds = {}
 		for _, step in ipairs(steps) do
@@ -1262,15 +1494,80 @@ function Spec.validate(d, spawnNesting: number?)
 					return false, "OnCommand has an unsupported command filter"
 				end
 			end
+			local targetFromOptions = Schema.TargetFromByEvent[event]
+			if targetFromOptions then
+				stepFields.TargetFrom = true
+				if step.TargetFrom ~= nil and not table.find(targetFromOptions, step.TargetFrom) then
+					return false, event .. " target must be " .. table.concat(targetFromOptions, " or ")
+				end
+			end
+			for _, p in ipairs(type(step.Payloads) == "table" and step.Payloads or {}) do
+				if type(p) == "table" and p.Mode == "PercentDamageDealt" and event ~= "OnDamageDealt" then
+					return false, "Percent of damage dealt only works On damage dealt"
+				end
+			end
 			if event == "OnTargetDeath" then
 				stepFields.DeathMode = true
 				if step.DeathMode ~= nil and not table.find(Schema.TargetDeathModes, step.DeathMode) then
 					return false, "OnTargetDeath has an unsupported death-cause filter"
 				end
 			end
+			-- Tether steps may act on one end (A, B) or both (default).
+			if d.Form == "Tether" then
+				stepFields.Anchor = true
+				if step.Anchor ~= nil and not table.find(Schema.TetherAnchors, step.Anchor) then
+					return false, "A Tether step acts on end A, end B or both"
+				end
+			end
+			if event == "OnBeforeDamageTaken" then
+				stepFields.Intercept = true
+				local intercept = step.Intercept
+				if intercept ~= nil then
+					local range = type(intercept) == "table" and Schema.InterceptPercentRange[intercept.Action]
+					if
+						type(intercept) ~= "table"
+						or not keys(intercept, { Action = true, Percent = true, To = true })
+						or not table.find(Schema.InterceptActions, intercept.Action)
+						or (intercept.Action == "Negate" and (intercept.Percent ~= nil or intercept.To ~= nil))
+						or (range and not bounded(intercept.Percent, range[1], range[2]))
+						or (intercept.Action == "Reduce" and intercept.To ~= nil)
+						or (intercept.Action == "Redirect" and not table.find(Schema.InterceptTargets, intercept.To))
+					then
+						return false, "Interception: Negate, Reduce 1-90% or Redirect 10-100% to Owner or Attacker"
+					end
+				end
+			end
+			-- Spells as targets: only Dispel and Force act on spells, and Dispel
+			-- only there.
+			stepFields.TargetKind = true
+			stepFields.SpellRelationship = true
+			if step.TargetKind ~= nil and not table.find(Schema.TargetKinds, step.TargetKind) then
+				return false, "Unknown target kind"
+			end
+			if step.SpellRelationship ~= nil then
+				if step.TargetKind ~= "Spell" or not table.find(Schema.SpellRelationships, step.SpellRelationship) then
+					return false, "Spell relationship needs Target spells (Hostile, Allied or Any)"
+				end
+			end
+			if step.TargetKind == "Spell" and step.Behavior ~= nil and step.Behavior ~= "Explode" then
+				return false, "A step that targets spells can only use Explode (its radius is the reach)"
+			end
+			if step.TargetKind == "Spell" and step.Condition ~= nil then
+				return false, "Conditions check characters; a step that targets spells cannot have one"
+			end
+			for _, spellPayload in ipairs(type(step.Payloads) == "table" and step.Payloads or {}) do
+				local kind = type(spellPayload) == "table" and spellPayload.Kind
+				if step.TargetKind == "Spell" and not Schema.SpellTargetPayloads[kind] then
+					return false, "Only Dispel and Force can act on spells"
+				end
+				if step.TargetKind ~= "Spell" and kind == "Dispel" then
+					return false, "Dispel acts on spells: turn on Target spells for this step"
+				end
+			end
 			stepFields.Condition = true
 			if step.Condition ~= nil then
-				local conditionValid, conditionReason = ConditionSpec.validateStep(step.Condition)
+				local conditionValid, conditionReason =
+					ConditionSpec.validateStep(step.Condition, event == "OnBeforeDamageTaken")
 				if not conditionValid then
 					return false, conditionReason
 				end
@@ -1289,7 +1586,9 @@ function Spec.validate(d, spawnNesting: number?)
 			if
 				not keys(step, stepFields)
 				or not array(step.Payloads, Limits.MaxPayloads)
-				or #step.Payloads < (if behavior then behavior.MinimumPayloads or 0 else 1)
+				-- An Intercept action is the step's effect, so it needs no payloads.
+				or #step.Payloads
+					< (if behavior or step.Intercept ~= nil then (behavior and behavior.MinimumPayloads) or 0 else 1)
 			then
 				return false, "Invalid trigger step"
 			end
@@ -1332,7 +1631,7 @@ function Spec.validate(d, spawnNesting: number?)
 				if behavior and not table.find(behavior.PayloadKinds or {}, p.Kind) then
 					return false, "Payload is not supported by this behavior"
 				end
-				local allowedFields = { Kind = true }
+				local allowedFields = { Kind = true, ScaleBy = ScaleSpec.ScalableKinds[p.Kind] == true }
 				for _, field in definition.Fields do
 					allowedFields[field.Key] = true
 				end
@@ -1360,12 +1659,76 @@ function Spec.validate(d, spawnNesting: number?)
 						if not table.find(options, value) then
 							return false, "Invalid payload setting: " .. field.Label
 						end
+					elseif field.Boolean then
+						if type(value) ~= "boolean" then
+							return false, "Invalid payload setting: " .. field.Label
+						end
 					elseif not bounded(value, field.Min, field.Max) or (field.Integer and value % 1 ~= 0) then
 						return false, "Payload setting is outside its safety limit: " .. field.Label
 					end
 				end
+				if p.Kind == "Dispel" and p.Mode == "Shorten" and p.Seconds == nil then
+					return false, "Shorten needs the time it removes"
+				end
+				if p.Kind == "Dispel" and p.Mode == "End" and p.Seconds ~= nil then
+					return false, "End removes the spell; it has no time setting"
+				end
+				-- Transformation: settings and limits per mode.
+				if p.Kind == "Transformation" then
+					local mode = p.Mode
+					if mode == "Scale" then
+						if
+							p.Multiplier == nil
+							or p.Duration > Limits.MaxDuration
+							or p.BreakOnDamage ~= nil
+							or p.Profile ~= nil
+						then
+							return false, "Scale needs a multiplier and lasts at most " .. Limits.MaxDuration .. " s"
+						end
+					elseif mode == "Polymorph" then
+						if
+							p.Multiplier ~= nil
+							or p.Profile ~= nil
+							or not bounded(p.Duration, Limits.MinPolymorphDuration, Limits.MaxPolymorphDuration)
+						then
+							return false, "Polymorph lasts 1-8 s and has no size or melee style"
+						end
+					elseif mode == "Shapeshift" then
+						if
+							p.Multiplier ~= nil
+							or p.BreakOnDamage ~= nil
+							or p.Profile == nil
+							or not bounded(p.Duration, Limits.MinShapeshiftDuration, Limits.MaxShapeshiftDuration)
+						then
+							return false, "Shapeshift lasts 5-60 s and needs a melee style"
+						end
+						if d.Form ~= "SelfEnhancement" or d.Targeting ~= "Self" then
+							return false, "Shapeshift only works on yourself (an Enchantment on you)"
+						end
+					end
+				end
 				if (p.Kind == "ElementalMark" or p.Kind == "ConsumeElementalMark") and d.Element == "Neutral" then
 					return false, "Elemental marks require a non-neutral selected Element"
+				end
+				local scaleOk, scaleReason =
+					ScaleSpec.validateScaleBy(p.ScaleBy, p.Kind, Limits.MaxScaleBonus, AttributeSpec.validElement)
+				if not scaleOk then
+					return false, scaleReason
+				end
+				if p.Kind == "ModifyAttribute" then
+					-- Element is required for Resistance and rejected for every other attribute;
+					-- Amount must sit inside the chosen attribute's own range.
+					local attribute = AttributeSpec.Definitions[p.Attribute]
+					if AttributeSpec.requiresElement(p.Attribute) then
+						if p.Element == nil then
+							return false, "Missing payload setting: Resistance element"
+						end
+					elseif p.Element ~= nil then
+						return false, "Only Resistance uses an element"
+					end
+					if not bounded(p.Amount, attribute.Minimum, attribute.Maximum) then
+						return false, "Payload setting is outside its safety limit: Modifier amount"
+					end
 				end
 				if p.Kind == "Summon" then
 					local lifetimeMode = p.LifetimeMode or "FixedDuration"
@@ -1394,10 +1757,12 @@ function Spec.validate(d, spawnNesting: number?)
 					or p.Kind == "ModifyAttribute"
 					or p.Kind == "Transformation"
 				then
-					if single[p.Kind] then
+					-- One Transformation per mode (Shapeshift may sit beside a Scale).
+					local slot = if p.Kind == "Transformation" then p.Kind .. tostring(p.Mode) else p.Kind
+					if single[slot] then
 						return false, "Only one movement/material/attribute modifier is supported per spell"
 					end
-					single[p.Kind] = true
+					single[slot] = true
 				end
 				if
 					p.Kind == "Enhancement"
@@ -1425,7 +1790,8 @@ function Spec.validate(d, spawnNesting: number?)
 			end
 		end
 	end
-	if (total == 0 and d.Form ~= "Construct") or total > 8 then
+	-- An Interception action (Negate/Reduce/Redirect) is an effect on its own.
+	if (total == 0 and d.Form ~= "Construct" and not intercepts) or total > 8 then
 		return false, "Specify 1–8 payloads across triggers"
 	end
 	return true
@@ -1447,6 +1813,13 @@ function Spec.estimate(d)
 	local speed = d.Projectile and d.Projectile.Speed or 0
 	local duration = d.Lifetime.Duration or (d.Lifetime.Mode ~= "FixedDuration" and 15 or 1)
 	local strength, count, behaviors, constructComponents, additionalBehaviorTargets = 0, 0, 0, 0, 0
+	local chargeScaling = d.Casting and d.Casting.ChargeScaling
+	-- Priced at full charge: MaxPotency and every extra projectile.
+	local chargePotency = (
+		if type(chargeScaling) == "table" and type(chargeScaling.MaxPotency) == "number"
+			then chargeScaling.MaxPotency
+			else 1
+	) * (1 + ScaleSpec.extraProjectiles(chargeScaling, 1))
 	local burstStrength, controlWeight = 0, 0
 	local environmentRequirementCount = 0
 	local environmentRequirements = d.EnvironmentRequirements or {}
@@ -1481,23 +1854,45 @@ function Spec.estimate(d)
 		constructComponents = components and #components or 0
 		strength += math.max(0, constructComponents - 1) * 3
 	end
+	local interceptCharges = d.Interception and d.Interception.Charges or 1
 	for _, steps in pairs(d.Triggers) do
 		for _, step in ipairs(steps) do
 			if step.Behavior then
 				behaviors = behaviors + 1
 				radius = math.max(radius, step.Radius or 0)
 			end
+			-- Interception: priced per charge, Negate highest.
+			if step.Intercept then
+				controlWeight += InterceptionSpec.costWeight(step.Intercept) * interceptCharges
+			end
 			for _, p in ipairs(step.Payloads) do
 				count = count + 1
+				-- Priced at the strongest outcome: the full ScaleBy bonus (charge is
+				-- applied to the whole spell below).
+				local pricedAmount = math.abs(p.Amount or 0)
+					+ (if type(p.ScaleBy) == "table" then math.abs(p.ScaleBy.Max or 0) else 0)
 				if p.Kind == "Damage" or p.Kind == "Heal" or p.Kind == "Shield" then
-					burstStrength += math.abs(p.Amount or 0)
+					burstStrength += pricedAmount
 				elseif p.Kind == "Bind" or p.Kind == "Control" or p.Kind == "TimeDilation" then
 					controlWeight += 4 + (p.Duration or 0)
 				elseif p.Kind == "Slow" then
 					controlWeight += (1 - (p.Multiplier or 1)) * 10 * (p.Duration or 1)
+				elseif p.Kind == "Stun" then
+					controlWeight += 6 + (p.Duration or 0) * 2
+				elseif p.Kind == "Silence" then
+					controlWeight += 4 + (p.Duration or 0)
+				elseif p.Kind == "Cleanse" then
+					controlWeight += 2 * (p.Count or 1)
+				end
+				local amountWeight = if ScaleSpec.ScalableKinds[p.Kind] then pricedAmount else math.abs(p.Amount or 0)
+				local attribute = p.Kind == "ModifyAttribute" and AttributeSpec.Definitions[p.Attribute]
+				if attribute then
+					-- Weigh every attribute on the same 0-100 scale as armor, so a full
+					-- Resistance (1.0) or DamageTaken (50%) costs like full armor.
+					amountWeight = amountWeight / math.max(math.abs(attribute.Minimum), attribute.Maximum) * 100
 				end
 				strength = strength
-					+ math.abs(p.Amount or 0) * ((p.Kind == "DamageOverTime" or p.Kind == "Restoration") and math.floor(
+					+ amountWeight * ((p.Kind == "DamageOverTime" or p.Kind == "Restoration") and math.floor(
 						p.Duration / p.Interval
 					) or 1)
 					+ (p.Magnitude or 0) * 0.5
@@ -1523,6 +1918,11 @@ function Spec.estimate(d)
 			curvedPhaseCount += 1
 		end
 	end
+	-- Charge (MaxPotency x every extra projectile) scales everything the spell
+	-- does, including control such as a charged volley of Slows.
+	strength *= chargePotency
+	burstStrength *= chargePotency
+	controlWeight *= chargePotency
 	local area = d.Field or d.Aura
 	local ticks = area and duration / area.Interval or 1
 	local beamExtraStrikes = if d.Beam and d.Beam.Pattern == "Cascade"
@@ -1564,8 +1964,15 @@ function Spec.estimate(d)
 		end
 	end
 	cost += spawnedMana
+	-- Blood magic: ManaDemand stays the full price (rank limits, Locus safety);
+	-- ManaPaid is what is spent in mana once health replaces its share.
+	local manaPaid, healthFromMana = BloodCostSpec.split(cost, d.Cost and d.Cost.HealthForMana, Limits.HealthPerMana)
 	return {
 		ManaDemand = cost,
+		ManaPaid = manaPaid,
+		HealthFromMana = healthFromMana,
+		HealthCost = d.Cost and d.Cost.Health,
+		HealthPerSecond = d.Cost and d.Cost.HealthPerSecond or 0,
 		Strain = math.ceil(cost * 0.28 + burstStrength * math.sqrt(fanout) * 0.12 + controlWeight * 0.6),
 		Complexity = spawnedComplexity + math.ceil(
 			1

@@ -15,6 +15,8 @@ local ProjectileBehaviorSpec = require(Shared.Modules.ProjectileBehaviorSpec)
 local ConditionSpec = require(Shared.Modules.MagicConditionSpec)
 local ConditionTree = require(Shared.Modules.MagicConditionTree)
 local LifetimeSpec = require(Shared.Modules.MagicLifetimeSpec)
+local ScaleSpec = require(Shared.Modules.MagicScaleSpec)
+local AttributeSpec = require(Shared.Modules.MagicAttributeSpec)
 local CastingSpec = require(Shared.Modules.MagicCastingSpec)
 local MaterialSpec = require(Shared.Modules.MagicMaterialSpec)
 local ConstructGeometrySpec = require(Shared.Modules.MagicConstructGeometrySpec)
@@ -22,6 +24,8 @@ local SpecialResourceSpec = require(Shared.Modules.MagicSpecialResourceSpec)
 local SpecialResourceDefinitions = require(Shared.Configuration.MagicLocus).SpecialResources
 local EnvironmentRequirementSpec = require(Shared.Modules.MagicEnvironmentRequirementSpec)
 local SpellIdentitySpec = require(Shared.Modules.MagicSpellIdentitySpec)
+local SpellTargetSpec = require(Shared.Modules.MagicSpellTargetSpec)
+local BloodCostSpec = require(Shared.Modules.MagicBloodCostSpec)
 local GamepadNav = require(script.Parent.Parent.UI.Kit.GamepadNav)
 local InputMode = require(script.Parent.Parent.UI.Kit.InputMode)
 local Responsive = require(script.Parent.Parent.UI.Kit.Responsive)
@@ -281,7 +285,7 @@ function Lab.start(send, aim, launcher)
 	local function effectCategory(kind: string): string
 		if kind == "Damage" or kind == "DamageOverTime" then
 			return "Damage"
-		elseif kind == "Heal" or kind == "Restoration" then
+		elseif kind == "Heal" or kind == "Restoration" or kind == "Cleanse" then
 			return "Healing"
 		elseif kind == "Shield" or kind == "ModifyAttribute" or kind == "Enhancement" then
 			return "Defense"
@@ -426,13 +430,14 @@ function Lab.start(send, aim, launcher)
 		local specialCostText = if #specialCostLabels > 0 then " · " .. table.concat(specialCostLabels, ", ") else ""
 		message(
 			string.format(
-				"ESTIMATE · mana %d · strain %d · complexity %d · cooldown %.2fs · while active: %g mana/s, %g strain/s%s\nServer checks unlocks and spell rank before equipping.",
-				cost.ManaDemand,
+				"ESTIMATE · %s · strain %d · complexity %d · cooldown %.2fs · while active: %g mana/s, %g strain/s%s%s\nServer checks unlocks and spell rank before equipping.",
+				BloodCostSpec.costLabel(cost),
 				cost.Strain,
 				cost.Complexity,
 				priced.Casting.Cooldown,
 				cost.ManaUpkeepPerSecond,
 				cost.StrainPerSecond,
+				if (cost.HealthPerSecond or 0) > 0 then ", " .. cost.HealthPerSecond .. " HP/s" else "",
 				specialCostText
 			),
 			true
@@ -757,6 +762,7 @@ function Lab.start(send, aim, launcher)
 				rebuildPreservingScroll()
 			end)
 		end
+		return label
 	end
 	local function info(text, _height)
 		cardPairHolder, cardPairCount, cardPairCards, cardPairLayout = nil, 0, {}, nil
@@ -1059,6 +1065,32 @@ function Lab.start(send, aim, launcher)
 			info(help, 34)
 		end
 	end
+	-- Spell steps (Dispel, Force): whether they act on live spells, and whose.
+	local function spellTargetControls(step)
+		local mode = SpellTargetSpec.stepMode(step, Schema.SpellTargetPayloads)
+		if mode == "Optional" then
+			toggle("Target spells", step.TargetKind == "Spell", function(value)
+				step.TargetKind = if value then "Spell" else nil
+				if not value then
+					step.SpellRelationship = nil
+				end
+				dirty = true
+				revision += 1
+			end, "Off: acts on creatures. On: acts on live Fields, Auras, Constructs and Tethers here instead.")
+		end
+		if mode and step.TargetKind == "Spell" then
+			select(
+				"Which spells",
+				step.SpellRelationship or "Hostile",
+				Schema.SpellRelationships,
+				function(value)
+					step.SpellRelationship = if value == "Hostile" then nil else value
+				end,
+				nil,
+				"Hostile: spells of those you can fight. Allied: yours and your allies'. Any: every spell it touches. Each spell is affected once per cast."
+			)
+		end
+	end
 	local function slider(label, object, key, minimum, maximum, help, canEdit)
 		local r = row(label)
 		local valueLabel = K.text(r, "", 13, K.C.Ink, Enum.Font.GothamBold, {
@@ -1291,6 +1323,7 @@ function Lab.start(send, aim, launcher)
 				table.insert(step.Payloads, value)
 			end
 		end
+		SpellTargetSpec.syncStep(step, Schema.SpellTargetPayloads)
 		if #step.Payloads == 0 then
 			for i, s in draft.Triggers[event] do
 				if s == step then
@@ -1467,10 +1500,19 @@ function Lab.start(send, aim, launcher)
 		scroll.ScrollingEnabled = pageMode ~= "Library" or libraryView.Selected ~= nil
 	end
 	local function renderField(object, field)
+		if not Schema.fieldVisible(object, field) then
+			return
+		end
+		field = Schema.resolveField(object, field)
 		local options = field.Options
-		if options then
+		if type(object[field.Key]) == "boolean" then
+			select(field.Label, if object[field.Key] then "On" else "Off", { "On", "Off" }, function(value)
+				object[field.Key] = value == "On"
+			end, nil, field.Help)
+		elseif options then
 			select(field.Label, object[field.Key] or options[1], options, function(value)
 				object[field.Key] = value
+				Schema.normalizePayload(object)
 				if field.Key == "DamageChannel" then
 					if value == "Physical" then
 						setInternalDefault("Body")
@@ -1555,6 +1597,7 @@ function Lab.start(send, aim, launcher)
 			nextDraft.Casting.Mode = "Instant"
 			nextDraft.Casting.MinimumCharge = nil
 			nextDraft.Casting.MaximumCharge = nil
+			nextDraft.Casting.ChargeScaling = nil
 			nextDraft.Casting.ManaUpkeepPerSecond = nil
 			nextDraft.Casting.StrainPerSecond = nil
 		end
@@ -2316,12 +2359,14 @@ function Lab.start(send, aim, launcher)
 						elseif value == "Channeled" then
 							draft.Casting.MinimumCharge = nil
 							draft.Casting.MaximumCharge = nil
+							draft.Casting.ChargeScaling = nil
 							draft.Casting.ManaUpkeepPerSecond = 45
 							draft.Lifetime = { Mode = "FixedDuration", Duration = 5 }
 						elseif value == "Toggle" then
 							local endWhen = draft.Lifetime.EndWhen
 							draft.Casting.MinimumCharge = nil
 							draft.Casting.MaximumCharge = nil
+							draft.Casting.ChargeScaling = nil
 							if CastingSpec.isHeldMode(previousMode) then
 								draft.Casting.ManaUpkeepPerSecond = nil
 								draft.Casting.StrainPerSecond = nil
@@ -2330,6 +2375,7 @@ function Lab.start(send, aim, launcher)
 						elseif value == "CommandCast" then
 							draft.Casting.MinimumCharge = nil
 							draft.Casting.MaximumCharge = nil
+							draft.Casting.ChargeScaling = nil
 							if CastingSpec.isHeldMode(previousMode) then
 								draft.Casting.ManaUpkeepPerSecond = nil
 								draft.Casting.StrainPerSecond = nil
@@ -2340,6 +2386,7 @@ function Lab.start(send, aim, launcher)
 						elseif value == "Sustained" then
 							draft.Casting.MinimumCharge = nil
 							draft.Casting.MaximumCharge = nil
+							draft.Casting.ChargeScaling = nil
 							if CastingSpec.isHeldMode(previousMode) then
 								draft.Casting.ManaUpkeepPerSecond = nil
 								draft.Casting.StrainPerSecond = nil
@@ -2349,6 +2396,7 @@ function Lab.start(send, aim, launcher)
 						else
 							draft.Casting.MinimumCharge = nil
 							draft.Casting.MaximumCharge = nil
+							draft.Casting.ChargeScaling = nil
 							if CastingSpec.isHeldMode(previousMode) then
 								draft.Casting.ManaUpkeepPerSecond = nil
 								draft.Casting.StrainPerSecond = nil
@@ -2486,6 +2534,42 @@ function Lab.start(send, aim, launcher)
 						"MaximumCharge",
 						"Charged releases at this time; HoldAndRelease waits here until you release the key."
 					)
+					select(
+						"Charge scales power",
+						if draft.Casting.ChargeScaling then "On" else "Off",
+						{ "Off", "On" },
+						function(choice)
+							draft.Casting.ChargeScaling = if choice == "On"
+								then (draft.Casting.ChargeScaling or { MinPotency = 1, MaxPotency = 2 })
+								else nil
+						end,
+						nil,
+						"Holding longer multiplies the spell's power, from the minimum at minimum charge to the maximum at full charge (0.25x to 5x)."
+					)
+					if draft.Casting.ChargeScaling then
+						numeric(
+							"Power at minimum charge",
+							draft.Casting.ChargeScaling,
+							"MinPotency",
+							"Multiplier when released at the minimum charge time. Allowed: 0.25 to 5."
+						)
+						numeric(
+							"Power at full charge",
+							draft.Casting.ChargeScaling,
+							"MaxPotency",
+							"Multiplier at the maximum charge time. Allowed: 0.25 to 5; the cost is priced at this value."
+						)
+						if draft.Form == "Projectile" then
+							numeric(
+								"Extra projectiles at full charge",
+								draft.Casting.ChargeScaling,
+								"MaxExtraProjectiles",
+								"Fires floor(charge x this) more projectiles, fanned out like Spread. Whole number, 0 to "
+									.. Config.MaxSpawnCount
+									.. "; the cost is priced at the full count."
+							)
+						end
+					end
 				end
 				if
 					LifetimeSpec.supports(draft.Form, "UntilToggledOff")
@@ -2493,17 +2577,12 @@ function Lab.start(send, aim, launcher)
 					and draft.Casting.Mode ~= "Toggle"
 					and draft.Casting.Mode ~= "Sustained"
 				then
-					toggle(
-						"Remain active until toggled off",
-						draft.Lifetime.Mode == "UntilToggledOff",
-						function(value)
-							local endWhen = draft.Lifetime.EndWhen
-							draft.Lifetime = if value
-								then { Mode = "UntilToggledOff", EndWhen = endWhen }
-								else { Mode = "FixedDuration", Duration = 10, EndWhen = endWhen }
-						end,
-						"Fields, Auras, Self Enhancements, and Constructs stay active until you cast the same spell again."
-					)
+					toggle("Remain active until toggled off", draft.Lifetime.Mode == "UntilToggledOff", function(value)
+						local endWhen = draft.Lifetime.EndWhen
+						draft.Lifetime = if value
+							then { Mode = "UntilToggledOff", EndWhen = endWhen }
+							else { Mode = "FixedDuration", Duration = 10, EndWhen = endWhen }
+					end, "Fields, Auras, Enchantments, and Constructs stay active until you cast the same spell again.")
 				end
 				if
 					LifetimeSpec.supports(draft.Form, "UntilDestroyed")
@@ -2605,7 +2684,7 @@ function Lab.start(send, aim, launcher)
 						"Active duration (seconds)",
 						draft.Lifetime,
 						"Duration",
-						"How long this enhancement remains active after casting."
+						"How long this enchantment remains active after casting."
 					)
 				elseif draft.Lifetime.Mode == "UntilConditionFails" then
 					if draft.Form == "Projectile" or conditionBoundChannel then
@@ -2806,6 +2885,9 @@ function Lab.start(send, aim, launcher)
 					end
 					if draft.Form == "Field" then
 						area.DebugHeight = debugHeight or 0.2
+						local previous = draft.Field
+						area.ArmDelay, area.Hidden, area.ConsumeOnTrigger, area.AffectsSpells =
+							previous.ArmDelay, previous.Hidden, previous.ConsumeOnTrigger, previous.AffectsSpells
 					end
 					draft[draft.Form] = area
 				end, nil, "Choose the server hit shape. Visual scale does not change these dimensions.")
@@ -2884,6 +2966,73 @@ function Lab.start(send, aim, launcher)
 						"DebugHeight",
 						"Presentation only; it does not change hit detection."
 					)
+					heading("TRAP")
+					numeric(
+						"Arm delay (seconds)",
+						area,
+						"ArmDelay",
+						"Entering, leaving and pulse effects wait this long after placement. Allowed: 0 to "
+							.. Config.MaxTrapArmDelay
+					)
+					toggle(
+						"Hidden from opponents",
+						area.Hidden == true,
+						function(value)
+							area.Hidden = value
+							dirty = true
+							revision += 1
+						end,
+						"Players who can fight you are never sent its marker; you and your allies still see it. A hidden Field cannot follow a target or grow."
+					)
+					toggle(
+						"Ends when triggered",
+						area.ConsumeOnTrigger == true,
+						function(value)
+							area.ConsumeOnTrigger = value
+							dirty = true
+							revision += 1
+						end,
+						"The first time a target enters (after arming), its entering effects run and then the Field ends."
+					)
+					heading("LENS")
+					local lens = area.AffectsSpells
+					select(
+						"Changes projectiles crossing it",
+						if lens then lens.Who else "Off",
+						{ "Off", "Hostile", "Allied", "Any" },
+						function(value)
+							if value == "Off" then
+								area.AffectsSpells = nil
+							elseif lens then
+								lens.Who = value
+							else
+								area.AffectsSpells = { Who = value, Slow = 0.7 }
+							end
+						end,
+						nil,
+						"Whose projectiles it changes as they fly through, once per projectile per Field."
+					)
+					if lens then
+						local marks = { "None" }
+						for _, element in Schema.MarkElements do
+							table.insert(marks, element)
+						end
+						select("Adds a mark", lens.AddMark or "None", marks, function(value)
+							lens.AddMark = if value == "None" then nil else value
+						end, nil, "The projectile marks what it hits with this element.")
+						numeric(
+							"Potency (x)",
+							lens,
+							"ScalePotency",
+							"Allowed: 0.5 to 1.5; clear for no change. Against players: at least 0.7 (0.8 ranked)."
+						)
+						numeric(
+							"Speed (x)",
+							lens,
+							"Slow",
+							"Allowed: 0.3 to 1; clear for no change. Against players: at least 0.6 (0.7 ranked)."
+						)
+					end
 				end
 			elseif draft.Form == "Construct" then
 				select(
@@ -3043,6 +3192,7 @@ function Lab.start(send, aim, launcher)
 						or draft.Casting.Mode == "Channeled"
 						or draft.Form == "Field"
 						or draft.Form == "Aura"
+						or draft.Form == "Tether"
 					then
 						showFields(draft[field.Object], { field })
 					end
@@ -3250,7 +3400,7 @@ function Lab.start(send, aim, launcher)
 					"Approach radius (studs)",
 					draft.Proximity,
 					"Radius",
-					"Maximum distance from the active Self Enhancement's caster or Construct where a target can trigger OnProximity."
+					"Maximum distance from the active Enchantment's caster or Construct where a target can trigger OnProximity."
 				)
 				numeric(
 					"Proximity sample interval (seconds)",
@@ -3485,6 +3635,21 @@ function Lab.start(send, aim, launcher)
 					rebuildPreservingScroll()
 				end)
 				addBranch.Size = UDim2.fromOffset(110, 32)
+				-- "Stronger when you're hurt": the same step, only while the caster is below 50%.
+				local hurtRow = row("Add a branch that runs while you're hurt (caster health below 50%)")
+				local addHurt = button(hurtRow, if canAdd then "+ IF HURT" else "STEP LIMIT", function()
+					if not canAdd then
+						message(addReason or "No more actions can be added here.", false)
+						return
+					end
+					local added = if branchSource then Spec.copy(branchSource) else { Payloads = {} }
+					added.Condition = ActionFlow.casterHealthBelow(50)
+					table.insert(steps, added)
+					selectedStepByEvent[event] = #steps
+					estimate()
+					rebuildPreservingScroll()
+				end)
+				addHurt.Size = UDim2.fromOffset(110, 32)
 				if branchSource and branchSource.Condition then
 					local otherwiseCondition, otherwiseReason =
 						ActionFlow.otherwise(branchSource.Condition, ConditionSpec.MaxDepth)
@@ -3540,6 +3705,104 @@ function Lab.start(send, aim, launcher)
 					info("Add a payload to create a command-trigger step, then optionally filter by command.", 34)
 				end
 			end
+			if configuring and Schema.TargetFromByEvent[event] then
+				local damageStep = primary()
+				if damageStep then
+					select(
+						"Applies to",
+						damageStep.TargetFrom or "Holder",
+						Schema.TargetFromByEvent[event],
+						function(value)
+							damageStep.TargetFrom = if value == "Holder" then nil else value
+						end,
+						nil,
+						if event == "OnDamageDealt"
+							then "Holder applies the effect to the creature that was hit. Caster applies it to you (for example lifesteal)."
+							else "Holder applies the effect to you. Attacker applies it to whoever damaged you (thorns), if this spell's relationship allows them."
+					)
+				end
+			end
+			if configuring and draft.Form == "Tether" then
+				local tetherStep = primary()
+				if tetherStep then
+					select(
+						"Acts on",
+						tetherStep.Anchor or "Both",
+						Schema.TetherAnchors,
+						function(value)
+							tetherStep.Anchor = if value == "Both" then nil else value
+						end,
+						nil,
+						"Both ends, or only end A (you, or the first target) or end B (the target, or the second one)."
+					)
+				end
+			end
+			if configuring and primary() then
+				spellTargetControls(primary())
+			end
+			if configuring and event == "OnBeforeDamageTaken" then
+				-- Interception: what this spell does to the incoming hit.
+				local interceptStep = nil
+				for _, step in draft.Triggers[event] or {} do
+					if step.Intercept then
+						interceptStep = step
+						break
+					end
+				end
+				select(
+					"Interception",
+					if interceptStep then interceptStep.Intercept.Action else "None",
+					{ "None", "Negate", "Reduce", "Redirect" },
+					function(value)
+						draft.Triggers[event] = draft.Triggers[event] or {}
+						if value == "None" then
+							if interceptStep then
+								interceptStep.Intercept = nil
+							end
+							return
+						end
+						if not interceptStep then
+							interceptStep = { Payloads = {} }
+							table.insert(draft.Triggers[event], 1, interceptStep)
+						end
+						interceptStep.Intercept = if value == "Negate"
+							then { Action = "Negate" }
+							elseif value == "Reduce" then { Action = "Reduce", Percent = 50 }
+							else { Action = "Redirect", Percent = 50, To = "Owner" }
+						draft.Interception = draft.Interception or { Charges = 1 }
+					end,
+					nil,
+					"Negate cancels the hit; Reduce cuts it by 1-90%; Redirect sends 10-100% to your caster (Owner) or back to the attacker. One spell intercepts each hit; damage over time is never intercepted."
+				)
+				local intercept = interceptStep and interceptStep.Intercept
+				if intercept and intercept.Action ~= "Negate" then
+					numeric(
+						"Percent",
+						intercept,
+						"Percent",
+						if intercept.Action == "Reduce" then "Allowed: 1 to 90" else "Allowed: 10 to 100"
+					)
+				end
+				if intercept and intercept.Action == "Redirect" then
+					select("Send it to", intercept.To or "Owner", Schema.InterceptTargets, function(value)
+						intercept.To = value
+					end, nil, "Owner: the caster of this spell (a guardian on an ally). Attacker: back to whoever hit.")
+				end
+				if draft.Triggers[event] and #draft.Triggers[event] > 0 then
+					draft.Interception = draft.Interception or { Charges = 1 }
+					numeric(
+						"Interception charges",
+						draft.Interception,
+						"Charges",
+						"One is used per intercepted hit, at most every 0.25 s. Allowed: 1 to "
+							.. Config.MaxInterceptionCharges
+					)
+					toggle("Ends when charges run out", draft.Interception.EndWhenSpent == true, function(value)
+						draft.Interception.EndWhenSpent = value
+						dirty = true
+					end, "Off: the spell stays but no longer intercepts.")
+				end
+			end
 			if configuring and event == "OnTargetDeath" then
 				local deathStep = primary()
 				if deathStep then
@@ -3560,214 +3823,294 @@ function Lab.start(send, aim, launcher)
 			if not configuring then
 				info(Schema.EventDescriptions[event] or "Effects run when this Form resolves its target.", 40)
 			end
-			for _, category in ipairs(EffectCategoryOrder) do
-				local kinds = {}
-				for kind, definition in Schema.Payloads do
-					if effectCategory(kind) == category then
-						table.insert(kinds, kind)
+			-- Group effects by Polarity (Boons, Banes, Other); Category stays as the sub-heading.
+			for _, polarity in Schema.PolarityOrder do
+				local groupShown = false
+				for _, category in ipairs(EffectCategoryOrder) do
+					local kinds = {}
+					for kind, definition in Schema.Payloads do
+						if effectCategory(kind) == category and (definition.Polarity or "Neutral") == polarity then
+							table.insert(kinds, kind)
+						end
 					end
-				end
-				table.sort(kinds)
-				local hasSelectedEffect = false
-				for _, kind in ipairs(kinds) do
-					if payload(kind) then
-						hasSelectedEffect = true
-						break
+					table.sort(kinds)
+					local hasSelectedEffect = false
+					for _, kind in ipairs(kinds) do
+						if payload(kind) then
+							hasSelectedEffect = true
+							break
+						end
 					end
-				end
-				if not configuring or hasSelectedEffect then
-					heading(string.upper(category))
-					if not configuring then
-						local categoryDescriptions = {
-							Damage = "Hurt targets immediately or over time.",
-							Healing = "Restore health or help a target recover.",
-							Defense = "Shield targets or improve defensive attributes.",
-							Control = "Push, pull, slow, bind, or otherwise limit movement.",
-							Movement = "Change how a target moves through the world.",
-							Summoning = "Create a companion with a bounded lifetime and behavior.",
-							Utility = "Reveal, transform, or interact with prepared objects.",
-						}
-						info(
-							categoryDescriptions[category] or "Effects describe the gameplay outcomes of the spell.",
-							34
-						)
-					end
-					for _, kind in kinds do
-						local definition = Schema.Payloads[kind]
-						local value = payload(kind)
-						if not configuring or value ~= nil then
-							local objectInteractionOnly = draft.Targeting == "ObjectTarget"
-								and (draft.Form == "Projectile" or draft.Form == "Beam" or draft.Form == "Wave")
-							local formAndTargetCompatible = (
-								not objectInteractionOnly
-								or kind == "Force"
-								or kind == "Control"
-								or kind == "Manipulation"
+					if #kinds > 0 and (not configuring or hasSelectedEffect) then
+						if not groupShown then
+							groupShown = true
+							local groupLabel = heading(string.upper(Schema.PolarityLabels[polarity]))
+							groupLabel.TextSize = 15
+							groupLabel.TextColor3 = K.C.Ink
+						end
+						heading(string.upper(category))
+						if not configuring then
+							local categoryDescriptions = {
+								Damage = "Hurt targets immediately or over time.",
+								Healing = "Restore health or help a target recover.",
+								Defense = "Shield targets or improve defensive attributes.",
+								Control = "Push, pull, slow, bind, or otherwise limit movement.",
+								Movement = "Change how a target moves through the world.",
+								Summoning = "Create a companion with a bounded lifetime and behavior.",
+								Utility = "Reveal, transform, or interact with prepared objects.",
+							}
+							info(
+								categoryDescriptions[category] or "Effects describe the gameplay outcomes of the spell.",
+								34
 							)
-								and (
-									kind ~= "Manipulation"
-									or draft.Form == "Manipulation"
-									or draft.Targeting == "ObjectTarget"
-								)
-							local capabilityCompatible = Schema.supportsPayloadCapability(kind, draft.Form, event)
-							local available = (capabilityCompatible and formAndTargetCompatible) or value ~= nil
-							local reason = if kind == "Manipulation"
+						end
+						for _, kind in kinds do
+							local definition = Schema.Payloads[kind]
+							local value = payload(kind)
+							if not configuring or value ~= nil then
+								local objectInteractionOnly = draft.Targeting == "ObjectTarget"
 									and (draft.Form == "Projectile" or draft.Form == "Beam" or draft.Form == "Wave")
-									and draft.Targeting ~= "ObjectTarget"
-								then "Requires ObjectTarget so the server can validate the exact manipulated part."
-								elseif
-									objectInteractionOnly
-									and kind ~= "Force"
-									and kind ~= "Control"
-									and kind ~= "Manipulation"
-								then "Aimed object Forms allow Force, Control, or authorized material Manipulation."
-								elseif
-									not definition.TargetIndependent
-									and (not form.TargetTypes or not form.TargetTypes.Humanoid)
-								then "This Form does not resolve Humanoid targets."
-								elseif
-									definition.Events[draft.Form]
-								then "Available on a different event for this Form."
-								else "This effect cannot run with the current Form, target mode, or timing. Choose a compatible combination."
-							if not configuring then
-								card(definition.Label, definition.Description, value ~= nil, function(enabled)
-									setPayload(kind, enabled)
-								end, available, reason)
-							elseif value then
-								heading(definition.Label)
-								info(definition.Description, 38)
-								if not capabilityCompatible or not formAndTargetCompatible then
-									info(
-										"This selected effect is incompatible with the current Form, target mode, or timing. "
-											.. reason,
-										52
+								local formAndTargetCompatible = (
+									not objectInteractionOnly
+									or kind == "Force"
+									or kind == "Control"
+									or kind == "Manipulation"
+								)
+									and (
+										kind ~= "Manipulation"
+										or draft.Form == "Manipulation"
+										or draft.Targeting == "ObjectTarget"
 									)
+								local capabilityCompatible = Schema.supportsPayloadCapability(kind, draft.Form, event)
+								local available = (capabilityCompatible and formAndTargetCompatible) or value ~= nil
+								local reason = if kind == "Manipulation"
+										and (draft.Form == "Projectile" or draft.Form == "Beam" or draft.Form == "Wave")
+										and draft.Targeting ~= "ObjectTarget"
+									then "Requires ObjectTarget so the server can validate the exact manipulated part."
+									elseif
+										objectInteractionOnly
+										and kind ~= "Force"
+										and kind ~= "Control"
+										and kind ~= "Manipulation"
+									then "Aimed object Forms allow Force, Control, or authorized material Manipulation."
+									elseif
+										not definition.TargetIndependent
+										and (not form.TargetTypes or not form.TargetTypes.Humanoid)
+									then "This Form does not resolve Humanoid targets."
+									elseif
+										definition.Events[draft.Form]
+									then "Available on a different event for this Form."
+									else "This effect cannot run with the current Form, target mode, or timing. Choose a compatible combination."
+								if not configuring then
+									card(definition.Label, definition.Description, value ~= nil, function(enabled)
+										setPayload(kind, enabled)
+									end, available, reason)
+								elseif value then
+									heading(definition.Label)
+									info(definition.Description, 38)
+									if not capabilityCompatible or not formAndTargetCompatible then
+										info(
+											"This selected effect is incompatible with the current Form, target mode, or timing. "
+												.. reason,
+											52
+										)
+									end
 								end
-							end
-							if configuring and value then
-								if kind == "Summon" then
-									heading("HOW SUMMONS WORK")
-									info(
-										"CURRENT TRIGGER: "
-											.. event
-											.. (if draft.Form == "Projectile" and event == "OnImpact"
-												then " — waits for the projectile to collide. Choose OnCast to summon as soon as you cast."
-												else " — the summon appears when this event occurs.")
-											.. " Spawn position (Caster or Event) controls where it appears, not when. Repeated Event triggers add members up to the cap; Caster placement refreshes one group. Assign a spell slot and choose Hunter to let companions seek visible hostiles near their spawn points.",
-										76
-									)
-									for _, field in definition.Fields do
-										if
-											(field.Key ~= "Duration" and field.Key ~= "RespawnPolicy")
-											or (field.Key == "Duration" and (value.LifetimeMode or "FixedDuration") == "FixedDuration")
-											or (
-												field.Key == "RespawnPolicy"
-												and (value.LifetimeMode or "FixedDuration") == "UntilCommanded"
+								if configuring and value then
+									if kind == "Summon" then
+										heading("HOW SUMMONS WORK")
+										info(
+											"CURRENT TRIGGER: "
+												.. event
+												.. (if draft.Form == "Projectile" and event == "OnImpact"
+													then " — waits for the projectile to collide. Choose OnCast to summon as soon as you cast."
+													else " — the summon appears when this event occurs.")
+												.. " Spawn position (Caster or Event) controls where it appears, not when. Repeated Event triggers add members up to the cap; Caster placement refreshes one group. Assign a spell slot and choose Hunter to let companions seek visible hostiles near their spawn points.",
+											76
+										)
+										for _, field in definition.Fields do
+											if
+												(field.Key ~= "Duration" and field.Key ~= "RespawnPolicy")
+												or (field.Key == "Duration" and (value.LifetimeMode or "FixedDuration") == "FixedDuration")
+												or (
+													field.Key == "RespawnPolicy"
+													and (value.LifetimeMode or "FixedDuration") == "UntilCommanded"
+												)
+											then
+												if field.Key == "LifetimeMode" then
+													local previous = value.LifetimeMode or "FixedDuration"
+													select(field.Label, previous, field.Options, function(selected)
+														value.LifetimeMode = selected
+														if selected == "UntilCommanded" then
+															value.Duration = nil
+															value.RespawnPolicy = value.RespawnPolicy
+																or "DismissOnDeath"
+														elseif value.Duration == nil then
+															value.Duration = 30
+															value.RespawnPolicy = "DismissOnDeath"
+														end
+													end, nil, field.Help)
+												elseif field.Key == "SpellSlot" then
+													select(
+														field.Label,
+														value.SpellSlot or "None",
+														field.Options,
+														function(selected)
+															value.SpellSlot = if selected == "None"
+																then nil
+																else selected
+														end,
+														nil,
+														field.Help
+													)
+												else
+													renderField(value, field)
+												end
+											end
+										end
+										local companionSlot = tonumber(value.SpellSlot)
+										local companion = if companionSlot then equipped[companionSlot] else nil
+										local assignedProfile, assignedReason = nil, nil
+										if companion then
+											assignedProfile, assignedReason =
+												CompanionSpellPolicy.classify(Spec.normalize(companion))
+										end
+										if not companionSlot then
+											local noSpellHelp = if value.Role == "Medic"
+												then "No companion spell assigned. Medic stays idle until you choose an equipped Ally spell with Heal, Restoration, or Shield."
+												elseif
+													value.Role == "Controller"
+												then "No companion spell assigned. Controller stays idle until you choose an equipped hostile-control spell."
+												else "No companion spell assigned. This is valid: Guardian/Hunter uses its basic attack. Choose an equipped spell slot only if you want it to cast magic."
+											info(noSpellHelp, 54)
+										elseif not companion then
+											info(
+												string.format(
+													"Slot %d is empty. Equip a spell there in the spell slots, or choose None.",
+													companionSlot
+												),
+												48
+											)
+										elseif not assignedProfile then
+											info(
+												string.format(
+													"Slot %d · %s cannot be cast by a companion: %s",
+													companionSlot,
+													companion.Name,
+													assignedReason or "incompatible spell"
+												),
+												54
+											)
+										elseif
+											value.Role == "Medic"
+											and (
+												assignedProfile.Mode ~= "Ally"
+												or (
+													not assignedProfile.CanHeal
+													and not assignedProfile.CanShield
+													and not assignedProfile.CanModifyAttribute
+												)
 											)
 										then
-											if field.Key == "LifetimeMode" then
-												local previous = value.LifetimeMode or "FixedDuration"
-												select(field.Label, previous, field.Options, function(selected)
-													value.LifetimeMode = selected
-													if selected == "UntilCommanded" then
-														value.Duration = nil
-														value.RespawnPolicy = value.RespawnPolicy or "DismissOnDeath"
-													elseif value.Duration == nil then
-														value.Duration = 30
-														value.RespawnPolicy = "DismissOnDeath"
+											info(
+												string.format(
+													"Slot %d · %s is not a healing/protection spell. Medic requires an Ally spell with Heal, Restoration, Shield, or a positive armor modifier.",
+													companionSlot,
+													companion.Name
+												),
+												54
+											)
+										elseif value.Role == "Controller" and not assignedProfile.CanControl then
+											info(
+												string.format(
+													"Slot %d · %s does not have a control effect. Controller requires hostile Slow, Bind, Control, or Displacement.",
+													companionSlot,
+													companion.Name
+												),
+												54
+											)
+										else
+											info(
+												string.format(
+													"Ready · slot %d: %s (%s, %s target). Use Protect/Attack for hostile spells or Support for Ally spells. Companions use your normal magic resource limits.",
+													companionSlot,
+													companion.Name,
+													companion.Form,
+													assignedProfile.Mode
+												),
+												54
+											)
+										end
+									else
+										showFields(value, definition.Fields)
+										if ScaleSpec.ScalableKinds[kind] then
+											-- ScaleBy: Amount + Per unit x measure (up to Max), per target.
+											local options = { "None" }
+											for _, source in ScaleSpec.SourceOrder do
+												table.insert(options, source)
+											end
+											local scaleBy = value.ScaleBy
+											select(
+												"Scale by",
+												if scaleBy then scaleBy.Source else "None",
+												options,
+												function(choice)
+													if choice == "None" then
+														value.ScaleBy = nil
+														return
 													end
-												end, nil, field.Help)
-											elseif field.Key == "SpellSlot" then
-												select(
-													field.Label,
-													value.SpellSlot or "None",
-													field.Options,
-													function(selected)
-														value.SpellSlot = if selected == "None" then nil else selected
-													end,
-													nil,
-													field.Help
+													if choice == "HealthPaid" then
+														-- Preset: x (1 + HP paid / 100), edited below.
+														value.ScaleBy = BloodCostSpec.paidScalePreset(
+															value.Amount or 0,
+															Config.MaxScaleBonus
+														)
+														return
+													end
+													local updated = value.ScaleBy or { PerUnit = 1, Max = 20 }
+													updated.Source = choice
+													updated.Element = if ScaleSpec.Sources[choice].NeedsElement
+														then (updated.Element or (if draft.Element ~= "Neutral"
+															then draft.Element
+															else AttributeSpec.Elements[1]))
+														else nil
+													value.ScaleBy = updated
+												end,
+												function(choice)
+													return if choice == "None"
+														then "None"
+														else ScaleSpec.Sources[choice].Label
+												end,
+												"Adds Per unit times the chosen measure to this amount, up to Max. Measured on each target when the effect lands."
+											)
+											if scaleBy then
+												numeric(
+													"Scale per unit",
+													scaleBy,
+													"PerUnit",
+													"Added per unit of the measure."
 												)
-											else
-												renderField(value, field)
+												numeric(
+													"Scale maximum bonus",
+													scaleBy,
+													"Max",
+													"The most the scaling can add."
+												)
+												if ScaleSpec.Sources[scaleBy.Source].NeedsElement then
+													select(
+														"Scale element",
+														scaleBy.Element or AttributeSpec.Elements[1],
+														AttributeSpec.Elements,
+														function(choice)
+															scaleBy.Element = choice
+														end,
+														nil,
+														"Which element's mark stacks to count."
+													)
+												end
 											end
 										end
 									end
-									local companionSlot = tonumber(value.SpellSlot)
-									local companion = if companionSlot then equipped[companionSlot] else nil
-									local assignedProfile, assignedReason = nil, nil
-									if companion then
-										assignedProfile, assignedReason =
-											CompanionSpellPolicy.classify(Spec.normalize(companion))
-									end
-									if not companionSlot then
-										local noSpellHelp = if value.Role == "Medic"
-											then "No companion spell assigned. Medic stays idle until you choose an equipped Ally spell with Heal, Restoration, or Shield."
-											elseif
-												value.Role == "Controller"
-											then "No companion spell assigned. Controller stays idle until you choose an equipped hostile-control spell."
-											else "No companion spell assigned. This is valid: Guardian/Hunter uses its basic attack. Choose an equipped spell slot only if you want it to cast magic."
-										info(noSpellHelp, 54)
-									elseif not companion then
-										info(
-											string.format(
-												"Slot %d is empty. Equip a spell there in the spell slots, or choose None.",
-												companionSlot
-											),
-											48
-										)
-									elseif not assignedProfile then
-										info(
-											string.format(
-												"Slot %d · %s cannot be cast by a companion: %s",
-												companionSlot,
-												companion.Name,
-												assignedReason or "incompatible spell"
-											),
-											54
-										)
-									elseif
-										value.Role == "Medic"
-										and (
-											assignedProfile.Mode ~= "Ally"
-											or (
-												not assignedProfile.CanHeal
-												and not assignedProfile.CanShield
-												and not assignedProfile.CanModifyAttribute
-											)
-										)
-									then
-										info(
-											string.format(
-												"Slot %d · %s is not a healing/protection spell. Medic requires an Ally spell with Heal, Restoration, Shield, or a positive armor modifier.",
-												companionSlot,
-												companion.Name
-											),
-											54
-										)
-									elseif value.Role == "Controller" and not assignedProfile.CanControl then
-										info(
-											string.format(
-												"Slot %d · %s does not have a control effect. Controller requires hostile Slow, Bind, Control, or Displacement.",
-												companionSlot,
-												companion.Name
-											),
-											54
-										)
-									else
-										info(
-											string.format(
-												"Ready · slot %d: %s (%s, %s target). Use Protect/Attack for hostile spells or Support for Ally spells. Companions use your normal magic resource limits.",
-												companionSlot,
-												companion.Name,
-												companion.Form,
-												assignedProfile.Mode
-											),
-											54
-										)
-									end
-								else
-									showFields(value, definition.Fields)
 								end
 							end
 						end
@@ -3843,6 +4186,9 @@ function Lab.start(send, aim, launcher)
 					info(definition.Description, 38)
 					showFields(current, definition.Fields)
 					current.Payloads = current.Payloads or {}
+					if kind == "Explode" then
+						spellTargetControls(current)
+					end
 					if kind == "SpawnEffect" then
 						current.Effect = current.Effect or Spec.defaultSpawnEffect("Field", draft.Source.Principle)
 						local spawnForms = {}
@@ -3988,6 +4334,7 @@ function Lab.start(send, aim, launcher)
 								elseif not on and at and not last then
 									table.remove(current.Payloads, at)
 								end
+								SpellTargetSpec.syncStep(current, Schema.SpellTargetPayloads)
 								dirty = true
 								revision += 1
 							end)
@@ -4208,6 +4555,16 @@ function Lab.start(send, aim, launcher)
 				"Delay before the spell resolves after activation."
 			)
 			numeric("Recovery (seconds)", draft.Casting, "RecoveryTime", "Brief lockout after resolving.")
+			if draft.Triggers.OnRecast and #draft.Triggers.OnRecast > 0 then
+				draft.Casting.MaxRecasts = draft.Casting.MaxRecasts or 1
+				numeric(
+					"Recasts",
+					draft.Casting,
+					"MaxRecasts",
+					"How many times pressing this spell's slot again (while its effect is active) runs On recast instead of casting. Free. Allowed: 1 to "
+						.. Config.MaxRecasts
+				)
+			end
 			if draft.Lifetime.Mode ~= "Instantaneous" then
 				heading("ONGOING RESOURCE USE")
 				info(
@@ -4227,12 +4584,82 @@ function Lab.start(send, aim, launcher)
 					"Ongoing Locus strain accumulated during the active lifetime."
 				)
 			end
+			heading("THE WORLD")
+			toggle(
+				"Ignore the world",
+				draft.IgnoreEnvironment == true,
+				function(value)
+					draft.IgnoreEnvironment = if value then true else nil
+					dirty = true
+					revision += 1
+				end,
+				"Off: Lightning chains through Wet targets, Fire sets Flammable-tagged parts alight, Ice freezes water into walkable platforms. On: this spell does none of that."
+			)
+			heading("PAY WITH HEALTH")
+			info(
+				"Blood magic (players only). Paying health is not damage, and a cast is refused if it would leave you below "
+					.. math.floor(Config.BloodHealthFloor * 100 + 0.5)
+					.. "% health. Health scales with charge like mana.",
+				48
+			)
+			local sacrifice = draft.Cost.Health
+			select("Health sacrifice", if sacrifice then sacrifice.Mode else "None", {
+				"None",
+				"Flat",
+				"PercentMax",
+			}, function(value)
+				if value == "None" then
+					draft.Cost.Health = nil
+				elseif sacrifice then
+					sacrifice.Mode = value
+					sacrifice.Amount = math.min(
+						sacrifice.Amount,
+						if value == "Flat" then Config.MaxFlatHealthCost else Config.MaxPercentHealthCost
+					)
+				else
+					draft.Cost.Health = { Mode = value, Amount = if value == "Flat" then 20 else 10 }
+				end
+			end, function(value)
+				return if value == "PercentMax" then "% of max health" elseif value == "Flat" then "Flat HP" else "None"
+			end, "Health paid on top of the mana cost each cast; HealthPaid scaling grows with it.")
+			if draft.Cost.Health then
+				numeric(
+					if draft.Cost.Health.Mode == "Flat" then "Health cost (HP)" else "Health cost (% of max)",
+					draft.Cost.Health,
+					"Amount",
+					if draft.Cost.Health.Mode == "Flat"
+						then "Allowed: 1 to " .. Config.MaxFlatHealthCost
+						else "Allowed: 1 to "
+							.. Config.MaxPercentHealthCost
+							.. ". Against players: at most 40% (30% ranked)."
+				)
+			end
+			numeric(
+				"Mana paid with health (%)",
+				draft.Cost,
+				"HealthForMana",
+				"0 to 100. Each mana replaced costs "
+					.. Config.HealthPerMana
+					.. " HP, so health is always the worse rate."
+			)
+			if draft.Lifetime.Mode ~= "Instantaneous" then
+				numeric(
+					"Health per second",
+					draft.Cost,
+					"HealthPerSecond",
+					"Channelled, sustained or toggled spells only. Allowed: "
+						.. Config.MinHealthPerSecond
+						.. " to "
+						.. Config.MaxHealthPerSecond
+						.. "; the spell ends itself before a tick would cross the health floor. Clear for none."
+				)
+			end
 			local cost = Spec.estimate(draft)
 			heading("SERVER-ESTIMATED CAST DEMAND")
 			info(
 				string.format(
-					"Estimated per cast: %d mana · %d strain · complexity %d\nWhile active: %g mana/s · %g strain/s\nThese are authored spell estimates; caster state and target defenses still affect actual results.",
-					cost.ManaDemand,
+					"Estimated per cast: %s · %d strain · complexity %d\nWhile active: %g mana/s · %g strain/s\nThese are authored spell estimates; caster state and target defenses still affect actual results.",
+					BloodCostSpec.costLabel(cost),
 					cost.Strain,
 					cost.Complexity,
 					cost.ManaUpkeepPerSecond or 0,

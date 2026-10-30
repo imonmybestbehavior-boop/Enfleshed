@@ -16,6 +16,32 @@ local DURATION_KINDS = {
 	ElementalMark = true,
 	ModifyAttribute = true,
 	DamageOverTime = true,
+	Stun = true,
+	Silence = true,
+}
+
+-- Payload kinds Caps.payload leaves unchanged, and why. Listed so every
+-- Schema.Payloads kind is accounted for here (test_magic_registry_parity).
+Caps.UncappedKinds = {
+	Damage = "Capped on the final hit by Caps.damage (every damage source)",
+	ConsumeElementalMark = "Removes mark stacks; no numeric effect on the target",
+	Restoration = "Support over time; PvP profiles apply only between opponents",
+	Enhancement = "Affects only the caster",
+	AerialMovement = "Affects only the caster",
+	Manipulation = "Moves world objects, not players",
+	Summon = "Summon damage is capped by Caps.damage",
+	Cleanse = "Removes effects; it has no number to cap",
+	Dispel = "Acts on spells, not players; its End rule compares spell complexity",
+	Taunt = "Creatures only; never applies to players, so no PvP cap",
+	Fear = "Creatures only; never applies to players, so no PvP cap",
+	Stealth = "Hides from monsters only while StealthHidesFromPlayers is off; nothing to cap",
+	RestoreResource = "Support; PvP profiles apply only between opponents",
+}
+
+-- ModifyAttribute caps by attribute; anything not listed uses MaxAttributeChange.
+local ATTRIBUTE_CAP_KEYS = {
+	DamageTaken = "MaxDamageTakenChange",
+	Resistance = "MaxResistanceChange",
 }
 
 -- Profile name for a hit. `attacker`/`target` are CombatPolicy owners (nil = not player-owned).
@@ -29,6 +55,20 @@ function Caps.profileName(attacker: Policy.Owner?, target: Policy.Owner?): strin
 		return "PvPRanked"
 	end
 	return "PvPOpen"
+end
+
+-- Profile for effects on the caster's own movement (Rush), which have no
+-- target: PvP rules apply while the caster could be fighting players (inside a
+-- PvP zone or in a duel).
+function Caps.selfProfileName(owner: Policy.Owner?): string
+	if owner == nil then
+		return "PvE"
+	elseif owner.Zone == Caps.RankedZone then
+		return "PvPRanked"
+	elseif owner.Zone == Policy.OpenZone or owner.DuelOpponent ~= nil then
+		return "PvPOpen"
+	end
+	return "PvE"
 end
 
 local function number(value: any): boolean
@@ -55,15 +95,15 @@ function Caps.payload(payload: any, profile: { [string]: number }?, potency: num
 	end
 	if kind == "Bind" and number(out.Duration) and profile.MaxBindDuration then
 		out.Duration = math.min(out.Duration, profile.MaxBindDuration)
+	elseif kind == "Stun" and number(out.Duration) and profile.MaxStunDuration then
+		out.Duration = math.min(out.Duration, profile.MaxStunDuration)
+	elseif kind == "Silence" and number(out.Duration) and profile.MaxSilenceDuration then
+		out.Duration = math.min(out.Duration, profile.MaxSilenceDuration)
+	elseif kind == "DrainResource" and number(out.Amount) then
+		out.Amount = capScaled(out.Amount, profile.MaxResourceDrainPerHit, p)
 	elseif kind == "Slow" and number(out.Multiplier) and profile.MinSlowMultiplier then
 		-- executor: effective = 1 - (1 - Multiplier) * potency  ≥  MinSlowMultiplier
 		out.Multiplier = math.max(out.Multiplier, 1 - (1 - profile.MinSlowMultiplier) / p)
-	elseif kind == "DamageOverTime" and number(out.Amount) then
-		out.Amount = capScaled(out.Amount, profile.MaxDotPerTick, p)
-	elseif kind == "Heal" and number(out.Amount) then
-		out.Amount = capScaled(out.Amount, profile.MaxHealPerHit, p)
-	elseif kind == "Shield" and number(out.Amount) then
-		out.Amount = capScaled(out.Amount, profile.MaxShield, p)
 	elseif kind == "Control" and number(out.Acceleration) then
 		out.Acceleration = capScaled(out.Acceleration, profile.MaxControlAcceleration, p)
 	elseif kind == "Displacement" and number(out.Distance) then
@@ -82,11 +122,29 @@ function Caps.payload(payload: any, profile: { [string]: number }?, potency: num
 		elseif profile.MinTransformScale and out.Multiplier < 1 then
 			out.Multiplier = math.max(out.Multiplier, 1 - (1 - profile.MinTransformScale) / p)
 		end
-	elseif kind == "ModifyAttribute" and number(out.Amount) and profile.MaxAttributeChange then
-		local limit = profile.MaxAttributeChange / p
-		out.Amount = math.clamp(out.Amount, -limit, limit)
+	elseif kind == "ModifyAttribute" and number(out.Amount) then
+		local cap = profile[ATTRIBUTE_CAP_KEYS[out.Attribute] or "MaxAttributeChange"]
+		if cap then
+			local limit = cap / p
+			out.Amount = math.clamp(out.Amount, -limit, limit)
+		end
 	end
 	return out
+end
+
+-- DamageOverTime, Heal and Shield amounts are capped once, on the final value
+-- (after ScaleBy and potency): MaxDotPerTick in DamageService, MaxHealPerHit in
+-- Status.heal, MaxShield in the Shield executor. See Caps.finalAmount.
+function Caps.finalAmount(kind: string, amount: number, profile: { [string]: number }?): number
+	if not profile or not number(amount) then
+		return amount
+	end
+	local cap = if kind == "DamageOverTime"
+		then profile.MaxDotPerTick
+		elseif kind == "Heal" then profile.MaxHealPerHit
+		elseif kind == "Shield" then profile.MaxShield
+		else nil
+	return if cap then math.min(amount, cap) else amount
 end
 
 -- Final damage against a target under a profile (applies to every damage source).

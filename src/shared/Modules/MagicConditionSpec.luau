@@ -78,6 +78,13 @@ ConditionSpec.Properties = {
 		AreaOccupants = { Kind = "Number", Min = 0, Max = 64, Integer = true, Operators = numeric },
 		EventTargets = { Kind = "Number", Min = 0, Max = 64, Integer = true, Operators = numeric },
 	},
+	-- The incoming hit, only on Before damage taken (Interception) steps.
+	Hit = {
+		Damage = { Kind = "Number", Min = 0, Max = 100000, Operators = numeric },
+		Element = { Kind = "String", MaxLength = 32, Operators = stringComparison },
+		AttackerIsPlayer = { Kind = "Boolean", Operators = boolean },
+		IsMelee = { Kind = "Boolean", Operators = boolean },
+	},
 	Resource = {
 		Mana = { Kind = "Number", Min = 0, Max = 100000, Operators = numeric },
 		ManaPercent = { Kind = "Number", Min = 0, Max = 1, Operators = numeric },
@@ -116,6 +123,27 @@ ConditionSpec.Properties = {
 		},
 		MagicArmorBonus = { Kind = "Number", Min = -100, Max = 100, Operators = numeric },
 		MagicStrengthBonus = { Kind = "Number", Min = -75, Max = 100, Operators = numeric },
+		Reaction = {
+			Kind = "String",
+			MaxLength = 24,
+			Operators = stringComparison,
+			Help = 'The last elemental reaction on the target within 5 s, such as "Freeze" or "Conduct"; empty otherwise.',
+		},
+		-- ModifyAttribute bonuses (ranges match MagicAttributeSpec).
+		PhysicalArmorBonus = { Kind = "Number", Min = -100, Max = 100, Operators = numeric },
+		SoulArmorBonus = { Kind = "Number", Min = -100, Max = 100, Operators = numeric },
+		MagicResistanceFireBonus = { Kind = "Number", Min = -1, Max = 1, Operators = numeric },
+		MagicResistanceIceBonus = { Kind = "Number", Min = -1, Max = 1, Operators = numeric },
+		MagicResistanceLightningBonus = { Kind = "Number", Min = -1, Max = 1, Operators = numeric },
+		MagicResistanceEarthBonus = { Kind = "Number", Min = -1, Max = 1, Operators = numeric },
+		MagicResistanceWaterBonus = { Kind = "Number", Min = -1, Max = 1, Operators = numeric },
+		MagicResistanceWindBonus = { Kind = "Number", Min = -1, Max = 1, Operators = numeric },
+		MagicResistancePoisonBonus = { Kind = "Number", Min = -1, Max = 1, Operators = numeric },
+		DamageTakenBonus = { Kind = "Number", Min = -50, Max = 50, Operators = numeric },
+		HealingReceivedBonus = { Kind = "Number", Min = -75, Max = 50, Operators = numeric },
+		CastSpeedBonus = { Kind = "Number", Min = -50, Max = 50, Operators = numeric },
+		CooldownRateBonus = { Kind = "Number", Min = -50, Max = 50, Operators = numeric },
+		ManaRegenBonus = { Kind = "Number", Min = -100, Max = 100, Operators = numeric },
 	},
 	DistancePosition = {
 		Distance = { Kind = "Number", Min = 0, Max = 10000, Operators = numeric },
@@ -294,11 +322,17 @@ end
 
 -- A trigger-step condition must be a rule tree (not the legacy list form)
 -- built only from values an event context can resolve.
-function ConditionSpec.validateStep(conditions)
+-- `allowHit`: the step belongs to OnBeforeDamageTaken, so the Hit family is offered.
+function ConditionSpec.validateStep(conditions, allowHit: boolean?)
 	if type(conditions) ~= "table" or conditions.Operator == nil then
 		return false, "Step conditions must be an ALL, ANY, or NOT rule group"
 	end
-	local ok, reason = ConditionSpec.validateForFamilies(conditions, ConditionSpec.StepConditionFamilies)
+	local families = ConditionSpec.StepConditionFamilies
+	if allowHit then
+		families = table.clone(families)
+		families.Hit = true
+	end
+	local ok, reason = ConditionSpec.validateForFamilies(conditions, families)
 	if not ok then
 		return false,
 			if reason == "Condition uses a target-only family in a caster lifetime rule"

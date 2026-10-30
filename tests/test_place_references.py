@@ -65,7 +65,7 @@ class PlaceReferences(unittest.TestCase):
         shared = child(child(tree, 'ReplicatedStorage'), 'Shared')
         checked = 0
         for source in (ROOT / 'src').rglob('*.luau'):
-            for match in CHAIN.finditer(source.read_text()):
+            for match in CHAIN.finditer(source.read_text(encoding="utf-8")):
                 with self.subTest(file=str(source.relative_to(ROOT)), lookup=match[0]):
                     node = shared
                     for name in NAME.findall(match[1]):
@@ -106,7 +106,7 @@ class PlaceReferences(unittest.TestCase):
                     parts = relative.parent.parts if source.name.startswith('init.') else relative.with_suffix('').parts
                     for name in parts:
                         node = child(node, name)
-                    self.assertEqual(node.findtext("Properties/*[@name='Source']"), source.read_text())
+                    self.assertEqual(node.findtext("Properties/*[@name='Source']"), source.read_text(encoding="utf-8"))
 
 
 if __name__ == '__main__':

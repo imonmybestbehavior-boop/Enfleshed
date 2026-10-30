@@ -82,7 +82,8 @@ RunService.Heartbeat:Connect(function()
 			not targetRoot:IsDescendantOf(workspace)
 			or (target and (target.Health <= 0 or not target:IsDescendantOf(workspace)))
 			or (
-				state.ObjectTarget and (state.ObjectTarget.Anchored or not state.ObjectTarget:IsDescendantOf(workspace))
+				state.ObjectTarget
+				and (state.ObjectTarget.Anchored or not state.ObjectTarget:IsDescendantOf(workspace))
 			)
 		then
 			dispatchTargetDeath(state)

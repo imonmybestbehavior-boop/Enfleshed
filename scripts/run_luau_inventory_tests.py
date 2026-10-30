@@ -19,10 +19,10 @@ MODULES = {
 }
 parts = ["local sources = {}"]
 for name, path in MODULES.items():
-    parts.append(f"sources[{name!r}] = [====[{(ROOT / path).read_text()}]====]")
-parts.append((ROOT / "tests/inventory_harness.luau").read_text())
-parts.append((ROOT / "tests/inventory_model_spec.luau").read_text())
+    parts.append(f"sources[{name!r}] = [====[{(ROOT / path).read_text(encoding="utf-8")}]====]")
+parts.append((ROOT / "tests/inventory_harness.luau").read_text(encoding="utf-8"))
+parts.append((ROOT / "tests/inventory_model_spec.luau").read_text(encoding="utf-8"))
 with tempfile.TemporaryDirectory(prefix="enfleshed-inventory-") as directory:
     harness = Path(directory) / "harness.luau"
-    harness.write_text("\n".join(parts))
+    harness.write_text("\n".join(parts), encoding="utf-8")
     raise SystemExit(subprocess.run([sys.argv[1], str(harness)], cwd=ROOT).returncode)

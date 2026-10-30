@@ -41,6 +41,15 @@ local effectLabels = {
 	TimeDilation = "TIME",
 	ElementalMark = "MARK",
 	ConsumeElementalMark = "BURST",
+	Stun = "STUN",
+	Silence = "HUSH",
+	Cleanse = "PURGE",
+	Dispel = "UNDO",
+	Taunt = "TAUNT",
+	Fear = "FEAR",
+	Stealth = "HIDE",
+	DrainResource = "DRAIN",
+	RestoreResource = "MANA",
 }
 local effectOrder = {
 	Damage = 1,
@@ -59,6 +68,15 @@ local effectOrder = {
 	TimeDilation = 14,
 	ElementalMark = 15,
 	ConsumeElementalMark = 16,
+	Stun = 17,
+	Silence = 18,
+	Cleanse = 19,
+	Taunt = 20,
+	Fear = 21,
+	Stealth = 22,
+	DrainResource = 23,
+	RestoreResource = 24,
+	Dispel = 25,
 }
 local behaviorLabels = {
 	Homing = "HOME",
@@ -373,6 +391,24 @@ function Visual.render(parent, spell, compact)
 				0.1 + i * 0.13
 			)
 		end
+	elseif form == "Tether" then
+		-- Two ends and the link between them.
+		shape(parent, UDim2.fromScale(0.5, 0.04), UDim2.fromScale(0.5, 0.43), color, true, 0.2)
+		shape(parent, UDim2.fromScale(0.16, 0.16), UDim2.fromScale(0.25, 0.43), accent, true)
+		shape(parent, UDim2.fromScale(0.16, 0.16), UDim2.fromScale(0.75, 0.43), accent, true)
+	elseif form == "Rush" then
+		-- Three speed streaks and the arrival point.
+		for i = 1, 3 do
+			shape(
+				parent,
+				UDim2.fromScale(0.42 - i * 0.06, 0.05),
+				UDim2.fromScale(0.38, 0.28 + i * 0.1),
+				color,
+				true,
+				0.2 * i
+			)
+		end
+		shape(parent, UDim2.fromScale(0.2, 0.2), UDim2.fromScale(0.72, 0.43), accent, true)
 	else
 		ring(parent, 0.55, color, 0)
 	end

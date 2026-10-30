@@ -56,6 +56,17 @@ assert(authoringGuide.isRecommended("Healing", "Aura"), "Aura should be suggeste
 assert(table.find(healingForms, "Projectile") ~= nil, "A healing payload may be delivered by a compatible Projectile")
 -- Manipulation moves objects; it has no way to heal a creature.
 assert(#authoringGuide.forShape("Healing", "Manipulation", schema, spec) == 0, "Unsupported combinations stay hidden")
+-- Player-facing names: the SelfEnhancement Form reads "Enchantment" and the
+-- Enhancement payload reads "Swiftness"; the saved ids stay unchanged.
+assert(schema.Forms.SelfEnhancement.Label == "Enchantment", "SelfEnhancement is shown as Enchantment")
+assert(schema.Payloads.Enhancement.Label == "Swiftness", "Enhancement is shown as Swiftness")
+assert(not string.find(schema.Forms.SelfEnhancement.Description, "Self Enhancement", 1, true))
+for _, kind in { "Enhancement", "AerialMovement" } do
+	assert(not string.find(schema.Payloads[kind].Description, "Self Enhancement", 1, true), kind)
+	assert(string.find(schema.Payloads[kind].Description, "Enchantment", 1, true), kind)
+end
+assert(schema.PolarityLabels.Boon == "Boons" and schema.PolarityLabels.Bane == "Banes")
+assert(schema.PolarityLabels.Neutral == "Other")
 local slots = {}
 for slot, example in ipairs({
 	{ "Projectile", "Energy", "Damage", "OnImpact", "Practice bolt" },

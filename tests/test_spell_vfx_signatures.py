@@ -29,7 +29,7 @@ CLIENT_ONLY = [
 
 
 def run_luau(program):
-    with tempfile.NamedTemporaryFile("w", suffix=".luau", delete=False) as handle:
+    with tempfile.NamedTemporaryFile("w", suffix=".luau", delete=False, encoding="utf-8") as handle:
         handle.write(program)
         path = handle.name
     try:
@@ -50,7 +50,7 @@ class SignatureVFX(unittest.TestCase):
     def test_planner_spec(self):
         parts = ["local sources = {}"]
         for path in sorted((ROOT / "src/shared").rglob("*.luau")):
-            parts.append(f"sources[{path.relative_to(ROOT).as_posix()!r}] = {long_string(path.read_text())}")
+            parts.append(f"sources[{path.relative_to(ROOT).as_posix()!r}] = {long_string(path.read_text(encoding="utf-8"))}")
         parts.append(
             "env = getfenv()\n"
             "function load(path)\n"
@@ -59,7 +59,7 @@ class SignatureVFX(unittest.TestCase):
             "  return fn()\n"
             "end\n"
         )
-        parts.append((ROOT / "tests/spell_vfx_signature_spec.luau").read_text())
+        parts.append((ROOT / "tests/spell_vfx_signature_spec.luau").read_text(encoding="utf-8"))
         result = run_luau("\n".join(parts))
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertIn("Signature VFX:", result.stdout)
@@ -67,7 +67,7 @@ class SignatureVFX(unittest.TestCase):
     def test_client_modules_compile(self):
         checks = []
         for rel in CLIENT_ONLY:
-            text = (ROOT / rel).read_text()
+            text = (ROOT / rel).read_text(encoding="utf-8")
             checks.append(f"do local fn, err = loadstring({long_string(text)}, {rel!r}) assert(fn, err) end")
         checks.append('print("compiled")')
         result = run_luau("\n".join(checks))

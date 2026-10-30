@@ -2,7 +2,7 @@
 from pathlib import Path
 import unittest
 ROOT = Path(__file__).resolve().parents[1]
-def read(path): return (ROOT / path).read_text()
+def read(path): return (ROOT / path).read_text(encoding="utf-8")
 
 class WorkflowWiring(unittest.TestCase):
     def test_digits_edit_fields_and_cannot_cast_through_ui(self):
@@ -122,7 +122,7 @@ class WorkflowWiring(unittest.TestCase):
         service = read('src/server/Services/MagicService.luau')
         context = service[service.index('local function context('):service.index('\n\treturn ctx\nend', service.index('local function context('))]
         summon_callback = context[context.index('Summon = function(payload)'):context.index('\n\t\tend,', context.index('Summon = function(payload)'))]
-        self.assertIn('local resolvedPotency = potency or', context)
+        self.assertIn('local resolvedPotency = (potency or', context)
         self.assertIn('resolvedPotency,\n\t\t\t\tposition', summon_callback)
         self.assertNotIn('ctx.Potency', summon_callback)
         self.assertNotIn('ctx.Origin', summon_callback)

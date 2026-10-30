@@ -6,6 +6,7 @@ local CollectionService = game:GetService("CollectionService")
 local Lighting = game:GetService("Lighting")
 local Players = game:GetService("Players")
 local Spec = require(game:GetService("ReplicatedStorage").Shared.Modules.MagicConditionSpec)
+local Interactions = require(game:GetService("ReplicatedStorage").Shared.Modules.MagicElementalInteractionSpec)
 local Evaluator = require(game:GetService("ReplicatedStorage").Shared.Modules.MagicConditionEvaluator)
 local LifetimeCondition = require(game:GetService("ReplicatedStorage").Shared.Modules.MagicLifetimeConditionSpec)
 local Relationships = require(game:GetService("ReplicatedStorage").Shared.Modules.MagicRelationship)
@@ -61,7 +62,8 @@ local function environmentZoneAt(position: Vector3): (string?, string?)
 			priority = 0
 		end
 		if
-			priority > selectedPriority or (priority == selectedPriority and (selectedId == nil or zoneId < selectedId))
+			priority > selectedPriority
+			or (priority == selectedPriority and (selectedId == nil or zoneId < selectedId))
 		then
 			selectedId = zoneId
 			selectedTags = EnvironmentZoneSpec.encodeTags(instance:GetAttribute("MagicZoneTags"))
@@ -256,6 +258,11 @@ local function values(context: any): { [string]: any }
 			IsBound = targetBound == true,
 			IsRevealed = statusModel ~= nil and CollectionService:HasTag(statusModel, "MagicRevealedTarget"),
 			ElementalMarks = if type(targetElementalMarks) == "string" then targetElementalMarks else "||",
+			Reaction = Interactions.recentReaction(
+				if statusHumanoid then statusHumanoid:GetAttribute("MagicLastReaction") else nil,
+				if statusHumanoid then statusHumanoid:GetAttribute("MagicLastReactionAt") else nil,
+				workspace:GetServerTimeNow()
+			),
 			IsBurning = ElementalMarkSpec.hasEncoded(encodedElementalMarks, "Fire"),
 			IsWet = ElementalMarkSpec.hasEncoded(encodedElementalMarks, "Water"),
 			MagicArmorBonus = if type(targetArmorBonus) == "number" then targetArmorBonus else 0,
@@ -270,6 +277,13 @@ local function values(context: any): { [string]: any }
 			SinceCast = castState.Age or math.max(0, now - (castState.StartedAt or now)),
 		},
 	}
+	-- ModifyAttribute bonuses beyond armor/strength (CastSpeedBonus, MagicResistanceFireBonus, ...).
+	for property in pairs(Spec.Properties.Status) do
+		if valuesByFamily.Status[property] == nil and string.sub(property, -5) == "Bonus" then
+			local value = if statusHumanoid then statusHumanoid:GetAttribute(property) else nil
+			valuesByFamily.Status[property] = if type(value) == "number" then value else 0
+		end
+	end
 	for id, definition in pairs(SpecialResourceDefinitions) do
 		local amount = resource.SpecialResources and resource.SpecialResources[id]
 		valuesByFamily.Resource[id] = amount
@@ -543,6 +557,24 @@ end
 
 -- Trigger-step condition adapter: filters the event's targets with the step's
 -- rule tree. Values come from the same whitelisted resolver as cast rules.
+-- Raw values for ScaleBy (MagicScaleSpec), read through the same value adapters
+-- conditions use. Elemental mark stacks and charge come from MagicService.
+local scaleReads = {
+	TargetMissingHealthPercent = { "Target", "HealthPercent" },
+	DistanceFromCaster = { "DistancePosition", "Distance" },
+	AreaOccupants = { "SpellState", "AreaOccupants" },
+	TriggerCount = { "SpellState", "TriggerCount" },
+}
+function Conditions.scaleValue(source: string, context: any): any
+	local path = scaleReads[source]
+	if not path then
+		return nil
+	end
+	context.EnvironmentZone = false -- not a scaling source; skip the zone lookup
+	local family = values(context)[path[1]]
+	return family and family[path[2]]
+end
+
 function Conditions.stepTargets(condition: any, context: any): { Humanoid }?
 	local spellState = table.clone(context.SpellState or {})
 	spellState.SpellTags = context.SpellTags or {}
@@ -562,6 +594,10 @@ function Conditions.stepTargets(condition: any, context: any): { Humanoid }?
 			SpellState = spellState,
 		})
 		return function(familyName, propertyName)
+			-- Hit: the incoming hit on Before damage taken steps.
+			if familyName == "Hit" then
+				return context.IncomingHit and context.IncomingHit[propertyName]
+			end
 			local family = resolved[familyName]
 			return family and family[propertyName]
 		end

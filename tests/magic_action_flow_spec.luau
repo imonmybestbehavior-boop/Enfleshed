@@ -63,4 +63,8 @@ local deep = {
 local refused, refusedReason = Flow.otherwise(deep, 4)
 assert(refused == nil and string.find(refusedReason, "nested", 1, true), "Inversion respects the depth limit")
 assert(Flow.otherwise(nil, 4) == nil, "Unconditional steps have no otherwise")
+local hurt = Flow.casterHealthBelow(50)
+assert(hurt.Operator == "ALL" and hurt.Conditions[1].Family == "Caster", "stronger when hurt: a caster rule")
+assert(hurt.Conditions[1].Property == "HealthPercent" and hurt.Conditions[1].Value == 0.5)
+assert(Flow.casterHealthBelow(150).Conditions[1].Value == 0.99, "kept inside 1-99%")
 print("PASS: action-flow adapter preserves steps, parallel semantics, and conditions; branch helpers")
