@@ -2242,6 +2242,221 @@ do
 end
 
 ---------------------------------------------------------------------------
+-- Curated starters for Phases 8-11f (GrimoireStarters showcase expansion):
+-- each is built by the real recipe builder, validates (also after the server
+-- cost refresh) and, where the harness can run it, does what it says.
+---------------------------------------------------------------------------
+do
+	local savedScript, savedRequire, savedWarn = env.script, env.require, env.warn
+	local skipped = {}
+	env.script = {
+		Parent = {
+			SpellSpec = "spec",
+			MagicVisualSpec = "visualSpec",
+			MagicSpellIdentitySpec = "identitySpec",
+			Parent = { Configuration = { MagicSchema = "schema" } },
+		},
+	}
+	env.require = function(value)
+		return ({ spec = spec, schema = schema, visualSpec = visualSpec, identitySpec = identitySpec } :: any)[value]
+			or error(value)
+	end
+	env.warn = function(message)
+		table.insert(skipped, tostring(message))
+	end
+	local Starters = load("src/shared/Modules/GrimoireStarters.luau")
+	local built = Starters.buildFeatureShowcase()
+	env.script, env.require, env.warn = savedScript, savedRequire, savedWarn
+	local LabCost = load("src/shared/Modules/MagicLabCost.luau")
+	local byName = {}
+	for _, template in built do
+		byName[template.Definition.Name] = template.Definition
+	end
+	local names = {
+		"Ember Dash",
+		"Phase Step",
+		"Siphon Thread",
+		"Binding Chain",
+		"Riposte Ward",
+		"Hexling Curse",
+		"Wolfskin",
+		"Unravel",
+		"Kindling Lens",
+		"Crimson Offering",
+		"Storm Conduit",
+	}
+	local present, refreshedOk = 0, true
+	for _, name in names do
+		local definition = byName[name]
+		if definition then
+			present += 1
+			local copy = spec.copy(definition)
+			LabCost.refresh(copy, spec.estimate, spec.copy)
+			refreshedOk = refreshedOk and spec.validate(copy) == true
+		end
+	end
+	check(
+		"STARTERS",
+		"CAPABILITY",
+		present == #names and #skipped == 0,
+		"all 11 Phase 8-11f starters build and validate (" .. present .. "/" .. #names .. ")"
+	)
+	check("STARTERS", "CAPABILITY", refreshedOk, "they still validate after the server's cost refresh")
+
+	-- Rush: the dash hurts what it passes; the blink bursts where it lands.
+	local dash, blink = byName["Ember Dash"], byName["Phase Step"]
+	local foes = resetWorld({ vec(0, 0, 4) }, 100)
+	emit(dash, "OnImpact", caster, vec(0, 0, 0), { foes[1] }, 0)
+	check(
+		"STARTERS",
+		"CAPABILITY",
+		dash.Rush.Mode == "Dash" and totalDamageTo("Enemy1") == 8,
+		"Ember Dash: a Dash that burns what it passes (8)"
+	)
+	foes = resetWorld({ vec(0, 0, 4) }, 100)
+	emit(blink, "OnExpire", caster, vec(0, 0, 0), { foes[1] }, 0)
+	check(
+		"STARTERS",
+		"CAPABILITY",
+		blink.Rush.Mode == "Blink" and totalDamageTo("Enemy1") == 8 and blink.Triggers.OnImpact == nil,
+		"Phase Step: a Blink with an arrival burst and no hits on the way"
+	)
+
+	-- Tethers: a drain (enemy end hurt, caster end healed) and a chain of two enemies.
+	local siphon, binding = byName["Siphon Thread"], byName["Binding Chain"]
+	local tick = siphon.Triggers.OnTick
+	check(
+		"STARTERS",
+		"CAPABILITY",
+		siphon.Tether.Anchors == "CasterToTarget"
+			and tick[1].Anchor == "B"
+			and tick[1].Payloads[1].Kind == "Damage"
+			and tick[2].Anchor == "A"
+			and tick[2].Payloads[1].Kind == "Heal",
+		"Siphon Thread: drains the enemy end into the caster end"
+	)
+	check(
+		"STARTERS",
+		"CAPABILITY",
+		binding.Tether.Anchors == "TargetToTarget" and binding.Triggers.OnBreak[1].Payloads[1].Kind == "Stun",
+		"Binding Chain: links two enemies and stuns both when it snaps"
+	)
+
+	-- Parry, Polymorph, Shapeshift.
+	local riposte = byName["Riposte Ward"]
+	local guard = riposte.Triggers.OnBeforeDamageTaken
+	check(
+		"STARTERS",
+		"CAPABILITY",
+		riposte.Interception
+			and riposte.Interception.Charges == 1
+			and guard[1].Intercept.Action == "Negate"
+			and guard[2].TargetFrom == "Attacker",
+		"Riposte Ward: a one-charge parry that marks the attacker"
+	)
+	local hex = byName["Hexling Curse"].Triggers.OnImpact[1].Payloads[1]
+	check(
+		"STARTERS",
+		"CAPABILITY",
+		hex.Kind == "Transformation" and hex.Mode == "Polymorph" and hex.Multiplier == nil and hex.Duration <= 8,
+		"Hexling Curse: a Polymorph (no size, at most 8 s)"
+	)
+	local wolf = byName["Wolfskin"].Triggers.OnCast[1].Payloads[1]
+	check(
+		"STARTERS",
+		"CAPABILITY",
+		wolf.Mode == "Shapeshift" and table.find(schema.ShapeshiftProfiles, wolf.Profile) ~= nil,
+		"Wolfskin: a Shapeshift onto a real melee profile"
+	)
+
+	-- Dispel: Unravel ends a cheap hostile Field it bursts next to.
+	local unravel = byName["Unravel"]
+	local fieldSpell = { Name = "Hostile", Remaining = 6 }
+	spellWorld.Entries = {
+		{
+			Record = fieldSpell,
+			Kind = "Field",
+			Owner = makeCharacter("StarterFoe", vec(20, 0, 0), 100).Parent,
+			Center = vec(2, 0, 0),
+			Radius = 4,
+			Complexity = 0,
+		},
+	}
+	spellWorld.Complexity, spellWorld.Touched, spellWorld.CasterUserId = spec.estimate(unravel).Complexity, {}, 1
+	resetWorld({}, 100)
+	emit(unravel, "OnImpact", caster, vec(0, 0, 0), {}, 0)
+	check("STARTERS", "CAPABILITY", fieldSpell.Dispelled == true, "Unravel: dispels a hostile Field it bursts next to")
+	spellWorld.Entries = {}
+
+	-- Lens: allied projectiles crossing Kindling Lens hit harder and carry a Fire mark.
+	local lens = byName["Kindling Lens"]
+	local shot = { Velocity = 10, BaseSpeed = 10 }
+	SpellTargetsRuntime.lens({}, lens.Field.AffectsSpells, { shot }, function()
+		return nil
+	end)
+	check(
+		"STARTERS",
+		"CAPABILITY",
+		lens.Field.AffectsSpells.Who == "Allied"
+			and shot.LensMarks
+			and shot.LensMarks[1] == "Fire"
+			and math.abs((shot.PotencyMultiplier or 1) - 1.2) < 1e-9,
+		"Kindling Lens: allied projectiles crossing it gain a Fire mark and x1.2 potency"
+	)
+
+	-- Blood magic: Crimson Offering pays 20 HP and grows with it (16 -> 19.2).
+	local offering = table.clone(byName["Crimson Offering"])
+	offering._HealthPaid = BloodRuntime.quote(offering.Cost, casterHumanoid.MaxHealth, 1)
+	foes = resetWorld({ vec(4, 0, 0) }, 200)
+	emit(offering, "OnImpact", caster, vec(4, 0, 0), { foes[1] }, 0)
+	check(
+		"STARTERS",
+		"CAPABILITY",
+		offering._HealthPaid == 20 and math.abs(totalDamageTo("Enemy1") - 19.2) < 1e-6,
+		"Crimson Offering: costs 20 HP and its damage grows with it (16 -> 19.2)"
+	)
+
+	-- Lightning chain: Storm Conduit leaps between Wet targets at 50%.
+	local conduit = byName["Storm Conduit"]
+	envWorld.Enabled = true
+	table.clear(envWorld.Wet)
+	envWorld.Chain = function(attacker, humanoid, dealt, damageContext)
+		EnvironmentRuntime.chain({ Attacker = attacker, Target = humanoid, Amount = dealt, Context = damageContext }, {
+			IsWet = function(h)
+				return envWorld.Wet[h] == true
+			end,
+			Position = function(h)
+				return h.Parent.Children.HumanoidRootPart.Position
+			end,
+			Nearby = function(at, radius)
+				return sphereQuery(at, radius)
+			end,
+			CanDamage = function(_, h)
+				return h.Health > 0
+			end,
+			PvP = function()
+				return nil
+			end,
+			Spend = OperationBudget.spend,
+			Deal = function(source, h, share, hitContext)
+				DamageService.apply(source, h, share, hitContext)
+			end,
+		})
+	end
+	foes = resetWorld({ vec(0, 0, 0), vec(6, 0, 0) }, 200)
+	envWorld.Wet[foes[1]], envWorld.Wet[foes[2]] = true, true
+	emit(conduit, "OnImpact", caster, vec(0, 0, 0), { foes[1] }, 0)
+	check(
+		"STARTERS",
+		"CAPABILITY",
+		totalDamageTo("Enemy1") == 10 and totalDamageTo("Enemy2") == 5,
+		"Storm Conduit: leaps from a Wet target to the next at 50%"
+	)
+	envWorld.Enabled, envWorld.Chain = false, nil
+	table.clear(envWorld.Wet)
+end
+
+---------------------------------------------------------------------------
 local kinds = { CAPABILITY = 0, LIMITATION = 0 }
 ---------------------------------------------------------------------------
 -- Melee and damage-taken reactions: thorns and weapon imbues

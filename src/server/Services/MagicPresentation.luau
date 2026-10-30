@@ -523,9 +523,60 @@ local function surfacePulse(hit, definition)
 	Debris:AddItem(pulse, 0.65)
 end
 
+-- Generated visuals ride an invisible path part stamped with the spell's own
+-- Form (SpellVFXAnalyzer.stamp), like Beams' MagicBeamPath.
+local function pathPart(name: string, frame: CFrame): BasePart
+	local part = Instance.new("Part")
+	part.Name = name
+	part.Anchored, part.CanCollide, part.CanTouch, part.CanQuery = true, false, false, false
+	part.Transparency = 1
+	part.Size = Vector3.one * 0.1
+	part.CFrame = frame
+	part.Parent = workspace
+	return part
+end
+
+-- Rush: the path rides the dashing caster (MagicService moves it each step).
+function Presentation.rush(definition: any, root: BasePart): BasePart
+	local anchor = pathPart("MagicRushPath", root.CFrame)
+	local width = math.max(1, 2 * ((definition.Rush and definition.Rush.Radius) or 0.5))
+	Analyzer.stamp(anchor, definition, Vector3.new(width, width, width), "Sustain")
+	return anchor
+end
+
+function Presentation.endRush(anchor: BasePart, root: BasePart?)
+	if root and root.Parent then
+		anchor.CFrame = root.CFrame
+	end
+	Presentation.finish(anchor)
+	Debris:AddItem(anchor, 1.5)
+end
+
+-- Tether links: the stamped path spanning the two ends, refreshed by updateTether.
+local tetherPaths: { [Beam]: { Path: BasePart, A: BasePart, B: BasePart } } = setmetatable({}, { __mode = "k" }) :: any
+
+function Presentation.updateTether(beam: Beam?)
+	local entry = beam and tetherPaths[beam]
+	if not entry or not entry.A.Parent or not entry.B.Parent then
+		return
+	end
+	local a, b = entry.A.Position, entry.B.Position
+	local length = (b - a).Magnitude
+	if length < 0.01 then
+		return
+	end
+	local size = entry.Path:GetAttribute("VFXSize")
+	-- Replicate only real changes (attribute writes go to every client).
+	if (entry.Path.Position - a).Magnitude > 0.25 or typeof(size) ~= "Vector3" or math.abs(size.Z - length) > 0.25 then
+		entry.Path.CFrame = CFrame.lookAt(a, b)
+		entry.Path:SetAttribute("VFXSize", Vector3.new(0.35, 0.35, length))
+	end
+end
+
 -- Tether: a Beam between the anchors' roots in the spell's colour; removed
--- (with a short impact flash at the midpoint on a snap) by endTether.
-function Presentation.tether(rootA: BasePart, rootB: BasePart, color: Color3): Beam
+-- (with a short impact flash at the midpoint on a snap) by endTether. With the
+-- spell's definition, the link also gets generated visuals along its path.
+function Presentation.tether(rootA: BasePart, rootB: BasePart, color: Color3, definition: any?): Beam
 	local start = Instance.new("Attachment")
 	start.Name = "MagicTetherStart"
 	start.Parent = rootA
@@ -545,6 +596,12 @@ function Presentation.tether(rootA: BasePart, rootB: BasePart, color: Color3): B
 		start:Destroy()
 		finish:Destroy()
 	end)
+	if definition then
+		local length = math.max(0.1, (rootB.Position - rootA.Position).Magnitude)
+		local path = pathPart("MagicTetherPath", CFrame.lookAt(rootA.Position, rootB.Position))
+		Analyzer.stamp(path, definition, Vector3.new(0.35, 0.35, length), "Sustain")
+		tetherPaths[beam] = { Path = path, A = rootA, B = rootB }
+	end
 	return beam
 end
 
@@ -555,6 +612,12 @@ function Presentation.endTether(beam: Beam?, snapped: boolean, midpoint: Vector3
 			(definition.Visual and definition.Visual.Color) or Color3.new(1, 1, 1),
 			definition
 		)
+	end
+	local entry = beam and tetherPaths[beam]
+	if entry then
+		tetherPaths[beam :: Beam] = nil
+		Presentation.finish(entry.Path)
+		Debris:AddItem(entry.Path, 1)
 	end
 	if beam then
 		beam:Destroy()

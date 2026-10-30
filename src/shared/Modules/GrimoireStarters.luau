@@ -1644,6 +1644,236 @@ local showcaseExpansion = {
 	},
 }
 
+-- Phases 8-11f: one curated spell per new spellcraft feature, seeded into the
+-- showcase collection. Recipes may also set
+-- Rush / Tether settings, explicit Steps (step fields such as Anchor,
+-- Intercept, TargetKind or Behavior), Spell (spell-level settings) and Cost.
+local featureShowcase = {
+	{
+		Name = "Ember Dash",
+		Description = "Rush forward in a burst of flame, scorching everyone you pass through.",
+		Form = "Rush",
+		Principle = "Energy",
+		Element = "Fire",
+		Event = "OnImpact",
+		Targeting = "AimDirection",
+		Shape = "Sphere",
+		Material = "Neon",
+		Particle = "Sparks",
+		Trail = "Ribbon",
+		Impact = "Burst",
+		VFX = "None",
+		Rush = { Mode = "Dash", Distance = 18, Speed = 90, Radius = 2, StopOnHit = false },
+		Payloads = { { Kind = "Damage", Amount = 8 } },
+		Casting = { Mode = "Instant", Cooldown = 4 },
+	},
+	{
+		Name = "Phase Step",
+		Description = "Blink a short distance and release a jolt of force where you land.",
+		Form = "Rush",
+		Principle = "Space",
+		Element = "Neutral",
+		Event = "OnExpire",
+		Targeting = "AimDirection",
+		Shape = "Sphere",
+		Material = "ForceField",
+		Particle = "None",
+		Trail = "None",
+		Impact = "Pulse",
+		VFX = "None",
+		Rush = { Mode = "Blink", Distance = 16 },
+		Payloads = { { Kind = "Damage", Amount = 8 } },
+		Casting = { Mode = "Instant", Cooldown = 5 },
+	},
+	{
+		Name = "Siphon Thread",
+		Description = "Tether yourself to an enemy and drain their life into your own while the link holds.",
+		Form = "Tether",
+		Principle = "Soul",
+		Element = "Neutral",
+		Targeting = "EntityTarget",
+		Shape = "Sphere",
+		Material = "Neon",
+		Particle = "Smoke",
+		Trail = "Ribbon",
+		Impact = "Pulse",
+		VFX = "None",
+		Steps = {
+			OnTick = {
+				{ Anchor = "B", Payloads = { { Kind = "Damage", Amount = 5 } } },
+				{ Anchor = "A", Payloads = { { Kind = "Heal", Amount = 5 } } },
+			},
+		},
+		Casting = { Mode = "Instant", Cooldown = 6 },
+	},
+	{
+		Name = "Binding Chain",
+		Description = "Chain two enemies together; pulling them apart snaps the chain and stuns both.",
+		Form = "Tether",
+		Principle = "Space",
+		Element = "Neutral",
+		Targeting = "EntityTarget",
+		Shape = "Sphere",
+		Material = "Neon",
+		Particle = "None",
+		Trail = "Ribbon",
+		Impact = "Cross",
+		VFX = "None",
+		Tether = { Anchors = "TargetToTarget", MaxLength = 20 },
+		Steps = {
+			OnTick = { { Payloads = { { Kind = "Slow", Multiplier = 0.8, Duration = 1 } } } },
+			OnBreak = { { Payloads = { { Kind = "Stun", Duration = 1 } } } },
+		},
+		Casting = { Mode = "Instant", Cooldown = 8 },
+	},
+	{
+		Name = "Riposte Ward",
+		Description = "Parry the next hit completely and mark the attacker with fire in return.",
+		Form = "SelfEnhancement",
+		Principle = "Body",
+		Element = "Fire",
+		Targeting = "Self",
+		Geometry = "Self",
+		Shape = "Sphere",
+		Material = "ForceField",
+		Particle = "Sparks",
+		Trail = "None",
+		Impact = "Pulse",
+		VFX = "None",
+		Spell = { Interception = { Charges = 1, EndWhenSpent = true } },
+		Steps = {
+			OnBeforeDamageTaken = {
+				{ Intercept = { Action = "Negate" }, Payloads = {} },
+				{ TargetFrom = "Attacker", Payloads = { { Kind = "ElementalMark", Stacks = 1, Duration = 5 } } },
+			},
+		},
+		Casting = { Mode = "Instant", Cooldown = 8 },
+		Lifetime = { Mode = "FixedDuration", Duration = 4 },
+	},
+	{
+		Name = "Hexling Curse",
+		Description = "Turn an enemy into a harmless critter for a few seconds; anyone else's damage breaks it.",
+		Form = "Projectile",
+		Principle = "Body",
+		Element = "Neutral",
+		Event = "OnImpact",
+		Targeting = "AimDirection",
+		Shape = "Sphere",
+		Material = "Neon",
+		Particle = "Smoke",
+		Trail = "Ribbon",
+		Impact = "Burst",
+		VFX = "None",
+		Projectile = { Speed = 70, Radius = 0.5, MaxDistance = 90, Behaviors = {} },
+		Payloads = { { Kind = "Transformation", Mode = "Polymorph", Duration = 4, BreakOnDamage = true } },
+		Casting = { Mode = "Instant", Cooldown = 10 },
+	},
+	{
+		Name = "Wolfskin",
+		Description = "Take on a beast's form: your melee becomes fast, close-range claws for a while.",
+		Form = "SelfEnhancement",
+		Principle = "Body",
+		Element = "Neutral",
+		Event = "OnCast",
+		Targeting = "Self",
+		Geometry = "Self",
+		Shape = "Sphere",
+		Material = "ForceField",
+		Particle = "Smoke",
+		Trail = "None",
+		Impact = "Pulse",
+		VFX = "None",
+		Payloads = { { Kind = "Transformation", Mode = "Shapeshift", Duration = 10, Profile = "Dagger" } },
+		Casting = { Mode = "Instant", Cooldown = 12 },
+		Lifetime = { Mode = "FixedDuration", Duration = 10 },
+	},
+	{
+		Name = "Unravel",
+		Description = "A bolt that bursts on impact and dispels the hostile fields, constructs and tethers around it.",
+		Form = "Projectile",
+		Principle = "Energy",
+		Element = "Neutral",
+		Targeting = "AimDirection",
+		Shape = "Crystal",
+		Material = "Glass",
+		Particle = "Sparks",
+		Trail = "Ribbon",
+		Impact = "Cross",
+		VFX = "None",
+		Projectile = { Speed = 80, Radius = 0.5, MaxDistance = 100, Behaviors = {} },
+		Steps = {
+			OnImpact = {
+				{
+					TargetKind = "Spell",
+					Behavior = "Explode",
+					Radius = 6,
+					Payloads = { { Kind = "Dispel", Mode = "End" } },
+				},
+			},
+		},
+		Casting = { Mode = "Instant", Cooldown = 6 },
+	},
+	{
+		Name = "Kindling Lens",
+		Description = "A lens field: your and your allies' projectiles passing through it hit harder and set targets alight; enemies inside smoulder.",
+		Form = "Field",
+		Principle = "Energy",
+		Element = "Fire",
+		Event = "OnTick",
+		Targeting = "Area",
+		Geometry = "Sphere",
+		Shape = "Cylinder",
+		Material = "Glass",
+		Particle = "Sparks",
+		Trail = "None",
+		Impact = "Ring",
+		VFX = "None",
+		Field = { Radius = 8, AffectsSpells = { Who = "Allied", AddMark = "Fire", ScalePotency = 1.2 } },
+		Payloads = { { Kind = "ElementalMark", Stacks = 1, Duration = 3 } },
+		Casting = { Mode = "Instant", Cooldown = 10 },
+		Lifetime = { Mode = "FixedDuration", Duration = 8 },
+	},
+	{
+		Name = "Crimson Offering",
+		Description = "Blood magic: pay 20 health to hurl a bolt that grows stronger with the health you spent.",
+		Form = "Projectile",
+		Principle = "Body",
+		Element = "Fire",
+		Event = "OnImpact",
+		Targeting = "AimDirection",
+		Shape = "Sphere",
+		Material = "Neon",
+		Particle = "Smoke",
+		Trail = "Ribbon",
+		Impact = "Burst",
+		VFX = "None",
+		Projectile = { Speed = 85, Radius = 0.6, MaxDistance = 100, Behaviors = {} },
+		Cost = { Health = { Mode = "Flat", Amount = 20 } },
+		Payloads = {
+			{ Kind = "Damage", Amount = 16, ScaleBy = { Source = "HealthPaid", PerUnit = 0.16, Max = 16 } },
+		},
+		Casting = { Mode = "Instant", Cooldown = 3 },
+	},
+	{
+		Name = "Storm Conduit",
+		Description = "A lightning bolt that leaps between wet targets: soak enemies first, then chain through them.",
+		Form = "Projectile",
+		Principle = "Energy",
+		Element = "Lightning",
+		Event = "OnImpact",
+		Targeting = "AimDirection",
+		Shape = "Sphere",
+		Material = "Neon",
+		Particle = "Sparks",
+		Trail = "Ribbon",
+		Impact = "Cross",
+		VFX = "None",
+		Projectile = { Speed = 110, Radius = 0.4, MaxDistance = 110, Behaviors = {} },
+		Payloads = { { Kind = "Damage", Amount = 10 } },
+		Casting = { Mode = "Instant", Cooldown = 1.5 },
+	},
+}
+
 local function buildPayloads(form: string, principle: string, event: string, definitions: { any })
 	local result = {}
 	for _, sourcePayload in ipairs(definitions) do
@@ -1651,6 +1881,8 @@ local function buildPayloads(form: string, principle: string, event: string, def
 		local payload = Spec.copy(schemaPayload.Defaults)
 		overlay(payload, sourcePayload)
 		payload.Kind = sourcePayload.Kind
+		-- Drop default fields the chosen mode hides (e.g. a Polymorph has no Multiplier).
+		Schema.normalizePayload(payload)
 		assert(
 			Schema.supportsPayload(payload.Kind, form, event, principle),
 			"Unsupported showcase effect: " .. form .. " / " .. event .. " / " .. payload.Kind
@@ -1685,7 +1917,17 @@ local function buildRecipeCollection(sourceRecipes: { any }, collectionLabel: st
 			if recipe.Lifetime then
 				overlay(definition.Lifetime, recipe.Lifetime)
 			end
-			for _, section in ipairs({ "Projectile", "Beam", "Wave", "Field", "Aura", "Construct", "MaterialConfig" }) do
+			for _, section in ipairs({
+				"Projectile",
+				"Beam",
+				"Wave",
+				"Field",
+				"Aura",
+				"Construct",
+				"Rush",
+				"Tether",
+				"MaterialConfig",
+			}) do
 				local key = if section == "MaterialConfig" then "Material" else section
 				if recipe[section] then
 					if section == "MaterialConfig" then
@@ -1715,9 +1957,36 @@ local function buildRecipeCollection(sourceRecipes: { any }, collectionLabel: st
 			if recipe.TargetRules then
 				overlay(definition.TargetRules, recipe.TargetRules)
 			end
-			definition.Triggers[recipe.Event] = {
-				{ Payloads = buildPayloads(recipe.Form, recipe.Principle, recipe.Event, recipe.Payloads) },
-			}
+			-- Spell-level settings (Interception, IgnoreEnvironment, ...) and blood costs.
+			if recipe.Spell then
+				overlay(definition, recipe.Spell)
+			end
+			if recipe.Cost then
+				overlay(definition.Cost, recipe.Cost)
+			end
+			if recipe.Payloads then
+				definition.Triggers[recipe.Event] = {
+					{ Payloads = buildPayloads(recipe.Form, recipe.Principle, recipe.Event, recipe.Payloads) },
+				}
+			end
+			-- Explicit steps: step fields (Anchor, Intercept, TargetFrom, TargetKind,
+			-- Behavior and its settings) around their payloads.
+			for event, steps in pairs(recipe.Steps or {}) do
+				local built = {}
+				for _, sourceStep in ipairs(steps) do
+					local step = if sourceStep.Behavior
+						then Spec.copy((Schema.Behaviors[sourceStep.Behavior] or {}).Defaults or {})
+						else {}
+					for key, value in pairs(sourceStep) do
+						if key ~= "Payloads" then
+							step[key] = Spec.copy(value)
+						end
+					end
+					step.Payloads = buildPayloads(recipe.Form, recipe.Principle, event, sourceStep.Payloads or {})
+					table.insert(built, step)
+				end
+				definition.Triggers[event] = built
+			end
 			for event, definitions in pairs(recipe.OtherTriggers or {}) do
 				definition.Triggers[event] =
 					{ { Payloads = buildPayloads(recipe.Form, recipe.Principle, event, definitions) } }
@@ -1752,6 +2021,11 @@ end
 
 function Starters.buildShowcaseExpansion()
 	return buildRecipeCollection(showcaseExpansion, "showcase expansion")
+end
+
+-- Phase 8-11f feature starters; seeded into the showcase collection.
+function Starters.buildFeatureShowcase()
+	return buildRecipeCollection(featureShowcase, "feature showcase")
 end
 
 return Starters

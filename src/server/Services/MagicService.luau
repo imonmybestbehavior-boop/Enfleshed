@@ -2046,6 +2046,10 @@ local function finishRush(rush, silent: boolean?)
 	task.delay(0.1, function()
 		Ownership.release(root, rush.OwnershipToken)
 	end)
+	if rush.Visual then
+		Presentation.endRush(rush.Visual, root)
+		rush.Visual = nil
+	end
 	if not silent then
 		emitExpiry(rush, rush.Position, areaTargets(rush, rush.Position, rush.Definition.Rush.Radius))
 	end
@@ -2063,6 +2067,9 @@ local function stepRush(rush, delta: number): boolean
 	rush.Travelled = travelled
 	rush.Position = to
 	MagicRush.place(rush.Root, to, rush.Path.Direction, if arrived then 0 else d.Rush.Speed)
+	if rush.Visual then
+		rush.Visual.CFrame = rush.Root.CFrame
+	end
 	local candidates, seen = {}, {}
 	for _, center in MagicRush.sweepCenters(from, to, d.Rush.Radius) do
 		for _, humanoid in areaTargets(rush, center, d.Rush.Radius) do
@@ -2186,6 +2193,7 @@ local function stepTether(spell, dt: number): boolean
 	local rootA, rootB = tetherRoot(spell.AnchorA), tetherRoot(spell.AnchorB)
 	if rootA and rootB then
 		spell.Position = (rootA.Position + rootB.Position) / 2
+		Presentation.updateTether(spell.Visual)
 	end
 	return TetherRuntime.update(spell, dt, os.clock(), tetherDeps) ~= nil
 end
@@ -4062,7 +4070,7 @@ local function execute(
 			RemainingLifetime = configuredLifetime(d),
 			Position = (rootA.Position + rootB.Position) / 2,
 			Direction = direction,
-			Visual = Presentation.tether(rootA, rootB, d.Visual.Color),
+			Visual = Presentation.tether(rootA, rootB, d.Visual.Color, d),
 		}
 		registerActiveEffect(tether)
 		tetherDeps.Emit(tether, "OnCast")
@@ -4098,6 +4106,8 @@ local function execute(
 			Path = path,
 			Travelled = 0,
 			OwnershipToken = token,
+			-- Generated Rush visuals ride the caster (a Blink flashes out and in).
+			Visual = Presentation.rush(d, state.Root),
 		}
 		emit(
 			d,

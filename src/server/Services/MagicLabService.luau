@@ -524,6 +524,8 @@ function Lab.start(folder: Folder, getState: (Player) -> any, feedback: RemoteEv
 			Starters.ShowcaseExpansionTag,
 			Starters.buildShowcaseExpansion
 		) or changed
+		changed = trySeedCollection(Starters.ShowcaseCollection, Starters.ShowcaseTag, Starters.buildFeatureShowcase)
+			or changed
 		changed = trySeedCollection(Starters.CombatCollection, Starters.CombatTag, Starters.buildCombatStarters)
 			or changed
 		if changed and writable[player] then

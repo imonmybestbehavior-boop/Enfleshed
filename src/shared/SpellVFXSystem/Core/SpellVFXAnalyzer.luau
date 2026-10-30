@@ -21,6 +21,9 @@ Analyzer.Forms = {
 	Construct = "Lattice",
 	SelfEnhancement = "Mantle",
 	Manipulation = "Lattice",
+	-- The caster is the moving body of a Rush; a Tether is a live link between two ends.
+	Rush = "Comet",
+	Tether = "Helix",
 }
 Analyzer.Behaviors = {
 	Homing = "Seeker",

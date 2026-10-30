@@ -507,6 +507,19 @@ class MagicRegistryParity(unittest.TestCase):
 		preview = (ROOT / "src/client/UI/ForgePreviewPanel.luau").read_text(encoding="utf-8")
 		self.assertIn("EnvironmentSpec.previewLine(draft.Element, draft.IgnoreEnvironment)", preview)
 
+	def test_rush_and_tether_get_generated_visuals(self):
+		service = (ROOT / "src/server/Services/MagicService.luau").read_text(encoding="utf-8")
+		self.assertIn("Presentation.tether(rootA, rootB, d.Visual.Color, d)", service, "the link is stamped")
+		self.assertIn("Presentation.updateTether(spell.Visual)", service, "and follows both ends")
+		self.assertIn("Visual = Presentation.rush(d, state.Root),", service, "a Rush is stamped on the caster")
+		self.assertIn("Presentation.endRush(rush.Visual, root)", service)
+		analyzer = (ROOT / "src/shared/SpellVFXSystem/Core/SpellVFXAnalyzer.luau").read_text(encoding="utf-8")
+		self.assertIn('Rush = "Comet",', analyzer)
+		self.assertIn('Tether = "Helix",', analyzer)
+		library = (ROOT / "src/shared/SpellVFXSystem/Visual/SpellVisualAssetLibrary.luau").read_text(encoding="utf-8")
+		self.assertIn('Id = "Rush.Streak",', library)
+		self.assertIn('Id = "Tether.Links",', library)
+
 	def test_companion_command_cast_slot_uses_the_cast_definition(self):
 		service = (ROOT / "src/server/Services/MagicService.luau").read_text(encoding="utf-8")
 		start = service.index("local function execute(")

@@ -39,7 +39,7 @@ env.script = {
 local analyzer = load("src/shared/SpellVFXSystem/Core/SpellVFXAnalyzer.luau")
 local cost = load("src/shared/Modules/MagicLabCost.luau")
 local count, elements, forms, definitions = 0, {}, {}, {}
-for _, build in ipairs({ starters.buildShowcase, starters.buildShowcaseExpansion }) do
+for _, build in ipairs({ starters.buildShowcase, starters.buildShowcaseExpansion, starters.buildFeatureShowcase }) do
 	for _, record in ipairs(build()) do
 		local d = record.Definition
 		assert(not definitions[d.Name], "Duplicate curated spell " .. d.Name)
@@ -75,7 +75,7 @@ for _, build in ipairs({ starters.buildShowcase, starters.buildShowcaseExpansion
 		)
 	end
 end
-assert(count == 65, "Expected all 65 recipes accepted, got " .. count)
+assert(count == 76, "Expected all 76 recipes accepted, got " .. count)
 for element in pairs(analyzer.Elements) do
 	assert(elements[element], "Missing element " .. element)
 end

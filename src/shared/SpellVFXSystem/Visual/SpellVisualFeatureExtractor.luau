@@ -283,6 +283,22 @@ local function scanForms(spell, raw)
 			end
 		end
 	end
+	-- Rush: the caster's dash (speed, sweep width, distance).
+	local rush = spell.Rush
+	if type(rush) == "table" then
+		raw.speed = math.max(raw.speed, num(rush.Speed))
+		raw.size = math.max(raw.size, num(rush.Radius))
+		raw.range = math.max(raw.range, num(rush.Distance))
+	end
+	-- Tether: the link's length and its pulse rate.
+	local tether = spell.Tether
+	if type(tether) == "table" then
+		raw.range = math.max(raw.range, num(tether.MaxLength))
+		if num(tether.Interval) > 0 then
+			raw.repeats = true
+			raw.repeatRate = math.max(raw.repeatRate, 1 / math.max(num(tether.Interval), 0.1))
+		end
+	end
 	local construct = spell.Construct
 	if type(construct) == "table" then
 		local volume = math.max(num(construct.Width), 0.1)
