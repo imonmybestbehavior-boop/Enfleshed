@@ -479,6 +479,34 @@ class MagicRegistryParity(unittest.TestCase):
 		policy = (ROOT / "src/shared/Modules/CombatPolicy.luau").read_text(encoding="utf-8")
 		self.assertIn('return payload.Mode == "Polymorph"', policy)
 
+	def test_environment_reactions_are_wired(self):
+		service = (ROOT / "src/server/Services/MagicService.luau").read_text(encoding="utf-8")
+		applied = service[service.index("Damage.Applied:Connect(function(") :]
+		self.assertIn("World.Reactions.chain(", applied[:400], "the chain runs where spell hits land")
+		self.assertIn("profile.MaxWetChainPlayerJumps", service, "PvP chain caps")
+		self.assertIn('if event == "OnImpact" and typeof(eventState.HitPart) == "Instance"', service, "impacts react")
+		self.assertIn('CollectionService:HasTag(part, "Flammable")', service)
+		self.assertIn('CollectionService:HasTag(part, "Water")', service)
+		self.assertIn("hit.Material == Enum.Material.Water", service, "Terrain water")
+		self.assertIn("Limits.IcePlatformHealth", service, "the platform has Construct health")
+		self.assertIn("IgnoreEnvironment = definition.IgnoreEnvironment == true or nil", service)
+		self.assertIn("return field\n", service, "spawnEffect returns the Field for the per-caster limit")
+		self.assertIn("return construct\n", service)
+		executors = (ROOT / "src/server/Services/MagicPayloadExecutors.luau").read_text(encoding="utf-8")
+		self.assertIn("damageContext.WetBefore[target] = context.IsWet(target)", executors, "Wet before reactions")
+		runtime = (ROOT / "src/server/Services/MagicEnvironmentReactions.luau").read_text(encoding="utf-8")
+		self.assertIn("Redirected = true,", runtime, "hops are marked like redirected damage")
+		self.assertIn("Depth = context.Depth + 1,", runtime)
+		self.assertIn("IgnoreEnvironment = true,", runtime, "spawned fires and platforms never react")
+		config = (ROOT / "src/shared/Configuration/MagicLab.luau").read_text(encoding="utf-8")
+		self.assertIn("FlammableMaterials = {},", config, "no flammable materials by default")
+		for path in ("src/client/UI/GuidedSpellForge.luau", "src/client/Controllers/MagicLabController.luau"):
+			editor = (ROOT / path).read_text(encoding="utf-8")
+			self.assertIn('"Ignore the world"', editor, path)
+			self.assertIn("draft.IgnoreEnvironment = if", editor, path)
+		preview = (ROOT / "src/client/UI/ForgePreviewPanel.luau").read_text(encoding="utf-8")
+		self.assertIn("EnvironmentSpec.previewLine(draft.Element, draft.IgnoreEnvironment)", preview)
+
 	def test_companion_command_cast_slot_uses_the_cast_definition(self):
 		service = (ROOT / "src/server/Services/MagicService.luau").read_text(encoding="utf-8")
 		start = service.index("local function execute(")

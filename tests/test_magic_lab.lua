@@ -1583,6 +1583,31 @@ do
 			)
 		end)();
 		(function()
+			-- Environment reactions: on by default, IgnoreEnvironment turns them off.
+			local bolt = spec.createDraft("Projectile", "Energy")
+			bolt.Triggers.OnImpact = { { Payloads = { { Kind = "Damage", Amount = 10 } } } }
+			assert(spec.validate(bolt), "a spell without the setting reacts with the world")
+			bolt.IgnoreEnvironment = true
+			local ok, reason = spec.validate(bolt)
+			assert(ok, "Ignore the world was rejected: " .. tostring(reason))
+			bolt.IgnoreEnvironment = "yes"
+			assert(not spec.validate(bolt), "Ignore the world is on or off")
+			bolt.IgnoreEnvironment = true
+			local child = spec.expandSpawnEffect(bolt, spec.defaultSpawnEffect("Field", "Energy"))
+			assert(child and child.IgnoreEnvironment == true, "spawned effects inherit Ignore the world")
+			bolt.IgnoreEnvironment = nil
+			local effect = spec.defaultSpawnEffect("Field", "Energy")
+			effect.IgnoreEnvironment = true
+			child = spec.expandSpawnEffect(bolt, effect)
+			assert(child and child.IgnoreEnvironment == true, "a world-reaction spawn never reacts itself")
+			assert(limits.ElementalInteractions, "interactions configured")
+			for _, entry in limits.ElementalInteractions do
+				if entry.Name == "Conduct" then
+					assert(#entry.Effects == 0, "the Wet chain replaces Conduct's flat chain")
+				end
+			end
+		end)();
+		(function()
 			-- Blood magic: health costs, health for mana, upkeep, reprice.
 			local bolt = spec.createDraft("Projectile", "Energy")
 			bolt.Triggers.OnImpact = { { Payloads = { { Kind = "Damage", Amount = 40 } } } }

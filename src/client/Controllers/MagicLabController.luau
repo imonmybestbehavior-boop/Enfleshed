@@ -4584,6 +4584,17 @@ function Lab.start(send, aim, launcher)
 					"Ongoing Locus strain accumulated during the active lifetime."
 				)
 			end
+			heading("THE WORLD")
+			toggle(
+				"Ignore the world",
+				draft.IgnoreEnvironment == true,
+				function(value)
+					draft.IgnoreEnvironment = if value then true else nil
+					dirty = true
+					revision += 1
+				end,
+				"Off: Lightning chains through Wet targets, Fire sets Flammable-tagged parts alight, Ice freezes water into walkable platforms. On: this spell does none of that."
+			)
 			heading("PAY WITH HEALTH")
 			info(
 				"Blood magic (players only). Paying health is not damage, and a cast is refused if it would leave you below "

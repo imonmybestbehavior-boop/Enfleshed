@@ -343,6 +343,7 @@ local spawnEffectKeys = {
 	Lifetime = true,
 	Triggers = true,
 	Element = true, -- optional override (e.g. a burning Field from a Wind spell)
+	IgnoreEnvironment = true, -- world reactions spawn effects that never react themselves
 }
 for _, formName in Spec.SpawnForms do
 	spawnEffectKeys[formName] = true
@@ -420,6 +421,8 @@ function Spec.expandSpawnEffect(parent, effect)
 		return nil, "Spawned effect has an unknown element"
 	end
 	child.Element = effect.Element or parent.Element
+	-- A spell that ignores the world spawns effects that do too.
+	child.IgnoreEnvironment = if effect.IgnoreEnvironment == true or parent.IgnoreEnvironment == true then true else nil
 	child.Visual = Spec.copy(parent.Visual)
 	if type(parent.Audio) == "table" then
 		child.Audio = Spec.copy(parent.Audio)
@@ -508,9 +511,14 @@ function Spec.validate(d, spawnNesting: number?)
 			Interception = true,
 			Material = true,
 			Proximity = true,
+			IgnoreEnvironment = true,
 		})
 	then
 		return false, "Unknown SpellSpec field"
+	end
+	-- Environment reactions (MagicEnvironmentSpec) are on unless a spell opts out.
+	if d.IgnoreEnvironment ~= nil and type(d.IgnoreEnvironment) ~= "boolean" then
+		return false, "Ignore the world must be on or off"
 	end
 	if type(d.SpellId) ~= "string" then
 		return false, "Missing spell identity"

@@ -195,6 +195,7 @@ forgeEnv = setmetatable({
 								MagicSpellIdentitySpec = "identitySpec",
 								MagicSpellTargetSpec = "spellTargetSpec",
 								MagicBloodCostSpec = "bloodCostSpec",
+								MagicEnvironmentSpec = "environmentSpec",
 							},
 							Configuration = { MagicLab = "magicLabConfig" },
 						}
@@ -222,6 +223,8 @@ forgeEnv = setmetatable({
 			return load("src/shared/Modules/MagicSpellTargetSpec.luau")
 		elseif v == "bloodCostSpec" then
 			return load("src/shared/Modules/MagicBloodCostSpec.luau")
+		elseif v == "environmentSpec" then
+			return load("src/shared/Modules/MagicEnvironmentSpec.luau")
 		elseif v == "magicLabConfig" then
 			return load("src/shared/Configuration/MagicLab.luau")
 		elseif v == "spellVisual" then

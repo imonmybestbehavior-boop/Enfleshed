@@ -951,6 +951,23 @@ Payloads.Executors = {
 
 function Payloads.execute(payloads: { any }, context: any)
 	local casterOwner = CombatPolicy.owner(context.Caster, Players)
+	-- Wet conducts Lightning: note which targets are Wet before this group's
+	-- payloads and reactions run, so a Water mark used up by the same hit counts.
+	local damageContext = context.DamageContext
+	if
+		damageContext
+		and context.IsWet
+		and not context.FromMark
+		and damageContext.Element == "Lightning"
+		and not damageContext.IgnoreEnvironment
+	then
+		damageContext.WetBefore = damageContext.WetBefore or setmetatable({}, { __mode = "k" })
+		for _, target in context.Targets or {} do
+			if damageContext.WetBefore[target] == nil then
+				damageContext.WetBefore[target] = context.IsWet(target)
+			end
+		end
+	end
 	for _, payload in payloads do
 		local executor = Payloads.Executors[payload.Kind]
 		if not executor then

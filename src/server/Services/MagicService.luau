@@ -871,6 +871,55 @@ local emit: any
 local finishBeamChannel: any
 local cleanseEnchantment: any -- assigned after the enchantment expiry helpers
 local spawnEffect: any
+
+-- Environment reactions (MagicEnvironmentReactions): what the world is made of.
+-- Map parts opt in with the CollectionService tags "Flammable" and "Water";
+-- Terrain water needs no tag. One table (this file is at the local limit).
+local World: any = { Reactions = require(script.Parent.MagicEnvironmentReactions) }
+World.State = World.Reactions.newState()
+function World.isWaterAt(part: Instance, position: Vector3): boolean
+	if CollectionService:HasTag(part, "Water") then
+		return true
+	end
+	if part:IsA("Terrain") then
+		local params = RaycastParams.new()
+		params.FilterType = Enum.RaycastFilterType.Include
+		params.FilterDescendantsInstances = { workspace.Terrain }
+		params.IgnoreWater = false
+		local hit = workspace:Raycast(position + Vector3.new(0, 1, 0), Vector3.new(0, -3, 0), params)
+		return hit ~= nil and hit.Material == Enum.Material.Water
+	end
+	return false
+end
+function World.isFlammable(part: Instance): boolean
+	return CollectionService:HasTag(part, "Flammable")
+		or (part:IsA("BasePart") and table.find(Limits.FlammableMaterials, part.Material.Name) ~= nil)
+end
+-- Wet: a Water mark, swimming, or standing in water (Terrain or a Water part).
+function World.isWet(humanoid: Humanoid): boolean
+	if StatusEffects.hasElementalMark(humanoid, "Water") then
+		return true
+	end
+	if humanoid:GetState() == Enum.HumanoidStateType.Swimming or humanoid.FloorMaterial == Enum.Material.Water then
+		return true
+	end
+	local model = humanoid.Parent
+	local root = model and model:FindFirstChild("HumanoidRootPart")
+	if not root or not root:IsA("BasePart") then
+		return false
+	end
+	for _, part in workspace:GetPartBoundsInRadius(root.Position, 2.5) do
+		if CollectionService:HasTag(part, "Water") then
+			return true
+		end
+	end
+	local params = RaycastParams.new()
+	params.FilterType = Enum.RaycastFilterType.Exclude
+	params.FilterDescendantsInstances = { model }
+	params.IgnoreWater = false
+	local hit = workspace:Raycast(root.Position, Vector3.new(0, -4, 0), params)
+	return hit ~= nil and (hit.Material == Enum.Material.Water or CollectionService:HasTag(hit.Instance, "Water"))
+end
 -- Spends from the cascade budget carried by runtimeState; reports exhaustion once.
 local function spendOperations(runtimeState, cost: number, definition, remote, player): boolean
 	local budget = runtimeState and runtimeState.OperationBudget
@@ -1097,6 +1146,7 @@ local function context(definition, caster, position, targets, direction, remote,
 		SourceRuntimeState = runtimeState and runtimeState.RuntimeOrigin or nil,
 		HitPart = runtimeState and runtimeState.HitPart or nil,
 		Element = definition.Element or "Neutral",
+		IgnoreEnvironment = definition.IgnoreEnvironment == true or nil,
 		ThresholdSteps = definition.Triggers.OnThreshold,
 		EmitEvent = function(eventName, targetHumanoid, eventData)
 			if eventDepth >= Limits.MaxMagicEventDepth or not emit then
@@ -1227,6 +1277,8 @@ local function context(definition, caster, position, targets, direction, remote,
 		syncSpecialResourceAttributes(targetPlayer)
 		return moved
 	end
+	-- Environment: Wet targets are snapshotted before a hit's reactions run.
+	ctx.IsWet = World.isWet
 	-- Elemental reactions: nearby humanoids (Conduct), and short reaction Fields
 	-- (Firestorm, Toxic smoke) spawned through the ordinary SpawnEffect path.
 	ctx.FindHumanoidsNear = function(at: Vector3, radius: number)
@@ -1288,6 +1340,93 @@ local function context(definition, caster, position, targets, direction, remote,
 	end
 	return ctx
 end
+-- One SpawnEffect step per spell and reaction, so the spawned child keeps that
+-- spell's relationship rules (spawnEffect caches children by effect table).
+World.Steps = setmetatable({}, { __mode = "k" })
+function World.step(definition: any, kind: string): any
+	local steps = World.Steps[definition]
+	if not steps then
+		steps = {
+			Burn = { Behavior = "SpawnEffect", Payloads = {}, Effect = World.Reactions.fireEffect() },
+			Freeze = { Behavior = "SpawnEffect", Payloads = {}, Effect = World.Reactions.platformEffect() },
+		}
+		World.Steps[definition] = steps
+	end
+	return steps[kind]
+end
+
+-- Fire / Ice impacts on world parts (never on characters).
+function World.impact(definition, caster, part, position, eventState, direction, remote, player, potency)
+	local model = part:FindFirstAncestorOfClass("Model")
+	if model and model:FindFirstChildOfClass("Humanoid") then
+		return
+	end
+	World.Reactions.impact(World.State, {
+		Definition = definition,
+		Caster = caster,
+		Part = part,
+		Position = position,
+		Depth = eventState.EventDepth or 0,
+		Budget = eventState.OperationBudget,
+	}, {
+		Now = os.clock,
+		IsFlammable = World.isFlammable,
+		IsWater = World.isWaterAt,
+		Spend = OperationBudget.spend,
+		SpawnFire = function(at: Vector3)
+			return spawnEffect(
+				definition,
+				World.step(definition, "Burn"),
+				caster,
+				at,
+				direction,
+				remote,
+				player,
+				potency,
+				eventState,
+				{}
+			)
+		end,
+		SpawnPlatform = function(at: Vector3)
+			local platform = spawnEffect(
+				definition,
+				World.step(definition, "Freeze"),
+				caster,
+				at + Vector3.new(0, Limits.IcePlatformThickness / 2, 0),
+				direction,
+				remote,
+				player,
+				potency,
+				eventState,
+				{}
+			)
+			if platform and platform.Visual then
+				-- Construct health (Phase 10): the platform can be broken.
+				ConstructHealth.register(
+					platform,
+					platform.Visual,
+					player and player.UserId,
+					Limits.IcePlatformHealth,
+					nil,
+					{
+						OnDestroyed = function(_, attacker)
+							platform.Destroyed = true
+							platform.DestroyedBy = attacker
+						end,
+					}
+				)
+			end
+			return platform
+		end,
+		Alive = function(record)
+			return not record.Destroyed and (record.RemainingLifetime or 0) > 0
+		end,
+		End = function(record)
+			record.RemainingLifetime = 0
+		end,
+	})
+end
+
 emit = function(definition, event, caster, position, targets, direction, remote, player, potency, runtimeState)
 	definition._VFXCaster = caster
 	local eventState = table.clone(runtimeState or {})
@@ -1308,6 +1447,9 @@ emit = function(definition, event, caster, position, targets, direction, remote,
 		else nil
 	if audioCue then
 		Presentation.playSound(definition, audioCue, position)
+	end
+	if event == "OnImpact" and typeof(eventState.HitPart) == "Instance" and typeof(position) == "Vector3" then
+		World.impact(definition, caster, eventState.HitPart, position, eventState, direction, remote, player, potency)
 	end
 	Triggers.execute(
 		definition,
@@ -1592,6 +1734,41 @@ end)
 
 Damage.Applied:Connect(function(attacker: Model, target: Humanoid, amount: number, killed, damageContext: any?, melee)
 	interruptWindupForDamage(target, amount)
+	-- Wet conducts Lightning: the hit hops to other Wet characters nearby.
+	World.Reactions.chain({ Attacker = attacker, Target = target, Amount = amount, Context = damageContext }, {
+		IsWet = World.isWet,
+		Position = function(humanoid: Humanoid)
+			local root = humanoid.Parent and humanoid.Parent:FindFirstChild("HumanoidRootPart")
+			return if root and root:IsA("BasePart") then root.Position else nil
+		end,
+		Nearby = function(at: Vector3, radius: number)
+			return HitDetection.findSphere(attacker, CFrame.new(at), radius, {
+				OverlapCollisionGroup = Sandbox.Combat.OverlapCollisionGroup,
+			})
+		end,
+		CanDamage = function(source: Model, humanoid: Humanoid)
+			local model = humanoid.Parent
+			local sourceOwner = CombatPolicy.owner(source, Players)
+			return humanoid.Health > 0
+				and model ~= source
+				and model ~= nil
+				and not (sourceOwner ~= nil and sourceOwner == CombatPolicy.owner(model, Players))
+				and CombatPolicy.canDamage(source, model, Players)
+		end,
+		PvP = function(source: Model, humanoid: Humanoid)
+			local profile = CapProfiles[StatCaps.profileName(
+				CombatPolicy.owner(source, Players),
+				CombatPolicy.owner(humanoid.Parent, Players)
+			)]
+			return if profile and profile.MaxWetChainPlayerJumps
+				then { MaxJumps = profile.MaxWetChainPlayerJumps, MaxFraction = profile.MaxWetChainFraction }
+				else nil
+		end,
+		Spend = OperationBudget.spend,
+		Deal = function(source: Model, humanoid: Humanoid, share: number, hitContext: any)
+			Damage.apply(source, humanoid, share, hitContext)
+		end,
+	})
 	if damageContext and type(damageContext.EmitEvent) == "function" then
 		local maxHealth = target.MaxHealth
 		local healthBefore = 0
@@ -2904,6 +3081,7 @@ spawnEffect = function(parent, step, caster, position, direction, remote, player
 		table.insert(active, field)
 		emit(child, "OnCast", caster, position, targets, forward, remote, player, potency, field)
 		emit(child, "OnSpawn", caster, position, targets, forward, remote, player, potency, field)
+		return field
 	elseif child.Form == "Wave" then
 		local wave = AreaGrowth.area(child.Wave, AreaGrowth.scale(child.Wave, 0))
 		local waveRange = math.min(wave.Range, child.TargetRules.Range)
@@ -3017,7 +3195,7 @@ spawnEffect = function(parent, step, caster, position, direction, remote, player
 		local model, pivot, componentLifetimes, startScale = buildConstructModel(child, components, frame, true)
 		Presentation.attachLoop(child, "AmbientLoopSoundId", pivot)
 		emit(child, "OnCast", caster, position, {}, flat, remote, player, potency)
-		table.insert(active, {
+		local construct = {
 			Kind = "Construct",
 			AnchorPoint = position,
 			AnchorNormal = Vector3.yAxis,
@@ -3039,7 +3217,9 @@ spawnEffect = function(parent, step, caster, position, direction, remote, player
 			RemainingLifetime = configuredLifetime(child),
 			Visual = model,
 			ComponentLifetimes = componentLifetimes,
-		})
+		}
+		table.insert(active, construct)
+		return construct
 	elseif child.Form == "SelfEnhancement" then
 		-- Applies to the caster, using the combat state of their latest cast.
 		local state = player and castStates[player]

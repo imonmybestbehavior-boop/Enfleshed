@@ -183,4 +183,31 @@ do
 	assert(Profiles.PvE.MaxHealthCostPercent == nil and Profiles.PvE.MaxHealthPaidBonus == nil)
 end
 
+-- Environment: the Wet chain onto players (hops and share of the hit).
+do
+	local Environment = assert(loadfile("src/shared/Modules/MagicEnvironmentSpec.luau"))()
+	assert(open.MaxWetChainPlayerJumps == 2 and ranked.MaxWetChainPlayerJumps == 1)
+	assert(open.MaxWetChainFraction == 0.4 and ranked.MaxWetChainFraction == 0.3)
+	for _, profile in { open, ranked } do
+		local pvp = { MaxJumps = profile.MaxWetChainPlayerJumps, MaxFraction = profile.MaxWetChainFraction }
+		local players = {}
+		for i = 1, 3 do
+			table.insert(
+				players,
+				{ Id = i, Position = { X = i * 2, Y = 0, Z = 0 }, Wet = true, Allowed = true, PvP = pvp }
+			)
+		end
+		local hops = Environment.chain(
+			{ Id = 0, Position = { X = 0, Y = 0, Z = 0 } },
+			players,
+			{ Hit = 100, Radius = 8, Fraction = 0.5, Jumps = 3 }
+		)
+		assert(#hops == profile.MaxWetChainPlayerJumps, "chain hops onto players capped")
+		for _, hop in hops do
+			assert(hop.Amount == 100 * profile.MaxWetChainFraction, "players take at most the PvP share")
+		end
+	end
+	assert(Profiles.PvE.MaxWetChainPlayerJumps == nil and Profiles.PvE.MaxWetChainFraction == nil)
+end
+
 print("Spell stat caps: profile selection, PvE identity, potency-aware payload caps and damage caps passed")

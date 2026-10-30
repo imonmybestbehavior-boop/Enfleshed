@@ -2242,6 +2242,19 @@ function Forge.mount(parent, draft, schema, spec, callbacks)
 				})
 			end
 			if isRoot then
+				section("THE WORLD")
+				choiceField(
+					"Ignore the world",
+					"Off: Lightning chains through Wet targets, Fire sets Flammable parts alight, Ice freezes water into platforms. On: this spell does none of that.",
+					{ false, true },
+					draft.IgnoreEnvironment == true,
+					function(choice)
+						draft.IgnoreEnvironment = if choice then true else nil
+					end,
+					function(choice)
+						return if choice then "ON" else "OFF"
+					end
+				)
 				section("PAY WITH HEALTH")
 				local bloodCost = draft.Cost
 				local sacrifice = bloodCost.Health

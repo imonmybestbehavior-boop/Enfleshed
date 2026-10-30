@@ -52,6 +52,9 @@ return {
 		-- Blood magic: PercentMax health cost per cast, and the HealthPaid scaling bonus.
 		MaxHealthCostPercent = 40,
 		MaxHealthPaidBonus = 0.5,
+		-- Environment: Wet chain hops onto players, and their share of the hit.
+		MaxWetChainPlayerJumps = 2,
+		MaxWetChainFraction = 0.4,
 	},
 	PvPRanked = {
 		DamageMultiplier = 0.5,
@@ -90,5 +93,7 @@ return {
 		MaxSpellForceDistance = 6,
 		MaxHealthCostPercent = 30,
 		MaxHealthPaidBonus = 0.35,
+		MaxWetChainPlayerJumps = 1,
+		MaxWetChainFraction = 0.3,
 	},
 }

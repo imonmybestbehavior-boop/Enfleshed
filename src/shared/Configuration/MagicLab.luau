@@ -62,6 +62,23 @@ return {
 	MaxPercentHealthCost = 40,
 	MinHealthPerSecond = 0.5,
 	MaxHealthPerSecond = 10,
+	-- Environment reactions (MagicEnvironmentSpec), provisional. Tags read by the
+	-- server: "Flammable" and "Water" (CollectionService) plus Terrain water.
+	WetChainRadius = 8, -- studs from the last character struck
+	WetChainFraction = 0.5, -- of the original hit, per hop
+	WetChainJumps = 3,
+	EnvironmentFireRadius = 4,
+	EnvironmentFireDuration = 5,
+	EnvironmentFireInterval = 0.5,
+	EnvironmentFireBurn = 2, -- DamageOverTime per second for 2 s, refreshed each tick inside
+	IgniteCooldown = 3, -- a part ignites at most once every this many seconds
+	MaxEnvironmentFires = 6, -- per caster; the oldest goes out first
+	FlammableMaterials = {}, -- Enum.Material names that burn without a tag (none by default)
+	IcePlatformSize = 6,
+	IcePlatformThickness = 1,
+	IcePlatformDuration = 8,
+	IcePlatformHealth = 50,
+	MaxIcePlatforms = 4, -- per caster; the oldest melts first
 	-- Tether Form, provisional.
 	MinTetherLength = 10,
 	MaxTetherLength = 60,
@@ -183,7 +200,9 @@ return {
 			Existing = "Water",
 			Incoming = "Lightning",
 			ConsumeStacks = 1,
-			Effects = { { Kind = "Chain", Radius = 10, RequiresElementalMark = "Water", Damage = 8 } },
+			-- The chain itself is the Wet chain (MagicEnvironmentSpec): Lightning damage on a
+			-- Wet character hops to other Wet characters. Conduct still names the reaction.
+			Effects = {},
 		},
 		{
 			Name = "Firestorm", -- Burning + Wind: a small burning Field

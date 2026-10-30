@@ -202,6 +202,10 @@ local function count(predicate)
 end
 
 local damageOps = 0
+-- Environment reactions (Phase 11f), off unless a scenario turns them on so the
+-- older scenarios keep their totals: who is Wet, who the caster may not damage,
+-- and the chain hook MagicService runs from Damage.Applied.
+local envWorld = { Enabled = false, Wet = {}, Blocked = {}, Chain = nil }
 local DamageService = {
 	apply = function(attacker, humanoid, amount, damageContext)
 		damageOps += 1
@@ -214,6 +218,9 @@ local DamageService = {
 			Depth = damageContext and damageContext.Depth,
 			Channel = damageContext and damageContext.DamageChannel,
 		})
+		if envWorld.Enabled and envWorld.Chain then
+			envWorld.Chain(attacker, humanoid, before - humanoid.Health, damageContext)
+		end
 		-- Mirrors MagicService's Damage.Applied listener (MagicService.luau ~1084-1106).
 		if damageContext and type(damageContext.EmitEvent) == "function" then
 			local maxHealth = humanoid.MaxHealth
@@ -308,6 +315,7 @@ local sharedModules = {
 	MagicDispelSpec = load("src/shared/Modules/MagicDispelSpec.luau"),
 	MagicSpellLensSpec = load("src/shared/Modules/MagicSpellLensSpec.luau"),
 	MagicBloodCostSpec = load("src/shared/Modules/MagicBloodCostSpec.luau"),
+	MagicEnvironmentSpec = load("src/shared/Modules/MagicEnvironmentSpec.luau"),
 }
 sharedModules.SpellStatCaps = assert(loadfile(
 	"src/shared/Modules/SpellStatCaps.luau",
@@ -395,6 +403,7 @@ local serverEnv = setmetatable({
 						MagicDispelSpec = "MagicDispelSpec",
 						MagicSpellLensSpec = "MagicSpellLensSpec",
 						MagicBloodCostSpec = "MagicBloodCostSpec",
+						MagicEnvironmentSpec = "MagicEnvironmentSpec",
 					},
 					Configuration = {
 						MagicLab = "MagicLab",
@@ -436,6 +445,7 @@ TransformService = loadServer("MagicTransformService")
 local PayloadExec = loadServer("MagicPayloadExecutors")
 local SpellTargetsRuntime = loadServer("MagicSpellTargets")
 local BloodRuntime = loadServer("MagicBloodMagic")
+local EnvironmentRuntime = loadServer("MagicEnvironmentReactions")
 -- Spell vs Spell world for the harness: live spell entries and how ending one
 -- behaves (MagicService: OnDispelled once, or a Tether snap, then removal).
 local spellWorld = { Entries = {}, Complexity = 0, CasterUserId = 1 }
@@ -534,6 +544,12 @@ local function makeContext(definition, caster, position, targets, depth, budget)
 			record({ Op = "Summon", Archetype = p.Archetype, Depth = depth })
 		end,
 	}
+	-- Mirrors MagicService: Wet is snapshotted per payload group (ctx.IsWet).
+	if envWorld.Enabled then
+		ctx.IsWet = function(humanoid)
+			return envWorld.Wet[humanoid] == true or StatusDouble.hasElementalMark(humanoid, "Water") == true
+		end
+	end
 	-- Mirrors MagicService's ScaleRead: mark stacks from the status service,
 	-- everything else from the same values the step-condition double uses.
 	-- Mirrors MagicService's reaction helpers: a sphere query (Conduct) and a
@@ -559,6 +575,7 @@ local function makeContext(definition, caster, position, targets, depth, budget)
 	ctx.DamageContext = {
 		Depth = depth,
 		Element = definition.Element or "Neutral",
+		IgnoreEnvironment = definition.IgnoreEnvironment == true or nil,
 		ThresholdSteps = definition.Triggers.OnThreshold,
 		EmitEvent = function(eventName, target, data)
 			if depth >= limits.MaxMagicEventDepth then
@@ -3308,17 +3325,280 @@ do
 		end)
 	end
 
-	-- Conduct: Wet + Lightning chains 8 damage to other Wet targets within 10 studs.
+	-- Conduct: Wet + Lightning names the reaction and uses a Wet stack; the chain
+	-- damage itself is the Wet chain (Lightning damage, see ENVIRONMENT).
 	local e = setup({ vec(0, 0, 0), vec(4, 0, 0), vec(30, 0, 0) })
 	marks[e[1]] = { Water = 1 }
 	marks[e[2]] = { Water = 1 }
 	marks[e[3]] = { Water = 1 }
 	emit(markSpell("Lightning"), "OnImpact", caster, vec(0, 0, 0), { e[1] }, 0)
 	check("REACT", "CAPABILITY", reactions("Conduct") == 1, "Wet + Lightning conducts")
-	check("REACT", "CAPABILITY", totalDamageTo("Enemy2") == 8, "the hit chains to the Wet neighbour (8)")
-	check("REACT", "CAPABILITY", totalDamageTo("Enemy3") == 0, "but not beyond 10 studs")
+	check(
+		"REACT",
+		"CAPABILITY",
+		totalDamageTo("Enemy2") == 0 and totalDamageTo("Enemy3") == 0,
+		"a Lightning mark alone deals no chain damage (the Wet chain needs Lightning damage)"
+	)
 	check("REACT", "CAPABILITY", marks[e[1]].Water == 0, "Conduct consumes a Wet stack")
 	check("REACT", "LIMITATION", reactions("Conduct") == 1, "chained hits never conduct again (no reaction chains)")
+
+	-- ENVIRONMENT (Phase 11f): Wet conducts Lightning, through the real executors
+	-- and MagicEnvironmentReactions.chain as MagicService runs it on Damage.Applied.
+	envWorld.Enabled = true
+	local function wetOf(humanoid)
+		return envWorld.Wet[humanoid] == true or StatusDouble.hasElementalMark(humanoid, "Water") == true
+	end
+	envWorld.Chain = function(attacker, humanoid, dealt, damageContext)
+		EnvironmentRuntime.chain({ Attacker = attacker, Target = humanoid, Amount = dealt, Context = damageContext }, {
+			IsWet = wetOf,
+			Position = function(h)
+				return h.Parent.Children.HumanoidRootPart.Position
+			end,
+			Nearby = function(at, radius)
+				return sphereQuery(at, radius)
+			end,
+			CanDamage = function(_, h)
+				return h.Health > 0 and not envWorld.Blocked[h]
+			end,
+			PvP = function()
+				return nil
+			end,
+			Spend = OperationBudget.spend,
+			Deal = function(source, h, share, hitContext)
+				DamageService.apply(source, h, share, hitContext)
+			end,
+		})
+	end
+	local function lightning(mutate)
+		return draft("Projectile", "Energy", function(d)
+			d.Element = "Lightning"
+			d.Triggers.OnImpact = { { Payloads = { payload("Damage", { Amount = 40 }) } } }
+			if mutate then
+				mutate(d)
+			end
+		end)
+	end
+	local function damageCount(name)
+		return count(function(x)
+			return x.Op == "Damage" and x.Target == name
+		end)
+	end
+	local w = setup({ vec(0, 0, 0), vec(6, 0, 0), vec(12, 0, 0), vec(3, 0, 0) })
+	table.clear(envWorld.Wet)
+	table.clear(envWorld.Blocked)
+	envWorld.Wet[w[1]], envWorld.Wet[w[2]], envWorld.Wet[w[3]] = true, true, true -- Enemy4 stays dry
+	emit(lightning(), "OnImpact", caster, vec(0, 0, 0), { w[1] }, 0)
+	check(
+		"ENVIRON",
+		"CAPABILITY",
+		totalDamageTo("Enemy1") == 40
+			and totalDamageTo("Enemy2") == 20
+			and totalDamageTo("Enemy3") == 20
+			and totalDamageTo("Enemy4") == 0,
+		"Lightning on a Wet target chains to 2 other Wet targets at 50% and skips a dry one"
+	)
+	check(
+		"ENVIRON",
+		"LIMITATION",
+		damageCount("Enemy1") == 1 and damageCount("Enemy2") == 1 and damageCount("Enemy3") == 1,
+		"each character is hit at most once per chain; chained hits never chain again"
+	)
+	-- Not onto an ally or a player outside PvP (the caster may not damage them).
+	w = setup({ vec(0, 0, 0), vec(5, 0, 0), vec(10, 0, 0) })
+	table.clear(envWorld.Wet)
+	envWorld.Wet[w[1]], envWorld.Wet[w[2]], envWorld.Wet[w[3]] = true, true, true
+	envWorld.Blocked[w[2]] = true
+	emit(lightning(), "OnImpact", caster, vec(0, 0, 0), { w[1] }, 0)
+	check(
+		"ENVIRON",
+		"CAPABILITY",
+		totalDamageTo("Enemy2") == 0 and totalDamageTo("Enemy3") == 0,
+		"the chain does not jump onto an ally or a player outside PvP (nor past them)"
+	)
+	table.clear(envWorld.Blocked)
+	-- Wet is read before the hit's reactions: Conduct using up the Water mark
+	-- in the same hit does not stop the chain.
+	w = setup({ vec(0, 0, 0), vec(6, 0, 0) })
+	table.clear(envWorld.Wet)
+	marks[w[1]] = { Water = 1 }
+	envWorld.Wet[w[2]] = true
+	emit(
+		lightning(function(d)
+			d.Triggers.OnImpact[1].Payloads = {
+				payload("ElementalMark", { Stacks = 1, Duration = 4 }),
+				payload("Damage", { Amount = 40 }),
+			}
+		end),
+		"OnImpact",
+		caster,
+		vec(0, 0, 0),
+		{ w[1] },
+		0
+	)
+	check(
+		"ENVIRON",
+		"CAPABILITY",
+		reactions("Conduct") == 1 and marks[w[1]].Water == 0 and totalDamageTo("Enemy2") == 20,
+		"a Water mark used up by the same hit (Conduct) still counts as Wet"
+	)
+	-- Ignore the world: no chain.
+	w = setup({ vec(0, 0, 0), vec(6, 0, 0) })
+	table.clear(envWorld.Wet)
+	envWorld.Wet[w[1]], envWorld.Wet[w[2]] = true, true
+	emit(
+		lightning(function(d)
+			d.IgnoreEnvironment = true
+		end),
+		"OnImpact",
+		caster,
+		vec(0, 0, 0),
+		{ w[1] },
+		0
+	)
+	check("ENVIRON", "CAPABILITY", totalDamageTo("Enemy2") == 0, "IgnoreEnvironment: Lightning does not chain")
+
+	-- Fire burns Flammable parts; Ice freezes water (MagicEnvironmentReactions.impact).
+	local envState = EnvironmentRuntime.newState()
+	local now = 100
+	local spawned = { Burn = 0, Freeze = 0 }
+	local ended = {}
+	local function worldDeps()
+		return {
+			Now = function()
+				return now
+			end,
+			IsFlammable = function(part)
+				return part.Flammable == true
+			end,
+			IsWater = function(part)
+				return part.Water == true
+			end,
+			Spend = OperationBudget.spend,
+			SpawnFire = function()
+				spawned.Burn += 1
+				return { Kind = "Field", RemainingLifetime = limits.EnvironmentFireDuration, N = spawned.Burn }
+			end,
+			SpawnPlatform = function()
+				spawned.Freeze += 1
+				return { Kind = "Construct", RemainingLifetime = limits.IcePlatformDuration, N = spawned.Freeze }
+			end,
+			Alive = function(r)
+				return (r.RemainingLifetime or 0) > 0
+			end,
+			End = function(r)
+				r.RemainingLifetime = 0
+				table.insert(ended, r)
+			end,
+		}
+	end
+	local fireBolt = draft("Projectile", "Energy", function(d)
+		d.Element = "Fire"
+	end)
+	local iceBolt = draft("Projectile", "Energy", function(d)
+		d.Element = "Ice"
+	end)
+	local function impact(definition, part, depth)
+		return EnvironmentRuntime.impact(
+			envState,
+			{ Definition = definition, Caster = caster, Part = part, Position = vec(0, 0, 0), Depth = depth or 0 },
+			worldDeps()
+		)
+	end
+	local crate = { Flammable = true }
+	local firstBurn = impact(fireBolt, crate)
+	now += 1
+	local secondBurn = impact(fireBolt, crate)
+	check(
+		"ENVIRON",
+		"CAPABILITY",
+		firstBurn == "Burn" and secondBurn == nil and spawned.Burn == 1,
+		"Fire on a Flammable part spawns one fire; a second hit within 3 s does not"
+	)
+	now += 2
+	check("ENVIRON", "CAPABILITY", impact(fireBolt, crate) == "Burn", "the part can ignite again after 3 s")
+	check("ENVIRON", "LIMITATION", impact(fireBolt, { Flammable = false }) == nil, "only Flammable parts burn")
+	for _ = 1, 5 do
+		impact(fireBolt, { Flammable = true })
+	end
+	check(
+		"ENVIRON",
+		"CAPABILITY",
+		spawned.Burn == 7 and #ended == 1 and ended[1].N == 1,
+		"the 7th environment fire puts out the caster's oldest"
+	)
+	local fireChild = spec.expandSpawnEffect(fireBolt, EnvironmentRuntime.fireEffect())
+	local fireOk, fireReason = false, "did not expand"
+	if fireChild then
+		fireOk, fireReason = validates(fireChild)
+	end
+	check(
+		"ENVIRON",
+		"CAPABILITY",
+		fireOk
+			and fireChild.Field.Radius == limits.EnvironmentFireRadius
+			and fireChild.Lifetime.Duration == limits.EnvironmentFireDuration
+			and fireChild.IgnoreEnvironment == true,
+		"the fire is a 4-stud, 5 s Field with a Fire mark and burn that ignores the world: " .. tostring(fireReason)
+	)
+	local pond = { Water = true }
+	check(
+		"ENVIRON",
+		"CAPABILITY",
+		impact(iceBolt, pond) == "Freeze" and spawned.Freeze == 1,
+		"Ice on water makes a platform"
+	)
+	local platformChild = spec.expandSpawnEffect(iceBolt, EnvironmentRuntime.platformEffect())
+	local platformOk, platformReason = false, "did not expand"
+	if platformChild then
+		platformOk, platformReason = validates(platformChild)
+	end
+	local healthLeft, _, broken =
+		load("src/shared/Modules/MagicConstructHealthSpec.luau").apply(limits.IcePlatformHealth, 50)
+	check(
+		"ENVIRON",
+		"CAPABILITY",
+		platformOk
+			and platformChild.Construct.Width == 6
+			and platformChild.Construct.Depth == 6
+			and platformChild.Lifetime.Duration == 8
+			and healthLeft == 0
+			and broken,
+		"the platform is 6x6, melts after 8 s and breaks at 0 of its 50 health: " .. tostring(platformReason)
+	)
+	for _ = 1, 4 do
+		impact(iceBolt, { Water = true })
+	end
+	check("ENVIRON", "CAPABILITY", spawned.Freeze == 5 and #ended == 2, "the 5th platform melts the oldest")
+	local quietFire = draft("Projectile", "Energy", function(d)
+		d.Element = "Fire"
+		d.IgnoreEnvironment = true
+	end)
+	local quietIce = table.clone(iceBolt)
+	quietIce.IgnoreEnvironment = true
+	check(
+		"ENVIRON",
+		"CAPABILITY",
+		impact(quietFire, { Flammable = true }) == nil and impact(quietIce, { Water = true }) == nil,
+		"IgnoreEnvironment: no fires and no ice platforms either"
+	)
+	-- No loop: chained Lightning lands on characters, never on parts, and its
+	-- hops cannot chain again; the cascade depth limit stops world reactions too.
+	local burnsBefore = spawned.Burn
+	w = setup({ vec(0, 0, 0), vec(6, 0, 0), vec(12, 0, 0) })
+	table.clear(envWorld.Wet)
+	envWorld.Wet[w[1]], envWorld.Wet[w[2]], envWorld.Wet[w[3]] = true, true, true
+	local opsBefore = damageOps
+	emit(lightning(), "OnImpact", caster, vec(0, 0, 0), { w[1] }, 0)
+	check(
+		"ENVIRON",
+		"LIMITATION",
+		damageOps - opsBefore == 3
+			and spawned.Burn == burnsBefore
+			and impact(fireBolt, { Flammable = true }, limits.MaxMagicEventDepth - 1) == nil,
+		"no loop: a chain is 1 hit + at most 2 hops here, spawns no fires, and depth caps world reactions"
+	)
+	envWorld.Enabled = false
+	envWorld.Chain = nil
 
 	-- Firestorm: Burning + Wind spawns a small burning Field.
 	e = setup({ vec(0, 0, 0) })
