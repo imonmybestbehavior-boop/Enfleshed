@@ -103,7 +103,11 @@ class PlaceReferences(unittest.TestCase):
                         node = child(node, name)
                     relative = source.relative_to(ROOT / 'src' / source_dir)
                     # init.* is the script of its folder (e.g. Services/DefendTheWallsMap/init.luau).
-                    parts = relative.parent.parts if source.name.startswith('init.') else relative.with_suffix('').parts
+                    # Rojo names X.client.luau / X.server.luau scripts "X".
+                    stem = relative.with_suffix('')
+                    if stem.suffix in ('.client', '.server'):
+                        stem = stem.with_suffix('')
+                    parts = relative.parent.parts if source.name.startswith('init.') else stem.parts
                     for name in parts:
                         node = child(node, name)
                     self.assertEqual(node.findtext("Properties/*[@name='Source']"), source.read_text(encoding="utf-8"))

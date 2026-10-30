@@ -140,129 +140,157 @@ local function templates(kit)
 
 	-- Beam -------------------------------------------------------------------------------------
 	if f.PathGlyphs then
-		add({Id="Beam.PathGlyphs",Slot="Core",Kind="PathGlyphs",Priority=1,Roles={Beam=true},
-			Texture=a.BeamGlyph or a.Particle,FrameTexture=if f.GeometricFrame then a.Sigil else nil,Colors={"Hi","Mid"},
-			Params={PathGlyphCount=if f.VoidAll then 3 else 7,GlyphSize=if f.GeometricFrame then 1.6 else 4.5,
-				GlyphLifetime=if f.GeometricFrame then 1.6 else 1.25,OpenInPlace=not f.GeometricFrame,
-				Outflow=f.VoidAll}})
+		add({
+			Id = "Beam.PathGlyphs",
+			Slot = "Core",
+			Kind = "PathGlyphs",
+			Priority = 1,
+			Roles = { Beam = true },
+			Texture = a.BeamGlyph or a.Particle,
+			FrameTexture = if f.GeometricFrame then a.Sigil else nil,
+			Colors = { "Hi", "Mid" },
+			Params = {
+				PathGlyphCount = if f.VoidAll then 3 else 7,
+				GlyphSize = if f.GeometricFrame then 1.6 else 4.5,
+				GlyphLifetime = if f.GeometricFrame then 1.6 else 1.25,
+				OpenInPlace = not f.GeometricFrame,
+				Outflow = f.VoidAll,
+			},
+		})
 		if f.GeometricFrame then
-			add({Id="Beam.ThroughSigils",Slot="Core",Kind="Beam",Priority=1,Roles={Beam=true},Texture="glow_soft",Colors={"Hi","Mid"},
-				Params={ContinuousStream=true,PlainStream=true,BodyWidth=.32,FlowSpeed=3,EndWidth=1}})
+			add({
+				Id = "Beam.ThroughSigils",
+				Slot = "Core",
+				Kind = "Beam",
+				Priority = 1,
+				Roles = { Beam = true },
+				Texture = "glow_soft",
+				Colors = { "Hi", "Mid" },
+				Params = { ContinuousStream = true, PlainStream = true, BodyWidth = 0.32, FlowSpeed = 3, EndWidth = 1 },
+			})
 		end
 	else
-	add({
-		Id = "Beam.Core",
-		Slot = "Core",
-		Kind = "Beam",
-		Priority = 1,
-		Roles = { Beam = true },
-		Texture = a.Beam,
-		Colors = { "Hi", "Mid" },
-		Params = {
-			Width = if f.BeamArc then 0.22 else 1,
-			Opacity = 1,
-			Light = light + 0.2,
-			TextureLength = 5,
-			Scroll = f.Scroll or 3,
-			Wobble = f.Wobble or 0,
-			ArcSegments = f.BeamArc,
-			ContinuousStream = f.StreamBeam,
-			FlowSpeed = f.StreamSpeed,
-			FlowLength = f.StreamLength,
-			EndWidth = f.StreamEndWidth,
-			PlainStream = f.BeamClocks,
-		},
-	})
-	if not f.BeamArc and not f.StreamBeam then
-	add({
-		Id = "Beam.Outer",
-		Slot = "Core",
-		Kind = "Beam",
-		Priority = 2,
-		Roles = { Beam = true },
-		Texture = a.Trail,
-		Colors = { "Mid", "Lo" },
-		Params = {
-			Width = 2.1,
-			Opacity = 0.7,
-			Light = light,
-			TextureLength = 7,
-			Scroll = -(f.Scroll or 3) * 0.6,
-			Wobble = (f.Wobble or 0) * 1.5,
-		},
-	})
-	add({
-		Id = "Beam.Origin",
-		Slot = "Core",
-		Kind = "Sprite",
-		Priority = 1,
-		Roles = { Beam = true },
-		Texture = a.Core,
-		Colors = { "Hi", "Mid" },
-		Params = { Size = 1.6, Framerate = f.Framerate or 20, Light = light + 0.15 },
-	})
-	add({
-		Id = "Beam.End",
-		Slot = "Secondary",
-		Kind = "Sprite",
-		Priority = 2,
-		Roles = { Beam = true },
-		Texture = a.Core,
-		Colors = { "Hi", "Mid" },
-		Params = { Size = 2.2, Framerate = f.Framerate or 20, Light = light + 0.15, Placement = "End" },
-	})
-	-- Flow: the school's main particle streams from the caster to the beam's end.
-	add({
-		Id = "Beam.Flow",
-		Slot = "Secondary",
-		Kind = "Emitter",
-		Priority = 1,
-		Roles = { Beam = true },
-		Texture = a.Flow or a.Particle,
-		Colors = { "Hi", "Mid", "Lo" },
-		Params = {
-			Rate = 9,
-			Lifetime = 0.55,
-			Speed = 20,
-			Spread = 5,
-			Direction = "Forward",
-			Size = 1.4,
-			SizeEnd = 0.9,
-			Light = light,
-			RangeSpeed = 1,
-			RotSpeed = 30,
-			Framerate = f.Framerate or 20,
-		},
-		Drivers = { { "Rate", "Potency", 8 }, { "Size", "Size", 0.8 } },
-	})
-	add({
-		Id = "Beam.Motes",
-		Slot = "Ambient",
-		Kind = "Emitter",
-		Priority = 3,
-		Roles = { Beam = true },
-		Texture = a.Mote,
-		Colors = { "Hi", "Mid" },
-		Params = {
-			Rate = 6,
-			Lifetime = 0.5,
-			Speed = 2,
-			Spread = 180,
-			Size = 0.3,
-			SizeEnd = 0.05,
-			Light = 0.6,
-			Glow = 1,
-			Placement = "Line",
-			Rise = rise,
-			RandomRotation = 1,
-			Framerate = 0,
-		},
-	})
-	end -- Connected arcs fill the path; no travelling glyphs or endpoint orbs.
+		add({
+			Id = "Beam.Core",
+			Slot = "Core",
+			Kind = "Beam",
+			Priority = 1,
+			Roles = { Beam = true },
+			Texture = a.Beam,
+			Colors = { "Hi", "Mid" },
+			Params = {
+				Width = if f.BeamArc then 0.22 else 1,
+				Opacity = 1,
+				Light = light + 0.2,
+				TextureLength = 5,
+				Scroll = f.Scroll or 3,
+				Wobble = f.Wobble or 0,
+				ArcSegments = f.BeamArc,
+				ContinuousStream = f.StreamBeam,
+				FlowSpeed = f.StreamSpeed,
+				FlowLength = f.StreamLength,
+				EndWidth = f.StreamEndWidth,
+				PlainStream = f.BeamClocks,
+			},
+		})
+		if not f.BeamArc and not f.StreamBeam then
+			add({
+				Id = "Beam.Outer",
+				Slot = "Core",
+				Kind = "Beam",
+				Priority = 2,
+				Roles = { Beam = true },
+				Texture = a.Trail,
+				Colors = { "Mid", "Lo" },
+				Params = {
+					Width = 2.1,
+					Opacity = 0.7,
+					Light = light,
+					TextureLength = 7,
+					Scroll = -(f.Scroll or 3) * 0.6,
+					Wobble = (f.Wobble or 0) * 1.5,
+				},
+			})
+			add({
+				Id = "Beam.Origin",
+				Slot = "Core",
+				Kind = "Sprite",
+				Priority = 1,
+				Roles = { Beam = true },
+				Texture = a.Core,
+				Colors = { "Hi", "Mid" },
+				Params = { Size = 1.6, Framerate = f.Framerate or 20, Light = light + 0.15 },
+			})
+			add({
+				Id = "Beam.End",
+				Slot = "Secondary",
+				Kind = "Sprite",
+				Priority = 2,
+				Roles = { Beam = true },
+				Texture = a.Core,
+				Colors = { "Hi", "Mid" },
+				Params = { Size = 2.2, Framerate = f.Framerate or 20, Light = light + 0.15, Placement = "End" },
+			})
+			-- Flow: the school's main particle streams from the caster to the beam's end.
+			add({
+				Id = "Beam.Flow",
+				Slot = "Secondary",
+				Kind = "Emitter",
+				Priority = 1,
+				Roles = { Beam = true },
+				Texture = a.Flow or a.Particle,
+				Colors = { "Hi", "Mid", "Lo" },
+				Params = {
+					Rate = 9,
+					Lifetime = 0.55,
+					Speed = 20,
+					Spread = 5,
+					Direction = "Forward",
+					Size = 1.4,
+					SizeEnd = 0.9,
+					Light = light,
+					RangeSpeed = 1,
+					RotSpeed = 30,
+					Framerate = f.Framerate or 20,
+				},
+				Drivers = { { "Rate", "Potency", 8 }, { "Size", "Size", 0.8 } },
+			})
+			add({
+				Id = "Beam.Motes",
+				Slot = "Ambient",
+				Kind = "Emitter",
+				Priority = 3,
+				Roles = { Beam = true },
+				Texture = a.Mote,
+				Colors = { "Hi", "Mid" },
+				Params = {
+					Rate = 6,
+					Lifetime = 0.5,
+					Speed = 2,
+					Spread = 180,
+					Size = 0.3,
+					SizeEnd = 0.05,
+					Light = 0.6,
+					Glow = 1,
+					Placement = "Line",
+					Rise = rise,
+					RandomRotation = 1,
+					Framerate = 0,
+				},
+			})
+		end -- Connected arcs fill the path; no travelling glyphs or endpoint orbs.
 	end -- Path glyphs replace the entire travelling beam template.
 	if f.BeamClocks then
-		add({Id="Beam.ClockEnds",Slot="Secondary",Kind="PathGlyphs",Priority=1,Roles={Beam=true},Texture=a.Sigil,Colors={"Hi"},
-			Params={PathGlyphCount=2,GlyphSize=2.5,GlyphLifetime=.65,Endpoints=true}})
+		add({
+			Id = "Beam.ClockEnds",
+			Slot = "Secondary",
+			Kind = "PathGlyphs",
+			Priority = 1,
+			Roles = { Beam = true },
+			Texture = a.Sigil,
+			Colors = { "Hi" },
+			Params = { PathGlyphCount = 2, GlyphSize = 2.5, GlyphLifetime = 0.65, Endpoints = true },
+		})
 	end
 	add({
 		Id = "Beam.Light",
@@ -368,187 +396,201 @@ local function templates(kit)
 
 	-- Field --------------------------------------------------------------------------------------
 	if f.FieldMode then
-		add({Id="Field.Dynamics",Slot="Secondary",Kind="Dynamics",Priority=1,Roles={Field=true},Colors={"Hi","Mid"},
-			Params={Mode=f.FieldMode,Ground=true}})
-	else
-	add({
-		Id = "Field.Ground",
-		Slot = "Secondary",
-		Kind = "Decal",
-		Priority = 1,
-		Roles = { Field = true },
-		Texture = a.Ground,
-		Colors = "Mid",
-		Params = { Opacity = 0.9, Spin = 0.08 * spin, Footprint = 1, Pulse = 0.08 },
-	})
-	add({
-		Id = "Field.Edge",
-		Slot = "Secondary",
-		Kind = "Mesh",
-		Priority = 1,
-		Roles = { Field = true },
-		Mesh = "shockwave_ring",
-		Colors = "Hi",
-		Params = { Opacity = 0.75, Material = "Neon", Orient = "Footprint", Spin = 0.15 * spin },
-	})
-	add({
-		Id = "Field.Body",
-		Slot = "Ambient",
-		Kind = "Emitter",
-		Priority = 2,
-		Roles = { Field = true },
-		Texture = a.Particle,
-		Colors = { "Hi", "Mid", "Lo" },
-		Params = {
-			Rate = 24,
-			RatePerArea = 0.2,
-			Lifetime = 0.9,
-			Speed = 2.5,
-			Spread = 15,
-			Size = 1.6,
-			SizeEnd = 0.6,
-			Light = light,
-			Placement = "Area",
-			Direction = "Up",
-			Rise = rise,
-			Framerate = f.Framerate or 20,
-			RotSpeed = 0,
-		},
-		Drivers = { { "Rate", "Potency", 8 } },
-		Limits = { Rate = { 4, 40 } },
-	})
-	if a.Scatter then
 		add({
-			Id = "Field.Scatter",
-			Slot = "Ambient",
+			Id = "Field.Dynamics",
+			Slot = "Secondary",
+			Kind = "Dynamics",
+			Priority = 1,
+			Roles = { Field = true },
+			Colors = { "Hi", "Mid" },
+			Params = { Mode = f.FieldMode, Ground = true },
+		})
+	else
+		add({
+			Id = "Field.Ground",
+			Slot = "Secondary",
+			Kind = "Decal",
+			Priority = 1,
+			Roles = { Field = true },
+			Texture = a.Ground,
+			Colors = "Mid",
+			Params = { Opacity = 0.9, Spin = 0.08 * spin, Footprint = 1, Pulse = 0.08 },
+		})
+		add({
+			Id = "Field.Edge",
+			Slot = "Secondary",
 			Kind = "Mesh",
+			Priority = 1,
+			Roles = { Field = true },
+			Mesh = "shockwave_ring",
+			Colors = "Hi",
+			Params = { Opacity = 0.75, Material = "Neon", Orient = "Footprint", Spin = 0.15 * spin },
+		})
+		add({
+			Id = "Field.Body",
+			Slot = "Ambient",
+			Kind = "Emitter",
 			Priority = 2,
 			Roles = { Field = true },
-			Mesh = a.Scatter,
-			Colors = "Mid",
+			Texture = a.Particle,
+			Colors = { "Hi", "Mid", "Lo" },
 			Params = {
-				Count = 12,
-				MaxCount = 24,
-				CountPerArea = 0.08,
-				Size = f.ScatterSize or 0.9,
-				Duration = 0.35,
-				Opacity = 1,
-				Material = "SmoothPlastic",
-				Orient = "Scatter",
-				RequireAsset = 1,
-				Ink = 1,
+				Rate = 24,
+				RatePerArea = 0.2,
+				Lifetime = 0.9,
+				Speed = 2.5,
+				Spread = 15,
+				Size = 1.6,
+				SizeEnd = 0.6,
+				Light = light,
+				Placement = "Area",
+				Direction = "Up",
+				Rise = rise,
+				Framerate = f.Framerate or 20,
+				RotSpeed = 0,
 			},
+			Drivers = { { "Rate", "Potency", 8 } },
+			Limits = { Rate = { 4, 40 } },
 		})
-	end
-	add({
-		Id = "Field.Motes",
-		Slot = "Ambient",
-		Kind = "Emitter",
-		Priority = 3,
-		Roles = { Field = true },
-		Texture = a.Mote,
-		Colors = { "Hi", "Mid" },
-		Params = {
-			Rate = 6,
-			RatePerArea = 0.06,
-			Lifetime = 1.4,
-			Speed = 1.5,
-			Spread = 25,
-			Size = 0.35,
-			SizeEnd = 0.05,
-			Light = 0.6,
-			Glow = 1,
-			Placement = "Area",
-			Direction = "Up",
-			Rise = rise,
-			RandomRotation = 1,
-			Framerate = 0,
-		},
-		Limits = { Rate = { 2, 24 } },
-	})
-	add({
-		Id = "Field.Light",
-		Slot = "Ambient",
-		Kind = "Light",
-		Priority = 3,
-		Roles = { Field = true },
-		Colors = "Mid",
-		Params = { Brightness = 0.9, Range = 14 },
-	})
+		if a.Scatter then
+			add({
+				Id = "Field.Scatter",
+				Slot = "Ambient",
+				Kind = "Mesh",
+				Priority = 2,
+				Roles = { Field = true },
+				Mesh = a.Scatter,
+				Colors = "Mid",
+				Params = {
+					Count = 12,
+					MaxCount = 24,
+					CountPerArea = 0.08,
+					Size = f.ScatterSize or 0.9,
+					Duration = 0.35,
+					Opacity = 1,
+					Material = "SmoothPlastic",
+					Orient = "Scatter",
+					RequireAsset = 1,
+					Ink = 1,
+				},
+			})
+		end
+		add({
+			Id = "Field.Motes",
+			Slot = "Ambient",
+			Kind = "Emitter",
+			Priority = 3,
+			Roles = { Field = true },
+			Texture = a.Mote,
+			Colors = { "Hi", "Mid" },
+			Params = {
+				Rate = 6,
+				RatePerArea = 0.06,
+				Lifetime = 1.4,
+				Speed = 1.5,
+				Spread = 25,
+				Size = 0.35,
+				SizeEnd = 0.05,
+				Light = 0.6,
+				Glow = 1,
+				Placement = "Area",
+				Direction = "Up",
+				Rise = rise,
+				RandomRotation = 1,
+				Framerate = 0,
+			},
+			Limits = { Rate = { 2, 24 } },
+		})
+		add({
+			Id = "Field.Light",
+			Slot = "Ambient",
+			Kind = "Light",
+			Priority = 3,
+			Roles = { Field = true },
+			Colors = "Mid",
+			Params = { Brightness = 0.9, Range = 14 },
+		})
 	end
 
 	-- Aura / SelfEnhancement -------------------------------------------------------------------
 	if f.SpiritOrbit then
-		add({Id="Aura.OrbitSpirits",Slot="Shell",Kind="Dynamics",Priority=1,Roles={Aura=true,SelfEnhancement=true},Colors={"Hi","Mid"},
-			Params={Mode="OrbitWisps"}})
+		add({
+			Id = "Aura.OrbitSpirits",
+			Slot = "Shell",
+			Kind = "Dynamics",
+			Priority = 1,
+			Roles = { Aura = true, SelfEnhancement = true },
+			Colors = { "Hi", "Mid" },
+			Params = { Mode = "OrbitWisps" },
+		})
 	else
-	add({
-		Id = "Aura.Mantle",
-		Slot = "Shell",
-		Kind = "Emitter",
-		Priority = 1,
-		Roles = { Aura = true, SelfEnhancement = true },
-		Texture = a.Aura or a.Particle,
-		Colors = { "Hi", "Mid", "Lo" },
-		Params = {
-			Rate = 14,
-			Lifetime = 0.8,
-			Speed = 2,
-			Spread = 10,
-			Size = 1.4,
-			SizeEnd = 0.4,
-			Light = light,
-			Placement = "Body",
-			Direction = "Up",
-			Rise = rise,
-			Framerate = f.Framerate or 20,
-			RotSpeed = 20,
-		},
-		Drivers = { { "Rate", "Potency", 8 } },
-	})
-	add({
-		Id = "Aura.Motes",
-		Slot = "Ambient",
-		Kind = "Emitter",
-		Priority = 2,
-		Roles = { Aura = true, SelfEnhancement = true },
-		Texture = a.Mote,
-		Colors = { "Hi", "Mid" },
-		Params = {
-			Rate = 8,
-			Lifetime = 1.2,
-			Speed = 1,
-			Spread = 40,
-			Size = 0.3,
-			SizeEnd = 0.05,
-			Light = 0.6,
-			Glow = 1,
-			Placement = "Body",
-			Direction = "Up",
-			Rise = rise,
-			RandomRotation = 1,
-			Framerate = 0,
-		},
-	})
-	add({
-		Id = "Aura.Ground",
-		Slot = "Ambient",
-		Kind = "Decal",
-		Priority = 2,
-		Roles = { Aura = true },
-		Texture = a.Sigil or a.Ground,
-		Colors = "Mid",
-		Params = { Opacity = 0.7, Spin = 0.25 * spin, Footprint = 1 },
-	})
-	add({
-		Id = "Aura.Light",
-		Slot = "Ambient",
-		Kind = "Light",
-		Priority = 3,
-		Roles = { Aura = true, SelfEnhancement = true },
-		Colors = "Mid",
-		Params = { Brightness = 0.8, Range = 10 },
-	})
+		add({
+			Id = "Aura.Mantle",
+			Slot = "Shell",
+			Kind = "Emitter",
+			Priority = 1,
+			Roles = { Aura = true, SelfEnhancement = true },
+			Texture = a.Aura or a.Particle,
+			Colors = { "Hi", "Mid", "Lo" },
+			Params = {
+				Rate = 14,
+				Lifetime = 0.8,
+				Speed = 2,
+				Spread = 10,
+				Size = 1.4,
+				SizeEnd = 0.4,
+				Light = light,
+				Placement = "Body",
+				Direction = "Up",
+				Rise = rise,
+				Framerate = f.Framerate or 20,
+				RotSpeed = 20,
+			},
+			Drivers = { { "Rate", "Potency", 8 } },
+		})
+		add({
+			Id = "Aura.Motes",
+			Slot = "Ambient",
+			Kind = "Emitter",
+			Priority = 2,
+			Roles = { Aura = true, SelfEnhancement = true },
+			Texture = a.Mote,
+			Colors = { "Hi", "Mid" },
+			Params = {
+				Rate = 8,
+				Lifetime = 1.2,
+				Speed = 1,
+				Spread = 40,
+				Size = 0.3,
+				SizeEnd = 0.05,
+				Light = 0.6,
+				Glow = 1,
+				Placement = "Body",
+				Direction = "Up",
+				Rise = rise,
+				RandomRotation = 1,
+				Framerate = 0,
+			},
+		})
+		add({
+			Id = "Aura.Ground",
+			Slot = "Ambient",
+			Kind = "Decal",
+			Priority = 2,
+			Roles = { Aura = true },
+			Texture = a.Sigil or a.Ground,
+			Colors = "Mid",
+			Params = { Opacity = 0.7, Spin = 0.25 * spin, Footprint = 1 },
+		})
+		add({
+			Id = "Aura.Light",
+			Slot = "Ambient",
+			Kind = "Light",
+			Priority = 3,
+			Roles = { Aura = true, SelfEnhancement = true },
+			Colors = "Mid",
+			Params = { Brightness = 0.8, Range = 10 },
+		})
 	end
 
 	-- Construct / Manipulation -----------------------------------------------------------------
@@ -864,8 +906,18 @@ Kits.Definitions = {
 			Sigil = "rune_circle",
 			Debris = { "debris_rock_a", "debris_rock_c" },
 		},
-		Feel = { Light = 0.35, Rise = 6, Framerate = 26, Scroll = 4, Wobble = 0,
-			StreamBeam=true,StreamSpeed=5,StreamLength=3,StreamEndWidth=1.5,FieldMode="Flames" },
+		Feel = {
+			Light = 0.35,
+			Rise = 6,
+			Framerate = 26,
+			Scroll = 4,
+			Wobble = 0,
+			StreamBeam = true,
+			StreamSpeed = 5,
+			StreamLength = 3,
+			StreamEndWidth = 1.5,
+			FieldMode = "Flames",
+		},
 	},
 	Ice = {
 		Palette = {
@@ -922,7 +974,17 @@ Kits.Definitions = {
 			Sigil = "rune_circle",
 			Scatter = "lightning_fork",
 		},
-		Feel = { Light = 0.45, Rise = 0, Framerate = 30, Spin = 2, Scroll = 0, Wobble = 0, ScatterSize = 0.7, BeamArc = 9,FieldMode="Storm" },
+		Feel = {
+			Light = 0.45,
+			Rise = 0,
+			Framerate = 30,
+			Spin = 2,
+			Scroll = 0,
+			Wobble = 0,
+			ScatterSize = 0.7,
+			BeamArc = 9,
+			FieldMode = "Storm",
+		},
 	},
 	Water = {
 		Palette = {
@@ -947,8 +1009,20 @@ Kits.Definitions = {
 			Scatter = "water_crown",
 			Debris = nil,
 		},
-		Feel = { Light = 0.12, Rise = -10, Framerate = 18, Spin = 0.6, Scroll = 2.5, Wobble = 0, ScatterSize = 1.0,
-			StreamBeam=true,StreamSpeed=3,StreamLength=5,StreamEndWidth=.9,FieldMode="Ripples" },
+		Feel = {
+			Light = 0.12,
+			Rise = -10,
+			Framerate = 18,
+			Spin = 0.6,
+			Scroll = 2.5,
+			Wobble = 0,
+			ScatterSize = 1.0,
+			StreamBeam = true,
+			StreamSpeed = 3,
+			StreamLength = 5,
+			StreamEndWidth = 0.9,
+			FieldMode = "Ripples",
+		},
 	},
 	Earth = {
 		Palette = {
@@ -1006,8 +1080,18 @@ Kits.Definitions = {
 			Sigil = "rune_circle",
 			Scatter = "wind_funnel",
 		},
-		Feel = { Light = 0.1, Rise = 1, Framerate = 22, Spin = 0, Scroll = 6, Wobble = 0.2, ScatterSize = 0.9,
-			FieldMode="Gusts",GustAll=true,NoSpin=true },
+		Feel = {
+			Light = 0.1,
+			Rise = 1,
+			Framerate = 22,
+			Spin = 0,
+			Scroll = 6,
+			Wobble = 0.2,
+			ScatterSize = 0.9,
+			FieldMode = "Gusts",
+			GustAll = true,
+			NoSpin = true,
+		},
 	},
 	Poison = {
 		Palette = {
@@ -1064,8 +1148,18 @@ Kits.Definitions = {
 			Sigil = "rune_circle",
 			Scatter = "arcane_prism",
 		},
-		Feel = { Light = 0.3, Rise = 1, Framerate = 8, Spin = 1, Scroll = 2, CoreMeshSize = 0.4, ScatterSize = 0.6,
-			PathGlyphs=true,GeometricFrame=true,FieldMode="Runes" },
+		Feel = {
+			Light = 0.3,
+			Rise = 1,
+			Framerate = 8,
+			Spin = 1,
+			Scroll = 2,
+			CoreMeshSize = 0.4,
+			ScatterSize = 0.6,
+			PathGlyphs = true,
+			GeometricFrame = true,
+			FieldMode = "Runes",
+		},
 	},
 	Force = {
 		Palette = {
@@ -1183,8 +1277,18 @@ Kits.Definitions = {
 			Scatter = "void_shard",
 			Debris = { "void_shard" },
 		},
-		Feel = { Light = 0.2, Rise = 0, Framerate = 16, Spin = 1.5, Scroll = 3, CoreMeshSize = 0.45, ScatterSize = 0.7,
-			PathGlyphs=true,FieldMode="Void",VoidAll=true },
+		Feel = {
+			Light = 0.2,
+			Rise = 0,
+			Framerate = 16,
+			Spin = 1.5,
+			Scroll = 3,
+			CoreMeshSize = 0.45,
+			ScatterSize = 0.7,
+			PathGlyphs = true,
+			FieldMode = "Void",
+			VoidAll = true,
+		},
 	},
 	Time = {
 		Palette = {
@@ -1210,8 +1314,20 @@ Kits.Definitions = {
 			Scatter = "hourglass",
 			Aura = "time_ripple",
 		},
-		Feel = { Light = 0.2, Rise = -1, Framerate = 12, Spin = 0.5, Scroll = 1, CoreMeshSize = 0.4, ScatterSize = 0.7,
-			StreamBeam=true,StreamSpeed=3,StreamLength=4,StreamEndWidth=1,BeamClocks=true },
+		Feel = {
+			Light = 0.2,
+			Rise = -1,
+			Framerate = 12,
+			Spin = 0.5,
+			Scroll = 1,
+			CoreMeshSize = 0.4,
+			ScatterSize = 0.7,
+			StreamBeam = true,
+			StreamSpeed = 3,
+			StreamLength = 4,
+			StreamEndWidth = 1,
+			BeamClocks = true,
+		},
 	},
 }
 
@@ -1260,7 +1376,8 @@ function Kits.build(name, bespoke)
 			local copy = table.clone(t)
 			-- A connected fluid body replaces legacy spinning core sprites at its source.
 			if kit.Feel.StreamBeam and copy.Roles and copy.Roles.Beam then
-				copy.Roles=table.clone(copy.Roles);copy.Roles.Beam=nil
+				copy.Roles = table.clone(copy.Roles)
+				copy.Roles.Beam = nil
 			end
 			if not copy.Roles and copy.Slot ~= "Charge" and copy.Slot ~= "Cast" and copy.Slot ~= "Dissipate" then
 				copy.Roles = table.clone(owned)
@@ -1272,34 +1389,86 @@ function Kits.build(name, bespoke)
 		end
 	end
 	if kit.Feel.VoidAll or kit.Feel.GustAll then
-		local roles=if kit.Feel.VoidAll then {Projectile="Core",Wave="Core",Aura="Shell",SelfEnhancement="Shell",Construct="Ambient",Manipulation="Ambient",Impact="Impact"}
-			else {Projectile="Core",Aura="Shell",SelfEnhancement="Shell"}
-		local kept={}
-		for _,t in layers do
-			local replace=false
-			for role in roles do if t.Roles and t.Roles[role] then replace=true end end
-			if kit.Feel.VoidAll and (t.Slot=="Dissipate" or t.Slot=="Charge") then replace=true end
-			if not replace then table.insert(kept,t) end
+		local roles = if kit.Feel.VoidAll
+			then {
+				Projectile = "Core",
+				Wave = "Core",
+				Aura = "Shell",
+				SelfEnhancement = "Shell",
+				Construct = "Ambient",
+				Manipulation = "Ambient",
+				Impact = "Impact",
+			}
+			else { Projectile = "Core", Aura = "Shell", SelfEnhancement = "Shell" }
+		local kept = {}
+		for _, t in layers do
+			local replace = false
+			for role in roles do
+				if t.Roles and t.Roles[role] then
+					replace = true
+				end
+			end
+			if kit.Feel.VoidAll and (t.Slot == "Dissipate" or t.Slot == "Charge") then
+				replace = true
+			end
+			if not replace then
+				table.insert(kept, t)
+			end
 		end
-		layers=kept
-		for role,slot in roles do
-			table.insert(layers,layer({Id=name.."."..role..".DynamicMotif",Slot=slot,Kind="Dynamics",Priority=1,
-				Roles={[role]=true},Colors={"Hi","Mid"},Params={Mode=if kit.Feel.VoidAll then "Void" else "Gusts",Ground=false}}))
+		layers = kept
+		for role, slot in roles do
+			table.insert(
+				layers,
+				layer({
+					Id = name .. "." .. role .. ".DynamicMotif",
+					Slot = slot,
+					Kind = "Dynamics",
+					Priority = 1,
+					Roles = { [role] = true },
+					Colors = { "Hi", "Mid" },
+					Params = { Mode = if kit.Feel.VoidAll then "Void" else "Gusts", Ground = false },
+				})
+			)
 		end
 		if kit.Feel.VoidAll then
-			table.insert(layers,layer({Id=name..".Charge.GroundPortal",Slot="Charge",Kind="Dynamics",Priority=1,
-				Roles={Cast=true},Colors={"Hi","Mid"},Params={Mode="Void",Ground=true}}))
+			table.insert(
+				layers,
+				layer({
+					Id = name .. ".Charge.GroundPortal",
+					Slot = "Charge",
+					Kind = "Dynamics",
+					Priority = 1,
+					Roles = { Cast = true },
+					Colors = { "Hi", "Mid" },
+					Params = { Mode = "Void", Ground = true },
+				})
+			)
 		end
 	end
 	if kit.Feel.NoSpin then
-		for _,t in layers do
-			t.Params=table.clone(t.Params);t.Params.RotSpeed=0;t.Params.RandomRotation=0;t.Params.Spin=0
-			if t.Kind=="Emitter" or t.Kind=="Burst" then t.Params.Orientation="VelocityParallel" end
+		for _, t in layers do
+			t.Params = table.clone(t.Params)
+			t.Params.RotSpeed = 0
+			t.Params.RandomRotation = 0
+			t.Params.Spin = 0
+			if t.Kind == "Emitter" or t.Kind == "Burst" then
+				t.Params.Orientation = "VelocityParallel"
+			end
 		end
 	end
 	local tintable = table.clone(kit.Tintable)
-	table.insert(layers,layer({Id=name..".Cast.ReleaseCue",Slot="Cast",Kind="Light",Priority=1,
-		Roles={Cast=true},Colors="Mid",Params={Brightness=.65,Range=4,Flash=.12,OffsetZ=-1.3,OffsetY=.5}}))
+	table.insert(
+		layers,
+		layer({
+			Id = name .. ".Cast.ReleaseCue",
+			Slot = "Cast",
+			Kind = "Light",
+			Priority = 1,
+			Roles = { Cast = true },
+			Colors = "Mid",
+			Params = { Brightness = 0.65, Range = 4, Flash = 0.12, OffsetZ = -1.3, OffsetY = 0.5 },
+		})
+	)
 	for token, amount in pairs((bespoke and bespoke.Tintable) or {}) do
 		tintable[token] = amount
 	end

@@ -146,9 +146,9 @@ for _, school in ipairs(schools) do
 		end
 		local plan = analyzer.resolve(spell)
 		assert(planner.match(plan).Name == name, name .. " " .. form .. " matched " .. planner.match(plan).Name)
-		for _,quality in {"High","Low"} do
-			for _,layer in planner.plan(plan,"End",{Quality=quality}).Layers do
-				assert(layer.Kind~="Burst",name.." "..form.." ending must not spawn a hit cloud")
+		for _, quality in { "High", "Low" } do
+			for _, layer in planner.plan(plan, "End", { Quality = quality }).Layers do
+				assert(layer.Kind ~= "Burst", name .. " " .. form .. " ending must not spawn a hit cloud")
 			end
 		end
 		for _, phase in ipairs({ "Sustain", "Impact" }) do
@@ -165,10 +165,19 @@ for _, school in ipairs(schools) do
 		end
 		local gather = planner.plan(analyzer.forPhase(plan, "Gather", "x"), "Gather", { CastingCue = true })
 		assert(#gather.Layers > 0, name .. " charges")
-		for _,q in {"High","Low"} do
-			local release=planner.plan(analyzer.forPhase(plan,"Release","SpellReleaseComposition"),"Release",{CastingCue=true,Quality=q})
-			assert(#release.Layers>0 and release.Replaces.Form,"Release must not fall back to source explosions")
-			for _,l in release.Layers do assert(l.Kind=="Light",name.." "..form.." source release contains an explosion or moving motif") end
+		for _, q in { "High", "Low" } do
+			local release = planner.plan(
+				analyzer.forPhase(plan, "Release", "SpellReleaseComposition"),
+				"Release",
+				{ CastingCue = true, Quality = q }
+			)
+			assert(#release.Layers > 0 and release.Replaces.Form, "Release must not fall back to source explosions")
+			for _, l in release.Layers do
+				assert(
+					l.Kind == "Light",
+					name .. " " .. form .. " source release contains an explosion or moving motif"
+				)
+			end
 		end
 	end
 end
@@ -196,7 +205,10 @@ for _, id in ipairs({ "Fire.Impact.Flash", "Fire.Impact.Fireball", "Fire.Impact.
 end
 assert(not i["Fire.Core.Heart"], "impact does not respawn the core")
 local ending = planner.plan(fire, "End")
-assert(not ids(ending)["Fire.Dissipate.Smoke"] and not ids(ending)["Fire.Core.Heart"], "projectile end cannot spawn another hit cloud")
+assert(
+	not ids(ending)["Fire.Dissipate.Smoke"] and not ids(ending)["Fire.Core.Heart"],
+	"projectile end cannot spawn another hit cloud"
+)
 local cast =
 	planner.plan(analyzer.forPhase(fire, "Release", "SpellReleaseComposition"), "Release", { CastingCue = true })
 assert(cast.Role == "Cast" and ids(cast)["Fire.Cast.ReleaseCue"], "release is a small light, not a second explosion")
@@ -321,23 +333,34 @@ end
 assert(ids(planner.plan(body, "Release", { Quality = "Low" }))["Body.Core.Cone"], "Body cone stays on Low")
 
 -- Beams distinguish continuous fluids from motifs opening at fixed path stations.
-for _,identity in {"Fire","Water","Arcane","Space"} do
-	local plan=table.clone(fire);plan.Element=identity;plan.Expression=identity;plan.Form="Beam"
-	for _,quality in {"High","Low"} do
-		local resolved=planner.plan(plan,"Sustain",{Quality=quality})
-		local found=false
-		for _,layer in resolved.Layers do
-			assert(not string.find(layer.Id,"Beam.Flow",1,true),identity.." has travelling glyphs")
-			assert(not string.find(layer.Id,"Beam.Motes",1,true),identity.." has spinning path particles")
-			if identity=="Fire" or identity=="Water" then
-				assert(layer.Kind~="Sprite" and layer.Kind~="Emitter",identity.." still has a spinning sprite body")
-				if layer.Kind=="Beam" then assert(layer.Params.ContinuousStream);found=true end
-			elseif layer.Kind=="PathGlyphs" then
-				found=true
-				if identity=="Arcane" then assert(layer.FrameTexture=="rune_circle","Runes need geometric enclosures") end
+for _, identity in { "Fire", "Water", "Arcane", "Space" } do
+	local plan = table.clone(fire)
+	plan.Element = identity
+	plan.Expression = identity
+	plan.Form = "Beam"
+	for _, quality in { "High", "Low" } do
+		local resolved = planner.plan(plan, "Sustain", { Quality = quality })
+		local found = false
+		for _, layer in resolved.Layers do
+			assert(not string.find(layer.Id, "Beam.Flow", 1, true), identity .. " has travelling glyphs")
+			assert(not string.find(layer.Id, "Beam.Motes", 1, true), identity .. " has spinning path particles")
+			if identity == "Fire" or identity == "Water" then
+				assert(
+					layer.Kind ~= "Sprite" and layer.Kind ~= "Emitter",
+					identity .. " still has a spinning sprite body"
+				)
+				if layer.Kind == "Beam" then
+					assert(layer.Params.ContinuousStream)
+					found = true
+				end
+			elseif layer.Kind == "PathGlyphs" then
+				found = true
+				if identity == "Arcane" then
+					assert(layer.FrameTexture == "rune_circle", "Runes need geometric enclosures")
+				end
 			end
 		end
-		assert(found,identity.." beam body missing at "..quality)
+		assert(found, identity .. " beam body missing at " .. quality)
 	end
 end
 
@@ -350,7 +373,9 @@ for _, signature in pairs(library.Signatures) do
 		if layer.Texture then
 			assert(manifest.Textures[layer.Texture], layer.Id .. " texture " .. layer.Texture)
 		end
-		if layer.FrameTexture then assert(manifest.Textures[layer.FrameTexture],layer.Id.." enclosure asset") end
+		if layer.FrameTexture then
+			assert(manifest.Textures[layer.FrameTexture], layer.Id .. " enclosure asset")
+		end
 		for _, mesh in ipairs(layer.Meshes or { layer.Mesh }) do
 			assert(manifest.Meshes[mesh], layer.Id .. " mesh " .. tostring(mesh))
 		end

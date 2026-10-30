@@ -12,6 +12,13 @@ OUT=ROOT/'assets/vfx/studies/style_unification_v1'
 spec=importlib.util.spec_from_file_location('restyle',ROOT/'tools/vfx_pipeline/restyle_existing_assets.py')
 module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module)
 
+
+def same_content(path, digest):
+    """True when `path` matches `digest` as recorded from an LF or a CRLF checkout."""
+    data = path.read_bytes()
+    lf = data.replace(b'\r\n', b'\n')
+    return digest in {hashlib.sha256(form).hexdigest() for form in (data, lf, lf.replace(b'\n', b'\r\n'))}
+
 class ExistingRestyle(unittest.TestCase):
     @classmethod
     def setUpClass(cls):cls.catalog=json.loads((OUT/'catalog.json').read_text())
@@ -21,7 +28,7 @@ class ExistingRestyle(unittest.TestCase):
             # Post-approval integration changes the renderer and Lightning beam recipe.
             # The catalog retains historical hashes; source artwork stays immutable.
             if name.endswith(('/SignatureRenderer.luau','/SignatureKits.luau')):continue
-            self.assertEqual(hashlib.sha256((ROOT/name).read_bytes()).hexdigest(),digest,name)
+            self.assertTrue(same_content(ROOT/name,digest),name)
 
     def test_all_existing_assets_covered(self):
         for kind,folder in [('mesh','meshes'),('texture','textures')]:

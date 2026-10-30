@@ -8,7 +8,11 @@ ROOT=Path(__file__).resolve().parents[2]
 OUT=ROOT/'assets/vfx/studies/effect_families_v1'
 
 def sha(path):
-    return hashlib.sha256(path.read_bytes()).hexdigest()
+    data=path.read_bytes()
+    # Text sources hash as LF so LF and CRLF checkouts of the same file agree.
+    if path.suffix in ('.luau','.json','.rbxmx','.py','.md','.txt'):
+        data=data.replace(b'\r\n',b'\n')
+    return hashlib.sha256(data).hexdigest()
 
 def audit():
     config=json.loads(Path(__file__).with_name('effect_families.json').read_text())

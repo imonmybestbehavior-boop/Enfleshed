@@ -7,7 +7,9 @@
     "Aura",
     "SelfEnhancement",
     "Construct",
-    "Manipulation"
+    "Manipulation",
+    "Rush",
+    "Tether"
   ],
   "registered_spells": [
     {
@@ -78,7 +80,8 @@
     "TravelVolume": {
       "label": "Traveling volume",
       "forms": [
-        "Projectile"
+        "Projectile",
+        "Rush"
       ],
       "geometry": "Compact connected body with a directional rear",
       "motion": "Transport across the body; flight follows the authoritative anchor"
@@ -86,7 +89,8 @@
     "DirectedStream": {
       "label": "Directed stream",
       "forms": [
-        "Beam"
+        "Beam",
+        "Tether"
       ],
       "geometry": "Start cap, length-adapted middle, contact cap",
       "motion": "Flow along the axis; retain distinct instantaneous and held envelopes"
@@ -159,6 +163,16 @@
       "family": "SurfaceAssembly",
       "current": "Composer Lattice and kit ambient layers around the affected material/object.",
       "exceptions": "Matter-focused Raise/Lower and actual moved-object silhouette. Soul/Spirit does not support Manipulation and must not be silently substituted."
+    },
+    "Rush": {
+      "family": "TravelVolume",
+      "current": "Composer comet (analyzer Rush = Comet): Rush.Core stretched by dash speed and a wide Rush.Streak trail on a stamped path riding the caster; Fire adds the hot core.",
+      "exceptions": "The caster is the moving body: Dash travels the validated path; Blink flashes at the start and destination with no travel between."
+    },
+    "Tether": {
+      "family": "DirectedStream",
+      "current": "Composer helix (analyzer Tether = Helix): thin Tether.Core and slow chain-like Tether.Links on a stamped path spanning both anchors, over the server's colored Beam.",
+      "exceptions": "Both ends move: the path follows the anchors and the link count grows with MaxLength; a snap flashes at the midpoint."
     }
   },
   "gallery": {
@@ -204,47 +218,58 @@
     }
   },
   "source_sha256": {
-    "src/server/init.server.luau": "358076e36eec268d222869804394ee59c522314e686569c0105e1efa6a8e590b",
-    "src/server/Networking/ActionRouter.luau": "5808566ee52b5989fc1a3e1c8d240b8780e852ecf0842698f86b8c1ae1203a94",
+    "src/server/init.server.luau": "504bba49562d3b828170d56cad3497c20613b050e1ff52478c3c349720973ecd",
+    "src/server/Development/EnemyTraversalFixture.luau": "5545eab49a82f152df15c338ce30759715ad30094c8b5a0f4b4579379810b32b",
+    "src/server/Networking/ActionRouter.luau": "635a87b64552f4659960e526e5e8cdcb4300e94093c43f5f2af7db852630e853",
     "src/server/Services/CombatSandboxService.luau": "5df229b1d0cb837a988c741bd98e92e2c063e4fc93e251e1307bb4271d61dd02",
-    "src/server/Services/CombatService.luau": "ff3cd3f2df2022601fa06c423e9316310c5812d7995f62b0d4a236a8bc9f71ad",
-    "src/server/Services/DamageService.luau": "6fde50b6de76c5b1cb97a2b3fbd36e4e5287009ba1b6236914954d5340d2f91c",
+    "src/server/Services/CombatService.luau": "2f4401f56910a16b4b4726a54ccca94d3238c1e7c07195ac4567c8a4cf049c4c",
+    "src/server/Services/DamageService.luau": "9a645a984619a12bf20d8cdb9b66deecb195d1cde9d30dff5dccf905f458392b",
     "src/server/Services/DefendTheWallsGuards.luau": "c118c0997a1d610d945e578fc02bdf5901a67751d9c4f037ed2556d8970b0694",
     "src/server/Services/DefendTheWallsService.luau": "ea4a673a248fd46bd5ceb19f2b7cb705273e31aa2733116b81e2ba721c602c02",
+    "src/server/Services/EnemyAnimationCorpse.luau": "2840e156971d715d1dbd94d546fbd1250543717e28e4ab6a792c5fd3206e9c65",
     "src/server/Services/EnemyRuntime.luau": "9657250c09b1ee722c12101682d485b303b5bdfc0a26e089b8d939bed0eaf058",
-    "src/server/Services/EnemyService.luau": "1df972fe050a5cf35d2bd091b9bf07827cc9c96b1ecef964511deb55ded7204b",
+    "src/server/Services/EnemyService.luau": "0b03fd5f1e56ae7cf5d09d259e69a98adb6140b832487481272f5c4ae5451932",
     "src/server/Services/EquipmentService.luau": "f1d70ffb7a053393bed239321227dcd8e4036b1f7100ccab3ddcd08e0abe10ff",
     "src/server/Services/FeatureFlagService.luau": "dad8304710c2eb3130703f9030d3e46014a541b918db54b63e76eab434fbee71",
     "src/server/Services/HitDetectionService.luau": "51ddd90eafd30e35f290bceb083bc38b95052d4273517e3eb88b7ed98de40d85",
     "src/server/Services/InventoryService.luau": "66688ff5c9250dec7ef44403b6d468380f186e0e440742af92f07bf4dacd0b65",
     "src/server/Services/MagicBehaviorExecutors.luau": "bd4c73c3a6356811efd06c36bb74b5c8a80556f7bd7bf48f9fc56725cc222489",
+    "src/server/Services/MagicBloodMagic.luau": "01d55377d4e9b82c760b7cc65b13dc56ca397b78ed0f368ce0e7b0e180ed6bbe",
     "src/server/Services/MagicCommandSpec.luau": "5352c0e30203ffd9e3c2b1e28c6f6d0e93fc33092aa6d30be7607a73e73c5573",
-    "src/server/Services/MagicConditions.luau": "5a041f9fdf2fa7af757d5c05b52d62824ee4cb747c773b5a397a2ed36b5082b4",
-    "src/server/Services/MagicConstructBuilder.luau": "bcc6d564d1551158186a5c98e1dce1c9f633eba3872c953f399ae2b3fa64cba0",
-    "src/server/Services/MagicControlService.luau": "e8ae81ade9409ce2923cadca07630d010fdf67da0c15f775ecc0f813f3c16aa6",
-    "src/server/Services/MagicFormExecutors.luau": "06212c5e4cec41cfb4acfe5a3f4cfe769473441d5270aa88bb8e91259d162f6c",
-    "src/server/Services/MagicLabService.luau": "b173a53ff325782ae6109d39d470cc43a20ca4cac69f0f036dcda93d9eb95776",
+    "src/server/Services/MagicConditions.luau": "5d1647cc3730729a9eab67c2eec24b16faa95c97a7bc90f2cb35b8763a920a63",
+    "src/server/Services/MagicConstructBuilder.luau": "345a9883b6984f25ce6e2ba08649cfcd4584581c83344f4f8e9d3fcc961f3a76",
+    "src/server/Services/MagicConstructHealth.luau": "022721d4c94c3c144f274d6200fc304fbef683ba99cecc5bdaff27f4abb08270",
+    "src/server/Services/MagicControlService.luau": "060c277fc25a370bb4f775b58d4e022880261073d6cabc7b330201cf946ac47d",
+    "src/server/Services/MagicEnvironmentReactions.luau": "d8f9cfd3d8adb2b49872d9075085d3d8abbbb978cc67913fef95cb3b715f415a",
+    "src/server/Services/MagicFormExecutors.luau": "57db20396e9e6cc1129523344b55234af8bd6c61efb4fa1fabecc58fb9d3facb",
+    "src/server/Services/MagicInterception.luau": "80a1e0b34d2b1665210b314ebd55462c6102ec793bec282625cc9cdc3f9fb933",
+    "src/server/Services/MagicLabService.luau": "e8b305b6357f7e570288182ae6df84976402d65208a17ff4a6de6656bfa7032a",
     "src/server/Services/MagicManipulationExecutors.luau": "23df3fb1725919c2f5188336d99e8c59ac7f6e5fc9034da01dfa91d0a1598613",
-    "src/server/Services/MagicPayloadExecutors.luau": "aa7111b18a7d31dd92198e50652cc25a68d80667f2d8daad3892f96d0517c19b",
-    "src/server/Services/MagicPersistentConstructStore.luau": "f526152b1d5320eb39159b245feec995c21b8bb426724b3b572c54b444f1f7c0",
+    "src/server/Services/MagicPayloadExecutors.luau": "95b5f3cf27dd58108c404d806a585c4069585570ab4d701d8bdec4b4de33a2a8",
+    "src/server/Services/MagicPersistentConstructStore.luau": "00761aaf9bca1c9cf39ae5b958120031d32b385e6ea8d00f2beba07e2b124ded",
     "src/server/Services/MagicPhysicsOwnership.luau": "ce14e6b6e0d3bc032671da8372439bc9f8c175969cda7d1a7cd54a6f5684722c",
-    "src/server/Services/MagicPresentation.luau": "a05d4512cb7d48e2cce37117e2601b243e35950badd29eba39e08490fb9cefd1",
+    "src/server/Services/MagicPresentation.luau": "a0611a7bd2e46b26a09661ab6b78a000bc1bb823b6fa4b17452925186bb689e6",
     "src/server/Services/MagicProjectileBehaviorExecutors.luau": "266d614d3eaa80ca2ce26b9d52401184ae58d889ec7e3496b0a31e9091bd6064",
-    "src/server/Services/MagicService.luau": "f45f8945ef98aece24267a482822043fa04b3eb3cf82fb32eaafabd6f89c7c29",
-    "src/server/Services/MagicStatusEffectService.luau": "9dd6a639d13b0652db9bc40e572967afa7d51db0d5e41a3e2481c3c5b57a827b",
+    "src/server/Services/MagicRush.luau": "5b8feeee3ae8d0895bff091ea0a0041f69a314ea95c3d4e37cca53128cdd56e4",
+    "src/server/Services/MagicService.luau": "3d566eada8d8aa09aa21c8cef1f9defae8e9e17b59cbdf0850d904db653569c0",
+    "src/server/Services/MagicSpellTargets.luau": "a84e6ee0de03608e4de34d40be190e339b0ecaa355edd7a9cd1286867aed1134",
+    "src/server/Services/MagicStatusEffectService.luau": "791562495ff4cb91f8c214e5bfcacf3e8e6121165efee5a53270cc1bb18827b0",
     "src/server/Services/MagicSummonPlacement.luau": "89a8f587ad258537fbc513207d1f7ec280b4ff1a03898aa6258878b05349d104",
-    "src/server/Services/MagicTriggerDispatch.luau": "879e83a2bfb9d1f02d08eba17db355501b2aa0474e900733479dd3f22d9bb64c",
+    "src/server/Services/MagicTether.luau": "f646aab2c460c69fc5aa0db0025a611d243412815f4d4001f527e8c948846d18",
+    "src/server/Services/MagicTransformService.luau": "952c2efbc7720212e3cee5aa817eee018a82e32a8e1f17fe0549eb10235e1546",
+    "src/server/Services/MagicTransformVisual.luau": "ef90fcaf199d944ac3298183d929f4700c31372891e2f3319fafa5f9c5dce7de",
+    "src/server/Services/MagicTriggerDispatch.luau": "d4607f20bd5ed360e9c3bd3fb7388c8f4f90d37a90edfdc7d011274e5ac11b1e",
     "src/server/Services/MagicTriggerExecutors.luau": "a9a374075bc6571f633349b603e6e60a6b74890756ee2d63e63e1335f8ca4dfc",
     "src/server/Services/MagicWorldQuery.luau": "8d1fd20cf5010db266beff79e546d6369ba82f10565d53f4fbcb245ac4fabf46",
     "src/server/Services/MapGenerator.luau": "95b5d7a2db37f2c858fd91841eb1b960b974ae868f6d655d076eae01a14d0efa",
     "src/server/Services/MeleeDefenseService.luau": "07de2780883e02029dba26ffa003aaa9698cdb755d8f3733b05143085341dae9",
     "src/server/Services/MissionProgression.luau": "02076654188e4b8825fa877714520dd64ca038adb1bb0ce57b047fe5b092dff2",
     "src/server/Services/ModeRunner.luau": "45b08017c81f5c959b987564baace3ed29ab53d75b107ce13d5a572e27d320d1",
-    "src/server/Services/MovementService.luau": "81e418982fdbe9f9ff4092b2536308671ffe33ba5f9e336ba5d88f87999bced0",
+    "src/server/Services/MovementService.luau": "279b2c2d67178eb6713fdd98ae4c016d0de82e1d8eb6be03aaed039f021032bc",
     "src/server/Services/NascentAttackSelector.luau": "6f351ee3b070df7fafb2516bd7a7da56f83b33b1b464316d969f8ed6ad76e6e0",
     "src/server/Services/PlayerProfileService.luau": "6c55828b57778dcdba0326c28bafe1731de8faa109ee6a2af63d31f21a2eb461",
     "src/server/Services/SpellVFXRelay.luau": "b8f7aacd1174f56a08c5eab968351d7682b4b6b72a6776a492b0572744ebd644",
-    "src/server/Services/SummonService.luau": "ef5519efcff9d22ea2ed4710f4271d0447c6282c8d2520889ebb2e14c6eff1c7",
+    "src/server/Services/SummonService.luau": "c6ef2f43c52f32e13df963e0d93b120d931be85e0d401169ce449ef98c743048",
     "src/server/Services/TelemetryService.luau": "8f06f0baf92a59b5d9d1d8633f4fd8d8e9d4dc10dfca179ad4305931d43940c4",
     "src/server/Services/TextFilterService.luau": "087bd3c41d50cc4bfc43431709271d024535d1cd0aa7922b5dd7673e56bc8323",
     "src/server/Services/TrainingDummyService.luau": "66eea1fc8012b98e559fe844d5acf93f23ae0a1c3c874527c56be80974979b80",
@@ -267,20 +292,20 @@
     "src/shared/Configuration/Items.luau": "1473b9ef2a2abcc6f0bf9882a4ef4b1af490a9014773472a2e8f768b05c85e2d",
     "src/shared/Configuration/Loot.luau": "735fc8ed88fef8d9e2e47b300dfffbe002ed5b154497dcd75723629fb42c9917",
     "src/shared/Configuration/MagicElements.luau": "1cd8d9b32b4f0538be3a75ceaefd2db39f71dbbfbe5bdd086a52459205fba212",
-    "src/shared/Configuration/MagicLab.luau": "e63b811bcb5363da0befc7231d08f29c146c3a057f2d7b7ad5f375ddd2cd22ae",
+    "src/shared/Configuration/MagicLab.luau": "e04056cdd4b82a77282fd1ca7a7e382efbe3458eebba51e6025ee0b51312b4b1",
     "src/shared/Configuration/MagicLocus.luau": "d39d65204663a068d4ea3f8d6a45b3548c8a15c8123b88cc8f1dff44619bc0cb",
     "src/shared/Configuration/MagicPresentation.luau": "4e69ae25faa2366fb90787fcbcbbf6612a5babbf2baa2663f5d3cd916922a7ce",
-    "src/shared/Configuration/MagicSchema.luau": "d862ed5e9fd8cf8234c64e5d355271b3034dcdd0a598c5687f8f5458e614a601",
+    "src/shared/Configuration/MagicSchema.luau": "7267532d96b9b858f59f73fafe7e8d1e8f835e24d396aceea3ca8488244bc2e9",
     "src/shared/Configuration/MagicSummons.luau": "35a3673b8c1f06a900ce44d74018900633370a24abc428c138dbb060ae9be4b1",
     "src/shared/Configuration/MagicVisualAssets.luau": "7b45e3db75361cbffa581fffbd63868ba5f6854dd4b0c010efb9acb3bc3ac20d",
     "src/shared/Configuration/MeleeProfiles.luau": "9752b56fe1cbabe130ee377ad67f97d759763fcad20da973cea40988cdd79310",
     "src/shared/Configuration/Sandbox.luau": "718d7b47e890a1a4a0213eef01facbb28974a82d22e70615256072c2d6fd021e",
     "src/shared/Configuration/SpellProgression.luau": "d3b496c6d2bc3bcce5b5836a36e8f10194e0a2ee0948cd83b907106e496ba81c",
     "src/shared/Configuration/Spells.luau": "193a83245859cb0ace9e58db162606d27167c628b649fc5b741413b6aee84797",
-    "src/shared/Configuration/SpellStatCaps.luau": "518d4fdce16e8b834693aa7408de84bb7f9f4d9de7ca51a2bce6771fb8a934f2",
+    "src/shared/Configuration/SpellStatCaps.luau": "89189dd4763f5577f2e0dcd87202f66f79f0a81a36935aba126bf01d04782a54",
     "src/shared/SpellVFXSystem/Signature/ConnectedFire.luau": "6db2a28bc9ac777df99fa014fab55a7fcb7130cbaad45c985125f7a7de9e848b",
-    "src/shared/SpellVFXSystem/Assets/ConnectedFireRig.rbxmx": "d29fcb27a0204130a50fbed86ad7e37b685fd9e9f07db470b2abc05535a0f7ff",
-    "src/shared/SpellVFXSystem/Assets/ConnectedFirePoses.luau": "e5df3adddc41cf5d88cb583184429ccc53f3e378ec3a507ece5c1734f523730f",
+    "src/shared/SpellVFXSystem/Assets/ConnectedFireRig.rbxmx": "a158e46709fd3c00c7474cd8fb55518e3e133604f9f7a09571ac2dd0e9ca8b02",
+    "src/shared/SpellVFXSystem/Assets/ConnectedFirePoses.luau": "d2f61276074f300446ef2cab7c5d44c2f8ced647bbf4f906a97c8b673b5f5adc",
     "assets/vfx/studies/3d_fire_v4/connected_fireball.blend": "0ac47c88c674e117af188add06e8fb3f940fa8f80ae650ef07a63a4548daa25d"
   }
 }

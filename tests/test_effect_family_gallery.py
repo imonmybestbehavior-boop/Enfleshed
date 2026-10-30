@@ -11,6 +11,13 @@ import unittest
 ROOT=Path(__file__).resolve().parents[1]
 OUT=ROOT/'assets/vfx/studies/effect_families_v1'
 
+
+def same_content(path, digest):
+    """True when `path` matches `digest` as recorded from an LF or a CRLF checkout."""
+    data = path.read_bytes()
+    lf = data.replace(b'\r\n', b'\n')
+    return digest in {hashlib.sha256(form).hexdigest() for form in (data, lf, lf.replace(b'\n', b'\r\n'))}
+
 class FamilyGallery(unittest.TestCase):
     def test_form_coverage_and_registered_examples(self):
         record=json.loads((OUT/'inventory.json').read_text())
@@ -26,9 +33,9 @@ class FamilyGallery(unittest.TestCase):
 
     def test_protected_source_unchanged(self):
         for name,digest in json.loads((OUT/'inventory.json').read_text())['source_sha256'].items():
-            self.assertEqual(hashlib.sha256((ROOT/name).read_bytes()).hexdigest(),digest,name)
+            self.assertTrue(same_content(ROOT/name,digest),name)
         for asset in json.loads((OUT/'asset_reuse_inventory.json').read_text())['assets']:
-            self.assertEqual(hashlib.sha256((ROOT/asset['path']).read_bytes()).hexdigest(),asset['sha256'],asset['name'])
+            self.assertTrue(same_content(ROOT/asset['path'],asset['sha256']),asset['name'])
 
     def test_geometry_caches(self):
         for key in ['fire','soul']:

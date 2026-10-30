@@ -493,7 +493,11 @@ function Composer.attach(anchor, plan, options)
 		end
 		-- Visibility cancellation must not masquerade as a spell ending or hit.
 		if signature then
-			if cancel then signature:Stop() else signature:Finish() end
+			if cancel then
+				signature:Stop()
+			else
+				signature:Finish()
+			end
 		end
 		folder:Destroy()
 	end
