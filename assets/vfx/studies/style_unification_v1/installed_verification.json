@@ -1,0 +1,12 @@
+{
+  "status": "Saved and verified in local Enfleshed place",
+  "place": "C:\\Users\\bello\\Documents\\Projects\\Enfleshed\\Enfleshed-Defend-The-Walls.rbxlx",
+  "place_sha256": "4381c216e74869826c617ed39a4785376b5f363d0707da255ce2d7f4757b063d",
+  "textures": 91,
+  "meshes": 60,
+  "sources_verified": 7,
+  "gameplay_spells_checked": 9,
+  "lightning_endpoint_range_checks": 8,
+  "cleanup": "All tracked resources zero after lifecycle check",
+  "published": false
+}

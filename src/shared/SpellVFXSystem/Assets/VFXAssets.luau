@@ -10,6 +10,7 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Manifest = require(script.Parent.VFXAssetManifest)
 local DirectionalSprites = require(script.Parent.DirectionalSpriteManifest)
+local Styled = require(script.Parent.StyledVFXManifest)
 
 local Assets = {}
 -- Showcase toggle: false forces built-in fallbacks so custom and fallback looks can be compared.
@@ -36,13 +37,19 @@ local fetching: { [string]: boolean } = {}
 local pools: { [string]: { BasePart } } = {}
 
 -- Returns texture content, flipbook layout (or None) and whether the custom asset is in use.
-function Assets.texture(name: string?): (string, Enum.ParticleFlipbookLayout, boolean)
+function Assets.texture(name: string?, identity: string?): (string, Enum.ParticleFlipbookLayout, boolean, boolean?)
 	local entry = name and Manifest.Textures[name]
 	if not entry then
 		return BUILTIN.Sparkle, Enum.ParticleFlipbookLayout.None, false
 	end
-	if Assets.UseCustom and entry.Id then
-		return entry.Id, LAYOUT[entry.Flipbook or ""] or Enum.ParticleFlipbookLayout.None, true
+	if Assets.UseCustom then
+		local baked = if Styled.Enabled and identity and name then Styled.Textures[identity .. "/" .. name] else nil
+		if baked then
+			return baked, LAYOUT[entry.Flipbook or ""] or Enum.ParticleFlipbookLayout.None, true, true
+		end
+		if entry.Id then
+			return entry.Id, LAYOUT[entry.Flipbook or ""] or Enum.ParticleFlipbookLayout.None, true
+		end
 	end
 	return BUILTIN[entry.Fallback] or BUILTIN.Sparkle, Enum.ParticleFlipbookLayout.None, false
 end
@@ -65,6 +72,12 @@ end
 local function importedTemplate(name: string): BasePart?
 	local folder = ReplicatedStorage:FindFirstChild("VFXAssets")
 	local meshes = folder and folder:FindFirstChild("Meshes")
+	local styled = script.Parent:FindFirstChild("CelMeshLibrary") or (folder and folder:FindFirstChild("CelMeshes"))
+	local revised = Styled.Enabled and styled and styled:FindFirstChild(name)
+	if revised and revised:IsA("MeshPart") then
+		revised:SetAttribute("VFXBakedColors", true)
+		return revised
+	end
 	local found = meshes and meshes:FindFirstChild(name)
 	return if found and found:IsA("MeshPart") then found else nil
 end

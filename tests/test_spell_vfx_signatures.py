@@ -14,6 +14,12 @@ ROOT = Path(__file__).resolve().parents[1]
 LUAU = os.environ.get("LUAU") or str(Path.home() / ".rokit/bin/luau")
 # Modules that only run inside Roblox: compiled (syntax-checked) here, never executed.
 CLIENT_ONLY = [
+    "src/shared/SpellVFXSystem/Signature/FieldDynamics.luau",
+    "src/shared/SpellVFXSystem/Signature/ArcBeam.luau",
+    "src/shared/SpellVFXSystem/Signature/StreamBeam.luau",
+    "src/shared/SpellVFXSystem/Signature/PathGlyphs.luau",
+    "src/shared/SpellVFXSystem/Signature/ConnectedFire.luau",
+    "src/shared/SpellVFXSystem/Assets/ConnectedFirePoses.luau",
     "src/shared/SpellVFXSystem/Signature/SignatureRenderer.luau",
     "src/shared/SpellVFXSystem/Assets/VFXAssets.luau",
     "src/shared/SpellVFXSystem/Core/SpellVFXComposer.luau",
@@ -44,7 +50,7 @@ class SignatureVFX(unittest.TestCase):
     def test_planner_spec(self):
         parts = ["local sources = {}"]
         for path in sorted((ROOT / "src/shared").rglob("*.luau")):
-            parts.append(f"sources[{str(path.relative_to(ROOT))!r}] = {long_string(path.read_text())}")
+            parts.append(f"sources[{path.relative_to(ROOT).as_posix()!r}] = {long_string(path.read_text())}")
         parts.append(
             "env = getfenv()\n"
             "function load(path)\n"

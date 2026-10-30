@@ -7,6 +7,8 @@ local ServerStorage = game:GetService("ServerStorage")
 local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
 local Sandbox = require(Shared:WaitForChild("Configuration"):WaitForChild("Sandbox"))
 local EnemyVisuals = require(Shared:WaitForChild("Configuration"):WaitForChild("EnemyVisuals"))
+local Navigation = require(Shared:WaitForChild("Modules"):WaitForChild("EnemyNavigation"))
+local AnimationCorpse = require(script.Parent.EnemyAnimationCorpse)
 local Config = Sandbox.Enemy
 local Damage = require(script.Parent.DamageService)
 local HitDetection = require(script.Parent.HitDetectionService)
@@ -56,7 +58,7 @@ local function createRig(
 	container: Folder,
 	collisionGroup: string,
 	kind: string?
-): (Model, Humanoid, BasePart, TextLabel, (string, number) -> ())
+): (Model, Humanoid, BasePart, TextLabel)
 	local visualKind = kind or "Basic"
 	local layout = EnemyVisuals[visualKind]
 	local meshes = if layout then importedParts(visualKind) else nil
@@ -79,6 +81,10 @@ local function createRig(
 	end
 	local root = part("HumanoidRootPart", Vector3.new(2, 2, 1), Vector3.zero)
 	root.Transparency = 1
+	-- The root stays non-colliding, but Humanoid ground queries use its group.
+	-- Visuals ignore Default geometry; putting the root there leaves the rig in
+	-- Freefall even when its separate hull is standing on the floor.
+	root.CollisionGroup = "Default"
 	local function visual(name: string, size: Vector3, offset: Vector3, color: Color3): BasePart
 		if meshes then
 			local mesh = meshes[name]:Clone()
@@ -107,8 +113,15 @@ local function createRig(
 		motor.Name = name
 		motor.Part0 = parent
 		motor.Part1 = limb
-		if meshes and name ~= "RootJoint" then
-			local pivot = CFrame.new(position + layout.Pivots[name])
+		if name ~= "RootJoint" then
+			local fallbackPivots = {
+				Neck = Vector3.new(0, 2.1, 0),
+				["Left Shoulder"] = Vector3.new(-1.6, 1.55, 0),
+				["Right Shoulder"] = Vector3.new(1.6, 1.55, 0),
+				["Left Hip"] = Vector3.new(-0.65, -1.2, 0),
+				["Right Hip"] = Vector3.new(0.65, -1.2, 0),
+			}
+			local pivot = CFrame.new(position + (if meshes then layout.Pivots[name] else fallbackPivots[name]))
 			motor.C0 = parent.CFrame:ToObjectSpace(pivot)
 			motor.C1 = limb.CFrame:ToObjectSpace(pivot)
 		else
@@ -240,85 +253,8 @@ local function createRig(
 	Collection:AddTag(model, "MagicHostileTarget")
 	model.Parent = container
 	root:SetNetworkOwner(nil)
-	local function pose(
-		state: string,
-		now: number,
-		attack: string,
-		step: number,
-		desperate: boolean,
-		majorFlinch: boolean
-	)
-		local breath = math.sin(now * (if desperate then 6 else 3))
-		rootJoint.Transform = CFrame.new(0, breath * 0.055, 0.12) * CFrame.Angles(-0.16, 0, 0)
-		neck.Transform = CFrame.Angles(0.18, breath * 0.1, -0.08)
-		leftShoulder.Transform = CFrame.Angles(0.15, 0, 0.28)
-		rightShoulder.Transform = CFrame.Angles(0.32, 0, -0.34)
-		leftHip.Transform = CFrame.new()
-		rightHip.Transform = CFrame.new()
-		if state == "Chase" then
-			local stride = math.sin(now * (if desperate then 13 else 10)) * 0.72
-			rootJoint.Transform *= CFrame.Angles(-0.22, 0, 0)
-			leftShoulder.Transform = CFrame.Angles(stride + 0.35, 0, 0.35)
-			rightShoulder.Transform = CFrame.Angles(-stride - 0.6, 0, -0.52)
-			leftHip.Transform = CFrame.Angles(-stride, 0, 0)
-			rightHip.Transform = CFrame.Angles(stride, 0, 0)
-		elseif state == "Telegraph" then
-			if attack == "PredatoryLunge" then
-				rootJoint.Transform = CFrame.new(0, -0.25, 0.45) * CFrame.Angles(0.52, 0, 0)
-				leftShoulder.Transform = CFrame.Angles(-1.4, 0, 0.6)
-				rightShoulder.Transform = CFrame.Angles(-1.6, 0, -0.7)
-			elseif attack == "FrenziedChain" then
-				rootJoint.Transform = CFrame.Angles(-0.38, 0, if step % 2 == 0 then -0.2 else 0.2)
-				leftShoulder.Transform = CFrame.Angles(-1.05, 0, 0.7)
-				rightShoulder.Transform = CFrame.Angles(-0.55, 0, -0.75)
-			elseif attack == "MaulingCombination" then
-				rootJoint.Transform = CFrame.Angles(-0.34, 0, if step == 3 then 0.25 else -0.16)
-				leftShoulder.Transform = CFrame.Angles(-0.75, 0, 0.55)
-				rightShoulder.Transform = CFrame.Angles(-1.1, 0, -0.55)
-			else
-				rootJoint.Transform = CFrame.Angles(-0.28, 0, 0)
-				leftShoulder.Transform = CFrame.Angles(-0.65, 0, 0.45)
-				rightShoulder.Transform = CFrame.Angles(-1.3, 0, -0.5)
-			end
-		elseif state == "Attack" then
-			rootJoint.Transform = CFrame.new(0, 0, -0.25) * CFrame.Angles(-0.28, 0, 0)
-			if attack == "FrenziedChain" then
-				if step == 1 then
-					rightShoulder.Transform = CFrame.Angles(1.5, 0, -0.6)
-				elseif step == 2 then
-					leftShoulder.Transform = CFrame.Angles(1.35, 0, 0.75)
-				elseif step == 3 then
-					rightShoulder.Transform = CFrame.Angles(1.1, 0, 0.8)
-				else
-					rootJoint.Transform *= CFrame.Angles(-0.28, 0, 0.35)
-					leftShoulder.Transform = CFrame.Angles(1.5, 0, 1)
-					rightShoulder.Transform = CFrame.Angles(1.55, 0, -0.8)
-				end
-			elseif attack == "PredatoryLunge" then
-				rootJoint.Transform = CFrame.new(0, 0.15, -0.5) * CFrame.Angles(-0.55, 0, 0)
-				leftShoulder.Transform = CFrame.Angles(1.2, 0, 0.6)
-				rightShoulder.Transform = CFrame.Angles(1.35, 0, -0.7)
-			elseif attack == "MaulingCombination" then
-				leftShoulder.Transform = CFrame.Angles(if step == 2 then 0.55 else 1.15, 0, 0.8)
-				rightShoulder.Transform = CFrame.Angles(if step == 3 then 1.65 else 0.85, 0, -0.8)
-			else
-				rightShoulder.Transform = CFrame.Angles(1.35, 0, -0.35)
-				leftShoulder.Transform = CFrame.Angles(0.75, 0, 0.42)
-			end
-		elseif state == "Vulnerable" then
-			rootJoint.Transform = CFrame.new(0, -0.3, 0.38) * CFrame.Angles(0.48, 0, 0.35)
-			leftShoulder.Transform = CFrame.Angles(0.9, 0, 1.1)
-			rightShoulder.Transform = CFrame.Angles(0.75, 0, -1.15)
-		elseif state == "Flinch" then
-			rootJoint.Transform =
-				CFrame.Angles(if majorFlinch then 0.45 else 0.16, 0, if majorFlinch then -0.45 else -0.16)
-			leftShoulder.Transform = CFrame.Angles(0.65, 0, 0.8)
-			rightShoulder.Transform = CFrame.Angles(0.65, 0, -0.8)
-		elseif state == "Dead" then
-			rootJoint.Transform = CFrame.new(0, -1.1, 0.55) * CFrame.Angles(1.25, 0, -0.5)
-		end
-	end
-	return model, humanoid, root, label, pose
+
+	return model, humanoid, root, label
 end
 
 export type Handle = {
@@ -328,6 +264,7 @@ export type Handle = {
 	Destroy: () -> (),
 	TakePathJob: () -> (() -> ())?,
 	HasPendingPath: () -> boolean,
+	GetNavigationDiagnostics: () -> { [string]: any },
 }
 
 function Enemy.create(
@@ -338,7 +275,7 @@ function Enemy.create(
 	hitInterval: number,
 	kind: string?
 ): Handle
-	local model, humanoid, root, label, pose = createRig(position, container, collisionGroup, kind)
+	local model, humanoid, root, label = createRig(position, container, collisionGroup, kind)
 	local state: State = "Idle"
 	local target: Instance? = nil
 	local nextThink = os.clock() + thinkOffset
@@ -361,10 +298,14 @@ function Enemy.create(
 	local debugHighlight: Highlight? = nil
 	local connections: { RBXScriptConnection } = {}
 	local nav = Config.Navigation
+	local hull = model:FindFirstChild("CollisionHull") :: BasePart
+	local leg = model:FindFirstChild("Left Leg") :: BasePart
+	local lastHullSize = hull.Size
 	local path: Path? = nil
 	local blockedConnection: RBXScriptConnection? = nil
 	local waypoints: { PathWaypoint } = {}
 	local waypointIndex = 1
+	local issuedJumpIndex = 0
 	local pathGoal: Vector3? = nil
 	local generation = 0
 	local computing = false
@@ -374,6 +315,31 @@ function Enemy.create(
 	local progressAt = 0
 	local stuck = false
 	local lastUpdateAt = os.clock()
+	-- Read only on demand by the Studio fixture; no per-frame replication or
+	-- extra path jobs are introduced for diagnostics.
+	local navigationMode, lastPathStatus = "Idle", "NotRequested"
+	local queuedAt, queueWait, computeSeconds = 0, 0, 0
+	local pathRequests, pathFailures, blockedPaths, stuckRecoveries, jumpRequests = 0, 0, 0, 0, 0
+
+	local function navigationBody(): (number, number, Vector3, CFrame, Vector3)
+		-- The upright cylinder's local X is its height. Read the actual hull:
+		-- mission ScaleTo happens after Enemy.create, not before it.
+		local scale = hull.Size.X / Config.CollisionHull.Height
+		local diameter = math.max(hull.Size.Y, hull.Size.Z)
+		local rootToFloor = Navigation.r6GroundOffset(leg.Size.Y, root.Size.Y, humanoid.HipHeight)
+		local floorToHullTop = rootToFloor + hull.Position.Y - root.Position.Y + hull.Size.X / 2
+		local radius, height = Navigation.agentDimensions(
+			nav.AgentRadius,
+			nav.AgentHeight,
+			scale,
+			math.max(hull.Size.X, floorToHullTop),
+			diameter
+		)
+		local sweep = nav.SweepSize * scale
+		local frame = root.CFrame + (hull.Position - root.Position)
+		local ground = root.Position - Vector3.new(0, rootToFloor, 0)
+		return radius, height, sweep, frame, ground
+	end
 
 	local function turnToward(other: BasePart, maxRadians: number, pivotRadians: number?): boolean
 		local flatTarget = Vector3.new(other.Position.X, root.Position.Y, other.Position.Z) - root.Position
@@ -423,6 +389,7 @@ function Enemy.create(
 		waypoints = {}
 		pathGoal = nil
 		waypointIndex = 1
+		issuedJumpIndex = 0
 	end
 
 	local function clearDebug()
@@ -436,7 +403,53 @@ function Enemy.create(
 		end
 	end
 
+	local lastPose = ""
+	local function pose(
+		poseState: string,
+		now: number,
+		attack: string,
+		step: number,
+		desperate: boolean,
+		major: boolean
+	)
+		local finish = if poseState == "Telegraph"
+			then activeAt
+			elseif poseState == "Attack" then activeUntil
+			elseif poseState == "Recover" or poseState == "Vulnerable" then recoverUntil
+			elseif poseState == "Flinch" then flinchUntil
+			else 0
+		local key = table.concat(
+			{ poseState, attack, tostring(step), tostring(desperate), tostring(major), tostring(finish) },
+			"|"
+		)
+		if key == lastPose then
+			return
+		end
+		lastPose = key
+		local stamp = workspace:GetServerTimeNow()
+		model:SetAttribute(
+			"EnemyPose",
+			game:GetService("HttpService"):JSONEncode({
+				State = poseState,
+				Attack = attack,
+				Step = step,
+				Desperate = desperate,
+				Major = major,
+				Start = stamp,
+				Finish = stamp + math.max(0, finish - now),
+			})
+		)
+	end
+
 	local function display()
+		pose(
+			state,
+			os.clock(),
+			attackName,
+			attackStep,
+			humanoid.Health / humanoid.MaxHealth <= Config.DesperateHealthFraction,
+			flinchMajor
+		)
 		label.Text = if Config.DebugLabels
 			then string.format(
 				"%s  %d/%d\n%s",
@@ -505,6 +518,9 @@ function Enemy.create(
 		end
 		setState("Dead")
 		pose("Dead", os.clock(), attackName, attackStep, false, false)
+		if humanoid.Health <= 0 and model:IsDescendantOf(workspace) then
+			AnimationCorpse.show(model)
+		end
 		hitReactions[humanoid] = nil
 		clearPath()
 		clearDebug()
@@ -645,18 +661,28 @@ function Enemy.create(
 				return
 			end
 			local token = generation
+			local requestedHullSize = hull.Size
+			local radius, height = navigationBody()
 			local destination = other.Position
 			local requestedTarget = target
 			nextPath = os.clock() + nav.RepathInterval
+			queueWait = math.max(0, os.clock() - queuedAt)
+			pathRequests += 1
 			local candidate = PathfindingService:CreatePath({
-				AgentRadius = nav.AgentRadius,
-				AgentHeight = nav.AgentHeight,
+				AgentRadius = radius,
+				AgentHeight = height,
 				AgentCanJump = nav.AgentCanJump,
 				WaypointSpacing = nav.WaypointSpacing,
 			})
+			local computeStarted = os.clock()
 			local ok = pcall(function()
 				candidate:ComputeAsync(root.Position, destination)
 			end)
+			computeSeconds = os.clock() - computeStarted
+			lastPathStatus = if ok then candidate.Status.Name else "ComputeError"
+			if not ok or candidate.Status ~= Enum.PathStatus.Success then
+				pathFailures += 1
+			end
 			computing = false
 			local currentRoot = targetRoot(target)
 			if
@@ -665,6 +691,7 @@ function Enemy.create(
 				or state ~= "Chase"
 				or token ~= generation
 				or target ~= requestedTarget
+				or hull.Size ~= requestedHullSize
 				or not currentRoot
 				or (currentRoot.Position - destination).Magnitude > nav.TargetMoveThreshold
 			then
@@ -678,15 +705,21 @@ function Enemy.create(
 			waypointIndex = 2
 			blockedConnection = candidate.Blocked:Connect(function(index)
 				if index >= waypointIndex then
+					blockedPaths += 1
 					clearPath()
 					stopMoving()
 				end
 			end)
 		end
+		queuedAt = now
 		model:SetAttribute("PathQueued", true)
 	end
 
 	local function chase(other: BasePart, now: number, frameDelta: number)
+		if hull.Size ~= lastHullSize then
+			lastHullSize = hull.Size
+			clearPath() -- A previously computed route may no longer fit this body.
+		end
 		local targetDistance = (other.Position - root.Position).Magnitude
 		local closeCombat = targetDistance <= Config.Turning.CloseCombatDistance
 		humanoid.AutoRotate = not closeCombat
@@ -704,17 +737,18 @@ function Enemy.create(
 			stuck = false
 		elseif now - progressAt >= nav.StuckTime then
 			stuck = true
+			stuckRecoveries += 1
 			clearPath()
 			progressAt = now
 		end
+		local _, _, sweep, sweepFrame, ground = navigationBody()
 		local travel = other.Position - root.Position
-		local direct = workspace:Blockcast(
-			root.CFrame * CFrame.new(0, Config.CollisionHull.CenterOffsetY, 0),
-			nav.SweepSize,
-			travel,
-			rayParams(other.Parent :: Instance)
-		) == nil
-		if direct and not stuck then
+		local blocked = workspace:Blockcast(sweepFrame, sweep, travel, rayParams(other.Parent :: Instance)) ~= nil
+		local nextWaypoint = waypoints[waypointIndex]
+		local jumpPending = nextWaypoint ~= nil and nextWaypoint.Action == Enum.PathWaypointAction.Jump
+		local direct = Navigation.canMoveDirectly(travel.Y, nav.WaypointTolerance, blocked, stuck, jumpPending)
+		if direct then
+			navigationMode = "Direct"
 			if path or computing or pendingPath then
 				clearPath()
 			end
@@ -728,24 +762,52 @@ function Enemy.create(
 			end
 			return
 		end
+		navigationMode = "Path"
 		if not pathGoal or (other.Position - pathGoal).Magnitude >= nav.TargetMoveThreshold then
 			requestPath(other, now)
 		end
-		local waypoint = waypoints[waypointIndex]
-		while waypoint do
-			local delta = waypoint.Position - root.Position
-			if Vector3.new(delta.X, 0, delta.Z).Magnitude > nav.WaypointTolerance then
-				break
+		waypointIndex = Navigation.nextWaypoint(
+			waypoints,
+			waypointIndex,
+			ground,
+			nav.WaypointTolerance,
+			Enum.PathWaypointAction.Jump,
+			issuedJumpIndex,
+			function(position)
+				if humanoid.FloorMaterial == Enum.Material.Air then
+					return nil
+				end
+				local tolerance = nav.WaypointTolerance
+				-- Start above both references so an upper floor cannot be mistaken
+				-- for the lower floor beneath it.
+				local top = math.max(position.Y, ground.Y) + tolerance
+				local origin = Vector3.new(position.X, top, position.Z)
+				local hit = workspace:Raycast(
+					origin,
+					Vector3.new(0, ground.Y - tolerance - top, 0),
+					rayParams(other.Parent :: Instance)
+				)
+				return if hit then hit.Position else nil
 			end
-			waypointIndex += 1
-			waypoint = waypoints[waypointIndex]
-		end
+		)
+		local waypoint = waypoints[waypointIndex]
 		if waypoint then
-			if waypoint.Action == Enum.PathWaypointAction.Jump then
+			local approach = waypoint.Position - ground
+			local atTakeoff = Vector3.new(approach.X, 0, approach.Z).Magnitude
+				<= math.max(nav.WaypointSpacing, nav.WaypointTolerance)
+			if
+				waypoint.Action == Enum.PathWaypointAction.Jump
+				and issuedJumpIndex ~= waypointIndex
+				and atTakeoff
+				and humanoid.FloorMaterial ~= Enum.Material.Air
+			then
 				humanoid.Jump = true
+				issuedJumpIndex = waypointIndex
+				jumpRequests += 1
 			end
 			humanoid:MoveTo(waypoint.Position)
 		else
+			navigationMode = if pendingPath or computing then "WaitingForPath" else "NoPath"
 			stopMoving()
 			if path then
 				clearPath()
@@ -1013,6 +1075,41 @@ function Enemy.create(
 		end,
 		HasPendingPath = function(): boolean
 			return pendingPath ~= nil
+		end,
+		GetNavigationDiagnostics = function(): { [string]: any }
+			local radius, height, sweep, frame, ground = navigationBody()
+			local waypoint = waypoints[waypointIndex]
+			return {
+				State = state,
+				Mode = navigationMode,
+				Root = root.Position,
+				Ground = ground,
+				HullBottom = hull.Position - Vector3.new(0, hull.Size.X / 2, 0),
+				HullSize = hull.Size,
+				SweepSize = sweep,
+				SweepCenter = frame.Position,
+				AgentRadius = radius,
+				AgentHeight = height,
+				FloorMaterial = humanoid.FloorMaterial.Name,
+				HumanoidState = humanoid:GetState().Name,
+				WaypointIndex = waypointIndex,
+				WaypointCount = #waypoints,
+				WaypointPosition = if waypoint then waypoint.Position else nil,
+				WaypointAction = if waypoint then waypoint.Action.Name else nil,
+				JumpIssuedIndex = issuedJumpIndex,
+				PathQueued = pendingPath ~= nil,
+				QueueAge = if pendingPath then math.max(0, os.clock() - queuedAt) else 0,
+				Computing = computing,
+				LastQueueWait = queueWait,
+				LastComputeSeconds = computeSeconds,
+				LastPathStatus = lastPathStatus,
+				PathRequests = pathRequests,
+				PathFailures = pathFailures,
+				BlockedPaths = blockedPaths,
+				Stuck = stuck,
+				StuckRecoveries = stuckRecoveries,
+				JumpRequests = jumpRequests,
+			}
 		end,
 		TakePathJob = function(): (() -> ())?
 			local job = pendingPath

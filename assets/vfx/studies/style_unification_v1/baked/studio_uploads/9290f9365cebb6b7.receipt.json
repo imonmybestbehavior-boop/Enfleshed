@@ -1,0 +1,9 @@
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "{\"http://127.0.0.1:63619/Time__sand_trail.png\":\"rbxassetid://112243301466834\",\"http://127.0.0.1:63619/Earth__rubble_trail.png\":\"rbxassetid://120133586892313\",\"http://127.0.0.1:63619/Lightning__scorch_lichtenberg.png\":\"rbxassetid://114096666624619\",\"http://127.0.0.1:63619/Lightning__rune_circle.png\":\"rbxassetid://88505312200225\",\"http://127.0.0.1:63619/Wind__rune_circle.png\":\"rbxassetid://121675798834383\",\"http://127.0.0.1:63619/Fire__scorch_lichtenberg.png\":\"rbxassetid://82642896636810\",\"http://127.0.0.1:63619/Arcane__rune_circle.png\":\"rbxassetid://140353433213128\",\"http://127.0.0.1:63619/Fire__rune_circle.png\":\"rbxassetid://114348097933761\"}"
+    }
+  ],
+  "isError": false
+}

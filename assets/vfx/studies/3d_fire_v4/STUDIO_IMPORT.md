@@ -1,5 +1,11 @@
 # Studio test handoff
 
+**Current runtime status (2026-10-18):** import is complete and the reusable body is installed in the production signature renderer. Real casts, source/build and lifecycle checks pass. Foreground captures verify scene visibility. The rendered empty-scene control is limited near 15 FPS, and batch setup shows hitch risk, so performance acceptance remains open. No new manual import is needed. See `RUNTIME_INTEGRATION.md`; older pending notes below are historical.
+
+**Update: import completed and isolated client playback visually verified.** The user imported `Workspace.connected_fireball.ConnectedFireVolume`, mesh ID `135760105803974`, with all 73 bones. Measured bind-position conversion matches within 0.000000084 studs. All 24 images load. Controlled side frames show changing core contours; front and rear screenshots retain the filled head and alpha wake. See `imported_review.json`. The original import and gameplay renderer are unchanged. The clean review is left playing in the Studio client.
+
+The instructions and pending notes below record the earlier handoff. Manual import is no longer required. Current remaining work is gameplay integration, combat-lighting comparison, rear alpha refinement and performance/permission verification. Earlier blank scene captures resolved after the user brought Studio to the foreground; the single-mesh surface-switching method passed the subsequent visual check.
+
 The user approved v4's Blender appearance and explicitly authorized uploading its 24 surface frames. All 24 upload IDs are recorded in `published_assets.json`; raw receipts and upload hashes are retained. The connected Studio instance is `Enfleshed-Defend-The-Walls.rbxlx`.
 
 ## Required manual step

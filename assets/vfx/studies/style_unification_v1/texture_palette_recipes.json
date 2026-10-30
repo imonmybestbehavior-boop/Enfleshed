@@ -1,0 +1,1211 @@
+[
+  {
+    "name": "acid_splat",
+    "identity": "Poison",
+    "identities": [
+      "Poison"
+    ],
+    "width": 1024,
+    "height": 1024,
+    "layout": "Grid4x4",
+    "tiles": false,
+    "soft": false,
+    "line": false,
+    "source_id": 131280586202366,
+    "source_unchanged": true,
+    "status": "Palette recipe only; revised colors are not a newly uploaded image"
+  },
+  {
+    "name": "arc_flicker",
+    "identity": "Lightning",
+    "identities": [
+      "Lightning",
+      "Lightning"
+    ],
+    "width": 1024,
+    "height": 1024,
+    "layout": "Grid4x4",
+    "tiles": false,
+    "soft": false,
+    "line": false,
+    "source_id": 132848434993947,
+    "source_unchanged": true,
+    "status": "Palette recipe only; revised colors are not a newly uploaded image"
+  },
+  {
+    "name": "arcane_burst",
+    "identity": "Arcane",
+    "identities": [
+      "Arcane",
+      "Arcane"
+    ],
+    "width": 1024,
+    "height": 1024,
+    "layout": "Grid4x4",
+    "tiles": false,
+    "soft": false,
+    "line": false,
+    "source_id": 125708043067524,
+    "source_unchanged": true,
+    "status": "Palette recipe only; revised colors are not a newly uploaded image"
+  },
+  {
+    "name": "arcane_glyphs",
+    "identity": "Arcane",
+    "identities": [
+      "Arcane",
+      "Arcane"
+    ],
+    "width": 1024,
+    "height": 1024,
+    "layout": "Grid4x4",
+    "tiles": false,
+    "soft": false,
+    "line": false,
+    "source_id": 123769486237759,
+    "source_unchanged": true,
+    "status": "Palette recipe only; revised colors are not a newly uploaded image"
+  },
+  {
+    "name": "arcane_orb",
+    "identity": "Arcane",
+    "identities": [
+      "Arcane"
+    ],
+    "width": 1024,
+    "height": 1024,
+    "layout": "Grid4x4",
+    "tiles": false,
+    "soft": false,
+    "line": false,
+    "source_id": 90732938892452,
+    "source_unchanged": true,
+    "status": "Palette recipe only; revised colors are not a newly uploaded image"
+  },
+  {
+    "name": "beam_energy",
+    "identity": "Force",
+    "identities": [
+      "Force"
+    ],
+    "width": 512,
+    "height": 128,
+    "layout": null,
+    "tiles": true,
+    "soft": false,
+    "line": false,
+    "source_id": 114828697097531,
+    "source_unchanged": true,
+    "status": "Palette recipe only; revised colors are not a newly uploaded image"
+  },
+  {
+    "name": "bolt_strip",
+    "identity": "Lightning",
+    "identities": [
+      "Lightning",
+      "Lightning"
+    ],
+    "width": 1024,
+    "height": 128,
+    "layout": null,
+    "tiles": true,
+    "soft": false,
+    "line": false,
+    "source_id": 79508492299062,
+    "source_unchanged": true,
+    "status": "Palette recipe only; revised colors are not a newly uploaded image"
+  },
+  {
+    "name": "caustics",
+    "identity": "Water",
+    "identities": [
+      "Water"
+    ],
+    "width": 512,
+    "height": 512,
+    "layout": null,
+    "tiles": true,
+    "soft": false,
+    "line": true,
+    "source_id": 123036370236448,
+    "source_unchanged": true,
+    "status": "Palette recipe only; revised colors are not a newly uploaded image"
+  },
+  {
+    "name": "clock_dial",
+    "identity": "Time",
+    "identities": [
+      "Time",
+      "Time"
+    ],
+    "width": 1024,
+    "height": 1024,
+    "layout": null,
+    "tiles": false,
+    "soft": false,
+    "line": true,
+    "source_id": 116649557579175,
+    "source_unchanged": true,
+    "status": "Palette recipe only; revised colors are not a newly uploaded image"
+  },
+  {
+    "name": "core_plasma",
+    "identity": "Fire",
+    "identities": [
+      "Fire"
+    ],
+    "width": 1024,
+    "height": 1024,
+    "layout": "Grid4x4",
+    "tiles": false,
+    "soft": false,
+    "line": false,
+    "source_id": 103260483883403,
+    "source_unchanged": true,
+    "status": "Palette recipe only; revised colors are not a newly uploaded image"
+  },
+  {
+    "name": "debris_chip",
+    "identity": "Earth",
+    "identities": [
+      "Earth",
+      "Earth",
+      "Body"
+    ],
+    "width": 128,
+    "height": 128,
+    "layout": null,
+    "tiles": false,
+    "soft": false,
+    "line": false,
+    "source_id": 98614141403766,
+    "source_unchanged": true,
+    "status": "Palette recipe only; revised colors are not a newly uploaded image"
+  },
+  {
+    "name": "drip_trail",
+    "identity": "Poison",
+    "identities": [
+      "Poison",
+      "Poison"
+    ],
+    "width": 512,
+    "height": 128,
+    "layout": null,
+    "tiles": true,
+    "soft": false,
+    "line": false,
+    "source_id": 75467000590743,
+    "source_unchanged": true,
+    "status": "Palette recipe only; revised colors are not a newly uploaded image"
+  },
+  {
+    "name": "droplet",
+    "identity": "Water",
+    "identities": [
+      "Water",
+      "Water"
+    ],
+    "width": 128,
+    "height": 128,
+    "layout": null,
+    "tiles": false,
+    "soft": false,
+    "line": false,
+    "source_id": 92957467413247,
+    "source_unchanged": true,
+    "status": "Palette recipe only; revised colors are not a newly uploaded image"
+  },
+  {
+    "name": "dust_burst",
+    "identity": "Earth",
+    "identities": [
+      "Earth",
+      "Wind",
+      "Force",
+      "Body",
+      "Body",
+      "Time"
+    ],
+    "width": 512,
+    "height": 512,
+    "layout": null,
+    "tiles": false,
+    "soft": false,
+    "line": false,
+    "source_id": 78150869887099,
+    "source_unchanged": true,
+    "status": "Palette recipe only; revised colors are not a newly uploaded image"
+  },
+  {
+    "name": "dust_plume",
+    "identity": "Earth",
+    "identities": [
+      "Earth",
+      "Earth",
+      "Earth"
+    ],
+    "width": 1024,
+    "height": 1024,
+    "layout": "Grid4x4",
+    "tiles": false,
+    "soft": false,
+    "line": false,
+    "source_id": 137664113646814,
+    "source_unchanged": true,
+    "status": "Palette recipe only; revised colors are not a newly uploaded image"
+  },
+  {
+    "name": "earth_fissure",
+    "identity": "Earth",
+    "identities": [
+      "Earth",
+      "Earth",
+      "Body",
+      "Body"
+    ],
+    "width": 1024,
+    "height": 1024,
+    "layout": null,
+    "tiles": false,
+    "soft": false,
+    "line": true,
+    "source_id": 94417054982206,
+    "source_unchanged": true,
+    "status": "Palette recipe only; revised colors are not a newly uploaded image"
+  },
+  {
+    "name": "ember_streak",
+    "identity": "Fire",
+    "identities": [
+      "Fire",
+      "Force"
+    ],
+    "width": 128,
+    "height": 128,
+    "layout": null,
+    "tiles": false,
+    "soft": false,
+    "line": false,
+    "source_id": 101768246297257,
+    "source_unchanged": true,
+    "status": "Palette recipe only; revised colors are not a newly uploaded image"
+  },
+  {
+    "name": "explosion_fire",
+    "identity": "Fire",
+    "identities": [
+      "Fire"
+    ],
+    "width": 1024,
+    "height": 1024,
+    "layout": "Grid8x8",
+    "tiles": false,
+    "soft": false,
+    "line": false,
+    "source_id": 72036682322915,
+    "source_unchanged": true,
+    "status": "Palette recipe only; revised colors are not a newly uploaded image"
+  },
+  {
+    "name": "flame_tongue",
+    "identity": "Fire",
+    "identities": [
+      "Fire",
+      "Fire"
+    ],
+    "width": 1024,
+    "height": 1024,
+    "layout": "Grid4x4",
+    "tiles": false,
+    "soft": false,
+    "line": false,
+    "source_id": 112145372346640,
+    "source_unchanged": true,
+    "status": "Palette recipe only; revised colors are not a newly uploaded image"
+  },
+  {
+    "name": "flame_wisp",
+    "identity": "Force",
+    "identities": [
+      "Force"
+    ],
+    "width": 512,
+    "height": 512,
+    "layout": null,
+    "tiles": false,
+    "soft": false,
+    "line": false,
+    "source_id": 88048622888722,
+    "source_unchanged": true,
+    "status": "Palette recipe only; revised colors are not a newly uploaded image"
+  },
+  {
+    "name": "force_streak",
+    "identity": "Force",
+    "identities": [
+      "Force",
+      "Force"
+    ],
+    "width": 512,
+    "height": 128,
+    "layout": null,
+    "tiles": true,
+    "soft": false,
+    "line": false,
+    "source_id": 135496349676809,
+    "source_unchanged": true,
+    "status": "Palette recipe only; revised colors are not a newly uploaded image"
+  },
+  {
+    "name": "frost_crack",
+    "identity": "Ice",
+    "identities": [
+      "Ice"
+    ],
+    "width": 1024,
+    "height": 1024,
+    "layout": null,
+    "tiles": false,
+    "soft": false,
+    "line": true,
+    "source_id": 85756738990629,
+    "source_unchanged": true,
+    "status": "Palette recipe only; revised colors are not a newly uploaded image"
+  },
+  {
+    "name": "frost_mist",
+    "identity": "Ice",
+    "identities": [
+      "Ice",
+      "Ice",
+      "Ice",
+      "Ice"
+    ],
+    "width": 1024,
+    "height": 1024,
+    "layout": "Grid4x4",
+    "tiles": false,
+    "soft": false,
+    "line": false,
+    "source_id": 94442796920292,
+    "source_unchanged": true,
+    "status": "Palette recipe only; revised colors are not a newly uploaded image"
+  },
+  {
+    "name": "gear_mote",
+    "identity": "Time",
+    "identities": [
+      "Time",
+      "Time"
+    ],
+    "width": 256,
+    "height": 256,
+    "layout": null,
+    "tiles": false,
+    "soft": false,
+    "line": false,
+    "source_id": 91389012064732,
+    "source_unchanged": true,
+    "status": "Palette recipe only; revised colors are not a newly uploaded image"
+  },
+  {
+    "name": "ghost_trail",
+    "identity": "Spirit",
+    "identities": [
+      "Spirit",
+      "Spirit"
+    ],
+    "width": 512,
+    "height": 128,
+    "layout": null,
+    "tiles": true,
+    "soft": false,
+    "line": false,
+    "source_id": 100654595086328,
+    "source_unchanged": true,
+    "status": "Palette recipe only; revised colors are not a newly uploaded image"
+  },
+  {
+    "name": "glow_soft",
+    "identity": "Body",
+    "identities": [
+      "Body"
+    ],
+    "width": 256,
+    "height": 256,
+    "layout": null,
+    "tiles": false,
+    "soft": true,
+    "line": false,
+    "source_id": 108816055754879,
+    "source_unchanged": true,
+    "status": "Palette recipe only; revised colors are not a newly uploaded image"
+  },
+  {
+    "name": "glyph_chain",
+    "identity": "Arcane",
+    "identities": [
+      "Arcane",
+      "Arcane"
+    ],
+    "width": 1024,
+    "height": 128,
+    "layout": null,
+    "tiles": true,
+    "soft": false,
+    "line": false,
+    "source_id": 122961919513610,
+    "source_unchanged": true,
+    "status": "Palette recipe only; revised colors are not a newly uploaded image"
+  },
+  {
+    "name": "gust_strokes",
+    "identity": "Wind",
+    "identities": [
+      "Wind",
+      "Wind"
+    ],
+    "width": 512,
+    "height": 128,
+    "layout": null,
+    "tiles": true,
+    "soft": false,
+    "line": false,
+    "source_id": 104872241153803,
+    "source_unchanged": true,
+    "status": "Palette recipe only; revised colors are not a newly uploaded image"
+  },
+  {
+    "name": "heat_haze",
+    "identity": "Force",
+    "identities": [
+      "Force"
+    ],
+    "width": 256,
+    "height": 256,
+    "layout": null,
+    "tiles": true,
+    "soft": true,
+    "line": false,
+    "source_id": 137728925486767,
+    "source_unchanged": true,
+    "status": "Palette recipe only; revised colors are not a newly uploaded image"
+  },
+  {
+    "name": "hex_seal",
+    "identity": "Ice",
+    "identities": [
+      "Ice",
+      "Arcane",
+      "Force"
+    ],
+    "width": 1024,
+    "height": 1024,
+    "layout": null,
+    "tiles": false,
+    "soft": false,
+    "line": true,
+    "source_id": 121390918975577,
+    "source_unchanged": true,
+    "status": "Palette recipe only; revised colors are not a newly uploaded image"
+  },
+  {
+    "name": "hourglass_mote",
+    "identity": "Force",
+    "identities": [
+      "Force"
+    ],
+    "width": 256,
+    "height": 256,
+    "layout": null,
+    "tiles": false,
+    "soft": false,
+    "line": false,
+    "source_id": 71803473363047,
+    "source_unchanged": true,
+    "status": "Palette recipe only; revised colors are not a newly uploaded image"
+  },
+  {
+    "name": "ice_glint",
+    "identity": "Ice",
+    "identities": [
+      "Ice"
+    ],
+    "width": 256,
+    "height": 256,
+    "layout": null,
+    "tiles": false,
+    "soft": false,
+    "line": false,
+    "source_id": 103287696483573,
+    "source_unchanged": true,
+    "status": "Palette recipe only; revised colors are not a newly uploaded image"
+  },
+  {
+    "name": "ice_shatter",
+    "identity": "Ice",
+    "identities": [
+      "Ice"
+    ],
+    "width": 1024,
+    "height": 1024,
+    "layout": "Grid4x4",
+    "tiles": false,
+    "soft": false,
+    "line": false,
+    "source_id": 102805423302437,
+    "source_unchanged": true,
+    "status": "Palette recipe only; revised colors are not a newly uploaded image"
+  },
+  {
+    "name": "ice_trail",
+    "identity": "Ice",
+    "identities": [
+      "Ice",
+      "Ice"
+    ],
+    "width": 512,
+    "height": 128,
+    "layout": null,
+    "tiles": true,
+    "soft": false,
+    "line": false,
+    "source_id": 113698571284202,
+    "source_unchanged": true,
+    "status": "Palette recipe only; revised colors are not a newly uploaded image"
+  },
+  {
+    "name": "impact_frame",
+    "identity": "Force",
+    "identities": [
+      "Force"
+    ],
+    "width": 512,
+    "height": 512,
+    "layout": null,
+    "tiles": false,
+    "soft": false,
+    "line": false,
+    "source_id": 106105084385785,
+    "source_unchanged": true,
+    "status": "Palette recipe only; revised colors are not a newly uploaded image"
+  },
+  {
+    "name": "impact_star",
+    "identity": "Force",
+    "identities": [
+      "Force"
+    ],
+    "width": 512,
+    "height": 512,
+    "layout": null,
+    "tiles": false,
+    "soft": false,
+    "line": false,
+    "source_id": 81180841752524,
+    "source_unchanged": true,
+    "status": "Palette recipe only; revised colors are not a newly uploaded image"
+  },
+  {
+    "name": "kinetic_burst",
+    "identity": "Force",
+    "identities": [
+      "Force",
+      "Force",
+      "Body"
+    ],
+    "width": 1024,
+    "height": 1024,
+    "layout": "Grid4x4",
+    "tiles": false,
+    "soft": false,
+    "line": false,
+    "source_id": 138778484387702,
+    "source_unchanged": true,
+    "status": "Palette recipe only; revised colors are not a newly uploaded image"
+  },
+  {
+    "name": "leaf_scrap",
+    "identity": "Wind",
+    "identities": [
+      "Wind"
+    ],
+    "width": 256,
+    "height": 256,
+    "layout": "Grid2x2",
+    "tiles": false,
+    "soft": false,
+    "line": false,
+    "source_id": 117394836981411,
+    "source_unchanged": true,
+    "status": "Palette recipe only; revised colors are not a newly uploaded image"
+  },
+  {
+    "name": "miasma",
+    "identity": "Poison",
+    "identities": [
+      "Poison",
+      "Poison",
+      "Poison",
+      "Poison"
+    ],
+    "width": 1024,
+    "height": 1024,
+    "layout": "Grid4x4",
+    "tiles": false,
+    "soft": false,
+    "line": false,
+    "source_id": 90325652408224,
+    "source_unchanged": true,
+    "status": "Palette recipe only; revised colors are not a newly uploaded image"
+  },
+  {
+    "name": "plasma_orb",
+    "identity": "Lightning",
+    "identities": [
+      "Lightning"
+    ],
+    "width": 1024,
+    "height": 1024,
+    "layout": "Grid4x4",
+    "tiles": false,
+    "soft": false,
+    "line": false,
+    "source_id": 121923979765855,
+    "source_unchanged": true,
+    "status": "Palette recipe only; revised colors are not a newly uploaded image"
+  },
+  {
+    "name": "portal_rings",
+    "identity": "Space",
+    "identities": [
+      "Space",
+      "Space"
+    ],
+    "width": 1024,
+    "height": 1024,
+    "layout": null,
+    "tiles": false,
+    "soft": false,
+    "line": true,
+    "source_id": 74378803015157,
+    "source_unchanged": true,
+    "status": "Palette recipe only; revised colors are not a newly uploaded image"
+  },
+  {
+    "name": "pressure_wave",
+    "identity": "Wind",
+    "identities": [
+      "Wind",
+      "Force",
+      "Force",
+      "Body",
+      "Body"
+    ],
+    "width": 1024,
+    "height": 1024,
+    "layout": "Grid4x4",
+    "tiles": false,
+    "soft": false,
+    "line": false,
+    "source_id": 130034761185865,
+    "source_unchanged": true,
+    "status": "Palette recipe only; revised colors are not a newly uploaded image"
+  },
+  {
+    "name": "rift_tear",
+    "identity": "Space",
+    "identities": [
+      "Space"
+    ],
+    "width": 1024,
+    "height": 1024,
+    "layout": "Grid4x4",
+    "tiles": false,
+    "soft": false,
+    "line": false,
+    "source_id": 74495075138233,
+    "source_unchanged": true,
+    "status": "Palette recipe only; revised colors are not a newly uploaded image"
+  },
+  {
+    "name": "ripple_ring",
+    "identity": "Water",
+    "identities": [
+      "Water",
+      "Water",
+      "Water"
+    ],
+    "width": 1024,
+    "height": 1024,
+    "layout": "Grid4x4",
+    "tiles": false,
+    "soft": false,
+    "line": false,
+    "source_id": 135350826920409,
+    "source_unchanged": true,
+    "status": "Palette recipe only; revised colors are not a newly uploaded image"
+  },
+  {
+    "name": "rock_burst",
+    "identity": "Earth",
+    "identities": [
+      "Earth"
+    ],
+    "width": 1024,
+    "height": 1024,
+    "layout": "Grid4x4",
+    "tiles": false,
+    "soft": false,
+    "line": false,
+    "source_id": 120729470342478,
+    "source_unchanged": true,
+    "status": "Palette recipe only; revised colors are not a newly uploaded image"
+  },
+  {
+    "name": "rubble_trail",
+    "identity": "Earth",
+    "identities": [
+      "Earth",
+      "Earth"
+    ],
+    "width": 512,
+    "height": 128,
+    "layout": null,
+    "tiles": true,
+    "soft": false,
+    "line": false,
+    "source_id": 70490797157044,
+    "source_unchanged": true,
+    "status": "Palette recipe only; revised colors are not a newly uploaded image"
+  },
+  {
+    "name": "rune_circle",
+    "identity": "Fire",
+    "identities": [
+      "Fire",
+      "Lightning",
+      "Wind",
+      "Arcane"
+    ],
+    "width": 1024,
+    "height": 1024,
+    "layout": null,
+    "tiles": false,
+    "soft": false,
+    "line": true,
+    "source_id": 81191942004415,
+    "source_unchanged": true,
+    "status": "Palette recipe only; revised colors are not a newly uploaded image"
+  },
+  {
+    "name": "sand_trail",
+    "identity": "Time",
+    "identities": [
+      "Time",
+      "Time",
+      "Time"
+    ],
+    "width": 512,
+    "height": 128,
+    "layout": null,
+    "tiles": true,
+    "soft": false,
+    "line": false,
+    "source_id": 129608613071876,
+    "source_unchanged": true,
+    "status": "Palette recipe only; revised colors are not a newly uploaded image"
+  },
+  {
+    "name": "scorch_lichtenberg",
+    "identity": "Fire",
+    "identities": [
+      "Fire",
+      "Lightning"
+    ],
+    "width": 1024,
+    "height": 1024,
+    "layout": null,
+    "tiles": false,
+    "soft": false,
+    "line": true,
+    "source_id": 136722261359982,
+    "source_unchanged": true,
+    "status": "Palette recipe only; revised colors are not a newly uploaded image"
+  },
+  {
+    "name": "shard_trail",
+    "identity": "Space",
+    "identities": [
+      "Space",
+      "Space"
+    ],
+    "width": 512,
+    "height": 128,
+    "layout": null,
+    "tiles": true,
+    "soft": false,
+    "line": false,
+    "source_id": 110702463934827,
+    "source_unchanged": true,
+    "status": "Palette recipe only; revised colors are not a newly uploaded image"
+  },
+  {
+    "name": "shockwave_ring",
+    "identity": "Force",
+    "identities": [
+      "Force"
+    ],
+    "width": 512,
+    "height": 512,
+    "layout": null,
+    "tiles": false,
+    "soft": false,
+    "line": false,
+    "source_id": 97264403337066,
+    "source_unchanged": true,
+    "status": "Palette recipe only; revised colors are not a newly uploaded image"
+  },
+  {
+    "name": "sinew_trail",
+    "identity": "Body",
+    "identities": [
+      "Body",
+      "Body"
+    ],
+    "width": 512,
+    "height": 128,
+    "layout": null,
+    "tiles": true,
+    "soft": false,
+    "line": false,
+    "source_id": 106040190482992,
+    "source_unchanged": true,
+    "status": "Palette recipe only; revised colors are not a newly uploaded image"
+  },
+  {
+    "name": "skull_mote",
+    "identity": "Spirit",
+    "identities": [
+      "Spirit"
+    ],
+    "width": 256,
+    "height": 256,
+    "layout": null,
+    "tiles": false,
+    "soft": false,
+    "line": false,
+    "source_id": 95692697309383,
+    "source_unchanged": true,
+    "status": "Palette recipe only; revised colors are not a newly uploaded image"
+  },
+  {
+    "name": "slash_arc",
+    "identity": "Force",
+    "identities": [
+      "Force"
+    ],
+    "width": 512,
+    "height": 512,
+    "layout": null,
+    "tiles": false,
+    "soft": false,
+    "line": false,
+    "source_id": 91222243814443,
+    "source_unchanged": true,
+    "status": "Palette recipe only; revised colors are not a newly uploaded image"
+  },
+  {
+    "name": "smoke_billow",
+    "identity": "Fire",
+    "identities": [
+      "Fire",
+      "Lightning",
+      "Arcane",
+      "Spirit",
+      "Space"
+    ],
+    "width": 1024,
+    "height": 1024,
+    "layout": "Grid4x4",
+    "tiles": false,
+    "soft": false,
+    "line": false,
+    "source_id": 108451986898935,
+    "source_unchanged": true,
+    "status": "Palette recipe only; revised colors are not a newly uploaded image"
+  },
+  {
+    "name": "soul_burst",
+    "identity": "Spirit",
+    "identities": [
+      "Spirit",
+      "Spirit"
+    ],
+    "width": 1024,
+    "height": 1024,
+    "layout": "Grid4x4",
+    "tiles": false,
+    "soft": false,
+    "line": false,
+    "source_id": 72721763832865,
+    "source_unchanged": true,
+    "status": "Palette recipe only; revised colors are not a newly uploaded image"
+  },
+  {
+    "name": "soul_sigil",
+    "identity": "Spirit",
+    "identities": [
+      "Spirit",
+      "Spirit"
+    ],
+    "width": 1024,
+    "height": 1024,
+    "layout": null,
+    "tiles": false,
+    "soft": false,
+    "line": true,
+    "source_id": 118156290870104,
+    "source_unchanged": true,
+    "status": "Palette recipe only; revised colors are not a newly uploaded image"
+  },
+  {
+    "name": "soul_wisp",
+    "identity": "Spirit",
+    "identities": [
+      "Spirit",
+      "Spirit"
+    ],
+    "width": 1024,
+    "height": 1024,
+    "layout": "Grid4x4",
+    "tiles": false,
+    "soft": false,
+    "line": false,
+    "source_id": 90620557948643,
+    "source_unchanged": true,
+    "status": "Palette recipe only; revised colors are not a newly uploaded image"
+  },
+  {
+    "name": "spark_burst",
+    "identity": "Lightning",
+    "identities": [
+      "Lightning",
+      "Lightning"
+    ],
+    "width": 1024,
+    "height": 1024,
+    "layout": "Grid4x4",
+    "tiles": false,
+    "soft": false,
+    "line": false,
+    "source_id": 74595409775972,
+    "source_unchanged": true,
+    "status": "Palette recipe only; revised colors are not a newly uploaded image"
+  },
+  {
+    "name": "star_mote",
+    "identity": "Space",
+    "identities": [
+      "Space"
+    ],
+    "width": 128,
+    "height": 128,
+    "layout": null,
+    "tiles": false,
+    "soft": false,
+    "line": false,
+    "source_id": 86473490724513,
+    "source_unchanged": true,
+    "status": "Palette recipe only; revised colors are not a newly uploaded image"
+  },
+  {
+    "name": "time_ripple",
+    "identity": "Time",
+    "identities": [
+      "Time",
+      "Time",
+      "Time",
+      "Time"
+    ],
+    "width": 1024,
+    "height": 1024,
+    "layout": "Grid4x4",
+    "tiles": false,
+    "soft": false,
+    "line": false,
+    "source_id": 128099216238436,
+    "source_unchanged": true,
+    "status": "Palette recipe only; revised colors are not a newly uploaded image"
+  },
+  {
+    "name": "toxic_bubble",
+    "identity": "Poison",
+    "identities": [
+      "Poison"
+    ],
+    "width": 256,
+    "height": 256,
+    "layout": null,
+    "tiles": false,
+    "soft": false,
+    "line": false,
+    "source_id": 86188901777641,
+    "source_unchanged": true,
+    "status": "Palette recipe only; revised colors are not a newly uploaded image"
+  },
+  {
+    "name": "toxic_pool",
+    "identity": "Poison",
+    "identities": [
+      "Poison",
+      "Poison"
+    ],
+    "width": 1024,
+    "height": 1024,
+    "layout": null,
+    "tiles": false,
+    "soft": false,
+    "line": false,
+    "source_id": 138882235323111,
+    "source_unchanged": true,
+    "status": "Palette recipe only; revised colors are not a newly uploaded image"
+  },
+  {
+    "name": "trail_flame",
+    "identity": "Fire",
+    "identities": [
+      "Fire",
+      "Fire"
+    ],
+    "width": 512,
+    "height": 128,
+    "layout": null,
+    "tiles": true,
+    "soft": false,
+    "line": false,
+    "source_id": 104935423151233,
+    "source_unchanged": true,
+    "status": "Palette recipe only; revised colors are not a newly uploaded image"
+  },
+  {
+    "name": "void_orb",
+    "identity": "Space",
+    "identities": [
+      "Space"
+    ],
+    "width": 1024,
+    "height": 1024,
+    "layout": "Grid4x4",
+    "tiles": false,
+    "soft": false,
+    "line": false,
+    "source_id": 105905297411453,
+    "source_unchanged": true,
+    "status": "Palette recipe only; revised colors are not a newly uploaded image"
+  },
+  {
+    "name": "ward_hex",
+    "identity": "Force",
+    "identities": [
+      "Force",
+      "Force"
+    ],
+    "width": 512,
+    "height": 512,
+    "layout": null,
+    "tiles": true,
+    "soft": false,
+    "line": true,
+    "source_id": 97959735913110,
+    "source_unchanged": true,
+    "status": "Palette recipe only; revised colors are not a newly uploaded image"
+  },
+  {
+    "name": "warp_implode",
+    "identity": "Space",
+    "identities": [
+      "Space",
+      "Space"
+    ],
+    "width": 1024,
+    "height": 1024,
+    "layout": "Grid4x4",
+    "tiles": false,
+    "soft": false,
+    "line": false,
+    "source_id": 112992321222321,
+    "source_unchanged": true,
+    "status": "Palette recipe only; revised colors are not a newly uploaded image"
+  },
+  {
+    "name": "water_orb",
+    "identity": "Water",
+    "identities": [
+      "Water"
+    ],
+    "width": 1024,
+    "height": 1024,
+    "layout": "Grid4x4",
+    "tiles": false,
+    "soft": false,
+    "line": false,
+    "source_id": 132721809235775,
+    "source_unchanged": true,
+    "status": "Palette recipe only; revised colors are not a newly uploaded image"
+  },
+  {
+    "name": "water_splash",
+    "identity": "Water",
+    "identities": [
+      "Water",
+      "Water"
+    ],
+    "width": 1024,
+    "height": 1024,
+    "layout": "Grid4x4",
+    "tiles": false,
+    "soft": false,
+    "line": false,
+    "source_id": 120237086632077,
+    "source_unchanged": true,
+    "status": "Palette recipe only; revised colors are not a newly uploaded image"
+  },
+  {
+    "name": "water_trail",
+    "identity": "Water",
+    "identities": [
+      "Water",
+      "Water"
+    ],
+    "width": 512,
+    "height": 128,
+    "layout": null,
+    "tiles": true,
+    "soft": false,
+    "line": false,
+    "source_id": 89136684882466,
+    "source_unchanged": true,
+    "status": "Palette recipe only; revised colors are not a newly uploaded image"
+  },
+  {
+    "name": "wind_swirl",
+    "identity": "Wind",
+    "identities": [
+      "Wind",
+      "Wind",
+      "Wind",
+      "Wind"
+    ],
+    "width": 1024,
+    "height": 1024,
+    "layout": "Grid4x4",
+    "tiles": false,
+    "soft": false,
+    "line": false,
+    "source_id": 97125676372106,
+    "source_unchanged": true,
+    "status": "Palette recipe only; revised colors are not a newly uploaded image"
+  }
+]

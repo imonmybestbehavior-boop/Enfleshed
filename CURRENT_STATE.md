@@ -1,6 +1,6 @@
 # Current state — Enfleshed
 
-Short, current facts only. Update this at the end of a task; put long evidence in the workstream's own doc. Last updated 2026-10-22 (workflow audit; no gameplay code was read in depth or changed).
+Short, current facts only. Update this at the end of a task; put long evidence in the workstream's own doc. Last updated 2026-10-23 (main Studio navigation/animation sync; no repository gameplay source changes).
 
 ## Git snapshot
 
@@ -28,6 +28,11 @@ Short, current facts only. Update this at the end of a task; put long evidence i
 ### Active scope rule (gameplay workstream)
 
 While doing gameplay-loop steps: **do not modify magic systems, spell VFX, Grimoire, magic protocol or existing balance.** Full list and mixed-ownership files: `docs/gameplay-implementation-guide.md` "Scope" and `docs/gameplay-implementation-status.md` §2.
+
+## Main Studio place
+
+- On 2026-10-23, the existing main local place was backed up, selectively synced with the seven enemy navigation/animation/runtime-fixture scripts, and saved through Studio. Other 265 existing script containers were unchanged. Main place remains open in Edit; no cloud publish or new Play/visual acceptance was performed.
+- Pre-sync backup: `place-backups/Enfleshed-before-gameplay-sync-20261023-170200.rbxlx`. Detailed receipts and file hashes: `docs/gameplay-implementation-status.md` §13. Use a fresh backup before future main-place syncs; do not rebuild over the main place with Rojo.
 
 ## Known issues and limits
 

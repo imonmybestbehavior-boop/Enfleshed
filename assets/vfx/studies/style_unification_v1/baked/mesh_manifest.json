@@ -1,0 +1,602 @@
+[
+  {
+    "name": "arcane_prism",
+    "identity": "Arcane",
+    "file": "meshes/arcane_prism.glb",
+    "sha256": "ced6fec57739710121347b7830f3e6246ff73e4ed44f16a3cb421a5bce6fa8da",
+    "source_recorded_id": 84036742963556,
+    "uploaded_id": null,
+    "triangles": 8,
+    "geometry": "Existing positions, normals, UVs and oriented triangles preserved"
+  },
+  {
+    "name": "arcane_prism_ink",
+    "identity": "Arcane",
+    "file": "meshes/arcane_prism_ink.glb",
+    "sha256": "b6a5d157d53476a2732cb5dc2613ce23280485b338b8cbd312a3d3ed6d6b7985",
+    "source_recorded_id": 116269905279659,
+    "uploaded_id": null,
+    "triangles": 8,
+    "geometry": "Existing positions, normals, UVs and oriented triangles preserved"
+  },
+  {
+    "name": "chain_link",
+    "identity": "Spirit",
+    "file": "meshes/chain_link.glb",
+    "sha256": "5aedeee526ae3f706391f1dec2f6d444b0527c379499c3703b715e99645925fe",
+    "source_recorded_id": 119176469015819,
+    "uploaded_id": null,
+    "triangles": 384,
+    "geometry": "Existing positions, normals, UVs and oriented triangles preserved"
+  },
+  {
+    "name": "chain_link_ink",
+    "identity": "Spirit",
+    "file": "meshes/chain_link_ink.glb",
+    "sha256": "26e9583c1bb8c1f1a0842819211953a5c8b89abb866e2a8d73babe713be78b63",
+    "source_recorded_id": 113430611527749,
+    "uploaded_id": null,
+    "triangles": 384,
+    "geometry": "Existing positions, normals, UVs and oriented triangles preserved"
+  },
+  {
+    "name": "chrono_gear",
+    "identity": "Time",
+    "file": "meshes/chrono_gear.glb",
+    "sha256": "f9b84d785dfd6cd33b480d05eff03380f7fc20196cc2a49ae65accca05e407b8",
+    "source_recorded_id": 133741481357733,
+    "uploaded_id": null,
+    "triangles": 508,
+    "geometry": "Existing positions, normals, UVs and oriented triangles preserved"
+  },
+  {
+    "name": "chrono_gear_ink",
+    "identity": "Time",
+    "file": "meshes/chrono_gear_ink.glb",
+    "sha256": "63fc79cd0e79e412c2a35de701ca7e1447eee1c351698fe2337f32c645f940a7",
+    "source_recorded_id": 90611947112491,
+    "uploaded_id": null,
+    "triangles": 508,
+    "geometry": "Existing positions, normals, UVs and oriented triangles preserved"
+  },
+  {
+    "name": "comet_spike",
+    "identity": "Force",
+    "file": "meshes/comet_spike.glb",
+    "sha256": "fb70d3aeb6c2f2a70c364be591afcefd2f8f6ad38fb9ecce098012b873c0527f",
+    "source_recorded_id": 107771969260236,
+    "uploaded_id": null,
+    "triangles": 912,
+    "geometry": "Existing positions, normals, UVs and oriented triangles preserved"
+  },
+  {
+    "name": "comet_spike_ink",
+    "identity": "Force",
+    "file": "meshes/comet_spike_ink.glb",
+    "sha256": "e16372697d85b331f823f879291e06101544e9c575df16519efc5113f69724b0",
+    "source_recorded_id": 130365422605549,
+    "uploaded_id": null,
+    "triangles": 912,
+    "geometry": "Existing positions, normals, UVs and oriented triangles preserved"
+  },
+  {
+    "name": "debris_rock_a",
+    "identity": "Fire",
+    "file": "meshes/debris_rock_a.glb",
+    "sha256": "27de678bbd408ebac1c8eb51a0a1197073798dd33dbe740a59a6b7025d8b1fa9",
+    "source_recorded_id": 92168806448854,
+    "uploaded_id": null,
+    "triangles": 28,
+    "geometry": "Existing positions, normals, UVs and oriented triangles preserved"
+  },
+  {
+    "name": "debris_rock_a_ink",
+    "identity": "Fire",
+    "file": "meshes/debris_rock_a_ink.glb",
+    "sha256": "b96bea685a85183bcf3665f00f14c27877477b24b35fcc8125d5b46bc48313e3",
+    "source_recorded_id": 125565772645017,
+    "uploaded_id": null,
+    "triangles": 28,
+    "geometry": "Existing positions, normals, UVs and oriented triangles preserved"
+  },
+  {
+    "name": "debris_rock_b",
+    "identity": "Earth",
+    "file": "meshes/debris_rock_b.glb",
+    "sha256": "7438b7e2a3b14ccf93e68f063b465b45dbee6d2db4c62bb2012c907504bcc250",
+    "source_recorded_id": 124589716723684,
+    "uploaded_id": null,
+    "triangles": 28,
+    "geometry": "Existing positions, normals, UVs and oriented triangles preserved"
+  },
+  {
+    "name": "debris_rock_b_ink",
+    "identity": "Earth",
+    "file": "meshes/debris_rock_b_ink.glb",
+    "sha256": "bb93df76abc96084477f9f1d051dc8f1fe0c4ac51cb14762972acae9739d0677",
+    "source_recorded_id": 135346336543229,
+    "uploaded_id": null,
+    "triangles": 28,
+    "geometry": "Existing positions, normals, UVs and oriented triangles preserved"
+  },
+  {
+    "name": "debris_rock_c",
+    "identity": "Fire",
+    "file": "meshes/debris_rock_c.glb",
+    "sha256": "e83108134dc85ab7d300083493ebe33f33159b88faa39b62e86033ebc9d91b70",
+    "source_recorded_id": 119015006440592,
+    "uploaded_id": null,
+    "triangles": 24,
+    "geometry": "Existing positions, normals, UVs and oriented triangles preserved"
+  },
+  {
+    "name": "debris_rock_c_ink",
+    "identity": "Fire",
+    "file": "meshes/debris_rock_c_ink.glb",
+    "sha256": "25e4377f0bf7c5e37dfadba96e5ea1db72eed0161a5af0813fc1be37c1651e5e",
+    "source_recorded_id": 73593644626039,
+    "uploaded_id": null,
+    "triangles": 24,
+    "geometry": "Existing positions, normals, UVs and oriented triangles preserved"
+  },
+  {
+    "name": "earth_boulder",
+    "identity": "Earth",
+    "file": "meshes/earth_boulder.glb",
+    "sha256": "7a3be467c0b0459731ee75ef0bd93a0ff7e96860b7aa3d4d4c336646c386472d",
+    "source_recorded_id": 121318158646439,
+    "uploaded_id": null,
+    "triangles": 60,
+    "geometry": "Existing positions, normals, UVs and oriented triangles preserved"
+  },
+  {
+    "name": "earth_boulder_ink",
+    "identity": "Earth",
+    "file": "meshes/earth_boulder_ink.glb",
+    "sha256": "14d6cbe12cc59b850d69e262d1fd3fca69754bc2614bd1d7c2f698d0fe44639d",
+    "source_recorded_id": 98281218132044,
+    "uploaded_id": null,
+    "triangles": 60,
+    "geometry": "Existing positions, normals, UVs and oriented triangles preserved"
+  },
+  {
+    "name": "earth_slab",
+    "identity": "Force",
+    "file": "meshes/earth_slab.glb",
+    "sha256": "04c18650f572357772e51eb9fa4252b280af9328bc8ed6b57a3fe1521c8c6fb3",
+    "source_recorded_id": 126064919628225,
+    "uploaded_id": null,
+    "triangles": 28,
+    "geometry": "Existing positions, normals, UVs and oriented triangles preserved"
+  },
+  {
+    "name": "earth_slab_ink",
+    "identity": "Force",
+    "file": "meshes/earth_slab_ink.glb",
+    "sha256": "f54a50e79a0c3942c969b76a7f43fd5b692301fbe55c0a7acbbe2ea31183758c",
+    "source_recorded_id": 102173328441333,
+    "uploaded_id": null,
+    "triangles": 28,
+    "geometry": "Existing positions, normals, UVs and oriented triangles preserved"
+  },
+  {
+    "name": "earth_spire",
+    "identity": "Earth",
+    "file": "meshes/earth_spire.glb",
+    "sha256": "24aa330b51ced0061d29bbcb2adae1867ac56fcb1f78b8e25e05be9934729c4f",
+    "source_recorded_id": 77824172558861,
+    "uploaded_id": null,
+    "triangles": 30,
+    "geometry": "Existing positions, normals, UVs and oriented triangles preserved"
+  },
+  {
+    "name": "earth_spire_ink",
+    "identity": "Earth",
+    "file": "meshes/earth_spire_ink.glb",
+    "sha256": "2d9dd0cb70a4be563d6a0f6c26118db139e7541f6bcef0900e8e07960e4895b1",
+    "source_recorded_id": 100964080652122,
+    "uploaded_id": null,
+    "triangles": 30,
+    "geometry": "Existing positions, normals, UVs and oriented triangles preserved"
+  },
+  {
+    "name": "energy_ribbon",
+    "identity": "Force",
+    "file": "meshes/energy_ribbon.glb",
+    "sha256": "8d5fcc4f3c7b96469073e2144cf1d494c11df69105e3f2b82437e3f4fbbeb67c",
+    "source_recorded_id": 86013176261826,
+    "uploaded_id": null,
+    "triangles": 128,
+    "geometry": "Existing positions, normals, UVs and oriented triangles preserved"
+  },
+  {
+    "name": "fire_core",
+    "identity": "Fire",
+    "file": "meshes/fire_core.glb",
+    "sha256": "8ff60ffb09399480a41a61e7131344b2dccfa5f4f3e9458b1e5e4746f78d9ff5",
+    "source_recorded_id": 78981525389627,
+    "uploaded_id": null,
+    "triangles": 1472,
+    "geometry": "Existing positions, normals, UVs and oriented triangles preserved"
+  },
+  {
+    "name": "fire_core_ink",
+    "identity": "Fire",
+    "file": "meshes/fire_core_ink.glb",
+    "sha256": "c845b9e1f03ef440750579e942a6f640610052f1964cdac225ae12cf9fd87058",
+    "source_recorded_id": 136448041256422,
+    "uploaded_id": null,
+    "triangles": 1472,
+    "geometry": "Existing positions, normals, UVs and oriented triangles preserved"
+  },
+  {
+    "name": "flame_shell",
+    "identity": "Force",
+    "file": "meshes/flame_shell.glb",
+    "sha256": "577ae12c42cb5964a34ac19963de3777dc87cc093ce8b2392c2eb273bd358ec2",
+    "source_recorded_id": 125695199020332,
+    "uploaded_id": null,
+    "triangles": 840,
+    "geometry": "Existing positions, normals, UVs and oriented triangles preserved"
+  },
+  {
+    "name": "flame_tongue",
+    "identity": "Fire",
+    "file": "meshes/flame_tongue.glb",
+    "sha256": "b4df76656b086cebd20c4f2e1d0b7feb0026480335923384c867981572e9a9de",
+    "source_recorded_id": 96872484003274,
+    "uploaded_id": null,
+    "triangles": 224,
+    "geometry": "Existing positions, normals, UVs and oriented triangles preserved"
+  },
+  {
+    "name": "flame_tongue_ink",
+    "identity": "Fire",
+    "file": "meshes/flame_tongue_ink.glb",
+    "sha256": "09fa212edb8694cc1e159f5427c93af838aa93f0f87bf2f9641fd8e76df2d313",
+    "source_recorded_id": 120938593695808,
+    "uploaded_id": null,
+    "triangles": 216,
+    "geometry": "Existing positions, normals, UVs and oriented triangles preserved"
+  },
+  {
+    "name": "flesh_shard",
+    "identity": "Body",
+    "file": "meshes/flesh_shard.glb",
+    "sha256": "6b34a91c64b79c7aa2721d1cc6bf9d84f6340226a2a4a32bb3663cfef59e11d9",
+    "source_recorded_id": 73218745981761,
+    "uploaded_id": null,
+    "triangles": 360,
+    "geometry": "Existing positions, normals, UVs and oriented triangles preserved"
+  },
+  {
+    "name": "flesh_shard_ink",
+    "identity": "Body",
+    "file": "meshes/flesh_shard_ink.glb",
+    "sha256": "714e9f716df405676d04a94153c57fcc8a0f841f40d932aa0d6869be345d00b3",
+    "source_recorded_id": 76706626433792,
+    "uploaded_id": null,
+    "triangles": 360,
+    "geometry": "Existing positions, normals, UVs and oriented triangles preserved"
+  },
+  {
+    "name": "hourglass",
+    "identity": "Time",
+    "file": "meshes/hourglass.glb",
+    "sha256": "64dfd45a9b6f76c8efac2c1f7aa40d101e35315eb3355fb66f2f2b5713488288",
+    "source_recorded_id": 109878828495210,
+    "uploaded_id": null,
+    "triangles": 340,
+    "geometry": "Existing positions, normals, UVs and oriented triangles preserved"
+  },
+  {
+    "name": "hourglass_ink",
+    "identity": "Time",
+    "file": "meshes/hourglass_ink.glb",
+    "sha256": "35f34a7828862e51adee7342523259dd6cb2563383a30c53402fc5ca26b7107b",
+    "source_recorded_id": 106871712465868,
+    "uploaded_id": null,
+    "triangles": 292,
+    "geometry": "Existing positions, normals, UVs and oriented triangles preserved"
+  },
+  {
+    "name": "ice_cluster",
+    "identity": "Ice",
+    "file": "meshes/ice_cluster.glb",
+    "sha256": "ab0979c3aec02e580ee8ef026841ac6582200b6ad43b421177b0e26babfd36da",
+    "source_recorded_id": 124143222328401,
+    "uploaded_id": null,
+    "triangles": 252,
+    "geometry": "Existing positions, normals, UVs and oriented triangles preserved"
+  },
+  {
+    "name": "ice_cluster_ink",
+    "identity": "Ice",
+    "file": "meshes/ice_cluster_ink.glb",
+    "sha256": "7ec2aab1f249201900737adbd8f811651347244e528a0fd4acffa70e40115b3a",
+    "source_recorded_id": 133617815942734,
+    "uploaded_id": null,
+    "triangles": 252,
+    "geometry": "Existing positions, normals, UVs and oriented triangles preserved"
+  },
+  {
+    "name": "ice_shard_a",
+    "identity": "Ice",
+    "file": "meshes/ice_shard_a.glb",
+    "sha256": "a1bc4f2d139f55f4fe1587cfd320b9ed1330b9565191d09923945d5b9d776758",
+    "source_recorded_id": 101744644310485,
+    "uploaded_id": null,
+    "triangles": 10,
+    "geometry": "Existing positions, normals, UVs and oriented triangles preserved"
+  },
+  {
+    "name": "ice_shard_a_ink",
+    "identity": "Ice",
+    "file": "meshes/ice_shard_a_ink.glb",
+    "sha256": "21af607b83c4e1fac4f54c022d93803e724a0274a12e332c50876423d63cbea7",
+    "source_recorded_id": 77635122873190,
+    "uploaded_id": null,
+    "triangles": 10,
+    "geometry": "Existing positions, normals, UVs and oriented triangles preserved"
+  },
+  {
+    "name": "ice_shard_b",
+    "identity": "Ice",
+    "file": "meshes/ice_shard_b.glb",
+    "sha256": "cf957baf7fcb10579130b9e99e0c5ebe4a744c682220ea3980e2bcd035e7b440",
+    "source_recorded_id": 80218251074419,
+    "uploaded_id": null,
+    "triangles": 10,
+    "geometry": "Existing positions, normals, UVs and oriented triangles preserved"
+  },
+  {
+    "name": "ice_shard_b_ink",
+    "identity": "Ice",
+    "file": "meshes/ice_shard_b_ink.glb",
+    "sha256": "1357fb544fa42fe72385d3ea9e3178548ea32314fb870daf97bffa76e1531cde",
+    "source_recorded_id": 133461204435330,
+    "uploaded_id": null,
+    "triangles": 10,
+    "geometry": "Existing positions, normals, UVs and oriented triangles preserved"
+  },
+  {
+    "name": "ice_spike",
+    "identity": "Ice",
+    "file": "meshes/ice_spike.glb",
+    "sha256": "9aa8a98ba57fba89848fb931284b1823b9beabc8fb157538b91fc90caed0940b",
+    "source_recorded_id": 122197599609819,
+    "uploaded_id": null,
+    "triangles": 36,
+    "geometry": "Existing positions, normals, UVs and oriented triangles preserved"
+  },
+  {
+    "name": "ice_spike_ink",
+    "identity": "Ice",
+    "file": "meshes/ice_spike_ink.glb",
+    "sha256": "4c24d4340e69bc5b754b866f4f75026384f86655b98c45da2817af796b2936e0",
+    "source_recorded_id": 127600775916816,
+    "uploaded_id": null,
+    "triangles": 36,
+    "geometry": "Existing positions, normals, UVs and oriented triangles preserved"
+  },
+  {
+    "name": "lightning_fork",
+    "identity": "Lightning",
+    "file": "meshes/lightning_fork.glb",
+    "sha256": "0bb2d6c2ad915c32c279b176b3dc9e5856516d255536914d090b29c90be473c6",
+    "source_recorded_id": 98165278002519,
+    "uploaded_id": null,
+    "triangles": 768,
+    "geometry": "Existing positions, normals, UVs and oriented triangles preserved"
+  },
+  {
+    "name": "lightning_fork_ink",
+    "identity": "Lightning",
+    "file": "meshes/lightning_fork_ink.glb",
+    "sha256": "5d1e512429400592076db8d14935e40de6b2b1a5625dbcd13830470f09bf42f5",
+    "source_recorded_id": 114580811429305,
+    "uploaded_id": null,
+    "triangles": 768,
+    "geometry": "Existing positions, normals, UVs and oriented triangles preserved"
+  },
+  {
+    "name": "poison_bubbles",
+    "identity": "Poison",
+    "file": "meshes/poison_bubbles.glb",
+    "sha256": "9ffc189f50e1e9996cac56862d7250bdfd70a10a9f3a1e8b5273b418b3cb2a5d",
+    "source_recorded_id": 123783201704218,
+    "uploaded_id": null,
+    "triangles": 600,
+    "geometry": "Existing positions, normals, UVs and oriented triangles preserved"
+  },
+  {
+    "name": "poison_bubbles_ink",
+    "identity": "Poison",
+    "file": "meshes/poison_bubbles_ink.glb",
+    "sha256": "53fa53180d45c887bf74e284cf8bf13fd7f0c63571055e813950a6ae1ab2860a",
+    "source_recorded_id": 92812619203362,
+    "uploaded_id": null,
+    "triangles": 600,
+    "geometry": "Existing positions, normals, UVs and oriented triangles preserved"
+  },
+  {
+    "name": "poison_thorn",
+    "identity": "Poison",
+    "file": "meshes/poison_thorn.glb",
+    "sha256": "1786b69adb05e641246b8e4752f7e60336dabb3313a0d22d64557d4acf51fdcc",
+    "source_recorded_id": 90000297510965,
+    "uploaded_id": null,
+    "triangles": 320,
+    "geometry": "Existing positions, normals, UVs and oriented triangles preserved"
+  },
+  {
+    "name": "poison_thorn_ink",
+    "identity": "Poison",
+    "file": "meshes/poison_thorn_ink.glb",
+    "sha256": "ff2dbd5676ead998d201527742f2d824033c4eba86344c68aa48c00fccdea16b",
+    "source_recorded_id": 95008084945618,
+    "uploaded_id": null,
+    "triangles": 320,
+    "geometry": "Existing positions, normals, UVs and oriented triangles preserved"
+  },
+  {
+    "name": "pressure_cone",
+    "identity": "Force",
+    "file": "meshes/pressure_cone.glb",
+    "sha256": "f592136f44d14b4331d63fb5030cc51ebe8fd15492b3247fe3af5ed107e593e4",
+    "source_recorded_id": 115191572471831,
+    "uploaded_id": null,
+    "triangles": 800,
+    "geometry": "Existing positions, normals, UVs and oriented triangles preserved"
+  },
+  {
+    "name": "rift_frame",
+    "identity": "Force",
+    "file": "meshes/rift_frame.glb",
+    "sha256": "995f4ac96beb282ba4dee3f5ed891ff4c4ef90d4de7f23ce89f22f27190daa25",
+    "source_recorded_id": 113442573771410,
+    "uploaded_id": null,
+    "triangles": 256,
+    "geometry": "Existing positions, normals, UVs and oriented triangles preserved"
+  },
+  {
+    "name": "shockwave_dome",
+    "identity": "Force",
+    "file": "meshes/shockwave_dome.glb",
+    "sha256": "ba9e0fe465e693b8b22a4020a05de699ce213c82741e3b20311dab52be23e408",
+    "source_recorded_id": 120158212803850,
+    "uploaded_id": null,
+    "triangles": 760,
+    "geometry": "Existing positions, normals, UVs and oriented triangles preserved"
+  },
+  {
+    "name": "shockwave_ring",
+    "identity": "Force",
+    "file": "meshes/shockwave_ring.glb",
+    "sha256": "4711823413e8b42ccad53db2c85b2ba6fcaba6061c2886c3d8f072c0774c8b07",
+    "source_recorded_id": 81060849828208,
+    "uploaded_id": null,
+    "triangles": 512,
+    "geometry": "Existing positions, normals, UVs and oriented triangles preserved"
+  },
+  {
+    "name": "sigil_ring",
+    "identity": "Force",
+    "file": "meshes/sigil_ring.glb",
+    "sha256": "d77f081ab31e9afae8f80a310dc00eec979c25032f190958ad953b349b6b9fc8",
+    "source_recorded_id": 104265572022890,
+    "uploaded_id": null,
+    "triangles": 2188,
+    "geometry": "Existing positions, normals, UVs and oriented triangles preserved"
+  },
+  {
+    "name": "sinew_tendril",
+    "identity": "Body",
+    "file": "meshes/sinew_tendril.glb",
+    "sha256": "f5e9213a280b2f9572090d1edeab7924d841347c2fd3e024155076418d3fe725",
+    "source_recorded_id": 123633368950950,
+    "uploaded_id": null,
+    "triangles": 448,
+    "geometry": "Existing positions, normals, UVs and oriented triangles preserved"
+  },
+  {
+    "name": "sinew_tendril_ink",
+    "identity": "Body",
+    "file": "meshes/sinew_tendril_ink.glb",
+    "sha256": "c0ba2d8c25d5c01311a1f3d96b8b87d62a660b80e40aaffdf9b0615b5d3dc0b2",
+    "source_recorded_id": 108506988806346,
+    "uploaded_id": null,
+    "triangles": 440,
+    "geometry": "Existing positions, normals, UVs and oriented triangles preserved"
+  },
+  {
+    "name": "soul_skull",
+    "identity": "Spirit",
+    "file": "meshes/soul_skull.glb",
+    "sha256": "ea31ffe77817d11b0901f3cee030cb6f1d4db83ee3bdb0d918c11e2d958b08cc",
+    "source_recorded_id": 99454191196982,
+    "uploaded_id": null,
+    "triangles": 304,
+    "geometry": "Existing positions, normals, UVs and oriented triangles preserved"
+  },
+  {
+    "name": "soul_skull_ink",
+    "identity": "Spirit",
+    "file": "meshes/soul_skull_ink.glb",
+    "sha256": "c556c67fd29c0652026656f5c748af09afe75e0256e8ad26d7f698985cbc5bc8",
+    "source_recorded_id": 105197003156613,
+    "uploaded_id": null,
+    "triangles": 268,
+    "geometry": "Existing positions, normals, UVs and oriented triangles preserved"
+  },
+  {
+    "name": "void_shard",
+    "identity": "Space",
+    "file": "meshes/void_shard.glb",
+    "sha256": "bece030e3fec5b3f3c84b7e26ad2e988f9d8fc7f6795b4d457dc6a6848090e36",
+    "source_recorded_id": 94996568715857,
+    "uploaded_id": null,
+    "triangles": 12,
+    "geometry": "Existing positions, normals, UVs and oriented triangles preserved"
+  },
+  {
+    "name": "void_shard_ink",
+    "identity": "Space",
+    "file": "meshes/void_shard_ink.glb",
+    "sha256": "7e1e61e444d6f2b4de27c6b48a17a7ba25486ab9d1ffe6df2dfa86a4d1badf9c",
+    "source_recorded_id": 133387997730067,
+    "uploaded_id": null,
+    "triangles": 12,
+    "geometry": "Existing positions, normals, UVs and oriented triangles preserved"
+  },
+  {
+    "name": "ward_dome",
+    "identity": "Force",
+    "file": "meshes/ward_dome.glb",
+    "sha256": "e1dd2295c34b0433153863d24f3e42fc19d7cf5cda026804b626416ae7f1ac95",
+    "source_recorded_id": 114456935248249,
+    "uploaded_id": null,
+    "triangles": 40,
+    "geometry": "Existing positions, normals, UVs and oriented triangles preserved"
+  },
+  {
+    "name": "water_crown",
+    "identity": "Water",
+    "file": "meshes/water_crown.glb",
+    "sha256": "c11302e6104c7975bce450639430078e2f85abebed64e84229d76daff3d71074",
+    "source_recorded_id": 90081472783879,
+    "uploaded_id": null,
+    "triangles": 864,
+    "geometry": "Existing positions, normals, UVs and oriented triangles preserved"
+  },
+  {
+    "name": "water_curl",
+    "identity": "Force",
+    "file": "meshes/water_curl.glb",
+    "sha256": "21913cc17fb528e36f442d714936febd0cb37cc6447070e74ba1dc12ee5a33ff",
+    "source_recorded_id": 128601653982681,
+    "uploaded_id": null,
+    "triangles": 504,
+    "geometry": "Existing positions, normals, UVs and oriented triangles preserved"
+  },
+  {
+    "name": "wind_crescent",
+    "identity": "Force",
+    "file": "meshes/wind_crescent.glb",
+    "sha256": "12c480c3182842000807668d4bd407f265f360dfaee8a7b928cb6a799ab33ac7",
+    "source_recorded_id": 117282997659186,
+    "uploaded_id": null,
+    "triangles": 192,
+    "geometry": "Existing positions, normals, UVs and oriented triangles preserved"
+  },
+  {
+    "name": "wind_funnel",
+    "identity": "Wind",
+    "file": "meshes/wind_funnel.glb",
+    "sha256": "826f47ce5c026a84cea01f6f585e91f43478c29472057fb54ca216f8409f97b4",
+    "source_recorded_id": 133194397915751,
+    "uploaded_id": null,
+    "triangles": 480,
+    "geometry": "Existing positions, normals, UVs and oriented triangles preserved"
+  }
+]

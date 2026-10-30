@@ -1,10 +1,14 @@
 # Stylized 3D fire prototype
 
-Date: 2026-10-17. Status: connected-volume Blender study implemented; visual acceptance and Studio verification pending.
+Expansion update (2026-10-18): see [the reusable-family plan](spell-vfx-family-plan.md) and `assets/vfx/studies/effect_families_v1/`. Existing custom assets are retained as restyle candidates. The next representative is Soul/Spirit Field, with little ghost faces and gradual fading at height; Body Burst is outside this art batch. The historical construction proposals below are not a direction to rebuild the approved fireball.
+
+Status: connected-volume Blender appearance approved; isolated Studio playback, real-cast integration and actual-scene visibility verified. Lifecycle checks pass. Unconstrained graphics performance and batch-spawn hitches remain open; the empty-scene control also renders near 15 FPS in this Studio session.
 
 **Current direction supersedes the curled-patch body proposal below:** after v3 the user rejected the fireball likeness and requested footage review. See `docs/fireball-reference-reset.md`. Preserve the approved palette, but rebuild around a coherent animated burning volume rather than separate C-shaped meshes. No further manual import should be requested merely to continue refining the rejected construction.
 
-Current v4: `assets/vfx/studies/3d_fire_v4/` contains one connected animated mesh, moving UV contours, rear alpha erosion, fixed/orbit/closeup review loops and source/export validation. The source supports native texture-sequence playback. This is still a form and motion study; the surface sequence has not been implemented in Roblox, and performance has not been profiled.
+Current v4: `assets/vfx/studies/3d_fire_v4/` contains one connected animated mesh, moving UV contours, rear alpha erosion, fixed/orbit/closeup review loops and source/export validation. The user imported the mesh, all 73 bones match, and all 24 images load. The isolated client preview switches prepared surface instances while applying measured source bone deltas. Controlled side/front/rear visuals pass this prototype check. Gameplay integration, combat lighting, published-place permissions and performance remain pending. See `imported_review.json` for evidence and limits.
+
+Runtime integration supersedes the earlier pending gameplay note: `Signature/ConnectedFire.luau` now supplies the existing fire projectile signature, while `Assets/ConnectedFireRig.rbxmx` and `ConnectedFirePoses.luau` preserve the imported skin and measured poses in Rojo builds. Three real action-route casts selected the body and cleaned up; seven lifecycle checks pass. CPU samples cover 1/4/8/12 bodies with the original light budget. Read `assets/vfx/studies/3d_fire_v4/RUNTIME_INTEGRATION.md` before treating simulation timings as rendered frame rate or graphics acceptance.
 
 Progress: the first Blender construction study is available at `assets/vfx/studies/3d_fire_v1/review.html`, with fixed-camera, orbit and isolated-flame loops. Skin weights, source loop closure and an animated single-flame FBX roundtrip pass. The current shapes remain plate-like and have not passed the concept-sheet visual target. Studio import, performance profiling and gameplay integration remain pending. The new user-supplied concept sheet is preserved at `assets/vfx/source/3d_fire_v1/concept_sheet.png`.
 

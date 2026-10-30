@@ -1,0 +1,20 @@
+{
+  "status": "Saved local beam corrections",
+  "place_sha256": "227d2cba6bd06a3a857e2841e4cbaab39815d5d1beb6d179fa718eb30dbb08b0",
+  "verified_modules": [
+    "StreamBeam",
+    "PathGlyphs",
+    "SignaturePlanner",
+    "SignatureKits",
+    "SignatureRenderer",
+    "ConnectedFire"
+  ],
+  "styles": [
+    "Fire continuous stream",
+    "Water continuous stream",
+    "Space stationary rifts",
+    "Arcane stationary enclosed runes"
+  ],
+  "smoke": "Beam dissipation at latest endpoint; no cast-cue end smoke",
+  "published": false
+}

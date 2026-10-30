@@ -1,0 +1,9 @@
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "{\"Travelled\":70.72771956771612,\"Events\":[{\"Path\":\"Workspace.SignatureVFX.Signature_Poison_Projectile.Host.Attachment.Poison.Projectile.Core\",\"Time\":0.006021700013661757,\"Position\":[10000,10.5,9998],\"FromCaster\":2.0615527629852297,\"Name\":\"Poison.Projectile.Core\",\"Texture\":\"rbxassetid://125135808826492\"},{\"Path\":\"Workspace.SignatureVFX.Signature_Poison_Projectile.Host.Attachment.Poison.Projectile.Stream\",\"Time\":0.00999350001802668,\"Position\":[10000,10.5,9998],\"FromCaster\":2.0615527629852297,\"Name\":\"Poison.Projectile.Stream\",\"Texture\":\"rbxassetid://125135808826492\"},{\"Path\":\"Workspace.SignatureVFX.Signature_Poison_Projectile.Host.Attachment.Poison.Projectile.Motes\",\"Time\":0.01014749999740161,\"Position\":[10000,10.5,9998],\"FromCaster\":2.0615527629852297,\"Name\":\"Poison.Projectile.Motes\",\"Texture\":\"rbxassetid://73871783212128\"},{\"Path\":\"Workspace.SignatureVFX.Signature_Poison_Projectile.Poison.Dissipate.Smoke.Shape.Poison.Dissipate.Smoke\",\"Time\":0.045309900015126917,\"Position\":[10000,10.5,9994.384765625],\"FromCaster\":5.637451171875,\"Name\":\"Poison.Dissipate.Smoke\",\"Texture\":\"rbxassetid://125135808826492\"}]}"
+    }
+  ],
+  "isError": false
+}

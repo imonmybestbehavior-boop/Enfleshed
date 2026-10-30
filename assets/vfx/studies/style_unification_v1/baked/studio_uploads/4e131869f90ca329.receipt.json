@@ -1,0 +1,9 @@
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "{\"http://127.0.0.1:53495/Fire__explosion_fire.png\":\"rbxassetid://122419708831526\",\"http://127.0.0.1:53495/Time__gear_mote.png\":\"rbxassetid://92412542809173\",\"http://127.0.0.1:53495/Body__glow_soft.png\":\"rbxassetid://114645719839653\",\"http://127.0.0.1:53495/Spirit__ghost_trail.png\":\"rbxassetid://121050760412998\",\"http://127.0.0.1:53495/Ice__frost_crack.png\":\"rbxassetid://129676961507749\",\"http://127.0.0.1:53495/Ice__frost_mist.png\":\"rbxassetid://105430710801263\",\"http://127.0.0.1:53495/Force__flame_wisp.png\":\"rbxassetid://84017925820108\",\"http://127.0.0.1:53495/Force__force_streak.png\":\"rbxassetid://111328898143722\"}"
+    }
+  ],
+  "isError": false
+}

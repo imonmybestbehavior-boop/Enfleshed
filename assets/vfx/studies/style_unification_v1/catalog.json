@@ -1,0 +1,3354 @@
+{
+  "profile": {
+    "name": "Cel & Brush \u00e2\u20ac\u201d existing asset restyle",
+    "scope": "Material and palette variants of the current library; no new geometry, motifs, spell forms or animation frames",
+    "palette_order": [
+      "Shadow",
+      "Body",
+      "Light",
+      "Accent",
+      "Ink"
+    ],
+    "texture_thresholds": [
+      0.12,
+      0.52,
+      0.86,
+      0.97
+    ],
+    "soft_assets": [
+      "glow_soft",
+      "heat_haze"
+    ],
+    "line_assets": [
+      "rune_circle",
+      "frost_crack",
+      "scorch_lichtenberg",
+      "caustics",
+      "earth_fissure",
+      "hex_seal",
+      "ward_hex",
+      "soul_sigil",
+      "clock_dial",
+      "portal_rings"
+    ],
+    "review_runtime": {
+      "Saturation": 1.04,
+      "Value": 1.0,
+      "LightInfluence": 0.25,
+      "Brightness": 1.0,
+      "InkScale": 0.0,
+      "Material": "SmoothPlastic"
+    },
+    "principles": [
+      "Clear flat color masses and asymmetric existing silhouettes",
+      "Warm restrained highlights and hue-shifted shadows",
+      "Colored contour ink; no extra paper noise, symbols or outlines added to source alpha",
+      "Existing soft utility assets keep continuous falloff",
+      "No additive glow in the comparison; scene-lighting verification is a later Studio step"
+    ],
+    "palettes": {
+      "Fire": [
+        [
+          153,
+          41,
+          22
+        ],
+        [
+          249,
+          103,
+          27
+        ],
+        [
+          255,
+          202,
+          66
+        ],
+        [
+          255,
+          237,
+          170
+        ],
+        [
+          61,
+          27,
+          27
+        ]
+      ],
+      "Ice": [
+        [
+          36,
+          73,
+          110
+        ],
+        [
+          88,
+          165,
+          202
+        ],
+        [
+          166,
+          221,
+          227
+        ],
+        [
+          239,
+          244,
+          219
+        ],
+        [
+          25,
+          43,
+          61
+        ]
+      ],
+      "Lightning": [
+        [
+          70,
+          49,
+          104
+        ],
+        [
+          161,
+          124,
+          210
+        ],
+        [
+          230,
+          190,
+          242
+        ],
+        [
+          255,
+          244,
+          204
+        ],
+        [
+          35,
+          27,
+          54
+        ]
+      ],
+      "Water": [
+        [
+          28,
+          64,
+          98
+        ],
+        [
+          39,
+          133,
+          173
+        ],
+        [
+          99,
+          197,
+          211
+        ],
+        [
+          224,
+          241,
+          219
+        ],
+        [
+          19,
+          36,
+          52
+        ]
+      ],
+      "Earth": [
+        [
+          72,
+          51,
+          43
+        ],
+        [
+          156,
+          107,
+          68
+        ],
+        [
+          210,
+          163,
+          104
+        ],
+        [
+          245,
+          222,
+          167
+        ],
+        [
+          37,
+          29,
+          29
+        ]
+      ],
+      "Wind": [
+        [
+          37,
+          76,
+          71
+        ],
+        [
+          108,
+          178,
+          142
+        ],
+        [
+          184,
+          223,
+          171
+        ],
+        [
+          243,
+          244,
+          212
+        ],
+        [
+          23,
+          42,
+          40
+        ]
+      ],
+      "Poison": [
+        [
+          51,
+          67,
+          34
+        ],
+        [
+          113,
+          158,
+          54
+        ],
+        [
+          185,
+          211,
+          79
+        ],
+        [
+          239,
+          232,
+          161
+        ],
+        [
+          30,
+          37,
+          24
+        ]
+      ],
+      "Arcane": [
+        [
+          69,
+          44,
+          92
+        ],
+        [
+          148,
+          94,
+          181
+        ],
+        [
+          209,
+          155,
+          218
+        ],
+        [
+          250,
+          225,
+          203
+        ],
+        [
+          34,
+          23,
+          44
+        ]
+      ],
+      "Force": [
+        [
+          45,
+          65,
+          80
+        ],
+        [
+          126,
+          168,
+          179
+        ],
+        [
+          198,
+          222,
+          214
+        ],
+        [
+          246,
+          239,
+          210
+        ],
+        [
+          27,
+          35,
+          44
+        ]
+      ],
+      "Body": [
+        [
+          70,
+          40,
+          47
+        ],
+        [
+          160,
+          91,
+          90
+        ],
+        [
+          219,
+          164,
+          140
+        ],
+        [
+          246,
+          221,
+          184
+        ],
+        [
+          39,
+          25,
+          32
+        ]
+      ],
+      "Spirit": [
+        [
+          19,
+          62,
+          70
+        ],
+        [
+          70,
+          184,
+          164
+        ],
+        [
+          157,
+          225,
+          199
+        ],
+        [
+          232,
+          244,
+          214
+        ],
+        [
+          17,
+          38,
+          42
+        ]
+      ],
+      "Space": [
+        [
+          29,
+          31,
+          69
+        ],
+        [
+          95,
+          73,
+          151
+        ],
+        [
+          171,
+          137,
+          210
+        ],
+        [
+          233,
+          215,
+          225
+        ],
+        [
+          20,
+          21,
+          41
+        ]
+      ],
+      "Time": [
+        [
+          78,
+          54,
+          35
+        ],
+        [
+          172,
+          124,
+          55
+        ],
+        [
+          227,
+          187,
+          95
+        ],
+        [
+          250,
+          233,
+          182
+        ],
+        [
+          39,
+          30,
+          27
+        ]
+      ]
+    }
+  },
+  "kits": {
+    "Fire": {
+      "palette": {
+        "Hi": [
+          255,
+          226,
+          150
+        ],
+        "Mid": [
+          255,
+          112,
+          32
+        ],
+        "Lo": [
+          150,
+          30,
+          10
+        ],
+        "Smoke": [
+          48,
+          36,
+          34
+        ]
+      },
+      "assets": [
+        "core_plasma",
+        "fire_core",
+        "flame_tongue",
+        "ember_streak",
+        "trail_flame",
+        "trail_flame",
+        "flame_tongue",
+        "scorch_lichtenberg",
+        "explosion_fire",
+        "smoke_billow",
+        "rune_circle",
+        "debris_rock_a",
+        "debris_rock_c"
+      ]
+    },
+    "Ice": {
+      "palette": {
+        "Hi": [
+          236,
+          250,
+          255
+        ],
+        "Mid": [
+          120,
+          196,
+          255
+        ],
+        "Lo": [
+          34,
+          70,
+          140
+        ],
+        "Smoke": [
+          150,
+          180,
+          205
+        ]
+      },
+      "assets": [
+        "frost_mist",
+        "ice_spike",
+        "frost_mist",
+        "ice_glint",
+        "ice_trail",
+        "ice_trail",
+        "frost_mist",
+        "frost_crack",
+        "ice_shatter",
+        "frost_mist",
+        "hex_seal",
+        "ice_cluster",
+        "ice_shard_a",
+        "ice_shard_b"
+      ]
+    },
+    "Lightning": {
+      "palette": {
+        "Hi": [
+          250,
+          248,
+          255
+        ],
+        "Mid": [
+          176,
+          150,
+          255
+        ],
+        "Lo": [
+          70,
+          40,
+          150
+        ],
+        "Smoke": [
+          60,
+          52,
+          80
+        ]
+      },
+      "assets": [
+        "plasma_orb",
+        "arc_flicker",
+        "arc_flicker",
+        "bolt_strip",
+        "bolt_strip",
+        "spark_burst",
+        "scorch_lichtenberg",
+        "spark_burst",
+        "smoke_billow",
+        "rune_circle",
+        "lightning_fork"
+      ]
+    },
+    "Water": {
+      "palette": {
+        "Hi": [
+          220,
+          246,
+          255
+        ],
+        "Mid": [
+          58,
+          148,
+          230
+        ],
+        "Lo": [
+          14,
+          52,
+          110
+        ],
+        "Smoke": [
+          170,
+          210,
+          235
+        ]
+      },
+      "assets": [
+        "water_orb",
+        "water_splash",
+        "droplet",
+        "droplet",
+        "water_trail",
+        "water_trail",
+        "ripple_ring",
+        "caustics",
+        "water_splash",
+        "ripple_ring",
+        "ripple_ring",
+        "water_crown"
+      ]
+    },
+    "Earth": {
+      "palette": {
+        "Hi": [
+          226,
+          196,
+          150
+        ],
+        "Mid": [
+          140,
+          104,
+          70
+        ],
+        "Lo": [
+          58,
+          40,
+          30
+        ],
+        "Smoke": [
+          92,
+          78,
+          64
+        ]
+      },
+      "assets": [
+        "dust_plume",
+        "debris_chip",
+        "earth_boulder",
+        "dust_plume",
+        "debris_chip",
+        "rubble_trail",
+        "rubble_trail",
+        "dust_plume",
+        "earth_fissure",
+        "rock_burst",
+        "dust_burst",
+        "earth_fissure",
+        "earth_spire",
+        "debris_rock_a",
+        "debris_rock_b",
+        "debris_rock_c"
+      ]
+    },
+    "Wind": {
+      "palette": {
+        "Hi": [
+          240,
+          255,
+          250
+        ],
+        "Mid": [
+          150,
+          232,
+          205
+        ],
+        "Lo": [
+          46,
+          120,
+          110
+        ],
+        "Smoke": [
+          190,
+          225,
+          215
+        ]
+      },
+      "assets": [
+        "wind_swirl",
+        "wind_swirl",
+        "leaf_scrap",
+        "gust_strokes",
+        "gust_strokes",
+        "pressure_wave",
+        "wind_swirl",
+        "wind_swirl",
+        "dust_burst",
+        "rune_circle",
+        "wind_funnel"
+      ]
+    },
+    "Poison": {
+      "palette": {
+        "Hi": [
+          214,
+          255,
+          120
+        ],
+        "Mid": [
+          110,
+          190,
+          40
+        ],
+        "Lo": [
+          40,
+          70,
+          20
+        ],
+        "Smoke": [
+          70,
+          92,
+          40
+        ]
+      },
+      "assets": [
+        "miasma",
+        "poison_bubbles",
+        "miasma",
+        "toxic_bubble",
+        "drip_trail",
+        "drip_trail",
+        "miasma",
+        "toxic_pool",
+        "acid_splat",
+        "miasma",
+        "toxic_pool",
+        "poison_thorn"
+      ]
+    },
+    "Arcane": {
+      "palette": {
+        "Hi": [
+          246,
+          226,
+          255
+        ],
+        "Mid": [
+          176,
+          110,
+          255
+        ],
+        "Lo": [
+          70,
+          30,
+          130
+        ],
+        "Smoke": [
+          60,
+          44,
+          80
+        ]
+      },
+      "assets": [
+        "arcane_orb",
+        "arcane_prism",
+        "arcane_glyphs",
+        "arcane_glyphs",
+        "glyph_chain",
+        "glyph_chain",
+        "arcane_burst",
+        "hex_seal",
+        "arcane_burst",
+        "smoke_billow",
+        "rune_circle",
+        "arcane_prism"
+      ]
+    },
+    "Force": {
+      "palette": {
+        "Hi": [
+          255,
+          255,
+          255
+        ],
+        "Mid": [
+          196,
+          210,
+          236
+        ],
+        "Lo": [
+          70,
+          82,
+          110
+        ],
+        "Smoke": [
+          150,
+          156,
+          170
+        ]
+      },
+      "assets": [
+        "kinetic_burst",
+        "pressure_wave",
+        "ember_streak",
+        "force_streak",
+        "force_streak",
+        "pressure_wave",
+        "ward_hex",
+        "kinetic_burst",
+        "dust_burst",
+        "hex_seal",
+        "ward_dome",
+        "ward_hex"
+      ]
+    },
+    "Body": {
+      "palette": {
+        "Hi": [
+          240,
+          222,
+          198
+        ],
+        "Mid": [
+          176,
+          52,
+          40
+        ],
+        "Lo": [
+          64,
+          22,
+          26
+        ],
+        "Smoke": [
+          96,
+          84,
+          74
+        ]
+      },
+      "assets": [
+        "glow_soft",
+        "flesh_shard",
+        "dust_burst",
+        "debris_chip",
+        "sinew_trail",
+        "sinew_trail",
+        "pressure_wave",
+        "earth_fissure",
+        "kinetic_burst",
+        "dust_burst",
+        "earth_fissure",
+        "sinew_tendril",
+        "flesh_shard",
+        "debris_rock_a",
+        "pressure_wave"
+      ]
+    },
+    "Spirit": {
+      "palette": {
+        "Hi": [
+          220,
+          255,
+          246
+        ],
+        "Mid": [
+          80,
+          220,
+          190
+        ],
+        "Lo": [
+          16,
+          70,
+          76
+        ],
+        "Smoke": [
+          40,
+          60,
+          64
+        ]
+      },
+      "assets": [
+        "soul_wisp",
+        "soul_skull",
+        "soul_wisp",
+        "skull_mote",
+        "ghost_trail",
+        "ghost_trail",
+        "soul_burst",
+        "soul_sigil",
+        "soul_burst",
+        "smoke_billow",
+        "soul_sigil",
+        "chain_link"
+      ]
+    },
+    "Space": {
+      "palette": {
+        "Hi": [
+          236,
+          226,
+          255
+        ],
+        "Mid": [
+          130,
+          100,
+          255
+        ],
+        "Lo": [
+          16,
+          8,
+          40
+        ],
+        "Smoke": [
+          30,
+          22,
+          52
+        ]
+      },
+      "assets": [
+        "void_orb",
+        "void_shard",
+        "rift_tear",
+        "star_mote",
+        "shard_trail",
+        "shard_trail",
+        "warp_implode",
+        "portal_rings",
+        "warp_implode",
+        "smoke_billow",
+        "portal_rings",
+        "void_shard",
+        "void_shard"
+      ]
+    },
+    "Time": {
+      "palette": {
+        "Hi": [
+          255,
+          244,
+          210
+        ],
+        "Mid": [
+          226,
+          182,
+          92
+        ],
+        "Lo": [
+          96,
+          64,
+          26
+        ],
+        "Smoke": [
+          150,
+          128,
+          92
+        ]
+      },
+      "assets": [
+        "time_ripple",
+        "gear_mote",
+        "chrono_gear",
+        "sand_trail",
+        "gear_mote",
+        "sand_trail",
+        "sand_trail",
+        "time_ripple",
+        "clock_dial",
+        "time_ripple",
+        "dust_burst",
+        "clock_dial",
+        "hourglass",
+        "time_ripple"
+      ]
+    }
+  },
+  "assets": [
+    {
+      "name": "acid_splat",
+      "kind": "texture",
+      "identities": [
+        "Poison"
+      ],
+      "identity": "Poison",
+      "usage": "16-frame OneShot viscous splat: blob flattens, flings ropy droplets, then sizzles away; poison impacts.",
+      "source": "../../textures/acid_splat.png",
+      "width": 1024,
+      "height": 1024,
+      "layout": "Grid4x4",
+      "tiles": false,
+      "soft": false,
+      "line": false
+    },
+    {
+      "name": "arc_flicker",
+      "kind": "texture",
+      "identities": [
+        "Lightning"
+      ],
+      "identity": "Lightning",
+      "usage": "16 distinct crackling arc clusters (random-start Loop at high framerate); lightning motes, auras.",
+      "source": "../../textures/arc_flicker.png",
+      "width": 1024,
+      "height": 1024,
+      "layout": "Grid4x4",
+      "tiles": false,
+      "soft": false,
+      "line": false
+    },
+    {
+      "name": "arcane_burst",
+      "kind": "texture",
+      "identities": [
+        "Arcane"
+      ],
+      "identity": "Arcane",
+      "usage": "16-frame OneShot: hexagram flash, expanding polygon rings and glyph shards flung out; arcane impacts.",
+      "source": "../../textures/arcane_burst.png",
+      "width": 1024,
+      "height": 1024,
+      "layout": "Grid4x4",
+      "tiles": false,
+      "soft": false,
+      "line": false
+    },
+    {
+      "name": "arcane_glyphs",
+      "kind": "texture",
+      "identities": [
+        "Arcane"
+      ],
+      "identity": "Arcane",
+      "usage": "16 distinct angular runes (random-start flipbook, Framerate 0) for arcane motes and orbiting glyphs.",
+      "source": "../../textures/arcane_glyphs.png",
+      "width": 1024,
+      "height": 1024,
+      "layout": "Grid4x4",
+      "tiles": false,
+      "soft": false,
+      "line": false
+    },
+    {
+      "name": "arcane_orb",
+      "kind": "texture",
+      "identities": [
+        "Arcane"
+      ],
+      "identity": "Arcane",
+      "usage": "Looping 16-frame geometric core: counter-rotating nested polygons and a star around a bright eye.",
+      "source": "../../textures/arcane_orb.png",
+      "width": 1024,
+      "height": 1024,
+      "layout": "Grid4x4",
+      "tiles": false,
+      "soft": false,
+      "line": false
+    },
+    {
+      "name": "beam_energy",
+      "kind": "texture",
+      "identities": [
+        "Force"
+      ],
+      "identity": "Force",
+      "usage": "U-tiling filament energy for Beams; scroll with TextureSpeed.",
+      "source": "../../textures/beam_energy.png",
+      "width": 512,
+      "height": 128,
+      "layout": null,
+      "tiles": true,
+      "soft": false,
+      "line": false
+    },
+    {
+      "name": "bolt_strip",
+      "kind": "texture",
+      "identities": [
+        "Lightning"
+      ],
+      "identity": "Lightning",
+      "usage": "U-tiling forked lightning channel with glow; Beams/Trails (animate TextureSpeed for crawl).",
+      "source": "../../textures/bolt_strip.png",
+      "width": 1024,
+      "height": 128,
+      "layout": null,
+      "tiles": true,
+      "soft": false,
+      "line": false
+    },
+    {
+      "name": "caustics",
+      "kind": "texture",
+      "identities": [
+        "Water"
+      ],
+      "identity": "Water",
+      "usage": "Tiling underwater caustic light network; water fields/ground overlays (scroll or rotate).",
+      "source": "../../textures/caustics.png",
+      "width": 512,
+      "height": 512,
+      "layout": null,
+      "tiles": true,
+      "soft": false,
+      "line": true
+    },
+    {
+      "name": "clock_dial",
+      "kind": "texture",
+      "identities": [
+        "Time"
+      ],
+      "identity": "Time",
+      "usage": "Ground decal: broken clock face with 12 hour marks, minute ticks, numeral glyphs and two hands; time fields.",
+      "source": "../../textures/clock_dial.png",
+      "width": 1024,
+      "height": 1024,
+      "layout": null,
+      "tiles": false,
+      "soft": false,
+      "line": true
+    },
+    {
+      "name": "core_plasma",
+      "kind": "texture",
+      "identities": [
+        "Fire"
+      ],
+      "identity": "Fire",
+      "usage": "Looping 16-frame turbulent energy core; projectile hearts, charge points.",
+      "source": "../../textures/core_plasma.png",
+      "width": 1024,
+      "height": 1024,
+      "layout": "Grid4x4",
+      "tiles": false,
+      "soft": false,
+      "line": false
+    },
+    {
+      "name": "debris_chip",
+      "kind": "texture",
+      "identities": [
+        "Earth",
+        "Body"
+      ],
+      "identity": "Earth",
+      "usage": "Angular dark fragment silhouette with a hot rim.",
+      "source": "../../textures/debris_chip.png",
+      "width": 128,
+      "height": 128,
+      "layout": null,
+      "tiles": false,
+      "soft": false,
+      "line": false
+    },
+    {
+      "name": "drip_trail",
+      "kind": "texture",
+      "identities": [
+        "Poison"
+      ],
+      "identity": "Poison",
+      "usage": "U-tiling viscous ribbon with hanging drips along the lower edge; poison trails.",
+      "source": "../../textures/drip_trail.png",
+      "width": 512,
+      "height": 128,
+      "layout": null,
+      "tiles": true,
+      "soft": false,
+      "line": false
+    },
+    {
+      "name": "droplet",
+      "kind": "texture",
+      "identities": [
+        "Water"
+      ],
+      "identity": "Water",
+      "usage": "Teardrop water droplet with specular highlight; VelocityParallel spray.",
+      "source": "../../textures/droplet.png",
+      "width": 128,
+      "height": 128,
+      "layout": null,
+      "tiles": false,
+      "soft": false,
+      "line": false
+    },
+    {
+      "name": "dust_burst",
+      "kind": "texture",
+      "identities": [
+        "Earth",
+        "Wind",
+        "Force",
+        "Body",
+        "Time"
+      ],
+      "identity": "Earth",
+      "usage": "Heavy grit cloud with clumped edges; ground kick-up for body impacts.",
+      "source": "../../textures/dust_burst.png",
+      "width": 512,
+      "height": 512,
+      "layout": null,
+      "tiles": false,
+      "soft": false,
+      "line": false
+    },
+    {
+      "name": "dust_plume",
+      "kind": "texture",
+      "identities": [
+        "Earth"
+      ],
+      "identity": "Earth",
+      "usage": "16-frame OneShot heavy dust plume rising and spreading (bottom-anchored); earth casts, slams.",
+      "source": "../../textures/dust_plume.png",
+      "width": 1024,
+      "height": 1024,
+      "layout": "Grid4x4",
+      "tiles": false,
+      "soft": false,
+      "line": false
+    },
+    {
+      "name": "earth_fissure",
+      "kind": "texture",
+      "identities": [
+        "Earth",
+        "Body"
+      ],
+      "identity": "Earth",
+      "usage": "Ground decal: radial fissures splitting from an impact point with broken slab edges; earth fields/impacts.",
+      "source": "../../textures/earth_fissure.png",
+      "width": 1024,
+      "height": 1024,
+      "layout": null,
+      "tiles": false,
+      "soft": false,
+      "line": true
+    },
+    {
+      "name": "ember_streak",
+      "kind": "texture",
+      "identities": [
+        "Fire",
+        "Force"
+      ],
+      "identity": "Fire",
+      "usage": "Hot elongated spark; set Orientation=VelocityParallel.",
+      "source": "../../textures/ember_streak.png",
+      "width": 128,
+      "height": 128,
+      "layout": null,
+      "tiles": false,
+      "soft": false,
+      "line": false
+    },
+    {
+      "name": "explosion_fire",
+      "kind": "texture",
+      "identities": [
+        "Fire"
+      ],
+      "identity": "Fire",
+      "usage": "64-frame OneShot fire burst: flash -> lobed fireball -> rolling smoke -> gone.",
+      "source": "../../textures/explosion_fire.png",
+      "width": 1024,
+      "height": 1024,
+      "layout": "Grid8x8",
+      "tiles": false,
+      "soft": false,
+      "line": false
+    },
+    {
+      "name": "flame_tongue",
+      "kind": "texture",
+      "identities": [
+        "Fire"
+      ],
+      "identity": "Fire",
+      "usage": "Looping 16-frame irregular flame silhouette; flame shells, fire trails, fields.",
+      "source": "../../textures/flame_tongue.png",
+      "width": 1024,
+      "height": 1024,
+      "layout": "Grid4x4",
+      "tiles": false,
+      "soft": false,
+      "line": false
+    },
+    {
+      "name": "flame_wisp",
+      "kind": "texture",
+      "identities": [
+        "Force"
+      ],
+      "identity": "Force",
+      "usage": "Single static leaning flame lick; sparse secondary flames.",
+      "source": "../../textures/flame_wisp.png",
+      "width": 512,
+      "height": 512,
+      "layout": null,
+      "tiles": false,
+      "soft": false,
+      "line": false
+    },
+    {
+      "name": "force_streak",
+      "kind": "texture",
+      "identities": [
+        "Force"
+      ],
+      "identity": "Force",
+      "usage": "U-tiling speed lines for Trails/Beams on force and movement magic.",
+      "source": "../../textures/force_streak.png",
+      "width": 512,
+      "height": 128,
+      "layout": null,
+      "tiles": true,
+      "soft": false,
+      "line": false
+    },
+    {
+      "name": "frost_crack",
+      "kind": "texture",
+      "identities": [
+        "Ice"
+      ],
+      "identity": "Ice",
+      "usage": "Ground decal: branching frozen crack network with feathered frost, radial falloff; ice fields.",
+      "source": "../../textures/frost_crack.png",
+      "width": 1024,
+      "height": 1024,
+      "layout": null,
+      "tiles": false,
+      "soft": false,
+      "line": true
+    },
+    {
+      "name": "frost_mist",
+      "kind": "texture",
+      "identities": [
+        "Ice"
+      ],
+      "identity": "Ice",
+      "usage": "Looping 16-frame curling cold fog with crystalline streaks; ice auras, fields, trails.",
+      "source": "../../textures/frost_mist.png",
+      "width": 1024,
+      "height": 1024,
+      "layout": "Grid4x4",
+      "tiles": false,
+      "soft": false,
+      "line": false
+    },
+    {
+      "name": "gear_mote",
+      "kind": "texture",
+      "identities": [
+        "Time"
+      ],
+      "identity": "Time",
+      "usage": "Spoked cog wheel; time/clockwork motes and mechanical accents.",
+      "source": "../../textures/gear_mote.png",
+      "width": 256,
+      "height": 256,
+      "layout": null,
+      "tiles": false,
+      "soft": false,
+      "line": false
+    },
+    {
+      "name": "ghost_trail",
+      "kind": "texture",
+      "identities": [
+        "Spirit"
+      ],
+      "identity": "Spirit",
+      "usage": "U-tiling tattered spectral ribbon with torn holes and trailing wisps; spirit trails, tethers.",
+      "source": "../../textures/ghost_trail.png",
+      "width": 512,
+      "height": 128,
+      "layout": null,
+      "tiles": true,
+      "soft": false,
+      "line": false
+    },
+    {
+      "name": "glow_soft",
+      "kind": "texture",
+      "identities": [
+        "Body"
+      ],
+      "identity": "Body",
+      "usage": "Soft energy bloom; core halos and charge glow.",
+      "source": "../../textures/glow_soft.png",
+      "width": 256,
+      "height": 256,
+      "layout": null,
+      "tiles": false,
+      "soft": true,
+      "line": false
+    },
+    {
+      "name": "glyph_chain",
+      "kind": "texture",
+      "identities": [
+        "Arcane"
+      ],
+      "identity": "Arcane",
+      "usage": "U-tiling chain of runes between two rails; arcane beams, trails, binding tethers.",
+      "source": "../../textures/glyph_chain.png",
+      "width": 1024,
+      "height": 128,
+      "layout": null,
+      "tiles": true,
+      "soft": false,
+      "line": false
+    },
+    {
+      "name": "gust_strokes",
+      "kind": "texture",
+      "identities": [
+        "Wind"
+      ],
+      "identity": "Wind",
+      "usage": "U-tiling curved brush-stroke gusts with hooked ends; wind trails and beams.",
+      "source": "../../textures/gust_strokes.png",
+      "width": 512,
+      "height": 128,
+      "layout": null,
+      "tiles": true,
+      "soft": false,
+      "line": false
+    },
+    {
+      "name": "heat_haze",
+      "kind": "texture",
+      "identities": [
+        "Force"
+      ],
+      "identity": "Force",
+      "usage": "Very low-contrast shimmer noise; faked distortion via low-opacity overlay.",
+      "source": "../../textures/heat_haze.png",
+      "width": 256,
+      "height": 256,
+      "layout": null,
+      "tiles": true,
+      "soft": true,
+      "line": false
+    },
+    {
+      "name": "hex_seal",
+      "kind": "texture",
+      "identities": [
+        "Ice",
+        "Arcane",
+        "Force"
+      ],
+      "identity": "Ice",
+      "usage": "Ground decal: hexagonal ward seal, spoked lattice and corner glyphs; arcane fields, wards, shields.",
+      "source": "../../textures/hex_seal.png",
+      "width": 1024,
+      "height": 1024,
+      "layout": null,
+      "tiles": false,
+      "soft": false,
+      "line": true
+    },
+    {
+      "name": "hourglass_mote",
+      "kind": "texture",
+      "identities": [
+        "Force"
+      ],
+      "identity": "Force",
+      "usage": "Hourglass icon with falling sand; time motes, slow/haste marks.",
+      "source": "../../textures/hourglass_mote.png",
+      "width": 256,
+      "height": 256,
+      "layout": null,
+      "tiles": false,
+      "soft": false,
+      "line": false
+    },
+    {
+      "name": "ice_glint",
+      "kind": "texture",
+      "identities": [
+        "Ice"
+      ],
+      "identity": "Ice",
+      "usage": "Six-point crystalline glint with diffraction spikes; frost motes.",
+      "source": "../../textures/ice_glint.png",
+      "width": 256,
+      "height": 256,
+      "layout": null,
+      "tiles": false,
+      "soft": false,
+      "line": false
+    },
+    {
+      "name": "ice_shatter",
+      "kind": "texture",
+      "identities": [
+        "Ice"
+      ],
+      "identity": "Ice",
+      "usage": "16-frame OneShot burst of angular ice shards flying out and fading; ice impacts.",
+      "source": "../../textures/ice_shatter.png",
+      "width": 1024,
+      "height": 1024,
+      "layout": "Grid4x4",
+      "tiles": false,
+      "soft": false,
+      "line": false
+    },
+    {
+      "name": "ice_trail",
+      "kind": "texture",
+      "identities": [
+        "Ice"
+      ],
+      "identity": "Ice",
+      "usage": "U-tiling crystalline streak with faceted shards along the edge; ice trails and beams.",
+      "source": "../../textures/ice_trail.png",
+      "width": 512,
+      "height": 128,
+      "layout": null,
+      "tiles": true,
+      "soft": false,
+      "line": false
+    },
+    {
+      "name": "impact_frame",
+      "kind": "texture",
+      "identities": [
+        "Force"
+      ],
+      "identity": "Force",
+      "usage": "Single-frame stylized impact: jagged star-burst with ink speed wedges, for 1-2 frame hit flashes.",
+      "source": "../../textures/impact_frame.png",
+      "width": 512,
+      "height": 512,
+      "layout": null,
+      "tiles": false,
+      "soft": false,
+      "line": false
+    },
+    {
+      "name": "impact_star",
+      "kind": "texture",
+      "identities": [
+        "Force"
+      ],
+      "identity": "Force",
+      "usage": "Irregular radial flash for the first frames of an impact.",
+      "source": "../../textures/impact_star.png",
+      "width": 512,
+      "height": 512,
+      "layout": null,
+      "tiles": false,
+      "soft": false,
+      "line": false
+    },
+    {
+      "name": "kinetic_burst",
+      "kind": "texture",
+      "identities": [
+        "Force",
+        "Body"
+      ],
+      "identity": "Force",
+      "usage": "16-frame OneShot: hard concentric shock rings with radial speed lines punching outward; force impacts.",
+      "source": "../../textures/kinetic_burst.png",
+      "width": 1024,
+      "height": 1024,
+      "layout": "Grid4x4",
+      "tiles": false,
+      "soft": false,
+      "line": false
+    },
+    {
+      "name": "leaf_scrap",
+      "kind": "texture",
+      "identities": [
+        "Wind"
+      ],
+      "identity": "Wind",
+      "usage": "4 torn leaf/ash scraps (random-start flipbook) for debris caught in wind.",
+      "source": "../../textures/leaf_scrap.png",
+      "width": 256,
+      "height": 256,
+      "layout": "Grid2x2",
+      "tiles": false,
+      "soft": false,
+      "line": false
+    },
+    {
+      "name": "miasma",
+      "kind": "texture",
+      "identities": [
+        "Poison"
+      ],
+      "identity": "Poison",
+      "usage": "Looping 16-frame lumpy toxic gas with dripping tendrils and dark pockets; poison clouds/fields.",
+      "source": "../../textures/miasma.png",
+      "width": 1024,
+      "height": 1024,
+      "layout": "Grid4x4",
+      "tiles": false,
+      "soft": false,
+      "line": false
+    },
+    {
+      "name": "plasma_orb",
+      "kind": "texture",
+      "identities": [
+        "Lightning"
+      ],
+      "identity": "Lightning",
+      "usage": "Looping 16-frame ball of writhing electric filaments with hot center; lightning cores.",
+      "source": "../../textures/plasma_orb.png",
+      "width": 1024,
+      "height": 1024,
+      "layout": "Grid4x4",
+      "tiles": false,
+      "soft": false,
+      "line": false
+    },
+    {
+      "name": "portal_rings",
+      "kind": "texture",
+      "identities": [
+        "Space"
+      ],
+      "identity": "Space",
+      "usage": "Ground/portal decal: warped concentric rings around a void centre with orbiting stars; space fields.",
+      "source": "../../textures/portal_rings.png",
+      "width": 1024,
+      "height": 1024,
+      "layout": null,
+      "tiles": false,
+      "soft": false,
+      "line": true
+    },
+    {
+      "name": "pressure_wave",
+      "kind": "texture",
+      "identities": [
+        "Wind",
+        "Force",
+        "Body"
+      ],
+      "identity": "Wind",
+      "usage": "16-frame OneShot directional pressure crescent; compressed air front for force magic.",
+      "source": "../../textures/pressure_wave.png",
+      "width": 1024,
+      "height": 1024,
+      "layout": "Grid4x4",
+      "tiles": false,
+      "soft": false,
+      "line": false
+    },
+    {
+      "name": "rift_tear",
+      "kind": "texture",
+      "identities": [
+        "Space"
+      ],
+      "identity": "Space",
+      "usage": "16-frame OneShot jagged tear in space: splits open on a void, holds, seals shut; space casts/portals.",
+      "source": "../../textures/rift_tear.png",
+      "width": 1024,
+      "height": 1024,
+      "layout": "Grid4x4",
+      "tiles": false,
+      "soft": false,
+      "line": false
+    },
+    {
+      "name": "ripple_ring",
+      "kind": "texture",
+      "identities": [
+        "Water"
+      ],
+      "identity": "Water",
+      "usage": "16-frame OneShot concentric ripples expanding and fading; flat (ground-facing) water impacts/fields.",
+      "source": "../../textures/ripple_ring.png",
+      "width": 1024,
+      "height": 1024,
+      "layout": "Grid4x4",
+      "tiles": false,
+      "soft": false,
+      "line": false
+    },
+    {
+      "name": "rock_burst",
+      "kind": "texture",
+      "identities": [
+        "Earth"
+      ],
+      "identity": "Earth",
+      "usage": "16-frame OneShot: faceted rock chunks blast outward and arc down with a grit cloud; earth impacts.",
+      "source": "../../textures/rock_burst.png",
+      "width": 1024,
+      "height": 1024,
+      "layout": "Grid4x4",
+      "tiles": false,
+      "soft": false,
+      "line": false
+    },
+    {
+      "name": "rubble_trail",
+      "kind": "texture",
+      "identities": [
+        "Earth"
+      ],
+      "identity": "Earth",
+      "usage": "U-tiling dragged grit and pebbles with a dust band; earth trails, ground-skimming projectiles.",
+      "source": "../../textures/rubble_trail.png",
+      "width": 512,
+      "height": 128,
+      "layout": null,
+      "tiles": true,
+      "soft": false,
+      "line": false
+    },
+    {
+      "name": "rune_circle",
+      "kind": "texture",
+      "identities": [
+        "Fire",
+        "Lightning",
+        "Wind",
+        "Arcane"
+      ],
+      "identity": "Fire",
+      "usage": "Industrial sigil: geared outer ring, angular glyph band, inner lattice. Ground casting circles.",
+      "source": "../../textures/rune_circle.png",
+      "width": 1024,
+      "height": 1024,
+      "layout": null,
+      "tiles": false,
+      "soft": false,
+      "line": true
+    },
+    {
+      "name": "sand_trail",
+      "kind": "texture",
+      "identities": [
+        "Time"
+      ],
+      "identity": "Time",
+      "usage": "U-tiling stream of drifting sand grains thinning at the edges; time trails, decay.",
+      "source": "../../textures/sand_trail.png",
+      "width": 512,
+      "height": 128,
+      "layout": null,
+      "tiles": true,
+      "soft": false,
+      "line": false
+    },
+    {
+      "name": "scorch_lichtenberg",
+      "kind": "texture",
+      "identities": [
+        "Fire",
+        "Lightning"
+      ],
+      "identity": "Fire",
+      "usage": "Ground decal: branching Lichtenberg burn figure with charred core; lightning strikes/fields.",
+      "source": "../../textures/scorch_lichtenberg.png",
+      "width": 1024,
+      "height": 1024,
+      "layout": null,
+      "tiles": false,
+      "soft": false,
+      "line": true
+    },
+    {
+      "name": "shard_trail",
+      "kind": "texture",
+      "identities": [
+        "Space"
+      ],
+      "identity": "Space",
+      "usage": "U-tiling stream of broken-glass reality shards with void gaps; space trails, folds.",
+      "source": "../../textures/shard_trail.png",
+      "width": 512,
+      "height": 128,
+      "layout": null,
+      "tiles": true,
+      "soft": false,
+      "line": false
+    },
+    {
+      "name": "shockwave_ring",
+      "kind": "texture",
+      "identities": [
+        "Force"
+      ],
+      "identity": "Force",
+      "usage": "Thin ragged ring with inner falloff; flat ring billboards and impact fronts.",
+      "source": "../../textures/shockwave_ring.png",
+      "width": 512,
+      "height": 512,
+      "layout": null,
+      "tiles": false,
+      "soft": false,
+      "line": false
+    },
+    {
+      "name": "sinew_trail",
+      "kind": "texture",
+      "identities": [
+        "Body"
+      ],
+      "identity": "Body",
+      "usage": "U-tiling twisting fibrous strands; organic/body trails and tethers.",
+      "source": "../../textures/sinew_trail.png",
+      "width": 512,
+      "height": 128,
+      "layout": null,
+      "tiles": true,
+      "soft": false,
+      "line": false
+    },
+    {
+      "name": "skull_mote",
+      "kind": "texture",
+      "identities": [
+        "Spirit"
+      ],
+      "identity": "Spirit",
+      "usage": "Stylized horned skull icon; spirit motes, curse marks, death accents.",
+      "source": "../../textures/skull_mote.png",
+      "width": 256,
+      "height": 256,
+      "layout": null,
+      "tiles": false,
+      "soft": false,
+      "line": false
+    },
+    {
+      "name": "slash_arc",
+      "kind": "texture",
+      "identities": [
+        "Force"
+      ],
+      "identity": "Force",
+      "usage": "Crescent slash with tapered tips and fibrous streaks.",
+      "source": "../../textures/slash_arc.png",
+      "width": 512,
+      "height": 512,
+      "layout": null,
+      "tiles": false,
+      "soft": false,
+      "line": false
+    },
+    {
+      "name": "smoke_billow",
+      "kind": "texture",
+      "identities": [
+        "Fire",
+        "Lightning",
+        "Arcane",
+        "Spirit",
+        "Space"
+      ],
+      "identity": "Fire",
+      "usage": "16-frame OneShot smoke puff that billows then thins; impact smoke, dissipation.",
+      "source": "../../textures/smoke_billow.png",
+      "width": 1024,
+      "height": 1024,
+      "layout": "Grid4x4",
+      "tiles": false,
+      "soft": false,
+      "line": false
+    },
+    {
+      "name": "soul_burst",
+      "kind": "texture",
+      "identities": [
+        "Spirit"
+      ],
+      "identity": "Spirit",
+      "usage": "16-frame OneShot: hollow-eyed wisps tear outward from a dark core and dissolve; spirit impacts.",
+      "source": "../../textures/soul_burst.png",
+      "width": 1024,
+      "height": 1024,
+      "layout": "Grid4x4",
+      "tiles": false,
+      "soft": false,
+      "line": false
+    },
+    {
+      "name": "soul_sigil",
+      "kind": "texture",
+      "identities": [
+        "Spirit"
+      ],
+      "identity": "Spirit",
+      "usage": "Ground decal: sunken eye within thorned rings and spectral script; spirit fields, curses, summons.",
+      "source": "../../textures/soul_sigil.png",
+      "width": 1024,
+      "height": 1024,
+      "layout": null,
+      "tiles": false,
+      "soft": false,
+      "line": true
+    },
+    {
+      "name": "soul_wisp",
+      "kind": "texture",
+      "identities": [
+        "Spirit"
+      ],
+      "identity": "Spirit",
+      "usage": "Looping 16-frame wailing ghost wisp: tattered rising flame shape with two hollow eyes and a mouth.",
+      "source": "../../textures/soul_wisp.png",
+      "width": 1024,
+      "height": 1024,
+      "layout": "Grid4x4",
+      "tiles": false,
+      "soft": false,
+      "line": false
+    },
+    {
+      "name": "spark_burst",
+      "kind": "texture",
+      "identities": [
+        "Lightning"
+      ],
+      "identity": "Lightning",
+      "usage": "16-frame OneShot electrical discharge: white flash, radial forks racing out, flicker off.",
+      "source": "../../textures/spark_burst.png",
+      "width": 1024,
+      "height": 1024,
+      "layout": "Grid4x4",
+      "tiles": false,
+      "soft": false,
+      "line": false
+    },
+    {
+      "name": "star_mote",
+      "kind": "texture",
+      "identities": [
+        "Space"
+      ],
+      "identity": "Space",
+      "usage": "Four-point star with long vertical spike; space motes, void sparkle.",
+      "source": "../../textures/star_mote.png",
+      "width": 128,
+      "height": 128,
+      "layout": null,
+      "tiles": false,
+      "soft": false,
+      "line": false
+    },
+    {
+      "name": "time_ripple",
+      "kind": "texture",
+      "identities": [
+        "Time"
+      ],
+      "identity": "Time",
+      "usage": "Looping 16-frame ticking ring: notched dial ring rotates in steps with trailing afterimages; time auras.",
+      "source": "../../textures/time_ripple.png",
+      "width": 1024,
+      "height": 1024,
+      "layout": "Grid4x4",
+      "tiles": false,
+      "soft": false,
+      "line": false
+    },
+    {
+      "name": "toxic_bubble",
+      "kind": "texture",
+      "identities": [
+        "Poison"
+      ],
+      "identity": "Poison",
+      "usage": "Thick-rimmed bubble with crescent highlight and dark inner pool; poison motes, boiling fields.",
+      "source": "../../textures/toxic_bubble.png",
+      "width": 256,
+      "height": 256,
+      "layout": null,
+      "tiles": false,
+      "soft": false,
+      "line": false
+    },
+    {
+      "name": "toxic_pool",
+      "kind": "texture",
+      "identities": [
+        "Poison"
+      ],
+      "identity": "Poison",
+      "usage": "Ground decal: irregular bubbling toxic pool with splatter rim and burst-bubble rings; poison fields.",
+      "source": "../../textures/toxic_pool.png",
+      "width": 1024,
+      "height": 1024,
+      "layout": null,
+      "tiles": false,
+      "soft": false,
+      "line": false
+    },
+    {
+      "name": "trail_flame",
+      "kind": "texture",
+      "identities": [
+        "Fire"
+      ],
+      "identity": "Fire",
+      "usage": "U-tiling ragged flame streak for Trails (TextureMode Wrap/Stretch).",
+      "source": "../../textures/trail_flame.png",
+      "width": 512,
+      "height": 128,
+      "layout": null,
+      "tiles": true,
+      "soft": false,
+      "line": false
+    },
+    {
+      "name": "void_orb",
+      "kind": "texture",
+      "identities": [
+        "Space"
+      ],
+      "identity": "Space",
+      "usage": "Looping 16-frame black hole: dark core, bright lensed ring and spiralling accretion streaks.",
+      "source": "../../textures/void_orb.png",
+      "width": 1024,
+      "height": 1024,
+      "layout": "Grid4x4",
+      "tiles": false,
+      "soft": false,
+      "line": false
+    },
+    {
+      "name": "ward_hex",
+      "kind": "texture",
+      "identities": [
+        "Force"
+      ],
+      "identity": "Force",
+      "usage": "Tiling hexagonal barrier lattice with bright cell edges; shields, wards, force fields (MeshPart/Beam).",
+      "source": "../../textures/ward_hex.png",
+      "width": 512,
+      "height": 512,
+      "layout": null,
+      "tiles": true,
+      "soft": false,
+      "line": true
+    },
+    {
+      "name": "warp_implode",
+      "kind": "texture",
+      "identities": [
+        "Space"
+      ],
+      "identity": "Space",
+      "usage": "16-frame OneShot: rings and debris streaks collapse inward to a point, then a sharp pop; teleports.",
+      "source": "../../textures/warp_implode.png",
+      "width": 1024,
+      "height": 1024,
+      "layout": "Grid4x4",
+      "tiles": false,
+      "soft": false,
+      "line": false
+    },
+    {
+      "name": "water_orb",
+      "kind": "texture",
+      "identities": [
+        "Water"
+      ],
+      "identity": "Water",
+      "usage": "Looping 16-frame sphere of churning water with caustic highlights and bright rim; water cores.",
+      "source": "../../textures/water_orb.png",
+      "width": 1024,
+      "height": 1024,
+      "layout": "Grid4x4",
+      "tiles": false,
+      "soft": false,
+      "line": false
+    },
+    {
+      "name": "water_splash",
+      "kind": "texture",
+      "identities": [
+        "Water"
+      ],
+      "identity": "Water",
+      "usage": "16-frame OneShot crown splash: sheet rises, breaks into droplets, falls; water impacts.",
+      "source": "../../textures/water_splash.png",
+      "width": 1024,
+      "height": 1024,
+      "layout": "Grid4x4",
+      "tiles": false,
+      "soft": false,
+      "line": false
+    },
+    {
+      "name": "water_trail",
+      "kind": "texture",
+      "identities": [
+        "Water"
+      ],
+      "identity": "Water",
+      "usage": "U-tiling flowing water ribbon with foam edges and streaks; water trails/beams.",
+      "source": "../../textures/water_trail.png",
+      "width": 512,
+      "height": 128,
+      "layout": null,
+      "tiles": true,
+      "soft": false,
+      "line": false
+    },
+    {
+      "name": "wind_swirl",
+      "kind": "texture",
+      "identities": [
+        "Wind"
+      ],
+      "identity": "Wind",
+      "usage": "Looping 16-frame spiral of tapered gust strokes; wind cores, cyclones, auras.",
+      "source": "../../textures/wind_swirl.png",
+      "width": 1024,
+      "height": 1024,
+      "layout": "Grid4x4",
+      "tiles": false,
+      "soft": false,
+      "line": false
+    },
+    {
+      "name": "arcane_prism",
+      "kind": "mesh",
+      "identities": [
+        "Arcane"
+      ],
+      "identity": "Arcane",
+      "usage": "Elongated faceted octahedral crystal (height 2) for floating arcane cores and orbiting shards.",
+      "source": "../../meshes/arcane_prism.glb",
+      "variant": "meshes/arcane_prism.glb",
+      "packet": "meshes/arcane_prism.json",
+      "ink_for": null,
+      "triangles": 8,
+      "size": [
+        0.84,
+        2.0,
+        0.84
+      ]
+    },
+    {
+      "name": "arcane_prism_ink",
+      "kind": "mesh",
+      "identities": [
+        "Arcane"
+      ],
+      "identity": "Arcane",
+      "usage": "Inverted-hull ink outline for arcane_prism (render black, same CFrame/size x1.0).",
+      "source": "../../meshes/arcane_prism_ink.glb",
+      "variant": "meshes/arcane_prism_ink.glb",
+      "packet": "meshes/arcane_prism_ink.json",
+      "ink_for": "arcane_prism",
+      "triangles": 8,
+      "size": [
+        0.98,
+        2.14,
+        0.98
+      ]
+    },
+    {
+      "name": "chain_link",
+      "kind": "mesh",
+      "identities": [
+        "Spirit"
+      ],
+      "identity": "Spirit",
+      "usage": "Single chunky chain link (length 1, open centre); binding, control and tether chains.",
+      "source": "../../meshes/chain_link.glb",
+      "variant": "meshes/chain_link.glb",
+      "packet": "meshes/chain_link.json",
+      "ink_for": null,
+      "triangles": 384,
+      "size": [
+        0.74,
+        1.24,
+        0.156
+      ]
+    },
+    {
+      "name": "chain_link_ink",
+      "kind": "mesh",
+      "identities": [
+        "Spirit"
+      ],
+      "identity": "Spirit",
+      "usage": "Inverted-hull ink outline for chain_link (render black, same CFrame/size x1.0).",
+      "source": "../../meshes/chain_link_ink.glb",
+      "variant": "meshes/chain_link_ink.glb",
+      "packet": "meshes/chain_link_ink.json",
+      "ink_for": "chain_link",
+      "triangles": 384,
+      "size": [
+        0.78,
+        1.28,
+        0.191
+      ]
+    },
+    {
+      "name": "chrono_gear",
+      "kind": "mesh",
+      "identities": [
+        "Time"
+      ],
+      "identity": "Time",
+      "usage": "Thick toothed gear (radius 1, flat on XZ) with spokes; time constructs, clockwork auras.",
+      "source": "../../meshes/chrono_gear.glb",
+      "variant": "meshes/chrono_gear.glb",
+      "packet": "meshes/chrono_gear.json",
+      "ink_for": null,
+      "triangles": 508,
+      "size": [
+        1.987,
+        0.16,
+        2.0
+      ]
+    },
+    {
+      "name": "chrono_gear_ink",
+      "kind": "mesh",
+      "identities": [
+        "Time"
+      ],
+      "identity": "Time",
+      "usage": "Inverted-hull ink outline for chrono_gear (render black, same CFrame/size x1.0).",
+      "source": "../../meshes/chrono_gear_ink.glb",
+      "variant": "meshes/chrono_gear_ink.glb",
+      "packet": "meshes/chrono_gear_ink.json",
+      "ink_for": "chrono_gear",
+      "triangles": 508,
+      "size": [
+        2.091,
+        0.273,
+        2.099
+      ]
+    },
+    {
+      "name": "comet_spike",
+      "kind": "mesh",
+      "identities": [
+        "Force"
+      ],
+      "identity": "Force",
+      "usage": "Projectile silhouette: blunt head, finned body tapering to a long tail (+Z).",
+      "source": "../../meshes/comet_spike.glb",
+      "variant": "meshes/comet_spike.glb",
+      "packet": "meshes/comet_spike.json",
+      "ink_for": null,
+      "triangles": 912,
+      "size": [
+        1.176,
+        1.098,
+        3.0
+      ]
+    },
+    {
+      "name": "comet_spike_ink",
+      "kind": "mesh",
+      "identities": [
+        "Force"
+      ],
+      "identity": "Force",
+      "usage": "Inverted-hull ink outline for comet_spike (render black, same CFrame/size x1.0).",
+      "source": "../../meshes/comet_spike_ink.glb",
+      "variant": "meshes/comet_spike_ink.glb",
+      "packet": "meshes/comet_spike_ink.json",
+      "ink_for": "comet_spike",
+      "triangles": 912,
+      "size": [
+        1.314,
+        1.221,
+        3.14
+      ]
+    },
+    {
+      "name": "debris_rock_a",
+      "kind": "mesh",
+      "identities": [
+        "Fire",
+        "Earth",
+        "Body"
+      ],
+      "identity": "Fire",
+      "usage": "Fractured faceted rock chunk (3 variants: _a _b _c); impact debris.",
+      "source": "../../meshes/debris_rock_a.glb",
+      "variant": "meshes/debris_rock_a.glb",
+      "packet": "meshes/debris_rock_a.json",
+      "ink_for": null,
+      "triangles": 28,
+      "size": [
+        1.607,
+        1.037,
+        1.334
+      ]
+    },
+    {
+      "name": "debris_rock_a_ink",
+      "kind": "mesh",
+      "identities": [
+        "Fire",
+        "Earth",
+        "Body"
+      ],
+      "identity": "Fire",
+      "usage": "Inverted-hull ink outline for debris_rock_a (render black, same CFrame/size x1.0).",
+      "source": "../../meshes/debris_rock_a_ink.glb",
+      "variant": "meshes/debris_rock_a_ink.glb",
+      "packet": "meshes/debris_rock_a_ink.json",
+      "ink_for": "debris_rock_a",
+      "triangles": 28,
+      "size": [
+        1.709,
+        1.144,
+        1.432
+      ]
+    },
+    {
+      "name": "debris_rock_b",
+      "kind": "mesh",
+      "identities": [
+        "Earth"
+      ],
+      "identity": "Earth",
+      "usage": "Fractured faceted rock chunk (3 variants: _a _b _c); impact debris.",
+      "source": "../../meshes/debris_rock_b.glb",
+      "variant": "meshes/debris_rock_b.glb",
+      "packet": "meshes/debris_rock_b.json",
+      "ink_for": null,
+      "triangles": 28,
+      "size": [
+        1.862,
+        0.826,
+        1.096
+      ]
+    },
+    {
+      "name": "debris_rock_b_ink",
+      "kind": "mesh",
+      "identities": [
+        "Earth"
+      ],
+      "identity": "Earth",
+      "usage": "Inverted-hull ink outline for debris_rock_b (render black, same CFrame/size x1.0).",
+      "source": "../../meshes/debris_rock_b_ink.glb",
+      "variant": "meshes/debris_rock_b_ink.glb",
+      "packet": "meshes/debris_rock_b_ink.json",
+      "ink_for": "debris_rock_b",
+      "triangles": 28,
+      "size": [
+        1.982,
+        0.954,
+        1.22
+      ]
+    },
+    {
+      "name": "debris_rock_c",
+      "kind": "mesh",
+      "identities": [
+        "Fire",
+        "Earth"
+      ],
+      "identity": "Fire",
+      "usage": "Fractured faceted rock chunk (3 variants: _a _b _c); impact debris.",
+      "source": "../../meshes/debris_rock_c.glb",
+      "variant": "meshes/debris_rock_c.glb",
+      "packet": "meshes/debris_rock_c.json",
+      "ink_for": null,
+      "triangles": 24,
+      "size": [
+        1.458,
+        1.185,
+        1.776
+      ]
+    },
+    {
+      "name": "debris_rock_c_ink",
+      "kind": "mesh",
+      "identities": [
+        "Fire",
+        "Earth"
+      ],
+      "identity": "Fire",
+      "usage": "Inverted-hull ink outline for debris_rock_c (render black, same CFrame/size x1.0).",
+      "source": "../../meshes/debris_rock_c_ink.glb",
+      "variant": "meshes/debris_rock_c_ink.glb",
+      "packet": "meshes/debris_rock_c_ink.json",
+      "ink_for": "debris_rock_c",
+      "triangles": 24,
+      "size": [
+        1.576,
+        1.285,
+        1.897
+      ]
+    },
+    {
+      "name": "earth_boulder",
+      "kind": "mesh",
+      "identities": [
+        "Earth"
+      ],
+      "identity": "Earth",
+      "usage": "Chunky faceted boulder (~1.6 studs) with flat fracture planes; thrown rocks, meteors.",
+      "source": "../../meshes/earth_boulder.glb",
+      "variant": "meshes/earth_boulder.glb",
+      "packet": "meshes/earth_boulder.json",
+      "ink_for": null,
+      "triangles": 60,
+      "size": [
+        1.478,
+        1.309,
+        1.61
+      ]
+    },
+    {
+      "name": "earth_boulder_ink",
+      "kind": "mesh",
+      "identities": [
+        "Earth"
+      ],
+      "identity": "Earth",
+      "usage": "Inverted-hull ink outline for earth_boulder (render black, same CFrame/size x1.0).",
+      "source": "../../meshes/earth_boulder_ink.glb",
+      "variant": "meshes/earth_boulder_ink.glb",
+      "packet": "meshes/earth_boulder_ink.json",
+      "ink_for": "earth_boulder",
+      "triangles": 60,
+      "size": [
+        1.584,
+        1.419,
+        1.713
+      ]
+    },
+    {
+      "name": "earth_slab",
+      "kind": "mesh",
+      "identities": [
+        "Force"
+      ],
+      "identity": "Force",
+      "usage": "Upthrust stone wall slab (W2.4 x H1.8 x D0.6) with broken top edge; earth constructs, walls.",
+      "source": "../../meshes/earth_slab.glb",
+      "variant": "meshes/earth_slab.glb",
+      "packet": "meshes/earth_slab.json",
+      "ink_for": null,
+      "triangles": 28,
+      "size": [
+        2.454,
+        1.869,
+        0.638
+      ]
+    },
+    {
+      "name": "earth_slab_ink",
+      "kind": "mesh",
+      "identities": [
+        "Force"
+      ],
+      "identity": "Force",
+      "usage": "Inverted-hull ink outline for earth_slab (render black, same CFrame/size x1.0).",
+      "source": "../../meshes/earth_slab_ink.glb",
+      "variant": "meshes/earth_slab_ink.glb",
+      "packet": "meshes/earth_slab_ink.json",
+      "ink_for": "earth_slab",
+      "triangles": 28,
+      "size": [
+        2.549,
+        1.972,
+        0.731
+      ]
+    },
+    {
+      "name": "earth_spire",
+      "kind": "mesh",
+      "identities": [
+        "Earth"
+      ],
+      "identity": "Earth",
+      "usage": "Jagged faceted stone spire erupting along +Y (height ~2.6); earth spikes, pillars, fields.",
+      "source": "../../meshes/earth_spire.glb",
+      "variant": "meshes/earth_spire.glb",
+      "packet": "meshes/earth_spire.json",
+      "ink_for": null,
+      "triangles": 30,
+      "size": [
+        1.347,
+        2.632,
+        1.218
+      ]
+    },
+    {
+      "name": "earth_spire_ink",
+      "kind": "mesh",
+      "identities": [
+        "Earth"
+      ],
+      "identity": "Earth",
+      "usage": "Inverted-hull ink outline for earth_spire (render black, same CFrame/size x1.0).",
+      "source": "../../meshes/earth_spire_ink.glb",
+      "variant": "meshes/earth_spire_ink.glb",
+      "packet": "meshes/earth_spire_ink.json",
+      "ink_for": "earth_spire",
+      "triangles": 30,
+      "size": [
+        1.47,
+        2.739,
+        1.343
+      ]
+    },
+    {
+      "name": "energy_ribbon",
+      "kind": "mesh",
+      "identities": [
+        "Force"
+      ],
+      "identity": "Force",
+      "usage": "Twisting helical ribbon strip along +Z (length 4); beams, orbit trails, auras.",
+      "source": "../../meshes/energy_ribbon.glb",
+      "variant": "meshes/energy_ribbon.glb",
+      "packet": "meshes/energy_ribbon.json",
+      "ink_for": null,
+      "triangles": 128,
+      "size": [
+        1.287,
+        1.27,
+        4.0
+      ]
+    },
+    {
+      "name": "fire_core",
+      "kind": "mesh",
+      "identities": [
+        "Fire"
+      ],
+      "identity": "Fire",
+      "usage": "Turbulent lobed energy core; projectile hearts (Neon / ForceField).",
+      "source": "../../meshes/fire_core.glb",
+      "variant": "meshes/fire_core.glb",
+      "packet": "meshes/fire_core.json",
+      "ink_for": null,
+      "triangles": 1472,
+      "size": [
+        1.839,
+        1.707,
+        1.748
+      ]
+    },
+    {
+      "name": "fire_core_ink",
+      "kind": "mesh",
+      "identities": [
+        "Fire"
+      ],
+      "identity": "Fire",
+      "usage": "Inverted-hull ink outline for fire_core (render black, same CFrame/size x1.0).",
+      "source": "../../meshes/fire_core_ink.glb",
+      "variant": "meshes/fire_core_ink.glb",
+      "packet": "meshes/fire_core_ink.json",
+      "ink_for": "fire_core",
+      "triangles": 1472,
+      "size": [
+        1.955,
+        1.828,
+        1.874
+      ]
+    },
+    {
+      "name": "flame_shell",
+      "kind": "mesh",
+      "identities": [
+        "Force"
+      ],
+      "identity": "Force",
+      "usage": "Cluster of 7 swept flame tongues around a hollow core; projectile outer shell.",
+      "source": "../../meshes/flame_shell.glb",
+      "variant": "meshes/flame_shell.glb",
+      "packet": "meshes/flame_shell.json",
+      "ink_for": null,
+      "triangles": 840,
+      "size": [
+        1.843,
+        2.461,
+        1.867
+      ]
+    },
+    {
+      "name": "flame_tongue",
+      "kind": "mesh",
+      "identities": [
+        "Fire"
+      ],
+      "identity": "Fire",
+      "usage": "Single curling blade of flame trailing along +Z; layered around cores.",
+      "source": "../../meshes/flame_tongue.glb",
+      "variant": "meshes/flame_tongue.glb",
+      "packet": "meshes/flame_tongue.json",
+      "ink_for": null,
+      "triangles": 224,
+      "size": [
+        0.744,
+        0.331,
+        2.0
+      ]
+    },
+    {
+      "name": "flame_tongue_ink",
+      "kind": "mesh",
+      "identities": [
+        "Fire"
+      ],
+      "identity": "Fire",
+      "usage": "Inverted-hull ink outline for flame_tongue (render black, same CFrame/size x1.0).",
+      "source": "../../meshes/flame_tongue_ink.glb",
+      "variant": "meshes/flame_tongue_ink.glb",
+      "packet": "meshes/flame_tongue_ink.json",
+      "ink_for": "flame_tongue",
+      "triangles": 216,
+      "size": [
+        0.791,
+        0.38,
+        2.031
+      ]
+    },
+    {
+      "name": "flesh_shard",
+      "kind": "mesh",
+      "identities": [
+        "Body"
+      ],
+      "identity": "Body",
+      "usage": "Mutated organic spindle with bulges and a hooked tip; body-magic fragments.",
+      "source": "../../meshes/flesh_shard.glb",
+      "variant": "meshes/flesh_shard.glb",
+      "packet": "meshes/flesh_shard.json",
+      "ink_for": null,
+      "triangles": 360,
+      "size": [
+        0.781,
+        0.641,
+        2.0
+      ]
+    },
+    {
+      "name": "flesh_shard_ink",
+      "kind": "mesh",
+      "identities": [
+        "Body"
+      ],
+      "identity": "Body",
+      "usage": "Inverted-hull ink outline for flesh_shard (render black, same CFrame/size x1.0).",
+      "source": "../../meshes/flesh_shard_ink.glb",
+      "variant": "meshes/flesh_shard_ink.glb",
+      "packet": "meshes/flesh_shard_ink.json",
+      "ink_for": "flesh_shard",
+      "triangles": 360,
+      "size": [
+        0.921,
+        0.781,
+        2.133
+      ]
+    },
+    {
+      "name": "hourglass",
+      "kind": "mesh",
+      "identities": [
+        "Time"
+      ],
+      "identity": "Time",
+      "usage": "Hourglass (height 2) with pillar frame and pinched glass; time constructs, slow/haste totems.",
+      "source": "../../meshes/hourglass.glb",
+      "variant": "meshes/hourglass.glb",
+      "packet": "meshes/hourglass.json",
+      "ink_for": null,
+      "triangles": 340,
+      "size": [
+        1.16,
+        1.96,
+        1.16
+      ]
+    },
+    {
+      "name": "hourglass_ink",
+      "kind": "mesh",
+      "identities": [
+        "Time"
+      ],
+      "identity": "Time",
+      "usage": "Inverted-hull ink outline for hourglass (render black, same CFrame/size x1.0).",
+      "source": "../../meshes/hourglass_ink.glb",
+      "variant": "meshes/hourglass_ink.glb",
+      "packet": "meshes/hourglass_ink.json",
+      "ink_for": "hourglass",
+      "triangles": 292,
+      "size": [
+        1.19,
+        2.0,
+        1.19
+      ]
+    },
+    {
+      "name": "ice_cluster",
+      "kind": "mesh",
+      "identities": [
+        "Ice"
+      ],
+      "identity": "Ice",
+      "usage": "Faceted crystal cluster erupting from a point (Y up); ice fields, constructs, impacts.",
+      "source": "../../meshes/ice_cluster.glb",
+      "variant": "meshes/ice_cluster.glb",
+      "packet": "meshes/ice_cluster.json",
+      "ink_for": null,
+      "triangles": 252,
+      "size": [
+        1.778,
+        2.159,
+        1.571
+      ]
+    },
+    {
+      "name": "ice_cluster_ink",
+      "kind": "mesh",
+      "identities": [
+        "Ice"
+      ],
+      "identity": "Ice",
+      "usage": "Inverted-hull ink outline for ice_cluster (render black, same CFrame/size x1.0).",
+      "source": "../../meshes/ice_cluster_ink.glb",
+      "variant": "meshes/ice_cluster_ink.glb",
+      "packet": "meshes/ice_cluster_ink.json",
+      "ink_for": "ice_cluster",
+      "triangles": 252,
+      "size": [
+        1.885,
+        2.292,
+        1.676
+      ]
+    },
+    {
+      "name": "ice_shard_a",
+      "kind": "mesh",
+      "identities": [
+        "Ice"
+      ],
+      "identity": "Ice",
+      "usage": "Irregular bipyramid ice fragments (variants _a _b); shatter debris.",
+      "source": "../../meshes/ice_shard_a.glb",
+      "variant": "meshes/ice_shard_a.glb",
+      "packet": "meshes/ice_shard_a.json",
+      "ink_for": null,
+      "triangles": 10,
+      "size": [
+        0.51,
+        1.45,
+        0.5
+      ]
+    },
+    {
+      "name": "ice_shard_a_ink",
+      "kind": "mesh",
+      "identities": [
+        "Ice"
+      ],
+      "identity": "Ice",
+      "usage": "Inverted-hull ink outline for ice_shard_a (render black, same CFrame/size x1.0).",
+      "source": "../../meshes/ice_shard_a_ink.glb",
+      "variant": "meshes/ice_shard_a_ink.glb",
+      "packet": "meshes/ice_shard_a_ink.json",
+      "ink_for": "ice_shard_a",
+      "triangles": 10,
+      "size": [
+        0.602,
+        1.551,
+        0.596
+      ]
+    },
+    {
+      "name": "ice_shard_b",
+      "kind": "mesh",
+      "identities": [
+        "Ice"
+      ],
+      "identity": "Ice",
+      "usage": "Irregular bipyramid ice fragments (variants _a _b); shatter debris.",
+      "source": "../../meshes/ice_shard_b.glb",
+      "variant": "meshes/ice_shard_b.glb",
+      "packet": "meshes/ice_shard_b.json",
+      "ink_for": null,
+      "triangles": 10,
+      "size": [
+        0.451,
+        1.45,
+        0.495
+      ]
+    },
+    {
+      "name": "ice_shard_b_ink",
+      "kind": "mesh",
+      "identities": [
+        "Ice"
+      ],
+      "identity": "Ice",
+      "usage": "Inverted-hull ink outline for ice_shard_b (render black, same CFrame/size x1.0).",
+      "source": "../../meshes/ice_shard_b_ink.glb",
+      "variant": "meshes/ice_shard_b_ink.glb",
+      "packet": "meshes/ice_shard_b_ink.json",
+      "ink_for": "ice_shard_b",
+      "triangles": 10,
+      "size": [
+        0.545,
+        1.551,
+        0.59
+      ]
+    },
+    {
+      "name": "ice_spike",
+      "kind": "mesh",
+      "identities": [
+        "Ice"
+      ],
+      "identity": "Ice",
+      "usage": "Single tall faceted crystal spike along +Y; ice projectiles (rotate), pillars, lances.",
+      "source": "../../meshes/ice_spike.glb",
+      "variant": "meshes/ice_spike.glb",
+      "packet": "meshes/ice_spike.json",
+      "ink_for": null,
+      "triangles": 36,
+      "size": [
+        0.526,
+        2.956,
+        0.56
+      ]
+    },
+    {
+      "name": "ice_spike_ink",
+      "kind": "mesh",
+      "identities": [
+        "Ice"
+      ],
+      "identity": "Ice",
+      "usage": "Inverted-hull ink outline for ice_spike (render black, same CFrame/size x1.0).",
+      "source": "../../meshes/ice_spike_ink.glb",
+      "variant": "meshes/ice_spike_ink.glb",
+      "packet": "meshes/ice_spike_ink.json",
+      "ink_for": "ice_spike",
+      "triangles": 36,
+      "size": [
+        0.594,
+        3.036,
+        0.64
+      ]
+    },
+    {
+      "name": "lightning_fork",
+      "kind": "mesh",
+      "identities": [
+        "Lightning"
+      ],
+      "identity": "Lightning",
+      "usage": "Jagged forked bolt (square-section tubes) from +Y down to -Y, height 4; strikes, chains.",
+      "source": "../../meshes/lightning_fork.glb",
+      "variant": "meshes/lightning_fork.glb",
+      "packet": "meshes/lightning_fork.json",
+      "ink_for": null,
+      "triangles": 768,
+      "size": [
+        1.394,
+        4.0,
+        2.995
+      ]
+    },
+    {
+      "name": "lightning_fork_ink",
+      "kind": "mesh",
+      "identities": [
+        "Lightning"
+      ],
+      "identity": "Lightning",
+      "usage": "Inverted-hull ink outline for lightning_fork (render black, same CFrame/size x1.0).",
+      "source": "../../meshes/lightning_fork_ink.glb",
+      "variant": "meshes/lightning_fork_ink.glb",
+      "packet": "meshes/lightning_fork_ink.json",
+      "ink_for": "lightning_fork",
+      "triangles": 768,
+      "size": [
+        1.389,
+        4.022,
+        3.017
+      ]
+    },
+    {
+      "name": "poison_bubbles",
+      "kind": "mesh",
+      "identities": [
+        "Poison"
+      ],
+      "identity": "Poison",
+      "usage": "Cluster of 6 low-poly bubbles of varied size (~1.6 across); boiling poison, gas sacs.",
+      "source": "../../meshes/poison_bubbles.glb",
+      "variant": "meshes/poison_bubbles.glb",
+      "packet": "meshes/poison_bubbles.json",
+      "ink_for": null,
+      "triangles": 600,
+      "size": [
+        1.413,
+        1.469,
+        1.536
+      ]
+    },
+    {
+      "name": "poison_bubbles_ink",
+      "kind": "mesh",
+      "identities": [
+        "Poison"
+      ],
+      "identity": "Poison",
+      "usage": "Inverted-hull ink outline for poison_bubbles (render black, same CFrame/size x1.0).",
+      "source": "../../meshes/poison_bubbles_ink.glb",
+      "variant": "meshes/poison_bubbles_ink.glb",
+      "packet": "meshes/poison_bubbles_ink.json",
+      "ink_for": "poison_bubbles",
+      "triangles": 600,
+      "size": [
+        1.52,
+        1.577,
+        1.638
+      ]
+    },
+    {
+      "name": "poison_thorn",
+      "kind": "mesh",
+      "identities": [
+        "Poison"
+      ],
+      "identity": "Poison",
+      "usage": "Curved barbed thorn along +Y (length 2.2) with side barbs; venom spikes, needles.",
+      "source": "../../meshes/poison_thorn.glb",
+      "variant": "meshes/poison_thorn.glb",
+      "packet": "meshes/poison_thorn.json",
+      "ink_for": null,
+      "triangles": 320,
+      "size": [
+        1.438,
+        2.2,
+        0.39
+      ]
+    },
+    {
+      "name": "poison_thorn_ink",
+      "kind": "mesh",
+      "identities": [
+        "Poison"
+      ],
+      "identity": "Poison",
+      "usage": "Inverted-hull ink outline for poison_thorn (render black, same CFrame/size x1.0).",
+      "source": "../../meshes/poison_thorn_ink.glb",
+      "variant": "meshes/poison_thorn_ink.glb",
+      "packet": "meshes/poison_thorn_ink.json",
+      "ink_for": "poison_thorn",
+      "triangles": 320,
+      "size": [
+        1.429,
+        2.205,
+        0.371
+      ]
+    },
+    {
+      "name": "pressure_cone",
+      "kind": "mesh",
+      "identities": [
+        "Force"
+      ],
+      "identity": "Force",
+      "usage": "Body force cone shell opening along -Z (length 1, mouth radius 1) with torn crescent rim.",
+      "source": "../../meshes/pressure_cone.glb",
+      "variant": "meshes/pressure_cone.glb",
+      "packet": "meshes/pressure_cone.json",
+      "ink_for": null,
+      "triangles": 800,
+      "size": [
+        2.005,
+        1.249,
+        1.15
+      ]
+    },
+    {
+      "name": "rift_frame",
+      "kind": "mesh",
+      "identities": [
+        "Force"
+      ],
+      "identity": "Force",
+      "usage": "Jagged torn-reality loop (vertical lens, height 3) open in the middle; portals and rifts.",
+      "source": "../../meshes/rift_frame.glb",
+      "variant": "meshes/rift_frame.glb",
+      "packet": "meshes/rift_frame.json",
+      "ink_for": null,
+      "triangles": 256,
+      "size": [
+        1.466,
+        3.18,
+        0.08
+      ]
+    },
+    {
+      "name": "shockwave_dome",
+      "kind": "mesh",
+      "identities": [
+        "Force"
+      ],
+      "identity": "Force",
+      "usage": "Open hemispherical shell with a torn rim; volumetric blast front.",
+      "source": "../../meshes/shockwave_dome.glb",
+      "variant": "meshes/shockwave_dome.glb",
+      "packet": "meshes/shockwave_dome.json",
+      "ink_for": null,
+      "triangles": 760,
+      "size": [
+        1.999,
+        0.807,
+        1.999
+      ]
+    },
+    {
+      "name": "shockwave_ring",
+      "kind": "mesh",
+      "identities": [
+        "Force"
+      ],
+      "identity": "Force",
+      "usage": "Flat ragged band ring (XZ plane, radius 1); expanding impact fronts.",
+      "source": "../../meshes/shockwave_ring.glb",
+      "variant": "meshes/shockwave_ring.glb",
+      "packet": "meshes/shockwave_ring.json",
+      "ink_for": null,
+      "triangles": 512,
+      "size": [
+        2.0,
+        0.115,
+        2.0
+      ]
+    },
+    {
+      "name": "sigil_ring",
+      "kind": "mesh",
+      "identities": [
+        "Force"
+      ],
+      "identity": "Force",
+      "usage": "Industrial casting sigil: geared outer ring + segmented inner band, flat on XZ.",
+      "source": "../../meshes/sigil_ring.glb",
+      "variant": "meshes/sigil_ring.glb",
+      "packet": "meshes/sigil_ring.json",
+      "ink_for": null,
+      "triangles": 2188,
+      "size": [
+        2.06,
+        0.04,
+        2.06
+      ]
+    },
+    {
+      "name": "sinew_tendril",
+      "kind": "mesh",
+      "identities": [
+        "Body"
+      ],
+      "identity": "Body",
+      "usage": "Curling organic tube that tapers and twists; tethers, body auras, grips.",
+      "source": "../../meshes/sinew_tendril.glb",
+      "variant": "meshes/sinew_tendril.glb",
+      "packet": "meshes/sinew_tendril.json",
+      "ink_for": null,
+      "triangles": 448,
+      "size": [
+        0.631,
+        0.488,
+        3.0
+      ]
+    },
+    {
+      "name": "sinew_tendril_ink",
+      "kind": "mesh",
+      "identities": [
+        "Body"
+      ],
+      "identity": "Body",
+      "usage": "Inverted-hull ink outline for sinew_tendril (render black, same CFrame/size x1.0).",
+      "source": "../../meshes/sinew_tendril_ink.glb",
+      "variant": "meshes/sinew_tendril_ink.glb",
+      "packet": "meshes/sinew_tendril_ink.json",
+      "ink_for": "sinew_tendril",
+      "triangles": 440,
+      "size": [
+        0.67,
+        0.525,
+        3.019
+      ]
+    },
+    {
+      "name": "soul_skull",
+      "kind": "mesh",
+      "identities": [
+        "Spirit"
+      ],
+      "identity": "Spirit",
+      "usage": "Low-poly horned skull (height ~1.3) facing -Z with hollow eye sockets; spirit projectiles, curses.",
+      "source": "../../meshes/soul_skull.glb",
+      "variant": "meshes/soul_skull.glb",
+      "packet": "meshes/soul_skull.json",
+      "ink_for": null,
+      "triangles": 304,
+      "size": [
+        1.558,
+        1.185,
+        1.194
+      ]
+    },
+    {
+      "name": "soul_skull_ink",
+      "kind": "mesh",
+      "identities": [
+        "Spirit"
+      ],
+      "identity": "Spirit",
+      "usage": "Inverted-hull ink outline for soul_skull (render black, same CFrame/size x1.0).",
+      "source": "../../meshes/soul_skull_ink.glb",
+      "variant": "meshes/soul_skull_ink.glb",
+      "packet": "meshes/soul_skull_ink.json",
+      "ink_for": "soul_skull",
+      "triangles": 268,
+      "size": [
+        1.625,
+        1.263,
+        1.269
+      ]
+    },
+    {
+      "name": "void_shard",
+      "kind": "mesh",
+      "identities": [
+        "Space"
+      ],
+      "identity": "Space",
+      "usage": "Long razor obsidian shard (height 2) with a beveled edge; space blades, rift debris.",
+      "source": "../../meshes/void_shard.glb",
+      "variant": "meshes/void_shard.glb",
+      "packet": "meshes/void_shard.json",
+      "ink_for": null,
+      "triangles": 12,
+      "size": [
+        0.5,
+        2.0,
+        0.22
+      ]
+    },
+    {
+      "name": "void_shard_ink",
+      "kind": "mesh",
+      "identities": [
+        "Space"
+      ],
+      "identity": "Space",
+      "usage": "Inverted-hull ink outline for void_shard (render black, same CFrame/size x1.0).",
+      "source": "../../meshes/void_shard_ink.glb",
+      "variant": "meshes/void_shard_ink.glb",
+      "packet": "meshes/void_shard_ink.json",
+      "ink_for": "void_shard",
+      "triangles": 12,
+      "size": [
+        0.638,
+        2.14,
+        0.36
+      ]
+    },
+    {
+      "name": "ward_dome",
+      "kind": "mesh",
+      "identities": [
+        "Force"
+      ],
+      "identity": "Force",
+      "usage": "Faceted geodesic hemisphere (radius 1, open base) for barriers and shields; pair with ward_hex.",
+      "source": "../../meshes/ward_dome.glb",
+      "variant": "meshes/ward_dome.glb",
+      "packet": "meshes/ward_dome.json",
+      "ink_for": null,
+      "triangles": 40,
+      "size": [
+        1.902,
+        1.0,
+        2.0
+      ]
+    },
+    {
+      "name": "water_crown",
+      "kind": "mesh",
+      "identities": [
+        "Water"
+      ],
+      "identity": "Water",
+      "usage": "Open splash crown: wavy wall with spiky droplet tips, radius 1, height ~1.3; water impacts.",
+      "source": "../../meshes/water_crown.glb",
+      "variant": "meshes/water_crown.glb",
+      "packet": "meshes/water_crown.json",
+      "ink_for": null,
+      "triangles": 864,
+      "size": [
+        2.24,
+        1.252,
+        2.24
+      ]
+    },
+    {
+      "name": "water_curl",
+      "kind": "mesh",
+      "identities": [
+        "Force"
+      ],
+      "identity": "Force",
+      "usage": "Curling breaking-wave sheet along X (width 3), crest curling forward (-Z); water waves.",
+      "source": "../../meshes/water_curl.glb",
+      "variant": "meshes/water_curl.glb",
+      "packet": "meshes/water_curl.json",
+      "ink_for": null,
+      "triangles": 504,
+      "size": [
+        3.0,
+        1.284,
+        1.181
+      ]
+    },
+    {
+      "name": "wind_crescent",
+      "kind": "mesh",
+      "identities": [
+        "Force"
+      ],
+      "identity": "Force",
+      "usage": "Thick tapered blade crescent (span 3, flat on XZ, convex toward -Z); wind slashes, gust waves.",
+      "source": "../../meshes/wind_crescent.glb",
+      "variant": "meshes/wind_crescent.glb",
+      "packet": "meshes/wind_crescent.json",
+      "ink_for": null,
+      "triangles": 192,
+      "size": [
+        3.005,
+        0.06,
+        1.542
+      ]
+    },
+    {
+      "name": "wind_funnel",
+      "kind": "mesh",
+      "identities": [
+        "Wind"
+      ],
+      "identity": "Wind",
+      "usage": "Open twisting tornado funnel of 3 ribbon bands (height 3, top radius 1.2); cyclones, wind auras.",
+      "source": "../../meshes/wind_funnel.glb",
+      "variant": "meshes/wind_funnel.glb",
+      "packet": "meshes/wind_funnel.json",
+      "ink_for": null,
+      "triangles": 480,
+      "size": [
+        2.38,
+        3.25,
+        2.298
+      ]
+    }
+  ],
+  "source_sha256": {
+    "assets/vfx/textures/acid_splat.png": "18b75f956eb739a3771ee30c2cafa015525b3939d8ebbe4b35759230b2e80e8c",
+    "assets/vfx/textures/arc_flicker.png": "bff30a415ab8f21a1e2ad8e03f905683bbc2e14c42dd74eebcaf3aa205e17a6b",
+    "assets/vfx/textures/arcane_burst.png": "40098216ac98231f72dc51e998e052099af1d9efef39a362bd260bddf01fd5a5",
+    "assets/vfx/textures/arcane_glyphs.png": "5e52c38b8fd89fe2223ce032ee1955f29652be9905040b50f4fbdda214699517",
+    "assets/vfx/textures/arcane_orb.png": "8d050a1c173832b54abdc92c93bb6cc439e357b85aec97362c2b2f7dc518a9ac",
+    "assets/vfx/textures/beam_energy.png": "9836e088e28fbfa397ab0f53f9329fb9239c67aa9c4a61834e61775e3327a15d",
+    "assets/vfx/textures/bolt_strip.png": "f4885af6c0838547468cd535bac8aff0fc8d9f8fa3f086c4c69365b0c12a5692",
+    "assets/vfx/textures/caustics.png": "ba214c10d28cd033cb9070d5bf815bcc83ad6e682e669f1b494db0f649929975",
+    "assets/vfx/textures/clock_dial.png": "6a41b5cb1e1d195a072d176dc1d5bd2ff404fa2158ee3d35a2994f5fc88651c7",
+    "assets/vfx/textures/core_plasma.png": "a9955b3a1120a5d2172fcc3584b106b13c9511a4fbd3177555e8ea348fa7e5a3",
+    "assets/vfx/textures/debris_chip.png": "a947befd01594acb568477f05a89ba715afc8d67df1af98337af035d34f8db3d",
+    "assets/vfx/textures/drip_trail.png": "0c1642bc7c12e4e5ef8651c1ae93f70b8f14f23ef6724e39fffb341c1cd1a964",
+    "assets/vfx/textures/droplet.png": "22efa4ff42233fc5a184a729e92541402ea15728965f3ae080bee15345fa7dfa",
+    "assets/vfx/textures/dust_burst.png": "01383b3be7c51ffa7c7a2f9f2d8b279594a22ceebe0847d3f4104c2314d5f9d1",
+    "assets/vfx/textures/dust_plume.png": "69e2e02cd36e20af752bcc29bf11c366a19be69cad802ee1d091e60b1604c524",
+    "assets/vfx/textures/earth_fissure.png": "43f2fde0416209eba8d409b70af50cf56c68cc86f27f97c7768c9243d1da4e54",
+    "assets/vfx/textures/ember_streak.png": "ef47755c9ba99d489c88c65e0634eee79191fd721bd1f5fe1002ef7c1819cb90",
+    "assets/vfx/textures/explosion_fire.png": "c216d13d3fe894ef626f50f73ee76216f0cd539c6116b412362cff801d6892b5",
+    "assets/vfx/textures/flame_tongue.png": "c9e436929366e2b275f67bf66fd63075327070540e614025f314c58e67152919",
+    "assets/vfx/textures/flame_wisp.png": "60f40543a822532520a34546ed59d5698033c5b3ec069582a78bf343d1eef8c2",
+    "assets/vfx/textures/force_streak.png": "e51e60410726aba04af8dbfa21810c9947d94f5f0a7e6c69fc5903a166b229e6",
+    "assets/vfx/textures/frost_crack.png": "4dbb52f8b943da47d456c26419c3040bf6c3fdfa59083948e4e69295e08dd35f",
+    "assets/vfx/textures/frost_mist.png": "0a9cbbd3376641bcda5d675ecd625e13f283ca8ed1ed33094c57747f34e07eb9",
+    "assets/vfx/textures/gear_mote.png": "158dbbfa52b951ef9dcb9ee34a6e8b01ad08d15ae751c7b3b18a01a48b3b2774",
+    "assets/vfx/textures/ghost_trail.png": "4881e19b9e0af136c34befab990f8d8ab167a69d781242c810ce5fb7cba9c87d",
+    "assets/vfx/textures/glow_soft.png": "77664ed171ebb555857c1715c06a2c940f1935bcdadf6337c469c15ecb712137",
+    "assets/vfx/textures/glyph_chain.png": "e098d1b65e38de961a5404942c86aa0a3e260bcbf214b0deb53fc5627e8ce0b5",
+    "assets/vfx/textures/gust_strokes.png": "287dc048ad5244bd4ab6642564d6e3a715a12e55f072d21a95b1d72b332b6bc8",
+    "assets/vfx/textures/heat_haze.png": "abbe7cc2631fa7106cb15380e5bd7391f4db5dc56a90afe528886df6c57628bb",
+    "assets/vfx/textures/hex_seal.png": "3ef8e8c531ed0b2d047d3f0b8b1a3e443f40941d66a655174200274e1e6a58df",
+    "assets/vfx/textures/hourglass_mote.png": "abbe782c5051943780bb0824a699325c6d8e8108b97da4b14f773dc6ca5c0d4b",
+    "assets/vfx/textures/ice_glint.png": "882e597928698f020b96dd6da456f4fc6f8f133f88d6363e464d4ff2d8fca237",
+    "assets/vfx/textures/ice_shatter.png": "3f98dd964ae53ae9f58f18a0adea4535ed703e31eb9c3c2c9478859d6b03e8c9",
+    "assets/vfx/textures/ice_trail.png": "3a24a967660a04240f1926b0180938bc8dafb601e3325e59d2219e1fab817938",
+    "assets/vfx/textures/impact_frame.png": "c02794bbba5d231f31917ad5abf033c5cb90aca4885912cba05a79e95230d20b",
+    "assets/vfx/textures/impact_star.png": "ede31f993836ba8ab00a025aee59e2e9d0734d858a5647dcaaf78a44024d6d6e",
+    "assets/vfx/textures/kinetic_burst.png": "4e615d9c84b892741776639d9f8f76a5eb90f0f2ee5ad3a8f819d415c4d8799d",
+    "assets/vfx/textures/leaf_scrap.png": "fdae5078da888e8cfeccd50927d261910b1c7ace357fe60d68ef5f0be7ee140c",
+    "assets/vfx/textures/miasma.png": "c53cc31f576ebaaa880504137296bbe71e569d19b5934eb552f6943330867389",
+    "assets/vfx/textures/plasma_orb.png": "10f82430440fc3882d4e78f885e02d6b7ce9ef4ad2b3d3328eb04b0d44e97e94",
+    "assets/vfx/textures/portal_rings.png": "f0370ab7e138de8d833920f99026ea23f9d745469230c597449260bddfb33146",
+    "assets/vfx/textures/pressure_wave.png": "f0cc30615612382825d201733fb36efed9f692a8dace0d3db548ece7f5fdaa62",
+    "assets/vfx/textures/rift_tear.png": "ca07a8b1d829a86a320ba605f3d509cb934891dfa039cc7ddeadd489ca0d44bb",
+    "assets/vfx/textures/ripple_ring.png": "9dcf1486ffd9d5de4832c86f1bd0baf0167772a79e3f9d0d7c1395f03cce911e",
+    "assets/vfx/textures/rock_burst.png": "c633028db1e7b2799445ffa3f9209c8f936bd95ea337462ac9745d31977512b1",
+    "assets/vfx/textures/rubble_trail.png": "508a9628dc3315b2edf33f0eab76bc0ffea9aaaa0dcb3dd67ccd38a699411d46",
+    "assets/vfx/textures/rune_circle.png": "677ff24bb07ed218ea7f3bed6c37cf4d1d1943ba3accb8a8b6adc035629b680c",
+    "assets/vfx/textures/sand_trail.png": "28182b03cefaca4b6457d9e6a5998db981cd8ba6aa4fa27f0d6d4b303e5095b9",
+    "assets/vfx/textures/scorch_lichtenberg.png": "f3727ad23cb4d87a49f26ea917e32fc9c4d6908206c876d1d3637886a7f9307e",
+    "assets/vfx/textures/shard_trail.png": "052a0edb41e47ee840d2293f2a097abfa2b310da6fbf7a6d6a4ed83294964bdd",
+    "assets/vfx/textures/shockwave_ring.png": "7898dd51d10ab62ca2b9be306ec0624728c81b9f94968b5c9194fc0e7eee76a9",
+    "assets/vfx/textures/sinew_trail.png": "fcb16c05e8793fa56653d5bb346539aad01c7c0133db32b432dfa9e6ce8995a6",
+    "assets/vfx/textures/skull_mote.png": "10c501a3698b2617d91dc2fc58d8d50dfa8159ececa6ccb90f43ac1a4232ef28",
+    "assets/vfx/textures/slash_arc.png": "22865749b331fad90e2961e8b3989d5d3b412a74a62b4448562e36c68d09cbe7",
+    "assets/vfx/textures/smoke_billow.png": "1947d7defc0acf73bb2186c44d141d8b0c9472c8f5ad26bd34b5f60caa6cb8f2",
+    "assets/vfx/textures/soul_burst.png": "2796948c3525b58fdcec7734ed6d7b03b570f45aa5d728f721a4e75c59eb10bd",
+    "assets/vfx/textures/soul_sigil.png": "beed28e8aa0fe53ae3d210689c086d27ef0fbb552b293b733536ddd37d58570d",
+    "assets/vfx/textures/soul_wisp.png": "5ceefec05786400957b59b82674851ddae75e0c383a0cb8d524750fd97a5f124",
+    "assets/vfx/textures/spark_burst.png": "88e3f3913a86461b564265a577295fa4cc46e23273f8e1c99431f9cfcf305338",
+    "assets/vfx/textures/star_mote.png": "3cc50eeb046a349422e244009129dfbea387921a1297169043d367111c9e0b40",
+    "assets/vfx/textures/time_ripple.png": "19b7467aec33954cba115b076bd9f695cb7c9c220137f52a600adf8da636e329",
+    "assets/vfx/textures/toxic_bubble.png": "0c5cdae5d6d0600ab5f1043f931de7324d242763b0eeb7ca55297d57f600c226",
+    "assets/vfx/textures/toxic_pool.png": "b246aa07726b55c3a7f93c59553cdba241ace6f0277f901e10b26643071d40ab",
+    "assets/vfx/textures/trail_flame.png": "6158332ed302b3c556b9849334da334c5035a2af9cd45b7def34c3d116732212",
+    "assets/vfx/textures/void_orb.png": "3591f8a93801f8fd73d6186d9b09789639940909c9c1935d7205f084fb5fe244",
+    "assets/vfx/textures/ward_hex.png": "615a47db328515dd4d02d4d8529b35968a8a038b4acdeb674b98209acb5fbcd3",
+    "assets/vfx/textures/warp_implode.png": "afea41d5c9fce6c997e0ae86032b3b5d7191543a4aba352729babd9e71c0fee7",
+    "assets/vfx/textures/water_orb.png": "54fa2d8b68f47317f8c675ae2618352793448892ad2152c3114f2883390fce36",
+    "assets/vfx/textures/water_splash.png": "668d628c19df520759ff647b27386ed326ed942b98279ba7a24f7ee292df4dde",
+    "assets/vfx/textures/water_trail.png": "8ceb5fd17c57fccd8eaa5172496890645b1aca10dbdd67492fd47d7f92a3a79d",
+    "assets/vfx/textures/wind_swirl.png": "a0b230d9e13619be486aaaf5089e2ef15aa182ec7d4788db35113edf49244be5",
+    "assets/vfx/meshes/arcane_prism.glb": "0192c00658f03c69d50d5d2478b1df7aebc16169e120c766c53ccbff5703df21",
+    "assets/vfx/meshes/arcane_prism_ink.glb": "29f9a2aa112c7f614ec1ddee8251aa20c70bb26877990ece336a0d0da906a49c",
+    "assets/vfx/meshes/chain_link.glb": "7baa2ba4b76fbc39e609e65b61b7618e427e6f13edb3c9a8cb5da9c7d30721e3",
+    "assets/vfx/meshes/chain_link_ink.glb": "461509fb93a7b2b0430fdb8309c6d6603114821ec7da291113b01c7d8f4fa7ed",
+    "assets/vfx/meshes/chrono_gear.glb": "1a3adef49f993d18df486f5bffe46fa3728f1dc9a90bc026f70f0cdb2550d22f",
+    "assets/vfx/meshes/chrono_gear_ink.glb": "cd951a75cf96bb8653441f5ad5333ca73e759fa3457799311c07b068e98f6327",
+    "assets/vfx/meshes/comet_spike.glb": "f7fd964a6ad7f5680b2d744aed424b083894a37322ec101544f699265c0d6c2d",
+    "assets/vfx/meshes/comet_spike_ink.glb": "0691e39a94cfea56e819499ed02fedb07f07e4ccfb9f45231837470ce2f648d6",
+    "assets/vfx/meshes/debris_rock_a.glb": "fd2dd5961b1797dd7ec594fe4282dddb6cc4a829d46978c8e6690a4035e73ac9",
+    "assets/vfx/meshes/debris_rock_a_ink.glb": "1c7bee488a7b91520ce3c2987d0e87915a143076735922e1443ae6e513fbb84e",
+    "assets/vfx/meshes/debris_rock_b.glb": "cd25b22e2fcf6506c3889471a82662c60c34573b09d60dc42415e0ed9c8ed6f3",
+    "assets/vfx/meshes/debris_rock_b_ink.glb": "1a639c5f7f952ea128febb28f51e6e0c45999df7ee53c9a3bef153a4c3dc70e9",
+    "assets/vfx/meshes/debris_rock_c.glb": "3cbbb46426dd1bd6c21c9b03398a23e28828b02dcb19a4e8d6ea7b0c3e33c434",
+    "assets/vfx/meshes/debris_rock_c_ink.glb": "7f57ba5eab629708719479358bead63c4949d6cc78f05b62f97d769a3220aa19",
+    "assets/vfx/meshes/earth_boulder.glb": "ef618599014a2f170871956ebc99b52f41db94b209d7ac2a6fc93db3efe046b6",
+    "assets/vfx/meshes/earth_boulder_ink.glb": "152d1bcb06a4311ed9094541a47e3ab0ca2898b240d2836d560e6899a487c21d",
+    "assets/vfx/meshes/earth_slab.glb": "ca5f778f7dbd3fb034a894ef101bbd8d03bacf0a87957df7c4f87f74ee0f2fef",
+    "assets/vfx/meshes/earth_slab_ink.glb": "63fe43f979f1acd8b566d72a2cdfbc34146a5b200bec5dedf7f6707c17f3a46d",
+    "assets/vfx/meshes/earth_spire.glb": "ab55ee9274877c6edd9ed991dce39cf8189b6b69e51b9c96e248b08e52acf363",
+    "assets/vfx/meshes/earth_spire_ink.glb": "1ff4d935fa4b568510ebaac25e5e2b8ba44a15261261c98b43265a9233099746",
+    "assets/vfx/meshes/energy_ribbon.glb": "3dc08a2ec2a753d517f8a4351136c608a26d6aec5b64bd9404b0735d543af381",
+    "assets/vfx/meshes/fire_core.glb": "706f86c4e02a6ff58c9f8733fbc63057fc88b58a855e6b08436fbe5b40de0737",
+    "assets/vfx/meshes/fire_core_ink.glb": "0672ddcdbf31b7cff3d99b6f2584d2a39c42c0305d960bd9e4ac6bfbd673ed60",
+    "assets/vfx/meshes/flame_shell.glb": "659c786396c112ff40b099da3072f330f35d4b660d5e546e311a1e68fd60cb3c",
+    "assets/vfx/meshes/flame_tongue.glb": "6a650b24b96c50e69a3386ae94d74b187786af4de79fa837089a8a7a3b1e23b3",
+    "assets/vfx/meshes/flame_tongue_ink.glb": "6ee25da113d1ad1a3c03640e5475fee92d5beb4e82bc2a8a4016bf53101779cb",
+    "assets/vfx/meshes/flesh_shard.glb": "4b83f7e9e0802d40468f2c221d08af6aa292daacc9fa35a3778eb469e21f4d90",
+    "assets/vfx/meshes/flesh_shard_ink.glb": "210f8fd0aa388c4358b13b7ecb31e7e7957598f914fbc0d067b3fe528d778f8c",
+    "assets/vfx/meshes/hourglass.glb": "7160a957719de5b3b4ce99a763bb9d20a6520794a4476de75e9c541402fe876d",
+    "assets/vfx/meshes/hourglass_ink.glb": "2300cd5ba4068f6402469ef7c4312e30941ae17baa030257b64dcba1489d80f5",
+    "assets/vfx/meshes/ice_cluster.glb": "38a85ad75a3ab85b6f49ae71fafd693db0deb97ad765b81e623af8f7c6127212",
+    "assets/vfx/meshes/ice_cluster_ink.glb": "ac58c223739dfdb55c61b04bcd9415e77e15d7f574b37c53fdca8500352b0911",
+    "assets/vfx/meshes/ice_shard_a.glb": "49eee8749e28095ba7de0c20da7af7a8d40bd87206f96ac9b49e1f956e2db514",
+    "assets/vfx/meshes/ice_shard_a_ink.glb": "304209fdf60cd3651292a3940e82b26f350dfc8e249483e1da1b5b23240d9130",
+    "assets/vfx/meshes/ice_shard_b.glb": "5578974d4abd6edc353786cfcb7518990174e4db9985dae03a05e7e647880d3f",
+    "assets/vfx/meshes/ice_shard_b_ink.glb": "7dc147e967b21d4c75a45ceed2ca398d6491086ec6b98b13319c64b62963b26b",
+    "assets/vfx/meshes/ice_spike.glb": "b51334f23c4380ba65ed8b6a7c973a1ef77da534d67a4e5fe26949ec3e039881",
+    "assets/vfx/meshes/ice_spike_ink.glb": "caf5e97c516b9ec957632c8e19a6f9bb9f76001992e82a2402cf9ee8a1432a44",
+    "assets/vfx/meshes/lightning_fork.glb": "5cb955a5475bd7b8ac2af66cdb27c596054a0c5e3d9ed2b4dcc562035212c2f5",
+    "assets/vfx/meshes/lightning_fork_ink.glb": "634834228a24c73336fe55d7f23d6f7dfa75f2a183d35c69c1eaf2c317931269",
+    "assets/vfx/meshes/poison_bubbles.glb": "0e25ee281723eed9535880f42c0321a507faeae0abe4e12e2abc42b2048002df",
+    "assets/vfx/meshes/poison_bubbles_ink.glb": "34f9b0403d743b0b00588e1ff13b75cad955c74c9344b54ddd64ae5432ad1071",
+    "assets/vfx/meshes/poison_thorn.glb": "40cd23bb941268c971862f736141eba680250510e26637d42501462cf293385b",
+    "assets/vfx/meshes/poison_thorn_ink.glb": "416771763ca1f2f2cc5a99396c022edcee189bcd04be3e5a14cfe9c8811aef57",
+    "assets/vfx/meshes/pressure_cone.glb": "bedddb69dde9e4bb483632ab726ae3ecaaa30e44928326b7964789f7af7e7dda",
+    "assets/vfx/meshes/rift_frame.glb": "45ff2492b24c3a467904ce6898afe41df41ce2c8acb1bdc5721d0594cc3fc5f8",
+    "assets/vfx/meshes/shockwave_dome.glb": "0dfd47069bafc7692a1a1089b81ce2fbe2ee04d8a3a604c434193af8f3556bdf",
+    "assets/vfx/meshes/shockwave_ring.glb": "6d7fc64da6ca92f6a95e395087615959d0ee706e567768b4deb26b12b2b08639",
+    "assets/vfx/meshes/sigil_ring.glb": "3f1c6e6cee5a25196d1235e09a98c09977e2caf8e0c740504473a19a4b7999ad",
+    "assets/vfx/meshes/sinew_tendril.glb": "960516fc199820d15ae9c0585db864573b7d1712287995e93f287f857f950eff",
+    "assets/vfx/meshes/sinew_tendril_ink.glb": "78e6726ad7d6af7d557fd0968c91ab650fb8818968bb6acdec94a5080aa477bf",
+    "assets/vfx/meshes/soul_skull.glb": "c4e698eef3471be0ef9ef0b4a0d1dc3e5037b64cbbc2b8cdf6f8cf5304e98841",
+    "assets/vfx/meshes/soul_skull_ink.glb": "e7b29fc5501e1834d42839306af46d78d696ebae8885ee5cb8eb8e9307315303",
+    "assets/vfx/meshes/void_shard.glb": "fb24c7927ba5e75d15991bcceb797fde10b58df701fabe6fc63883e43f02fe6d",
+    "assets/vfx/meshes/void_shard_ink.glb": "c17466b92aac61202f7898991ad8b9e678cdcb37ce1f5d08a84c1090a19bf248",
+    "assets/vfx/meshes/ward_dome.glb": "2848ec9b28523f08509bc3d2bef5820c7933edef1570844e7eb18689f19cda61",
+    "assets/vfx/meshes/water_crown.glb": "d34d8bbb4bfad5f2dc0c6c4fcce618d67b02fa5fc2466ce1463958e39084a354",
+    "assets/vfx/meshes/water_curl.glb": "105437281dd9b987ce1603bfe23331ab54ab492d8455e501f8df8b614fbb576b",
+    "assets/vfx/meshes/wind_crescent.glb": "ced031936e20d78d4d31c6a93f196e88752c70d558691ee77864ed401d518983",
+    "assets/vfx/meshes/wind_funnel.glb": "ce664b2d8b813f100c8736599b31dcc61b1e8e279f1431e961f8b57ee9ee33f4",
+    "assets/vfx/asset_ids.json": "d89f4420edd04d7c397f5563b621a7513b516e978571ccb17c5f49c5b0d5002d",
+    "src/shared/SpellVFXSystem/Signature/SignatureLibrary.luau": "302c8df3904602cd322a31d298064b2fe724ed530eab7cd66baa8aa65db2abb1",
+    "src/shared/SpellVFXSystem/Signature/SignatureKits.luau": "5fdaaddda6a0fbb22586e646f21b32cab2fa8319f9667d5ad4537e604c98eb97",
+    "src/shared/SpellVFXSystem/Signature/SignatureRenderer.luau": "bdbdd70fac5f6c49f08881f5547f56c6c1bd1959f2bb874200dcfd06e6d50e0b"
+  },
+  "status": "Local material/palette review variants; no production activation or uploads",
+  "texture_scope": "Existing PNG pixels and alpha are rendered through palettes in the browser; original PNGs are not edited",
+  "mesh_scope": "60 GLBs use face material regions; all source triangles retained. FBX/Roblox material transfer is unverified"
+}

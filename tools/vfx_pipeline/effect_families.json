@@ -1,0 +1,25 @@
+{
+  "version": 1,
+  "families": {
+    "TravelVolume": {"label":"Traveling volume","forms":["Projectile"],"geometry":"Compact connected body with a directional rear","motion":"Transport across the body; flight follows the authoritative anchor"},
+    "DirectedStream": {"label":"Directed stream","forms":["Beam"],"geometry":"Start cap, length-adapted middle, contact cap","motion":"Flow along the axis; retain distinct instantaneous and held envelopes"},
+    "ExpandingFront": {"label":"Expanding front","forms":["Wave"],"geometry":"Cone-sector or radial crest, with optional floor accent","motion":"Cosmetic release front; never imply a delayed or traveling server hit"},
+    "AreaEnvelope": {"label":"Area and attached envelope","forms":["Field","Aura","SelfEnhancement"],"geometry":"Boundary plus interior layers, with a body-mounted variant","motion":"Stationary Field, following Aura, or attachment-local enhancement; shared motifs, distinct silhouettes"},
+    "SurfaceAssembly": {"label":"Surface and material assembly","forms":["Construct","Manipulation"],"geometry":"Surface-aware shell and seams around the actual authored object","motion":"Build, settle and dissolve; manipulation follows real target movement"}
+  },
+  "forms": {
+    "Projectile":{"family":"TravelVolume","current":"Composer comet/core/trail; generated identity kit. Fire alone selects the approved ConnectedFire body.","exceptions":"Homing orientation, pierce/chain/multishot, lingering variants and non-fire solid bodies retain their own motion and accents."},
+    "Beam":{"family":"DirectedStream","current":"Composer BeamCore/BeamAura/helix; generated kit beam ribbons and end layers.","exceptions":"Instant versus channeled timing; changing length/width and real contact position. Lightning branches are not fire ribbons recolored."},
+    "Wave":{"family":"ExpandingFront","current":"Composer linked Crest nodes; bespoke Body cone/crescents and generated kit wave layers.","exceptions":"Cone versus radial/Sphere; repeated channel releases. Existing Wave hit checks happen in place; visual growth never changes their timing."},
+    "Field":{"family":"AreaEnvelope","current":"Composer Boundary/Carpet; generated kit ground and ambient layers.","exceptions":"Ground or object placement, changing radius, pulse/expiry phases, and surface clipping. Proposed Soul field is a gallery fixture, not a new registered spell."},
+    "Aura":{"family":"AreaEnvelope","current":"Composer Boundary/Orbit; generated kit shell and ambient layers.","exceptions":"Follows the authoritative owner/target; must not look like a stationary ground field or obscure nearby combat."},
+    "SelfEnhancement":{"family":"AreaEnvelope","current":"Composer linked Mantle; generated kit shell/ambient and bespoke Body shell layers.","exceptions":"Body-local attachments and toggle cancellation. A body mantle is not a scaled ground ring."},
+    "Construct":{"family":"SurfaceAssembly","current":"Composer Lattice and kit ambient layers supplement the actual server-created construct.","exceptions":"Box, Sphere, Cylinder, Wedge, Arch, Pillar, Stairs, Bridge and Custom geometry; attachments and persistence. Never replace collision geometry with VFX."},
+    "Manipulation":{"family":"SurfaceAssembly","current":"Composer Lattice and kit ambient layers around the affected material/object.","exceptions":"Matter-focused Raise/Lower and actual moved-object silhouette. Soul/Spirit does not support Manipulation and must not be silently substituted."}
+  },
+  "cross_cutting": ["Cast/Gather and Release", "Impact and contact", "End/dissipation", "Homing, chain, pierce, summon and other mechanic accents"],
+  "gallery": {
+    "reference":{"id":"connected-fire-v4","form":"Projectile","principle":"Energy","expression":"Fire","status":"Approved source reference; existing Studio integration preserved"},
+    "prototype":{"id":"soul-field-v1","form":"Field","principle":"Soul","expression":"Spirit","family":"AreaEnvelope","radius":5,"cycle_seconds":4,"status":"Local geometry and motion study only; no gameplay integration or art approval","palette":[[16,70,76],[45,134,130],[80,220,190],[220,255,246]],"motion":"Nested rising contours, inward drift and delayed echo; stable floor boundary; no fire texture reuse"}
+  }
+}

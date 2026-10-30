@@ -1,0 +1,9 @@
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "{\"http://127.0.0.1:57805/Body__kinetic_burst.png\":\"rbxassetid://100001120707999\",\"http://127.0.0.1:57805/Force__kinetic_burst.png\":\"rbxassetid://105432844423729\",\"http://127.0.0.1:57805/Force__impact_frame.png\":\"rbxassetid://105754487883866\",\"http://127.0.0.1:57805/Poison__miasma.png\":\"rbxassetid://125135808826492\",\"http://127.0.0.1:57805/Wind__leaf_scrap.png\":\"rbxassetid://100708627047546\",\"http://127.0.0.1:57805/Force__impact_star.png\":\"rbxassetid://133828014275350\",\"http://127.0.0.1:57805/Ice__ice_shatter.png\":\"rbxassetid://109605960497083\",\"http://127.0.0.1:57805/Ice__ice_trail.png\":\"rbxassetid://77802400837403\"}"
+    }
+  ],
+  "isError": false
+}

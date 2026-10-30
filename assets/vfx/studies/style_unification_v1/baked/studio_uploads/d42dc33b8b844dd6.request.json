@@ -1,0 +1,13 @@
+{
+  "studio_id": "c599046e-83d2-4da7-b4d6-af48faac7b66",
+  "imagePaths": [
+    "http://127.0.0.1:52870/Time__clock_dial.png",
+    "http://127.0.0.1:52870/Fire__core_plasma.png",
+    "http://127.0.0.1:52870/Earth__debris_chip.png",
+    "http://127.0.0.1:52870/Body__debris_chip.png",
+    "http://127.0.0.1:52870/Poison__drip_trail.png",
+    "http://127.0.0.1:52870/Water__droplet.png",
+    "http://127.0.0.1:52870/Earth__dust_burst.png",
+    "http://127.0.0.1:52870/Wind__dust_burst.png"
+  ]
+}

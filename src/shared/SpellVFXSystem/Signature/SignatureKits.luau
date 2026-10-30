@@ -139,6 +139,17 @@ local function templates(kit)
 	})
 
 	-- Beam -------------------------------------------------------------------------------------
+	if f.PathGlyphs then
+		add({Id="Beam.PathGlyphs",Slot="Core",Kind="PathGlyphs",Priority=1,Roles={Beam=true},
+			Texture=a.BeamGlyph or a.Particle,FrameTexture=if f.GeometricFrame then a.Sigil else nil,Colors={"Hi","Mid"},
+			Params={PathGlyphCount=if f.VoidAll then 3 else 7,GlyphSize=if f.GeometricFrame then 1.6 else 4.5,
+				GlyphLifetime=if f.GeometricFrame then 1.6 else 1.25,OpenInPlace=not f.GeometricFrame,
+				Outflow=f.VoidAll}})
+		if f.GeometricFrame then
+			add({Id="Beam.ThroughSigils",Slot="Core",Kind="Beam",Priority=1,Roles={Beam=true},Texture="glow_soft",Colors={"Hi","Mid"},
+				Params={ContinuousStream=true,PlainStream=true,BodyWidth=.32,FlowSpeed=3,EndWidth=1}})
+		end
+	else
 	add({
 		Id = "Beam.Core",
 		Slot = "Core",
@@ -148,14 +159,21 @@ local function templates(kit)
 		Texture = a.Beam,
 		Colors = { "Hi", "Mid" },
 		Params = {
-			Width = 1,
+			Width = if f.BeamArc then 0.22 else 1,
 			Opacity = 1,
 			Light = light + 0.2,
 			TextureLength = 5,
 			Scroll = f.Scroll or 3,
 			Wobble = f.Wobble or 0,
+			ArcSegments = f.BeamArc,
+			ContinuousStream = f.StreamBeam,
+			FlowSpeed = f.StreamSpeed,
+			FlowLength = f.StreamLength,
+			EndWidth = f.StreamEndWidth,
+			PlainStream = f.BeamClocks,
 		},
 	})
+	if not f.BeamArc and not f.StreamBeam then
 	add({
 		Id = "Beam.Outer",
 		Slot = "Core",
@@ -240,6 +258,12 @@ local function templates(kit)
 			Framerate = 0,
 		},
 	})
+	end -- Connected arcs fill the path; no travelling glyphs or endpoint orbs.
+	end -- Path glyphs replace the entire travelling beam template.
+	if f.BeamClocks then
+		add({Id="Beam.ClockEnds",Slot="Secondary",Kind="PathGlyphs",Priority=1,Roles={Beam=true},Texture=a.Sigil,Colors={"Hi"},
+			Params={PathGlyphCount=2,GlyphSize=2.5,GlyphLifetime=.65,Endpoints=true}})
+	end
 	add({
 		Id = "Beam.Light",
 		Slot = "Ambient",
@@ -343,6 +367,10 @@ local function templates(kit)
 	})
 
 	-- Field --------------------------------------------------------------------------------------
+	if f.FieldMode then
+		add({Id="Field.Dynamics",Slot="Secondary",Kind="Dynamics",Priority=1,Roles={Field=true},Colors={"Hi","Mid"},
+			Params={Mode=f.FieldMode,Ground=true}})
+	else
 	add({
 		Id = "Field.Ground",
 		Slot = "Secondary",
@@ -372,8 +400,8 @@ local function templates(kit)
 		Texture = a.Particle,
 		Colors = { "Hi", "Mid", "Lo" },
 		Params = {
-			Rate = 10,
-			RatePerArea = 0.12,
+			Rate = 24,
+			RatePerArea = 0.2,
 			Lifetime = 0.9,
 			Speed = 2.5,
 			Spread = 15,
@@ -384,7 +412,7 @@ local function templates(kit)
 			Direction = "Up",
 			Rise = rise,
 			Framerate = f.Framerate or 20,
-			RotSpeed = 30,
+			RotSpeed = 0,
 		},
 		Drivers = { { "Rate", "Potency", 8 } },
 		Limits = { Rate = { 4, 40 } },
@@ -399,8 +427,9 @@ local function templates(kit)
 			Mesh = a.Scatter,
 			Colors = "Mid",
 			Params = {
-				Count = 5,
-				CountPerArea = 0.04,
+				Count = 12,
+				MaxCount = 24,
+				CountPerArea = 0.08,
 				Size = f.ScatterSize or 0.9,
 				Duration = 0.35,
 				Opacity = 1,
@@ -446,8 +475,13 @@ local function templates(kit)
 		Colors = "Mid",
 		Params = { Brightness = 0.9, Range = 14 },
 	})
+	end
 
 	-- Aura / SelfEnhancement -------------------------------------------------------------------
+	if f.SpiritOrbit then
+		add({Id="Aura.OrbitSpirits",Slot="Shell",Kind="Dynamics",Priority=1,Roles={Aura=true,SelfEnhancement=true},Colors={"Hi","Mid"},
+			Params={Mode="OrbitWisps"}})
+	else
 	add({
 		Id = "Aura.Mantle",
 		Slot = "Shell",
@@ -515,6 +549,7 @@ local function templates(kit)
 		Colors = "Mid",
 		Params = { Brightness = 0.8, Range = 10 },
 	})
+	end
 
 	-- Construct / Manipulation -----------------------------------------------------------------
 	add({
@@ -829,7 +864,8 @@ Kits.Definitions = {
 			Sigil = "rune_circle",
 			Debris = { "debris_rock_a", "debris_rock_c" },
 		},
-		Feel = { Light = 0.35, Rise = 6, Framerate = 26, Scroll = 4, Wobble = 0.3 },
+		Feel = { Light = 0.35, Rise = 6, Framerate = 26, Scroll = 4, Wobble = 0,
+			StreamBeam=true,StreamSpeed=5,StreamLength=3,StreamEndWidth=1.5,FieldMode="Flames" },
 	},
 	Ice = {
 		Palette = {
@@ -862,6 +898,7 @@ Kits.Definitions = {
 			Scroll = 1.5,
 			CoreMeshSize = 0.45,
 			ScatterSize = 0.8,
+			FieldMode = "Crystals",
 		},
 	},
 	Lightning = {
@@ -885,7 +922,7 @@ Kits.Definitions = {
 			Sigil = "rune_circle",
 			Scatter = "lightning_fork",
 		},
-		Feel = { Light = 0.45, Rise = 0, Framerate = 30, Spin = 2, Scroll = 9, Wobble = 1.2, ScatterSize = 0.7 },
+		Feel = { Light = 0.45, Rise = 0, Framerate = 30, Spin = 2, Scroll = 0, Wobble = 0, ScatterSize = 0.7, BeamArc = 9,FieldMode="Storm" },
 	},
 	Water = {
 		Palette = {
@@ -910,7 +947,8 @@ Kits.Definitions = {
 			Scatter = "water_crown",
 			Debris = nil,
 		},
-		Feel = { Light = 0.12, Rise = -10, Framerate = 18, Spin = 0.6, Scroll = 2.5, Wobble = 0.4, ScatterSize = 1.0 },
+		Feel = { Light = 0.12, Rise = -10, Framerate = 18, Spin = 0.6, Scroll = 2.5, Wobble = 0, ScatterSize = 1.0,
+			StreamBeam=true,StreamSpeed=3,StreamLength=5,StreamEndWidth=.9,FieldMode="Ripples" },
 	},
 	Earth = {
 		Palette = {
@@ -956,19 +994,20 @@ Kits.Definitions = {
 		},
 		Tintable = { Mid = 0.6, Lo = 0.5 },
 		Assets = {
-			Core = "wind_swirl",
-			Particle = "wind_swirl",
+			Core = "gust_strokes",
+			Particle = "gust_strokes",
 			Mote = "leaf_scrap",
 			Trail = "gust_strokes",
 			Beam = "gust_strokes",
 			Wave = "pressure_wave",
-			Ground = "wind_swirl",
-			Impact = "wind_swirl",
+			Ground = "gust_strokes",
+			Impact = "pressure_wave",
 			Smoke = "dust_burst",
 			Sigil = "rune_circle",
 			Scatter = "wind_funnel",
 		},
-		Feel = { Light = 0.1, Rise = 3, Framerate = 22, Spin = 2.5, Scroll = 6, Wobble = 0.8, ScatterSize = 0.9 },
+		Feel = { Light = 0.1, Rise = 1, Framerate = 22, Spin = 0, Scroll = 6, Wobble = 0.2, ScatterSize = 0.9,
+			FieldMode="Gusts",GustAll=true,NoSpin=true },
 	},
 	Poison = {
 		Palette = {
@@ -1013,9 +1052,10 @@ Kits.Definitions = {
 		Assets = {
 			Core = "arcane_orb",
 			CoreMesh = "arcane_prism",
-			Particle = "arcane_glyphs",
-			Mote = "arcane_glyphs",
-			Trail = "glyph_chain",
+			Particle = "rune_circle",
+			Mote = "rune_circle",
+			Trail = "rune_circle",
+			BeamGlyph = "arcane_glyphs",
 			Beam = "glyph_chain",
 			Wave = "arcane_burst",
 			Ground = "hex_seal",
@@ -1024,7 +1064,8 @@ Kits.Definitions = {
 			Sigil = "rune_circle",
 			Scatter = "arcane_prism",
 		},
-		Feel = { Light = 0.3, Rise = 1, Framerate = 8, Spin = 1, Scroll = 2, CoreMeshSize = 0.4, ScatterSize = 0.6 },
+		Feel = { Light = 0.3, Rise = 1, Framerate = 8, Spin = 1, Scroll = 2, CoreMeshSize = 0.4, ScatterSize = 0.6,
+			PathGlyphs=true,GeometricFrame=true,FieldMode="Runes" },
 	},
 	Force = {
 		Palette = {
@@ -1115,6 +1156,8 @@ Kits.Definitions = {
 			Wobble = 0.6,
 			CoreMeshSize = 0.55,
 			ScatterSize = 0.6,
+			FieldMode = "Wisps",
+			SpiritOrbit = true,
 		},
 	},
 	Space = {
@@ -1140,7 +1183,8 @@ Kits.Definitions = {
 			Scatter = "void_shard",
 			Debris = { "void_shard" },
 		},
-		Feel = { Light = 0.2, Rise = 0, Framerate = 16, Spin = 1.5, Scroll = 3, CoreMeshSize = 0.45, ScatterSize = 0.7 },
+		Feel = { Light = 0.2, Rise = 0, Framerate = 16, Spin = 1.5, Scroll = 3, CoreMeshSize = 0.45, ScatterSize = 0.7,
+			PathGlyphs=true,FieldMode="Void",VoidAll=true },
 	},
 	Time = {
 		Palette = {
@@ -1166,7 +1210,8 @@ Kits.Definitions = {
 			Scatter = "hourglass",
 			Aura = "time_ripple",
 		},
-		Feel = { Light = 0.2, Rise = -1, Framerate = 12, Spin = 0.5, Scroll = 1, CoreMeshSize = 0.4, ScatterSize = 0.7 },
+		Feel = { Light = 0.2, Rise = -1, Framerate = 12, Spin = 0.5, Scroll = 1, CoreMeshSize = 0.4, ScatterSize = 0.7,
+			StreamBeam=true,StreamSpeed=3,StreamLength=4,StreamEndWidth=1,BeamClocks=true },
 	},
 }
 
@@ -1213,6 +1258,10 @@ function Kits.build(name, bespoke)
 		end
 		for _, t in ipairs(bespoke.Layers) do
 			local copy = table.clone(t)
+			-- A connected fluid body replaces legacy spinning core sprites at its source.
+			if kit.Feel.StreamBeam and copy.Roles and copy.Roles.Beam then
+				copy.Roles=table.clone(copy.Roles);copy.Roles.Beam=nil
+			end
 			if not copy.Roles and copy.Slot ~= "Charge" and copy.Slot ~= "Cast" and copy.Slot ~= "Dissipate" then
 				copy.Roles = table.clone(owned)
 			end
@@ -1222,7 +1271,35 @@ function Kits.build(name, bespoke)
 			palette[token] = color
 		end
 	end
+	if kit.Feel.VoidAll or kit.Feel.GustAll then
+		local roles=if kit.Feel.VoidAll then {Projectile="Core",Wave="Core",Aura="Shell",SelfEnhancement="Shell",Construct="Ambient",Manipulation="Ambient",Impact="Impact"}
+			else {Projectile="Core",Aura="Shell",SelfEnhancement="Shell"}
+		local kept={}
+		for _,t in layers do
+			local replace=false
+			for role in roles do if t.Roles and t.Roles[role] then replace=true end end
+			if kit.Feel.VoidAll and (t.Slot=="Dissipate" or t.Slot=="Charge") then replace=true end
+			if not replace then table.insert(kept,t) end
+		end
+		layers=kept
+		for role,slot in roles do
+			table.insert(layers,layer({Id=name.."."..role..".DynamicMotif",Slot=slot,Kind="Dynamics",Priority=1,
+				Roles={[role]=true},Colors={"Hi","Mid"},Params={Mode=if kit.Feel.VoidAll then "Void" else "Gusts",Ground=false}}))
+		end
+		if kit.Feel.VoidAll then
+			table.insert(layers,layer({Id=name..".Charge.GroundPortal",Slot="Charge",Kind="Dynamics",Priority=1,
+				Roles={Cast=true},Colors={"Hi","Mid"},Params={Mode="Void",Ground=true}}))
+		end
+	end
+	if kit.Feel.NoSpin then
+		for _,t in layers do
+			t.Params=table.clone(t.Params);t.Params.RotSpeed=0;t.Params.RandomRotation=0;t.Params.Spin=0
+			if t.Kind=="Emitter" or t.Kind=="Burst" then t.Params.Orientation="VelocityParallel" end
+		end
+	end
 	local tintable = table.clone(kit.Tintable)
+	table.insert(layers,layer({Id=name..".Cast.ReleaseCue",Slot="Cast",Kind="Light",Priority=1,
+		Roles={Cast=true},Colors="Mid",Params={Brightness=.65,Range=4,Flash=.12,OffsetZ=-1.3,OffsetY=.5}}))
 	for token, amount in pairs((bespoke and bespoke.Tintable) or {}) do
 		tintable[token] = amount
 	end

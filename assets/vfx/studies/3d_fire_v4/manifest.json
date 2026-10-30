@@ -1,5 +1,5 @@
 {
-  "status": "Blender appearance approved by user; 24 textures uploaded; manual FBX import and Studio playback pending",
+  "status": "runtime_integrated_scene_visible_render_performance_acceptance_pending",
   "meshes": 1,
   "deform_bones": 72,
   "frames": 48,
@@ -13,10 +13,15 @@
   "appearance": "Approved four RGB colors, one filled rounded head, moving surface contours and rear deformation",
   "implementation": "Rigid bone translations plus complete UV texture frames; no custom Roblox shader assumed",
   "limitations": [
-    "Runtime surface-frame switching must be tested; direct ColorMap writes are plugin-restricted",
-    "Alpha tail erosion needs SurfaceAppearance transparency in Studio",
-    "No detached fragments yet",
-    "No Studio or performance verification"
+    "Earlier CPU samples ran with rendering paused; use separate foreground samples for rendered intervals",
+    "The scene now visibly renders the rounded body and tapered alpha tail; lighting brightens the palette relative to the isolated preview",
+    "Empty-scene, eight-body and twelve-body render intervals all average about 66.7 ms, consistent with a Studio throttle; unconstrained performance remains unverified",
+    "MicroProfiler capture was unavailable; no GPU scope timing was obtained",
+    "Short local Studio samples do not establish mobile or published-server performance",
+    "Visible batch setup measured approximately 180 ms for eight and 72 ms for twelve; setup hitch risk remains despite eight prewarmed clones",
+    "Authored body palette is fixed; custom spell color continues to tint the existing light",
+    "Other forms, cast cues and impact recipes retain their existing presentation"
   ],
-  "blender_playback": "Native 24-image sequence at 12 FPS synchronized to the 24 FPS bone loop"
+  "blender_playback": "Native 24-image sequence at 12 FPS synchronized to the 24 FPS bone loop",
+  "runtime_report": "RUNTIME_INTEGRATION.md"
 }

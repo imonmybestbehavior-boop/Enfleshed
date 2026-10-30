@@ -286,6 +286,11 @@ function Composer.attach(anchor, plan, options)
 	end
 	active += 1
 	local render = Builder.build(plan, { Quality = options.Quality or Composer.Quality })
+	-- A release at the caster is an acknowledgement, never an impact. Enforce this
+	-- even if the signature renderer is disabled or has exhausted its budget.
+	if castingCue and anchor:GetAttribute("VFXPhase") == "Release" then
+		render.Layers = {}
+	end
 	local signature = Composer.Signatures and Composer.Signatures.attach(anchor, plan, options)
 	if signature then
 		local kept = {}
@@ -473,7 +478,7 @@ function Composer.attach(anchor, plan, options)
 			signature:Finish()
 		end
 	end
-	function session:Stop()
+	function session:Stop(cancel)
 		if ended then
 			return
 		end
@@ -486,9 +491,9 @@ function Composer.attach(anchor, plan, options)
 		if connection then
 			connection:Disconnect()
 		end
-		-- The signature owns its own dissipation timeline; ask it to end gracefully.
+		-- Visibility cancellation must not masquerade as a spell ending or hit.
 		if signature then
-			signature:Finish()
+			if cancel then signature:Stop() else signature:Finish() end
 		end
 		folder:Destroy()
 	end

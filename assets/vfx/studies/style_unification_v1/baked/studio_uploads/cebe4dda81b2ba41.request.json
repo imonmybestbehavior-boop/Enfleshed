@@ -1,0 +1,13 @@
+{
+  "studio_id": "c599046e-83d2-4da7-b4d6-af48faac7b66",
+  "imagePaths": [
+    "http://127.0.0.1:64001/Poison__toxic_pool.png",
+    "http://127.0.0.1:64001/Fire__trail_flame.png",
+    "http://127.0.0.1:64001/Space__void_orb.png",
+    "http://127.0.0.1:64001/Force__ward_hex.png",
+    "http://127.0.0.1:64001/Space__warp_implode.png",
+    "http://127.0.0.1:64001/Water__water_orb.png",
+    "http://127.0.0.1:64001/Water__water_splash.png",
+    "http://127.0.0.1:64001/Water__water_trail.png"
+  ]
+}

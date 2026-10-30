@@ -1,0 +1,9 @@
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "{\"ClientStartsVFX\":true,\"ComposerUsesRenderer\":false,\"Renderer\":{\"Lights\":0,\"Meshes\":0,\"Trails\":0,\"Sessions\":0,\"Emitters\":0,\"Rate\":0},\"AssetReady\":true,\"ConnectedEnabled\":true,\"ControllerHasBridge\":true}"
+    }
+  ],
+  "isError": false
+}

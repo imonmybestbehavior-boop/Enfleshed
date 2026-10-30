@@ -1,0 +1,1687 @@
+<roblox version="4">
+  <Item class="Model">
+    <Properties>
+      <string name="Name">CelMeshLibrary</string>
+    </Properties>
+    <Item class="MeshPart">
+      <Properties>
+        <string name="Name">arcane_prism</string>
+        <Content name="MeshId">
+          <url>rbxassetid://92835493101287</url>
+        </Content>
+        <Vector3 name="size">
+          <X>0.84</X>
+          <Y>2.0</Y>
+          <Z>0.84</Z>
+        </Vector3>
+        <Vector3 name="MeshSize">
+          <X>84</X>
+          <Y>200</Y>
+          <Z>84</Z>
+        </Vector3>
+        <bool name="Anchored">true</bool>
+        <bool name="CanCollide">false</bool>
+        <bool name="CanTouch">false</bool>
+        <bool name="CanQuery">false</bool>
+        <bool name="CastShadow">false</bool>
+        <Color3 name="Color">
+          <R>1</R>
+          <G>1</G>
+          <B>1</B>
+        </Color3>
+      </Properties>
+    </Item>
+    <Item class="MeshPart">
+      <Properties>
+        <string name="Name">arcane_prism_ink</string>
+        <Content name="MeshId">
+          <url>rbxassetid://96291769418185</url>
+        </Content>
+        <Vector3 name="size">
+          <X>0.9799031829833984</X>
+          <Y>2.1400001525878904</Y>
+          <Z>0.9799031829833984</Z>
+        </Vector3>
+        <Vector3 name="MeshSize">
+          <X>97.99031829833984</X>
+          <Y>214.00001525878906</Y>
+          <Z>97.99031829833984</Z>
+        </Vector3>
+        <bool name="Anchored">true</bool>
+        <bool name="CanCollide">false</bool>
+        <bool name="CanTouch">false</bool>
+        <bool name="CanQuery">false</bool>
+        <bool name="CastShadow">false</bool>
+        <Color3 name="Color">
+          <R>1</R>
+          <G>1</G>
+          <B>1</B>
+        </Color3>
+      </Properties>
+    </Item>
+    <Item class="MeshPart">
+      <Properties>
+        <string name="Name">chain_link</string>
+        <Content name="MeshId">
+          <url>rbxassetid://112990132326654</url>
+        </Content>
+        <Vector3 name="size">
+          <X>0.74</X>
+          <Y>1.24</Y>
+          <Z>0.1558845806121826</Z>
+        </Vector3>
+        <Vector3 name="MeshSize">
+          <X>74</X>
+          <Y>124</Y>
+          <Z>15.588458061218262</Z>
+        </Vector3>
+        <bool name="Anchored">true</bool>
+        <bool name="CanCollide">false</bool>
+        <bool name="CanTouch">false</bool>
+        <bool name="CanQuery">false</bool>
+        <bool name="CastShadow">false</bool>
+        <Color3 name="Color">
+          <R>1</R>
+          <G>1</G>
+          <B>1</B>
+        </Color3>
+      </Properties>
+    </Item>
+    <Item class="MeshPart">
+      <Properties>
+        <string name="Name">chain_link_ink</string>
+        <Content name="MeshId">
+          <url>rbxassetid://126896872802891</url>
+        </Content>
+        <Vector3 name="size">
+          <X>0.7799640655517578</X>
+          <Y>1.28</Y>
+          <Z>0.19132377624511718</Z>
+        </Vector3>
+        <Vector3 name="MeshSize">
+          <X>77.99640655517578</X>
+          <Y>128</Y>
+          <Z>19.13237762451172</Z>
+        </Vector3>
+        <bool name="Anchored">true</bool>
+        <bool name="CanCollide">false</bool>
+        <bool name="CanTouch">false</bool>
+        <bool name="CanQuery">false</bool>
+        <bool name="CastShadow">false</bool>
+        <Color3 name="Color">
+          <R>1</R>
+          <G>1</G>
+          <B>1</B>
+        </Color3>
+      </Properties>
+    </Item>
+    <Item class="MeshPart">
+      <Properties>
+        <string name="Name">chrono_gear</string>
+        <Content name="MeshId">
+          <url>rbxassetid://78788199431715</url>
+        </Content>
+        <Vector3 name="size">
+          <X>1.98742431640625</X>
+          <Y>0.16</Y>
+          <Z>2.0</Z>
+        </Vector3>
+        <Vector3 name="MeshSize">
+          <X>198.742431640625</X>
+          <Y>16</Y>
+          <Z>200</Z>
+        </Vector3>
+        <bool name="Anchored">true</bool>
+        <bool name="CanCollide">false</bool>
+        <bool name="CanTouch">false</bool>
+        <bool name="CanQuery">false</bool>
+        <bool name="CastShadow">false</bool>
+        <Color3 name="Color">
+          <R>1</R>
+          <G>1</G>
+          <B>1</B>
+        </Color3>
+      </Properties>
+    </Item>
+    <Item class="MeshPart">
+      <Properties>
+        <string name="Name">chrono_gear_ink</string>
+        <Content name="MeshId">
+          <url>rbxassetid://72678549488214</url>
+        </Content>
+        <Vector3 name="size">
+          <X>2.0914930725097656</X>
+          <Y>0.2731778907775879</Y>
+          <Z>2.0991256713867186</Z>
+        </Vector3>
+        <Vector3 name="MeshSize">
+          <X>209.14930725097656</X>
+          <Y>27.31778907775879</Y>
+          <Z>209.91256713867188</Z>
+        </Vector3>
+        <bool name="Anchored">true</bool>
+        <bool name="CanCollide">false</bool>
+        <bool name="CanTouch">false</bool>
+        <bool name="CanQuery">false</bool>
+        <bool name="CastShadow">false</bool>
+        <Color3 name="Color">
+          <R>1</R>
+          <G>1</G>
+          <B>1</B>
+        </Color3>
+      </Properties>
+    </Item>
+    <Item class="MeshPart">
+      <Properties>
+        <string name="Name">comet_spike</string>
+        <Content name="MeshId">
+          <url>rbxassetid://86298950826104</url>
+        </Content>
+        <Vector3 name="size">
+          <X>1.1762628173828125</X>
+          <Y>1.098043212890625</Y>
+          <Z>3.0</Z>
+        </Vector3>
+        <Vector3 name="MeshSize">
+          <X>117.62628173828125</X>
+          <Y>109.8043212890625</Y>
+          <Z>300</Z>
+        </Vector3>
+        <bool name="Anchored">true</bool>
+        <bool name="CanCollide">false</bool>
+        <bool name="CanTouch">false</bool>
+        <bool name="CanQuery">false</bool>
+        <bool name="CastShadow">false</bool>
+        <Color3 name="Color">
+          <R>1</R>
+          <G>1</G>
+          <B>1</B>
+        </Color3>
+      </Properties>
+    </Item>
+    <Item class="MeshPart">
+      <Properties>
+        <string name="Name">comet_spike_ink</string>
+        <Content name="MeshId">
+          <url>rbxassetid://122612809940057</url>
+        </Content>
+        <Vector3 name="size">
+          <X>1.3142544555664062</X>
+          <Y>1.221032028198242</Y>
+          <Z>3.14</Z>
+        </Vector3>
+        <Vector3 name="MeshSize">
+          <X>131.42544555664062</X>
+          <Y>122.10320281982422</Y>
+          <Z>314</Z>
+        </Vector3>
+        <bool name="Anchored">true</bool>
+        <bool name="CanCollide">false</bool>
+        <bool name="CanTouch">false</bool>
+        <bool name="CanQuery">false</bool>
+        <bool name="CastShadow">false</bool>
+        <Color3 name="Color">
+          <R>1</R>
+          <G>1</G>
+          <B>1</B>
+        </Color3>
+      </Properties>
+    </Item>
+    <Item class="MeshPart">
+      <Properties>
+        <string name="Name">debris_rock_a</string>
+        <Content name="MeshId">
+          <url>rbxassetid://106000738307087</url>
+        </Content>
+        <Vector3 name="size">
+          <X>1.6073648071289062</X>
+          <Y>1.0366656494140625</Y>
+          <Z>1.3337173461914062</Z>
+        </Vector3>
+        <Vector3 name="MeshSize">
+          <X>160.73648071289062</X>
+          <Y>103.66656494140625</Y>
+          <Z>133.37173461914062</Z>
+        </Vector3>
+        <bool name="Anchored">true</bool>
+        <bool name="CanCollide">false</bool>
+        <bool name="CanTouch">false</bool>
+        <bool name="CanQuery">false</bool>
+        <bool name="CastShadow">false</bool>
+        <Color3 name="Color">
+          <R>1</R>
+          <G>1</G>
+          <B>1</B>
+        </Color3>
+      </Properties>
+    </Item>
+    <Item class="MeshPart">
+      <Properties>
+        <string name="Name">debris_rock_a_ink</string>
+        <Content name="MeshId">
+          <url>rbxassetid://113848954118247</url>
+        </Content>
+        <Vector3 name="size">
+          <X>1.7094622802734376</X>
+          <Y>1.1436708068847656</Y>
+          <Z>1.4320330810546875</Z>
+        </Vector3>
+        <Vector3 name="MeshSize">
+          <X>170.94622802734375</X>
+          <Y>114.36708068847656</Y>
+          <Z>143.20330810546875</Z>
+        </Vector3>
+        <bool name="Anchored">true</bool>
+        <bool name="CanCollide">false</bool>
+        <bool name="CanTouch">false</bool>
+        <bool name="CanQuery">false</bool>
+        <bool name="CastShadow">false</bool>
+        <Color3 name="Color">
+          <R>1</R>
+          <G>1</G>
+          <B>1</B>
+        </Color3>
+      </Properties>
+    </Item>
+    <Item class="MeshPart">
+      <Properties>
+        <string name="Name">debris_rock_b</string>
+        <Content name="MeshId">
+          <url>rbxassetid://131643238063992</url>
+        </Content>
+        <Vector3 name="size">
+          <X>1.8619293212890624</X>
+          <Y>0.8258194732666015</Y>
+          <Z>1.0957737731933594</Z>
+        </Vector3>
+        <Vector3 name="MeshSize">
+          <X>186.19293212890625</X>
+          <Y>82.58194732666016</Y>
+          <Z>109.57737731933594</Z>
+        </Vector3>
+        <bool name="Anchored">true</bool>
+        <bool name="CanCollide">false</bool>
+        <bool name="CanTouch">false</bool>
+        <bool name="CanQuery">false</bool>
+        <bool name="CastShadow">false</bool>
+        <Color3 name="Color">
+          <R>1</R>
+          <G>1</G>
+          <B>1</B>
+        </Color3>
+      </Properties>
+    </Item>
+    <Item class="MeshPart">
+      <Properties>
+        <string name="Name">debris_rock_b_ink</string>
+        <Content name="MeshId">
+          <url>rbxassetid://70580090450739</url>
+        </Content>
+        <Vector3 name="size">
+          <X>1.981927490234375</X>
+          <Y>0.95371826171875</Y>
+          <Z>1.220360565185547</Z>
+        </Vector3>
+        <Vector3 name="MeshSize">
+          <X>198.1927490234375</X>
+          <Y>95.371826171875</Y>
+          <Z>122.03605651855469</Z>
+        </Vector3>
+        <bool name="Anchored">true</bool>
+        <bool name="CanCollide">false</bool>
+        <bool name="CanTouch">false</bool>
+        <bool name="CanQuery">false</bool>
+        <bool name="CastShadow">false</bool>
+        <Color3 name="Color">
+          <R>1</R>
+          <G>1</G>
+          <B>1</B>
+        </Color3>
+      </Properties>
+    </Item>
+    <Item class="MeshPart">
+      <Properties>
+        <string name="Name">debris_rock_c</string>
+        <Content name="MeshId">
+          <url>rbxassetid://82399058724031</url>
+        </Content>
+        <Vector3 name="size">
+          <X>1.4582577514648438</X>
+          <Y>1.1848573303222656</Y>
+          <Z>1.775780487060547</Z>
+        </Vector3>
+        <Vector3 name="MeshSize">
+          <X>145.82577514648438</X>
+          <Y>118.48573303222656</Y>
+          <Z>177.5780487060547</Z>
+        </Vector3>
+        <bool name="Anchored">true</bool>
+        <bool name="CanCollide">false</bool>
+        <bool name="CanTouch">false</bool>
+        <bool name="CanQuery">false</bool>
+        <bool name="CastShadow">false</bool>
+        <Color3 name="Color">
+          <R>1</R>
+          <G>1</G>
+          <B>1</B>
+        </Color3>
+      </Properties>
+    </Item>
+    <Item class="MeshPart">
+      <Properties>
+        <string name="Name">debris_rock_c_ink</string>
+        <Content name="MeshId">
+          <url>rbxassetid://79191712259004</url>
+        </Content>
+        <Vector3 name="size">
+          <X>1.5762887573242188</X>
+          <Y>1.284644775390625</Y>
+          <Z>1.8966632080078125</Z>
+        </Vector3>
+        <Vector3 name="MeshSize">
+          <X>157.62887573242188</X>
+          <Y>128.4644775390625</Y>
+          <Z>189.66632080078125</Z>
+        </Vector3>
+        <bool name="Anchored">true</bool>
+        <bool name="CanCollide">false</bool>
+        <bool name="CanTouch">false</bool>
+        <bool name="CanQuery">false</bool>
+        <bool name="CastShadow">false</bool>
+        <Color3 name="Color">
+          <R>1</R>
+          <G>1</G>
+          <B>1</B>
+        </Color3>
+      </Properties>
+    </Item>
+    <Item class="MeshPart">
+      <Properties>
+        <string name="Name">earth_boulder</string>
+        <Content name="MeshId">
+          <url>rbxassetid://130938588498855</url>
+        </Content>
+        <Vector3 name="size">
+          <X>1.477802734375</X>
+          <Y>1.3091867065429688</Y>
+          <Z>1.6099610900878907</Z>
+        </Vector3>
+        <Vector3 name="MeshSize">
+          <X>147.7802734375</X>
+          <Y>130.91867065429688</Y>
+          <Z>160.99610900878906</Z>
+        </Vector3>
+        <bool name="Anchored">true</bool>
+        <bool name="CanCollide">false</bool>
+        <bool name="CanTouch">false</bool>
+        <bool name="CanQuery">false</bool>
+        <bool name="CastShadow">false</bool>
+        <Color3 name="Color">
+          <R>1</R>
+          <G>1</G>
+          <B>1</B>
+        </Color3>
+      </Properties>
+    </Item>
+    <Item class="MeshPart">
+      <Properties>
+        <string name="Name">earth_boulder_ink</string>
+        <Content name="MeshId">
+          <url>rbxassetid://91265845402100</url>
+        </Content>
+        <Vector3 name="size">
+          <X>1.5836453247070312</X>
+          <Y>1.4185865783691407</Y>
+          <Z>1.7128529357910156</Z>
+        </Vector3>
+        <Vector3 name="MeshSize">
+          <X>158.36453247070312</X>
+          <Y>141.85865783691406</Y>
+          <Z>171.28529357910156</Z>
+        </Vector3>
+        <bool name="Anchored">true</bool>
+        <bool name="CanCollide">false</bool>
+        <bool name="CanTouch">false</bool>
+        <bool name="CanQuery">false</bool>
+        <bool name="CastShadow">false</bool>
+        <Color3 name="Color">
+          <R>1</R>
+          <G>1</G>
+          <B>1</B>
+        </Color3>
+      </Properties>
+    </Item>
+    <Item class="MeshPart">
+      <Properties>
+        <string name="Name">earth_slab</string>
+        <Content name="MeshId">
+          <url>rbxassetid://120007576038140</url>
+        </Content>
+        <Vector3 name="size">
+          <X>2.4535302734375</X>
+          <Y>1.8694332885742186</Y>
+          <Z>0.6383839416503906</Z>
+        </Vector3>
+        <Vector3 name="MeshSize">
+          <X>245.35302734375</X>
+          <Y>186.94332885742188</Y>
+          <Z>63.83839416503906</Z>
+        </Vector3>
+        <bool name="Anchored">true</bool>
+        <bool name="CanCollide">false</bool>
+        <bool name="CanTouch">false</bool>
+        <bool name="CanQuery">false</bool>
+        <bool name="CastShadow">false</bool>
+        <Color3 name="Color">
+          <R>1</R>
+          <G>1</G>
+          <B>1</B>
+        </Color3>
+      </Properties>
+    </Item>
+    <Item class="MeshPart">
+      <Properties>
+        <string name="Name">earth_slab_ink</string>
+        <Content name="MeshId">
+          <url>rbxassetid://125820946201806</url>
+        </Content>
+        <Vector3 name="size">
+          <X>2.5488021850585936</X>
+          <Y>1.9722091674804687</Y>
+          <Z>0.7312408447265625</Z>
+        </Vector3>
+        <Vector3 name="MeshSize">
+          <X>254.88021850585938</X>
+          <Y>197.22091674804688</Y>
+          <Z>73.12408447265625</Z>
+        </Vector3>
+        <bool name="Anchored">true</bool>
+        <bool name="CanCollide">false</bool>
+        <bool name="CanTouch">false</bool>
+        <bool name="CanQuery">false</bool>
+        <bool name="CastShadow">false</bool>
+        <Color3 name="Color">
+          <R>1</R>
+          <G>1</G>
+          <B>1</B>
+        </Color3>
+      </Properties>
+    </Item>
+    <Item class="MeshPart">
+      <Properties>
+        <string name="Name">earth_spire</string>
+        <Content name="MeshId">
+          <url>rbxassetid://81268736223902</url>
+        </Content>
+        <Vector3 name="size">
+          <X>1.3471014404296875</X>
+          <Y>2.631982727050781</Y>
+          <Z>1.2181300354003906</Z>
+        </Vector3>
+        <Vector3 name="MeshSize">
+          <X>134.71014404296875</X>
+          <Y>263.1982727050781</Y>
+          <Z>121.81300354003906</Z>
+        </Vector3>
+        <bool name="Anchored">true</bool>
+        <bool name="CanCollide">false</bool>
+        <bool name="CanTouch">false</bool>
+        <bool name="CanQuery">false</bool>
+        <bool name="CastShadow">false</bool>
+        <Color3 name="Color">
+          <R>1</R>
+          <G>1</G>
+          <B>1</B>
+        </Color3>
+      </Properties>
+    </Item>
+    <Item class="MeshPart">
+      <Properties>
+        <string name="Name">earth_spire_ink</string>
+        <Content name="MeshId">
+          <url>rbxassetid://71665456159057</url>
+        </Content>
+        <Vector3 name="size">
+          <X>1.4699241638183593</X>
+          <Y>2.7391839599609376</Y>
+          <Z>1.3425674438476562</Z>
+        </Vector3>
+        <Vector3 name="MeshSize">
+          <X>146.99241638183594</X>
+          <Y>273.91839599609375</Y>
+          <Z>134.25674438476562</Z>
+        </Vector3>
+        <bool name="Anchored">true</bool>
+        <bool name="CanCollide">false</bool>
+        <bool name="CanTouch">false</bool>
+        <bool name="CanQuery">false</bool>
+        <bool name="CastShadow">false</bool>
+        <Color3 name="Color">
+          <R>1</R>
+          <G>1</G>
+          <B>1</B>
+        </Color3>
+      </Properties>
+    </Item>
+    <Item class="MeshPart">
+      <Properties>
+        <string name="Name">energy_ribbon</string>
+        <Content name="MeshId">
+          <url>rbxassetid://93323236703283</url>
+        </Content>
+        <Vector3 name="size">
+          <X>1.2872279357910157</X>
+          <Y>1.2701322937011719</Y>
+          <Z>4.0</Z>
+        </Vector3>
+        <Vector3 name="MeshSize">
+          <X>128.72279357910156</X>
+          <Y>127.01322937011719</Y>
+          <Z>400</Z>
+        </Vector3>
+        <bool name="Anchored">true</bool>
+        <bool name="CanCollide">false</bool>
+        <bool name="CanTouch">false</bool>
+        <bool name="CanQuery">false</bool>
+        <bool name="CastShadow">false</bool>
+        <Color3 name="Color">
+          <R>1</R>
+          <G>1</G>
+          <B>1</B>
+        </Color3>
+      </Properties>
+    </Item>
+    <Item class="MeshPart">
+      <Properties>
+        <string name="Name">fire_core</string>
+        <Content name="MeshId">
+          <url>rbxassetid://104979834625242</url>
+        </Content>
+        <Vector3 name="size">
+          <X>1.8386140441894532</X>
+          <Y>1.70707763671875</Y>
+          <Z>1.7480393981933593</Z>
+        </Vector3>
+        <Vector3 name="MeshSize">
+          <X>183.8614044189453</X>
+          <Y>170.707763671875</Y>
+          <Z>174.80393981933594</Z>
+        </Vector3>
+        <bool name="Anchored">true</bool>
+        <bool name="CanCollide">false</bool>
+        <bool name="CanTouch">false</bool>
+        <bool name="CanQuery">false</bool>
+        <bool name="CastShadow">false</bool>
+        <Color3 name="Color">
+          <R>1</R>
+          <G>1</G>
+          <B>1</B>
+        </Color3>
+      </Properties>
+    </Item>
+    <Item class="MeshPart">
+      <Properties>
+        <string name="Name">fire_core_ink</string>
+        <Content name="MeshId">
+          <url>rbxassetid://104700779416318</url>
+        </Content>
+        <Vector3 name="size">
+          <X>1.9553414916992187</X>
+          <Y>1.8284146118164062</Y>
+          <Z>1.8744491577148437</Z>
+        </Vector3>
+        <Vector3 name="MeshSize">
+          <X>195.53414916992188</X>
+          <Y>182.84146118164062</Y>
+          <Z>187.44491577148438</Z>
+        </Vector3>
+        <bool name="Anchored">true</bool>
+        <bool name="CanCollide">false</bool>
+        <bool name="CanTouch">false</bool>
+        <bool name="CanQuery">false</bool>
+        <bool name="CastShadow">false</bool>
+        <Color3 name="Color">
+          <R>1</R>
+          <G>1</G>
+          <B>1</B>
+        </Color3>
+      </Properties>
+    </Item>
+    <Item class="MeshPart">
+      <Properties>
+        <string name="Name">flame_shell</string>
+        <Content name="MeshId">
+          <url>rbxassetid://76061954431980</url>
+        </Content>
+        <Vector3 name="size">
+          <X>1.8430606079101564</X>
+          <Y>2.461412048339844</Y>
+          <Z>1.8671408081054688</Z>
+        </Vector3>
+        <Vector3 name="MeshSize">
+          <X>184.30606079101562</X>
+          <Y>246.14120483398438</Y>
+          <Z>186.71408081054688</Z>
+        </Vector3>
+        <bool name="Anchored">true</bool>
+        <bool name="CanCollide">false</bool>
+        <bool name="CanTouch">false</bool>
+        <bool name="CanQuery">false</bool>
+        <bool name="CastShadow">false</bool>
+        <Color3 name="Color">
+          <R>1</R>
+          <G>1</G>
+          <B>1</B>
+        </Color3>
+      </Properties>
+    </Item>
+    <Item class="MeshPart">
+      <Properties>
+        <string name="Name">flame_tongue</string>
+        <Content name="MeshId">
+          <url>rbxassetid://120073311526219</url>
+        </Content>
+        <Vector3 name="size">
+          <X>0.7436775207519531</X>
+          <Y>0.330853157043457</Y>
+          <Z>2.0</Z>
+        </Vector3>
+        <Vector3 name="MeshSize">
+          <X>74.36775207519531</X>
+          <Y>33.0853157043457</Y>
+          <Z>200</Z>
+        </Vector3>
+        <bool name="Anchored">true</bool>
+        <bool name="CanCollide">false</bool>
+        <bool name="CanTouch">false</bool>
+        <bool name="CanQuery">false</bool>
+        <bool name="CastShadow">false</bool>
+        <Color3 name="Color">
+          <R>1</R>
+          <G>1</G>
+          <B>1</B>
+        </Color3>
+      </Properties>
+    </Item>
+    <Item class="MeshPart">
+      <Properties>
+        <string name="Name">flame_tongue_ink</string>
+        <Content name="MeshId">
+          <url>rbxassetid://72160367837993</url>
+        </Content>
+        <Vector3 name="size">
+          <X>0.7907128143310547</X>
+          <Y>0.3802095031738281</Y>
+          <Z>2.031228790283203</Z>
+        </Vector3>
+        <Vector3 name="MeshSize">
+          <X>79.07128143310547</X>
+          <Y>38.02095031738281</Y>
+          <Z>203.1228790283203</Z>
+        </Vector3>
+        <bool name="Anchored">true</bool>
+        <bool name="CanCollide">false</bool>
+        <bool name="CanTouch">false</bool>
+        <bool name="CanQuery">false</bool>
+        <bool name="CastShadow">false</bool>
+        <Color3 name="Color">
+          <R>1</R>
+          <G>1</G>
+          <B>1</B>
+        </Color3>
+      </Properties>
+    </Item>
+    <Item class="MeshPart">
+      <Properties>
+        <string name="Name">flesh_shard</string>
+        <Content name="MeshId">
+          <url>rbxassetid://128808195609950</url>
+        </Content>
+        <Vector3 name="size">
+          <X>0.7808341979980469</X>
+          <Y>0.6412932586669922</Y>
+          <Z>2.0</Z>
+        </Vector3>
+        <Vector3 name="MeshSize">
+          <X>78.08341979980469</X>
+          <Y>64.12932586669922</Y>
+          <Z>200</Z>
+        </Vector3>
+        <bool name="Anchored">true</bool>
+        <bool name="CanCollide">false</bool>
+        <bool name="CanTouch">false</bool>
+        <bool name="CanQuery">false</bool>
+        <bool name="CastShadow">false</bool>
+        <Color3 name="Color">
+          <R>1</R>
+          <G>1</G>
+          <B>1</B>
+        </Color3>
+      </Properties>
+    </Item>
+    <Item class="MeshPart">
+      <Properties>
+        <string name="Name">flesh_shard_ink</string>
+        <Content name="MeshId">
+          <url>rbxassetid://112006117515857</url>
+        </Content>
+        <Vector3 name="size">
+          <X>0.9206897735595703</X>
+          <Y>0.7810562133789063</Y>
+          <Z>2.133194885253906</Z>
+        </Vector3>
+        <Vector3 name="MeshSize">
+          <X>92.06897735595703</X>
+          <Y>78.10562133789062</Y>
+          <Z>213.31948852539062</Z>
+        </Vector3>
+        <bool name="Anchored">true</bool>
+        <bool name="CanCollide">false</bool>
+        <bool name="CanTouch">false</bool>
+        <bool name="CanQuery">false</bool>
+        <bool name="CastShadow">false</bool>
+        <Color3 name="Color">
+          <R>1</R>
+          <G>1</G>
+          <B>1</B>
+        </Color3>
+      </Properties>
+    </Item>
+    <Item class="MeshPart">
+      <Properties>
+        <string name="Name">hourglass</string>
+        <Content name="MeshId">
+          <url>rbxassetid://132851477720663</url>
+        </Content>
+        <Vector3 name="size">
+          <X>1.16</X>
+          <Y>1.96</Y>
+          <Z>1.16</Z>
+        </Vector3>
+        <Vector3 name="MeshSize">
+          <X>116</X>
+          <Y>196</Y>
+          <Z>116</Z>
+        </Vector3>
+        <bool name="Anchored">true</bool>
+        <bool name="CanCollide">false</bool>
+        <bool name="CanTouch">false</bool>
+        <bool name="CanQuery">false</bool>
+        <bool name="CastShadow">false</bool>
+        <Color3 name="Color">
+          <R>1</R>
+          <G>1</G>
+          <B>1</B>
+        </Color3>
+      </Properties>
+    </Item>
+    <Item class="MeshPart">
+      <Properties>
+        <string name="Name">hourglass_ink</string>
+        <Content name="MeshId">
+          <url>rbxassetid://109332850892346</url>
+        </Content>
+        <Vector3 name="size">
+          <X>1.190286636352539</X>
+          <Y>2.0</Y>
+          <Z>1.190286636352539</Z>
+        </Vector3>
+        <Vector3 name="MeshSize">
+          <X>119.0286636352539</X>
+          <Y>200</Y>
+          <Z>119.0286636352539</Z>
+        </Vector3>
+        <bool name="Anchored">true</bool>
+        <bool name="CanCollide">false</bool>
+        <bool name="CanTouch">false</bool>
+        <bool name="CanQuery">false</bool>
+        <bool name="CastShadow">false</bool>
+        <Color3 name="Color">
+          <R>1</R>
+          <G>1</G>
+          <B>1</B>
+        </Color3>
+      </Properties>
+    </Item>
+    <Item class="MeshPart">
+      <Properties>
+        <string name="Name">ice_cluster</string>
+        <Content name="MeshId">
+          <url>rbxassetid://110105882866107</url>
+        </Content>
+        <Vector3 name="size">
+          <X>1.778046875</X>
+          <Y>2.158582763671875</Y>
+          <Z>1.5708822631835937</Z>
+        </Vector3>
+        <Vector3 name="MeshSize">
+          <X>177.8046875</X>
+          <Y>215.8582763671875</Y>
+          <Z>157.08822631835938</Z>
+        </Vector3>
+        <bool name="Anchored">true</bool>
+        <bool name="CanCollide">false</bool>
+        <bool name="CanTouch">false</bool>
+        <bool name="CanQuery">false</bool>
+        <bool name="CastShadow">false</bool>
+        <Color3 name="Color">
+          <R>1</R>
+          <G>1</G>
+          <B>1</B>
+        </Color3>
+      </Properties>
+    </Item>
+    <Item class="MeshPart">
+      <Properties>
+        <string name="Name">ice_cluster_ink</string>
+        <Content name="MeshId">
+          <url>rbxassetid://80268620766348</url>
+        </Content>
+        <Vector3 name="size">
+          <X>1.8852670288085938</X>
+          <Y>2.292185974121094</Y>
+          <Z>1.6757809448242187</Z>
+        </Vector3>
+        <Vector3 name="MeshSize">
+          <X>188.52670288085938</X>
+          <Y>229.21859741210938</Y>
+          <Z>167.57809448242188</Z>
+        </Vector3>
+        <bool name="Anchored">true</bool>
+        <bool name="CanCollide">false</bool>
+        <bool name="CanTouch">false</bool>
+        <bool name="CanQuery">false</bool>
+        <bool name="CastShadow">false</bool>
+        <Color3 name="Color">
+          <R>1</R>
+          <G>1</G>
+          <B>1</B>
+        </Color3>
+      </Properties>
+    </Item>
+    <Item class="MeshPart">
+      <Properties>
+        <string name="Name">ice_shard_a</string>
+        <Content name="MeshId">
+          <url>rbxassetid://94941000150351</url>
+        </Content>
+        <Vector3 name="size">
+          <X>0.5098709869384765</X>
+          <Y>1.45</Y>
+          <Z>0.49986618041992187</Z>
+        </Vector3>
+        <Vector3 name="MeshSize">
+          <X>50.987098693847656</X>
+          <Y>145</Y>
+          <Z>49.98661804199219</Z>
+        </Vector3>
+        <bool name="Anchored">true</bool>
+        <bool name="CanCollide">false</bool>
+        <bool name="CanTouch">false</bool>
+        <bool name="CanQuery">false</bool>
+        <bool name="CastShadow">false</bool>
+        <Color3 name="Color">
+          <R>1</R>
+          <G>1</G>
+          <B>1</B>
+        </Color3>
+      </Properties>
+    </Item>
+    <Item class="MeshPart">
+      <Properties>
+        <string name="Name">ice_shard_a_ink</string>
+        <Content name="MeshId">
+          <url>rbxassetid://105811062793875</url>
+        </Content>
+        <Vector3 name="size">
+          <X>0.6016975021362305</X>
+          <Y>1.55145263671875</Y>
+          <Z>0.595801658630371</Z>
+        </Vector3>
+        <Vector3 name="MeshSize">
+          <X>60.16975021362305</X>
+          <Y>155.145263671875</Y>
+          <Z>59.58016586303711</Z>
+        </Vector3>
+        <bool name="Anchored">true</bool>
+        <bool name="CanCollide">false</bool>
+        <bool name="CanTouch">false</bool>
+        <bool name="CanQuery">false</bool>
+        <bool name="CastShadow">false</bool>
+        <Color3 name="Color">
+          <R>1</R>
+          <G>1</G>
+          <B>1</B>
+        </Color3>
+      </Properties>
+    </Item>
+    <Item class="MeshPart">
+      <Properties>
+        <string name="Name">ice_shard_b</string>
+        <Content name="MeshId">
+          <url>rbxassetid://121517087226741</url>
+        </Content>
+        <Vector3 name="size">
+          <X>0.45067352294921875</X>
+          <Y>1.45</Y>
+          <Z>0.495001335144043</Z>
+        </Vector3>
+        <Vector3 name="MeshSize">
+          <X>45.067352294921875</X>
+          <Y>145</Y>
+          <Z>49.5001335144043</Z>
+        </Vector3>
+        <bool name="Anchored">true</bool>
+        <bool name="CanCollide">false</bool>
+        <bool name="CanTouch">false</bool>
+        <bool name="CanQuery">false</bool>
+        <bool name="CastShadow">false</bool>
+        <Color3 name="Color">
+          <R>1</R>
+          <G>1</G>
+          <B>1</B>
+        </Color3>
+      </Properties>
+    </Item>
+    <Item class="MeshPart">
+      <Properties>
+        <string name="Name">ice_shard_b_ink</string>
+        <Content name="MeshId">
+          <url>rbxassetid://84809491091879</url>
+        </Content>
+        <Vector3 name="size">
+          <X>0.5451154708862305</X>
+          <Y>1.5510491943359375</Y>
+          <Z>0.5899134826660156</Z>
+        </Vector3>
+        <Vector3 name="MeshSize">
+          <X>54.51154708862305</X>
+          <Y>155.10491943359375</Y>
+          <Z>58.99134826660156</Z>
+        </Vector3>
+        <bool name="Anchored">true</bool>
+        <bool name="CanCollide">false</bool>
+        <bool name="CanTouch">false</bool>
+        <bool name="CanQuery">false</bool>
+        <bool name="CastShadow">false</bool>
+        <Color3 name="Color">
+          <R>1</R>
+          <G>1</G>
+          <B>1</B>
+        </Color3>
+      </Properties>
+    </Item>
+    <Item class="MeshPart">
+      <Properties>
+        <string name="Name">ice_spike</string>
+        <Content name="MeshId">
+          <url>rbxassetid://71586778213487</url>
+        </Content>
+        <Vector3 name="size">
+          <X>0.5261970138549805</X>
+          <Y>2.9560000610351564</Y>
+          <Z>0.56</Z>
+        </Vector3>
+        <Vector3 name="MeshSize">
+          <X>52.61970138549805</X>
+          <Y>295.6000061035156</Y>
+          <Z>56</Z>
+        </Vector3>
+        <bool name="Anchored">true</bool>
+        <bool name="CanCollide">false</bool>
+        <bool name="CanTouch">false</bool>
+        <bool name="CanQuery">false</bool>
+        <bool name="CastShadow">false</bool>
+        <Color3 name="Color">
+          <R>1</R>
+          <G>1</G>
+          <B>1</B>
+        </Color3>
+      </Properties>
+    </Item>
+    <Item class="MeshPart">
+      <Properties>
+        <string name="Name">ice_spike_ink</string>
+        <Content name="MeshId">
+          <url>rbxassetid://113872486400244</url>
+        </Content>
+        <Vector3 name="size">
+          <X>0.5939945220947266</X>
+          <Y>3.0359979248046876</Y>
+          <Z>0.6398500061035156</Z>
+        </Vector3>
+        <Vector3 name="MeshSize">
+          <X>59.399452209472656</X>
+          <Y>303.59979248046875</Y>
+          <Z>63.98500061035156</Z>
+        </Vector3>
+        <bool name="Anchored">true</bool>
+        <bool name="CanCollide">false</bool>
+        <bool name="CanTouch">false</bool>
+        <bool name="CanQuery">false</bool>
+        <bool name="CastShadow">false</bool>
+        <Color3 name="Color">
+          <R>1</R>
+          <G>1</G>
+          <B>1</B>
+        </Color3>
+      </Properties>
+    </Item>
+    <Item class="MeshPart">
+      <Properties>
+        <string name="Name">lightning_fork</string>
+        <Content name="MeshId">
+          <url>rbxassetid://73092220626484</url>
+        </Content>
+        <Vector3 name="size">
+          <X>1.3938397216796874</X>
+          <Y>4.0</Y>
+          <Z>2.994853210449219</Z>
+        </Vector3>
+        <Vector3 name="MeshSize">
+          <X>139.38397216796875</X>
+          <Y>400</Y>
+          <Z>299.4853210449219</Z>
+        </Vector3>
+        <bool name="Anchored">true</bool>
+        <bool name="CanCollide">false</bool>
+        <bool name="CanTouch">false</bool>
+        <bool name="CanQuery">false</bool>
+        <bool name="CastShadow">false</bool>
+        <Color3 name="Color">
+          <R>1</R>
+          <G>1</G>
+          <B>1</B>
+        </Color3>
+      </Properties>
+    </Item>
+    <Item class="MeshPart">
+      <Properties>
+        <string name="Name">lightning_fork_ink</string>
+        <Content name="MeshId">
+          <url>rbxassetid://87554900245208</url>
+        </Content>
+        <Vector3 name="size">
+          <X>1.3892257690429688</X>
+          <Y>4.021951293945312</Y>
+          <Z>3.0167578125</Z>
+        </Vector3>
+        <Vector3 name="MeshSize">
+          <X>138.92257690429688</X>
+          <Y>402.19512939453125</Y>
+          <Z>301.67578125</Z>
+        </Vector3>
+        <bool name="Anchored">true</bool>
+        <bool name="CanCollide">false</bool>
+        <bool name="CanTouch">false</bool>
+        <bool name="CanQuery">false</bool>
+        <bool name="CastShadow">false</bool>
+        <Color3 name="Color">
+          <R>1</R>
+          <G>1</G>
+          <B>1</B>
+        </Color3>
+      </Properties>
+    </Item>
+    <Item class="MeshPart">
+      <Properties>
+        <string name="Name">poison_bubbles</string>
+        <Content name="MeshId">
+          <url>rbxassetid://119049550431677</url>
+        </Content>
+        <Vector3 name="size">
+          <X>1.41267333984375</X>
+          <Y>1.4694261169433593</Y>
+          <Z>1.5355010986328126</Z>
+        </Vector3>
+        <Vector3 name="MeshSize">
+          <X>141.267333984375</X>
+          <Y>146.94261169433594</Y>
+          <Z>153.55010986328125</Z>
+        </Vector3>
+        <bool name="Anchored">true</bool>
+        <bool name="CanCollide">false</bool>
+        <bool name="CanTouch">false</bool>
+        <bool name="CanQuery">false</bool>
+        <bool name="CastShadow">false</bool>
+        <Color3 name="Color">
+          <R>1</R>
+          <G>1</G>
+          <B>1</B>
+        </Color3>
+      </Properties>
+    </Item>
+    <Item class="MeshPart">
+      <Properties>
+        <string name="Name">poison_bubbles_ink</string>
+        <Content name="MeshId">
+          <url>rbxassetid://110101320450000</url>
+        </Content>
+        <Vector3 name="size">
+          <X>1.5201583862304688</X>
+          <Y>1.576911163330078</Y>
+          <Z>1.6377255249023437</Z>
+        </Vector3>
+        <Vector3 name="MeshSize">
+          <X>152.01583862304688</X>
+          <Y>157.6911163330078</Y>
+          <Z>163.77255249023438</Z>
+        </Vector3>
+        <bool name="Anchored">true</bool>
+        <bool name="CanCollide">false</bool>
+        <bool name="CanTouch">false</bool>
+        <bool name="CanQuery">false</bool>
+        <bool name="CastShadow">false</bool>
+        <Color3 name="Color">
+          <R>1</R>
+          <G>1</G>
+          <B>1</B>
+        </Color3>
+      </Properties>
+    </Item>
+    <Item class="MeshPart">
+      <Properties>
+        <string name="Name">poison_thorn</string>
+        <Content name="MeshId">
+          <url>rbxassetid://93363819436106</url>
+        </Content>
+        <Vector3 name="size">
+          <X>1.438135986328125</X>
+          <Y>2.2</Y>
+          <Z>0.38993316650390625</Z>
+        </Vector3>
+        <Vector3 name="MeshSize">
+          <X>143.8135986328125</X>
+          <Y>220</Y>
+          <Z>38.993316650390625</Z>
+        </Vector3>
+        <bool name="Anchored">true</bool>
+        <bool name="CanCollide">false</bool>
+        <bool name="CanTouch">false</bool>
+        <bool name="CanQuery">false</bool>
+        <bool name="CastShadow">false</bool>
+        <Color3 name="Color">
+          <R>1</R>
+          <G>1</G>
+          <B>1</B>
+        </Color3>
+      </Properties>
+    </Item>
+    <Item class="MeshPart">
+      <Properties>
+        <string name="Name">poison_thorn_ink</string>
+        <Content name="MeshId">
+          <url>rbxassetid://98063190461748</url>
+        </Content>
+        <Vector3 name="size">
+          <X>1.429081573486328</X>
+          <Y>2.204910888671875</Y>
+          <Z>0.37092472076416017</Z>
+        </Vector3>
+        <Vector3 name="MeshSize">
+          <X>142.9081573486328</X>
+          <Y>220.4910888671875</Y>
+          <Z>37.092472076416016</Z>
+        </Vector3>
+        <bool name="Anchored">true</bool>
+        <bool name="CanCollide">false</bool>
+        <bool name="CanTouch">false</bool>
+        <bool name="CanQuery">false</bool>
+        <bool name="CastShadow">false</bool>
+        <Color3 name="Color">
+          <R>1</R>
+          <G>1</G>
+          <B>1</B>
+        </Color3>
+      </Properties>
+    </Item>
+    <Item class="MeshPart">
+      <Properties>
+        <string name="Name">pressure_cone</string>
+        <Content name="MeshId">
+          <url>rbxassetid://135534388029120</url>
+        </Content>
+        <Vector3 name="size">
+          <X>2.0047796630859374</X>
+          <Y>1.2485255432128906</Y>
+          <Z>1.15</Z>
+        </Vector3>
+        <Vector3 name="MeshSize">
+          <X>200.47796630859375</X>
+          <Y>124.85255432128906</Y>
+          <Z>115</Z>
+        </Vector3>
+        <bool name="Anchored">true</bool>
+        <bool name="CanCollide">false</bool>
+        <bool name="CanTouch">false</bool>
+        <bool name="CanQuery">false</bool>
+        <bool name="CastShadow">false</bool>
+        <Color3 name="Color">
+          <R>1</R>
+          <G>1</G>
+          <B>1</B>
+        </Color3>
+      </Properties>
+    </Item>
+    <Item class="MeshPart">
+      <Properties>
+        <string name="Name">rift_frame</string>
+        <Content name="MeshId">
+          <url>rbxassetid://127834992210586</url>
+        </Content>
+        <Vector3 name="size">
+          <X>1.4660035705566405</X>
+          <Y>3.18</Y>
+          <Z>0.08</Z>
+        </Vector3>
+        <Vector3 name="MeshSize">
+          <X>146.60035705566406</X>
+          <Y>318</Y>
+          <Z>8</Z>
+        </Vector3>
+        <bool name="Anchored">true</bool>
+        <bool name="CanCollide">false</bool>
+        <bool name="CanTouch">false</bool>
+        <bool name="CanQuery">false</bool>
+        <bool name="CastShadow">false</bool>
+        <Color3 name="Color">
+          <R>1</R>
+          <G>1</G>
+          <B>1</B>
+        </Color3>
+      </Properties>
+    </Item>
+    <Item class="MeshPart">
+      <Properties>
+        <string name="Name">shockwave_dome</string>
+        <Content name="MeshId">
+          <url>rbxassetid://84442803926405</url>
+        </Content>
+        <Vector3 name="size">
+          <X>1.9990130615234376</X>
+          <Y>0.8065725708007813</Y>
+          <Z>1.9990130615234376</Z>
+        </Vector3>
+        <Vector3 name="MeshSize">
+          <X>199.90130615234375</X>
+          <Y>80.65725708007812</Y>
+          <Z>199.90130615234375</Z>
+        </Vector3>
+        <bool name="Anchored">true</bool>
+        <bool name="CanCollide">false</bool>
+        <bool name="CanTouch">false</bool>
+        <bool name="CanQuery">false</bool>
+        <bool name="CastShadow">false</bool>
+        <Color3 name="Color">
+          <R>1</R>
+          <G>1</G>
+          <B>1</B>
+        </Color3>
+      </Properties>
+    </Item>
+    <Item class="MeshPart">
+      <Properties>
+        <string name="Name">shockwave_ring</string>
+        <Content name="MeshId">
+          <url>rbxassetid://120084734270296</url>
+        </Content>
+        <Vector3 name="size">
+          <X>2.0</X>
+          <Y>0.1154340934753418</Y>
+          <Z>2.0</Z>
+        </Vector3>
+        <Vector3 name="MeshSize">
+          <X>200</X>
+          <Y>11.54340934753418</Y>
+          <Z>200</Z>
+        </Vector3>
+        <bool name="Anchored">true</bool>
+        <bool name="CanCollide">false</bool>
+        <bool name="CanTouch">false</bool>
+        <bool name="CanQuery">false</bool>
+        <bool name="CastShadow">false</bool>
+        <Color3 name="Color">
+          <R>1</R>
+          <G>1</G>
+          <B>1</B>
+        </Color3>
+      </Properties>
+    </Item>
+    <Item class="MeshPart">
+      <Properties>
+        <string name="Name">sigil_ring</string>
+        <Content name="MeshId">
+          <url>rbxassetid://127755776462558</url>
+        </Content>
+        <Vector3 name="size">
+          <X>2.06</X>
+          <Y>0.04</Y>
+          <Z>2.06</Z>
+        </Vector3>
+        <Vector3 name="MeshSize">
+          <X>206</X>
+          <Y>4</Y>
+          <Z>206</Z>
+        </Vector3>
+        <bool name="Anchored">true</bool>
+        <bool name="CanCollide">false</bool>
+        <bool name="CanTouch">false</bool>
+        <bool name="CanQuery">false</bool>
+        <bool name="CastShadow">false</bool>
+        <Color3 name="Color">
+          <R>1</R>
+          <G>1</G>
+          <B>1</B>
+        </Color3>
+      </Properties>
+    </Item>
+    <Item class="MeshPart">
+      <Properties>
+        <string name="Name">sinew_tendril</string>
+        <Content name="MeshId">
+          <url>rbxassetid://114142367172290</url>
+        </Content>
+        <Vector3 name="size">
+          <X>0.6305275726318359</X>
+          <Y>0.48775146484375</Y>
+          <Z>3.0</Z>
+        </Vector3>
+        <Vector3 name="MeshSize">
+          <X>63.052757263183594</X>
+          <Y>48.775146484375</Y>
+          <Z>300</Z>
+        </Vector3>
+        <bool name="Anchored">true</bool>
+        <bool name="CanCollide">false</bool>
+        <bool name="CanTouch">false</bool>
+        <bool name="CanQuery">false</bool>
+        <bool name="CastShadow">false</bool>
+        <Color3 name="Color">
+          <R>1</R>
+          <G>1</G>
+          <B>1</B>
+        </Color3>
+      </Properties>
+    </Item>
+    <Item class="MeshPart">
+      <Properties>
+        <string name="Name">sinew_tendril_ink</string>
+        <Content name="MeshId">
+          <url>rbxassetid://125841657482027</url>
+        </Content>
+        <Vector3 name="size">
+          <X>0.6704304504394532</X>
+          <Y>0.5249868392944336</Y>
+          <Z>3.0185336303710937</Z>
+        </Vector3>
+        <Vector3 name="MeshSize">
+          <X>67.04304504394531</X>
+          <Y>52.49868392944336</Y>
+          <Z>301.8533630371094</Z>
+        </Vector3>
+        <bool name="Anchored">true</bool>
+        <bool name="CanCollide">false</bool>
+        <bool name="CanTouch">false</bool>
+        <bool name="CanQuery">false</bool>
+        <bool name="CastShadow">false</bool>
+        <Color3 name="Color">
+          <R>1</R>
+          <G>1</G>
+          <B>1</B>
+        </Color3>
+      </Properties>
+    </Item>
+    <Item class="MeshPart">
+      <Properties>
+        <string name="Name">soul_skull</string>
+        <Content name="MeshId">
+          <url>rbxassetid://127204303156391</url>
+        </Content>
+        <Vector3 name="size">
+          <X>1.5580902099609375</X>
+          <Y>1.1848390197753906</Y>
+          <Z>1.1940055084228516</Z>
+        </Vector3>
+        <Vector3 name="MeshSize">
+          <X>155.80902099609375</X>
+          <Y>118.48390197753906</Y>
+          <Z>119.40055084228516</Z>
+        </Vector3>
+        <bool name="Anchored">true</bool>
+        <bool name="CanCollide">false</bool>
+        <bool name="CanTouch">false</bool>
+        <bool name="CanQuery">false</bool>
+        <bool name="CastShadow">false</bool>
+        <Color3 name="Color">
+          <R>1</R>
+          <G>1</G>
+          <B>1</B>
+        </Color3>
+      </Properties>
+    </Item>
+    <Item class="MeshPart">
+      <Properties>
+        <string name="Name">soul_skull_ink</string>
+        <Content name="MeshId">
+          <url>rbxassetid://138749997992250</url>
+        </Content>
+        <Vector3 name="size">
+          <X>1.6250474548339844</X>
+          <Y>1.2630450439453125</Y>
+          <Z>1.2689209747314454</Z>
+        </Vector3>
+        <Vector3 name="MeshSize">
+          <X>162.50474548339844</X>
+          <Y>126.30450439453125</Y>
+          <Z>126.89209747314453</Z>
+        </Vector3>
+        <bool name="Anchored">true</bool>
+        <bool name="CanCollide">false</bool>
+        <bool name="CanTouch">false</bool>
+        <bool name="CanQuery">false</bool>
+        <bool name="CastShadow">false</bool>
+        <Color3 name="Color">
+          <R>1</R>
+          <G>1</G>
+          <B>1</B>
+        </Color3>
+      </Properties>
+    </Item>
+    <Item class="MeshPart">
+      <Properties>
+        <string name="Name">void_shard</string>
+        <Content name="MeshId">
+          <url>rbxassetid://94857384855085</url>
+        </Content>
+        <Vector3 name="size">
+          <X>0.5</X>
+          <Y>2.0</Y>
+          <Z>0.22</Z>
+        </Vector3>
+        <Vector3 name="MeshSize">
+          <X>50</X>
+          <Y>200</Y>
+          <Z>22</Z>
+        </Vector3>
+        <bool name="Anchored">true</bool>
+        <bool name="CanCollide">false</bool>
+        <bool name="CanTouch">false</bool>
+        <bool name="CanQuery">false</bool>
+        <bool name="CastShadow">false</bool>
+        <Color3 name="Color">
+          <R>1</R>
+          <G>1</G>
+          <B>1</B>
+        </Color3>
+      </Properties>
+    </Item>
+    <Item class="MeshPart">
+      <Properties>
+        <string name="Name">void_shard_ink</string>
+        <Content name="MeshId">
+          <url>rbxassetid://134632122429249</url>
+        </Content>
+        <Vector3 name="size">
+          <X>0.638187255859375</X>
+          <Y>2.1399481201171877</Y>
+          <Z>0.35994449615478513</Z>
+        </Vector3>
+        <Vector3 name="MeshSize">
+          <X>63.8187255859375</X>
+          <Y>213.99481201171875</Y>
+          <Z>35.994449615478516</Z>
+        </Vector3>
+        <bool name="Anchored">true</bool>
+        <bool name="CanCollide">false</bool>
+        <bool name="CanTouch">false</bool>
+        <bool name="CanQuery">false</bool>
+        <bool name="CastShadow">false</bool>
+        <Color3 name="Color">
+          <R>1</R>
+          <G>1</G>
+          <B>1</B>
+        </Color3>
+      </Properties>
+    </Item>
+    <Item class="MeshPart">
+      <Properties>
+        <string name="Name">ward_dome</string>
+        <Content name="MeshId">
+          <url>rbxassetid://115510010075561</url>
+        </Content>
+        <Vector3 name="size">
+          <X>1.9021156311035157</X>
+          <Y>1.0</Y>
+          <Z>1.9999998474121095</Z>
+        </Vector3>
+        <Vector3 name="MeshSize">
+          <X>190.21156311035156</X>
+          <Y>100</Y>
+          <Z>199.99998474121094</Z>
+        </Vector3>
+        <bool name="Anchored">true</bool>
+        <bool name="CanCollide">false</bool>
+        <bool name="CanTouch">false</bool>
+        <bool name="CanQuery">false</bool>
+        <bool name="CastShadow">false</bool>
+        <Color3 name="Color">
+          <R>1</R>
+          <G>1</G>
+          <B>1</B>
+        </Color3>
+      </Properties>
+    </Item>
+    <Item class="MeshPart">
+      <Properties>
+        <string name="Name">water_crown</string>
+        <Content name="MeshId">
+          <url>rbxassetid://99543800906054</url>
+        </Content>
+        <Vector3 name="size">
+          <X>2.24</X>
+          <Y>1.2524208068847655</Y>
+          <Z>2.24</Z>
+        </Vector3>
+        <Vector3 name="MeshSize">
+          <X>224</X>
+          <Y>125.24208068847656</Y>
+          <Z>224</Z>
+        </Vector3>
+        <bool name="Anchored">true</bool>
+        <bool name="CanCollide">false</bool>
+        <bool name="CanTouch">false</bool>
+        <bool name="CanQuery">false</bool>
+        <bool name="CastShadow">false</bool>
+        <Color3 name="Color">
+          <R>1</R>
+          <G>1</G>
+          <B>1</B>
+        </Color3>
+      </Properties>
+    </Item>
+    <Item class="MeshPart">
+      <Properties>
+        <string name="Name">water_curl</string>
+        <Content name="MeshId">
+          <url>rbxassetid://123641631282625</url>
+        </Content>
+        <Vector3 name="size">
+          <X>3.0</X>
+          <Y>1.2840565490722655</Y>
+          <Z>1.1809091186523437</Z>
+        </Vector3>
+        <Vector3 name="MeshSize">
+          <X>300</X>
+          <Y>128.40565490722656</Y>
+          <Z>118.09091186523438</Z>
+        </Vector3>
+        <bool name="Anchored">true</bool>
+        <bool name="CanCollide">false</bool>
+        <bool name="CanTouch">false</bool>
+        <bool name="CanQuery">false</bool>
+        <bool name="CastShadow">false</bool>
+        <Color3 name="Color">
+          <R>1</R>
+          <G>1</G>
+          <B>1</B>
+        </Color3>
+      </Properties>
+    </Item>
+    <Item class="MeshPart">
+      <Properties>
+        <string name="Name">wind_crescent</string>
+        <Content name="MeshId">
+          <url>rbxassetid://83202407846190</url>
+        </Content>
+        <Vector3 name="size">
+          <X>3.005008544921875</X>
+          <Y>0.06</Y>
+          <Z>1.5423114013671875</Z>
+        </Vector3>
+        <Vector3 name="MeshSize">
+          <X>300.5008544921875</X>
+          <Y>6</Y>
+          <Z>154.23114013671875</Z>
+        </Vector3>
+        <bool name="Anchored">true</bool>
+        <bool name="CanCollide">false</bool>
+        <bool name="CanTouch">false</bool>
+        <bool name="CanQuery">false</bool>
+        <bool name="CastShadow">false</bool>
+        <Color3 name="Color">
+          <R>1</R>
+          <G>1</G>
+          <B>1</B>
+        </Color3>
+      </Properties>
+    </Item>
+    <Item class="MeshPart">
+      <Properties>
+        <string name="Name">wind_funnel</string>
+        <Content name="MeshId">
+          <url>rbxassetid://117412406860969</url>
+        </Content>
+        <Vector3 name="size">
+          <X>2.380390930175781</X>
+          <Y>3.25</Y>
+          <Z>2.2983639526367186</Z>
+        </Vector3>
+        <Vector3 name="MeshSize">
+          <X>238.03909301757812</X>
+          <Y>325</Y>
+          <Z>229.83639526367188</Z>
+        </Vector3>
+        <bool name="Anchored">true</bool>
+        <bool name="CanCollide">false</bool>
+        <bool name="CanTouch">false</bool>
+        <bool name="CanQuery">false</bool>
+        <bool name="CastShadow">false</bool>
+        <Color3 name="Color">
+          <R>1</R>
+          <G>1</G>
+          <B>1</B>
+        </Color3>
+      </Properties>
+    </Item>
+  </Item>
+</roblox>

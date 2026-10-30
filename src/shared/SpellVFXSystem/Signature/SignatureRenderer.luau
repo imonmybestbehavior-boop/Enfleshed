@@ -22,15 +22,22 @@ local Planner = require(script.Parent.SignaturePlanner)
 local Library = require(script.Parent.SignatureLibrary)
 local Assets = require(script.Parent.Parent.Assets.VFXAssets)
 local DirectionalSprite = require(script.Parent.DirectionalSprite)
+local ConnectedFire = require(script.Parent.ConnectedFire)
+local ArcBeam = require(script.Parent.ArcBeam)
+local StreamBeam = require(script.Parent.StreamBeam)
+local PathGlyphs = require(script.Parent.PathGlyphs)
+local FieldDynamics = require(script.Parent.FieldDynamics)
 
 local Renderer = {}
 Renderer.Enabled = true
 Renderer.Quality = "High"
 -- Directional painted cards remain an opt-in study while the 3D approach is evaluated.
 Renderer.UseDirectionalSprites = false
+Renderer.UseConnectedFire = true
 
 local Budget = Library.Budget
-local Style = Library.Style or {}
+local Styled = require(script.Parent.Parent.Assets.StyledVFXManifest)
+local Style = if Styled.Enabled then { LightInfluence=0.25, Brightness=1, InkScale=0 } else Library.Style or {}
 local usage = { Sessions = 0, Emitters = 0, Rate = 0, Meshes = 0, Lights = 0, Trails = 0 }
 local burstWindow, burstCount = 0, 0
 local sessions = {}
@@ -150,7 +157,9 @@ local function placeShape(session, shape, frame)
 	local placement = p.Placement
 	local size = session.Size
 	local part = shape.Part
-	if placement == "Line" then
+	if placement == "End" then
+		part.CFrame=frame*CFrame.new(0,p.OffsetY or 0,-(session.Range or 0))
+	elseif placement == "Line" then
 		local range = session.Range or 6
 		local w = math.max(0.5, (session.Width or 1) * 1.2)
 		part.Size = Vector3.new(w, w, math.max(0.5, range))
@@ -191,7 +200,7 @@ end
 -- Particle emitter configured from a layer. Shapes that need a volume get their own host part.
 local function makeEmitter(session, layer, scale)
 	local p = layer.Params
-	local texture, layout = Assets.texture(layer.Texture)
+	local texture, layout, _, baked = Assets.texture(layer.Texture, session.Signature)
 	local parent: Instance = session.Attachment
 	local direction = p.Direction or "Back"
 	local placement = p.Placement
@@ -211,12 +220,12 @@ local function makeEmitter(session, layer, scale)
 			e.FlipbookFramerate = NumberRange.new(p.Framerate * 0.85, p.Framerate)
 		end
 	end
-	e.Color = colorSequence(layer.Colors)
-	local light = p.Light or 0.3
+	e.Color = if baked then ColorSequence.new(Color3.new(1, 1, 1)) else colorSequence(layer.Colors)
+	local light = if baked then math.min(p.Light or 0.3, 0.2) else p.Light or 0.3
 	e.LightEmission = light
 	-- Cel look: flat colour that scene lighting barely dims; emission stays low so ink shows.
 	e.LightInfluence = Style.LightInfluence or (1 - light)
-	e.Brightness = (Style.Brightness or 1) + light * 0.6
+	e.Brightness = if baked then 1 else (Style.Brightness or 1) + light * 0.6
 	e.Size = sizeSequence((p.Size or 1) * scale, (p.SizeEnd or p.Size or 1) * scale)
 	e.Transparency = fadeSequence(p.Opacity or 1)
 	local life = math.max(0.05, p.Lifetime or 0.5)
@@ -330,7 +339,7 @@ local function acquirePair(session, name, p)
 	if (p.Ink or 0) > 0 and custom and Assets.hasCustomMesh(name .. "_ink") then
 		ink = Assets.acquireMesh(name .. "_ink")
 		ink.Material = Enum.Material.SmoothPlastic
-		ink.Color = INK
+		ink.Color = if ink:GetAttribute("VFXBakedColors") then Color3.new(1, 1, 1) else (Styled.Palettes[session.Signature] or {})[5] or INK
 		ink.Transparency = 1
 		ink.CFrame = session.Host.CFrame
 		ink.Parent = session.Folder
@@ -429,7 +438,7 @@ local function buildLayers(session, layers)
 			local skip = (p.RequireAsset or 0) > 0 and not Assets.hasCustomMesh(layer.Mesh)
 			local count = 1
 			if p.Orient == "Scatter" then
-				count = math.clamp(math.floor((p.Count or 4) + (p.CountPerArea or 0) * areaOf(session) + 0.5), 1, 10)
+				count = math.clamp(math.floor((p.Count or 4) + (p.CountPerArea or 0) * areaOf(session) + 0.5), 1, p.MaxCount or 10)
 			end
 			local fits = usage.Meshes + count <= Budget.MaxMeshes
 			if layer.Mesh and not skip and (fits or critical) then
@@ -437,7 +446,7 @@ local function buildLayers(session, layers)
 				local custom = true
 				for i = 1, count do
 					local part, ink, isCustom = acquirePair(session, layer.Mesh, p)
-					part.Color = layer.Colors[1]
+					part.Color = if part:GetAttribute("VFXBakedColors") then Color3.new(1, 1, 1) else layer.Colors[1]
 					entry.Parts[i], entry.Inks[i] = part, ink
 					custom = isCustom
 				end
@@ -454,14 +463,14 @@ local function buildLayers(session, layers)
 				end
 			end
 		elseif layer.Kind == "Decal" then
-			local texture, _, custom = Assets.texture(layer.Texture)
+			local texture, _, custom, baked = Assets.texture(layer.Texture, session.Signature)
 			-- Built-in particle textures make poor ground decals; decals need the uploaded art.
 			if custom then
 				local plate = invisiblePart(layer.Id, session.Folder)
 				local decal = Instance.new("Decal")
 				decal.Face = Enum.NormalId.Top
 				decal.Texture = texture
-				decal.Color3 = layer.Colors[1]
+				decal.Color3 = if baked then Color3.new(1, 1, 1) else layer.Colors[1]
 				decal.Transparency = 1
 				decal.Parent = plate
 				entry.Plate, entry.Decal = plate, decal
@@ -478,20 +487,52 @@ local function buildLayers(session, layers)
 					session.Linger = math.max(session.Linger, p.Duration)
 				end
 			end
+		elseif layer.Kind == "Dynamics" then
+			local dynamics=FieldDynamics.new(session.Folder,p,session.Signature,Styled.Palettes[session.Signature],
+				Budget.MaxMeshes-usage.Meshes,Budget.MaxTrails-usage.Trails,session.Quality,session.Seed)
+			if dynamics then
+				entry.Dynamics=dynamics
+				if session.OneShot then session.Linger=math.max(session.Linger,1.25) end
+				usage.Meshes+=dynamics.Meshes;session.Owned.Meshes+=dynamics.Meshes
+				usage.Trails+=dynamics.Trails;session.Owned.Trails+=dynamics.Trails
+			end
+		elseif layer.Kind == "PathGlyphs" then
+			local texture,layout,_,baked=Assets.texture(layer.Texture,session.Signature)
+			local frameTexture=if layer.FrameTexture then (Assets.texture(layer.FrameTexture,session.Signature)) else nil
+			local colors=if baked then ColorSequence.new(Color3.new(1,1,1)) else colorSequence(layer.Colors)
+			local glyphs=PathGlyphs.new(session.Host,texture,layout,colors,p,Budget.MaxEmitters-usage.Emitters,frameTexture)
+			if glyphs then
+				entry.PathGlyphs=glyphs;usage.Emitters+=glyphs.Count;session.Owned.Emitters+=glyphs.Count
+				usage.Rate+=glyphs.Rate;session.Owned.Rate+=glyphs.Rate
+				session.Linger=math.max(session.Linger,p.GlyphLifetime or 1.25)
+			end
 		elseif layer.Kind == "Beam" then
 			if usage.Trails < Budget.MaxTrails or critical then
+				local texture, _, _, baked = Assets.texture(layer.Texture, session.Signature)
+				local colors = if baked then ColorSequence.new(Color3.new(1, 1, 1)) else colorSequence(layer.Colors)
+				local stream=if p.ContinuousStream then StreamBeam.new(session.Host,session.Folder,texture,colors,p,
+					math.max(0,Budget.MaxTrails-usage.Trails),Styled.Palettes[session.Signature]) else nil
+				local arc = if p.ArcSegments then ArcBeam.new(session.Host, session.Folder, texture, colorSequence(layer.Colors), p,
+					math.max(0, Budget.MaxTrails - usage.Trails), session.Seed) else nil
+				if stream then
+					entry.Stream=stream;usage.Trails+=stream.Count;session.Owned.Trails+=stream.Count
+				elseif arc then
+					entry.Arc=arc
+					usage.Trails+=arc.Count;session.Owned.Trails+=arc.Count
+				else
 				local a0, a1 = Instance.new("Attachment"), Instance.new("Attachment")
 				a0.Parent, a1.Parent = session.Host, session.Host
 				table.insert(session.EndAttachments, a1)
 				local beam = Instance.new("Beam")
 				beam.Name = layer.Id
 				beam.Attachment0, beam.Attachment1 = a0, a1
-				beam.Texture = (Assets.texture(layer.Texture))
+				local texture, _, _, baked = Assets.texture(layer.Texture, session.Signature)
+				beam.Texture = texture
 				beam.TextureMode = Enum.TextureMode.Wrap
 				beam.TextureLength = p.TextureLength or 5
 				beam.TextureSpeed = p.Scroll or 2
-				beam.Color = colorSequence(layer.Colors)
-				beam.LightEmission = p.Light or 0.3
+				beam.Color = if baked then ColorSequence.new(Color3.new(1, 1, 1)) else colorSequence(layer.Colors)
+				beam.LightEmission = if baked then 0.2 else p.Light or 0.3
 				beam.LightInfluence = Style.LightInfluence or (1 - (p.Light or 0.3))
 				beam.FaceCamera = true
 				beam.Segments = if (p.Wobble or 0) > 0 then 12 else 1
@@ -505,6 +546,7 @@ local function buildLayers(session, layers)
 				entry.Beam = beam
 				usage.Trails += 1
 				session.Owned.Trails += 1
+				end
 			end
 		elseif layer.Kind == "Debris" then
 			local count = math.min(8, math.max(1, math.floor(p.Count or 1)))
@@ -517,7 +559,7 @@ local function buildLayers(session, layers)
 				for i = 1, count do
 					local name = layer.Meshes[(i - 1) % #layer.Meshes + 1]
 					local part, ink = acquirePair(session, name, p)
-					part.Color = layer.Colors[1]
+					part.Color = if part:GetAttribute("VFXBakedColors") then Color3.new(1, 1, 1) else layer.Colors[1]
 					local spread = math.rad(p.Spread or 45)
 					local yaw, pitch = random:NextNumber(-spread, spread), random:NextNumber(-spread, spread)
 					local dir
@@ -551,8 +593,9 @@ local function buildLayers(session, layers)
 						a0.Parent, a1.Parent = part, part
 						local trail = Instance.new("Trail")
 						trail.Attachment0, trail.Attachment1 = a0, a1
-						trail.Texture = (Assets.texture("force_streak"))
-						trail.Color = colorSequence(layer.Colors)
+						local texture, _, _, baked = Assets.texture("force_streak", session.Signature)
+						trail.Texture = texture
+						trail.Color = if baked then ColorSequence.new(Color3.new(1, 1, 1)) else colorSequence(layer.Colors)
 						trail.Lifetime = 0.18
 						trail.FaceCamera = true
 						trail.LightEmission = 0.2
@@ -572,12 +615,13 @@ local function buildLayers(session, layers)
 				local trail = Instance.new("Trail")
 				trail.Name = layer.Id
 				trail.Attachment0, trail.Attachment1 = a0, a1
-				trail.Texture = (Assets.texture(layer.Texture))
+				local texture, _, _, baked = Assets.texture(layer.Texture, session.Signature)
+				trail.Texture = texture
 				trail.TextureMode = Enum.TextureMode.Wrap
 				trail.TextureLength = (p.TextureLength or 4) * session.Scale
-				trail.Color = colorSequence(layer.Colors)
+				trail.Color = if baked then ColorSequence.new(Color3.new(1, 1, 1)) else colorSequence(layer.Colors)
 				trail.Lifetime = p.Lifetime or 0.2
-				trail.LightEmission = p.Light or 1
+				trail.LightEmission = if baked then 0.2 else p.Light or 1
 				trail.LightInfluence = Style.LightInfluence or (1 - (p.Light or 1))
 				trail.FaceCamera = true
 				trail.MinLength = 0.05
@@ -639,9 +683,21 @@ function Session:Finish()
 		return
 	end
 	self.Ending = self.Clock
+	if self.Anchor.Parent then
+		self.Frame=self.Anchor.CFrame
+		if self.Role=="Beam" then
+			local size=self.Options.Size or self.Anchor:GetAttribute("VFXSize") or self.Anchor.Size
+			self.Range,self.Width=size.Z,size.X
+		end
+	end
 	-- Linger now counts from the end, not the start.
 	self.Linger = 0.3
+	-- Cast cues end at the caster; they must never generate projectile/beam dissipation.
 	for _, entry in self.Entries do
+		if entry.PathGlyphs then
+			self.Linger=math.max(self.Linger,entry.Layer.Params.GlyphLifetime or 1.25)
+		end
+		if entry.Dynamics then self.Linger=math.max(self.Linger,1.2) end
 		if entry.Emitter and entry.Layer.Kind ~= "Burst" then
 			entry.Emitter.Enabled = false
 			self.Linger = math.max(self.Linger, entry.Layer.Params.Lifetime or 0.5)
@@ -650,9 +706,17 @@ function Session:Finish()
 			entry.Trail.Enabled = true
 		end
 	end
-	if not self.OneShot then
+	local ownsDissipation=false
+	for _,entry in self.Entries do if entry.Dynamics then ownsDissipation=true end end
+	if not self.OneShot and self.Role~="Cast" and not self.ConnectedFire and not ownsDissipation then
 		local plan = Planner.plan(self.Plan, "End", { Quality = self.Quality })
 		if plan then
+			if self.Role=="Beam" then
+				for _,layer in plan.Layers do
+					layer.Params=table.clone(layer.Params);layer.Params.Placement="End"
+				end
+			end
+			self.Host.CFrame=self.Frame
 			local start = #self.Entries
 			buildLayers(self, plan.Layers)
 			for i = start + 1, #self.Entries do
@@ -669,10 +733,12 @@ function Session:Stop()
 		return
 	end
 	self.Stopped = true
+	if self.ConnectedFire then self.ConnectedFire:Destroy() end
 	release(self)
 	usage.Sessions -= 1
 	sessions[self] = nil
 	for _, entry in self.Entries do
+		if entry.Dynamics then entry.Dynamics:Destroy() end
 		for _, part in entry.Parts or {} do
 			Assets.releaseMesh(part)
 		end
@@ -783,6 +849,9 @@ local function updateEntry(session, entry, t, dt, frame, tier)
 	local age = session.Clock - entry.Start
 	local ramp = if (p.Ramp or 0) > 0 then session.Ramp else 1
 	local fading = if session.Ending then math.clamp((session.Clock - session.Ending) / 0.3, 0, 1) else 0
+	if entry.Dynamics then
+		entry.Dynamics:Update(frame,session.Size,floorY(session,frame),age,shown,fading,session.Role)
+	end
 	if entry.Directional then
 		entry.Directional:Update(frame, workspace.CurrentCamera, t, shown, (p.Opacity or 1)*(1-fading))
 	end
@@ -840,6 +909,15 @@ local function updateEntry(session, entry, t, dt, frame, tier)
 		entry.Plate.Size = Vector3.new(math.max(0.2, fx), 0.05, math.max(0.2, fz))
 		entry.Plate.CFrame = CFrame.new(pos) * CFrame.Angles(0, yaw0 + t * (p.Spin or 0), 0)
 		entry.Decal.Transparency = if shown then math.clamp(1 - opacity, 0, 1) else 1
+	end
+	if entry.Stream then
+		entry.Stream:Update(session.Range or 10,session.Width or 1,age,shown,fading)
+	end
+	if entry.PathGlyphs then
+		entry.PathGlyphs:Update(session.Range or 10,session.Width or 1,age,shown,session.Ending~=nil,canEmitBurst)
+	end
+	if entry.Arc then
+		entry.Arc:Update(session.Range or 10, session.Width or 1, age, shown, fading)
 	end
 	if entry.Beam then
 		local beam = entry.Beam
@@ -919,15 +997,15 @@ local function step(dt)
 		local anchor = session.Anchor
 		local alive = anchor.Parent ~= nil
 		if alive then
-			local phase = anchor:GetAttribute("VFXPhase")
-			if phase == "End" and not session.Ending then
-				session:Finish()
-			end
 			session.Frame = anchor.CFrame
 			if session.Options.Travel then
 				session.Frame *= CFrame.new(0, 0, -t * 5)
 			end
 			refreshSize(session)
+			local phase = anchor:GetAttribute("VFXPhase")
+			if phase == "End" and not session.Ending then
+				session:Finish()
+			end
 		elseif not session.Ending and not session.OneShot then
 			session:Finish()
 		end
@@ -981,6 +1059,10 @@ local function step(dt)
 		end
 		local distance = if camera then (camera.CFrame.Position - frame.Position).Magnitude else 0
 		local tier = if distance > HIDDEN_DISTANCE then 0 elseif distance > DETAIL_DISTANCE then 1 else 3
+		if session.ConnectedFire then
+			local fade = if session.Ending then 1 - math.clamp((t - session.Ending) / 0.3, 0, 1) else 1
+			session.ConnectedFire:Update(frame, t, tier > 0, fade, session.Quality, distance > DETAIL_DISTANCE)
+		end
 		for _, entry in session.Entries do
 			updateEntry(session, entry, t, dt, frame, tier)
 		end
@@ -988,10 +1070,11 @@ local function step(dt)
 end
 
 function Renderer.start()
-	if connection then
+	if connection and connection.Connected then
 		return
 	end
 	Assets.prefetch()
+	ConnectedFire.prefetch()
 	connection = RunService.Heartbeat:Connect(step)
 end
 
@@ -1007,7 +1090,7 @@ function Renderer.attach(anchor: BasePart, plan, options)
 	if not resolved or #resolved.Layers == 0 then
 		return nil
 	end
-	if not connection then
+	if not connection or not connection.Connected then
 		Renderer.start()
 	end
 	local f = Instance.new("Folder")
@@ -1024,6 +1107,7 @@ function Renderer.attach(anchor: BasePart, plan, options)
 		Options = options,
 		Quality = quality,
 		Role = resolved.Role,
+		Signature = resolved.Signature,
 		Phase = phase,
 		Replaces = resolved.Replaces,
 		Scalars = resolved.Scalars,
@@ -1065,7 +1149,22 @@ function Renderer.attach(anchor: BasePart, plan, options)
 	end
 	usage.Sessions += 1
 	sessions[session] = true
-	buildLayers(session, resolved.Layers)
+	local layers = resolved.Layers
+	if Renderer.UseConnectedFire and Assets.UseCustom and resolved.Signature == "Fire" and resolved.Role == "Projectile"
+		and phase ~= "End" and usage.Meshes < Budget.MaxMeshes then
+		session.ConnectedFire = ConnectedFire.new(f, session.Scale)
+		if session.ConnectedFire then
+			usage.Meshes += 1
+			session.Owned.Meshes += 1
+			-- The approved body includes its wake; retain only the existing budgeted light.
+			layers = {}
+			for _, layer in resolved.Layers do
+				if layer.Kind == "Light" then table.insert(layers, layer) end
+			end
+			session.ConnectedFire:Update(anchor.CFrame, 0, true, 1, quality, false)
+		end
+	end
+	buildLayers(session, layers)
 	for _, a in session.EndAttachments do
 		a.Position = Vector3.new(0, 0, -(session.Range or 10))
 	end

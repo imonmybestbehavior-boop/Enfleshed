@@ -7,8 +7,8 @@ local camera=workspace.CurrentCamera
 local saved={CFrame=camera.CFrame,CameraType=camera.CameraType,FieldOfView=camera.FieldOfView}
 clone.Parent=workspace
 clone:PivotTo(CFrame.new(0,10000,0)*clone:GetPivot().Rotation)
-local texture=g.SurfaceFramePool.Frame_007
-texture.Parent=mesh
+local texture=mesh:FindFirstChildOfClass("SurfaceAppearance") or g.SurfaceFramePool:FindFirstChild("Frame_007")
+if texture then texture.Parent=mesh end
 viewport.BackgroundTransparency=1
 viewport.CurrentCamera=nil
 local target=mesh.Root.WorldCFrame.Position+Vector3.new(-.8,0,0)

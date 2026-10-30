@@ -72,7 +72,12 @@ function Controller.start(remotes: Instance)
 		end
 		for part, session in pairs(composed) do
 			if not selected[part] then
-				session:Finish()
+				if part:GetAttribute("VFXPhase")=="End" or not part:IsDescendantOf(workspace) then
+					session:Finish()
+				else
+					-- Distance/selection budgets only hide an effect; they never imply impact.
+					session:Stop(true)
+				end
 				composed[part] = nil
 			end
 		end
@@ -85,7 +90,11 @@ function Controller.start(remotes: Instance)
 	CollectionService:GetInstanceAddedSignal("ComposedSpellVFX"):Connect(reconcile)
 	CollectionService:GetInstanceRemovedSignal("ComposedSpellVFX"):Connect(function(part)
 		if composed[part] then
-			composed[part]:Finish()
+			if part:GetAttribute("VFXPhase")=="End" or not part:IsDescendantOf(workspace) then
+				composed[part]:Finish()
+			else
+				composed[part]:Stop(true)
+			end
 			composed[part] = nil
 		end
 	end)

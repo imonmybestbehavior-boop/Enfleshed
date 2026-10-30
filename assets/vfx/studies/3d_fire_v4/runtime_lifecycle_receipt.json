@@ -1,0 +1,9 @@
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "{\"ConnectedCapAndFallback\":true,\"OtherFormPreserved\":true,\"BodyWidth\":true,\"Checks\":7,\"DistanceHide\":true,\"PoolAndBudgetsClean\":true,\"Fire\":{\"Created\":12,\"Updates\":1646,\"Active\":0,\"Pooled\":8,\"MaxUpdateMS\":0.4631000047083944,\"MeanUpdateMS\":0.02803219902274829},\"IdempotentStop\":true,\"FlightAlignment\":true}"
+    }
+  ],
+  "isError": false
+}

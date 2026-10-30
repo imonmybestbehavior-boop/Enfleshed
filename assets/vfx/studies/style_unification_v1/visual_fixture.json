@@ -1,0 +1,9 @@
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "{\"Fixture\":\"Actual uploaded textures and imported mesh vertex colors\",\"Renderer\":{\"Lights\":3,\"Meshes\":3,\"Trails\":14,\"Sessions\":3,\"Emitters\":3,\"Rate\":52.74742857142857}}"
+    }
+  ],
+  "isError": false
+}

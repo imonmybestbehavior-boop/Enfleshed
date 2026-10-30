@@ -1,0 +1,9 @@
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "{\"CreationMS\":0.000300002284348011,\"HeartbeatSamples\":181,\"RenderTiming\":{\"MeanMS\":66.68562401572,\"P95MS\":68.20069998502732,\"MaxMS\":71.80710136890412},\"FrameP95MS\":18.935779109597207,\"Renderer\":{\"Lights\":0,\"Meshes\":0,\"Trails\":0,\"Sessions\":0,\"Emitters\":0,\"Rate\":0},\"FrameP50MS\":16.902964562177659,\"ScriptMSPerHeartbeat\":0,\"Quality\":\"High\",\"RenderedFrames\":46,\"FrameMaxMS\":21.333815529942514,\"WindowSeconds\":3,\"CameraDistance\":28.178340911865236,\"Memory\":{\"TextureMB\":78.99201202392578},\"Count\":0,\"Scope\":\"Local Studio Heartbeat cadence and body CPU wall time; RenderedFrames reports whether render callbacks ran. Not GPU timing, mobile or published-server benchmark\",\"AfterCleanup\":{\"Created\":12,\"Updates\":0,\"Active\":0,\"Pooled\":8,\"MaxUpdateMS\":0,\"MeanUpdateMS\":0},\"Fire\":{\"Created\":12,\"Updates\":0,\"Active\":0,\"Pooled\":8,\"MaxUpdateMS\":0,\"MeanUpdateMS\":0},\"MicroProfiler\":{\"Scope\":\"RenderStepped intervals and per-body wall time only; MicroProfiler capture was unavailable in this session\",\"Ready\":false},\"FrameMeanMS\":16.671266684627665}"
+    }
+  ],
+  "isError": false
+}

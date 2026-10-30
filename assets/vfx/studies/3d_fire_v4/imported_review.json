@@ -1,0 +1,34 @@
+{
+  "status": "imported_and_isolated_client_preview_verified",
+  "date": "2026-10-17",
+  "mesh_id": "rbxassetid://135760105803974",
+  "import_path": "Workspace.connected_fireball.ConnectedFireVolume",
+  "bones": 73,
+  "size": [
+    4.637139320373535,
+    1.9635154008865356,
+    1.949455738067627
+  ],
+  "source_fbx_sha256": "5b6dc7b6e6a0e6457c3d383551ab0a9165c0e3a2a5561be4170f7b43a4b565ec",
+  "maximum_bind_position_error": 8.323771494289645e-08,
+  "loaded_image_frames": 24,
+  "playback": "One mesh, 72 bone transforms at 24 FPS and 24 preconfigured surface instances switched at 12 FPS",
+  "visual_review": "Controlled side frames 1 and 13 show different core contours; front and rear views retain filled head and tail alpha erosion",
+  "evidence": [
+    "studio_side_01_0.jpg",
+    "studio_side_13_0.jpg",
+    "studio_front_13_0.jpg",
+    "studio_rear_13_0.jpg",
+    "studio_review_final_0.jpg"
+  ],
+  "original_import_modified": false,
+  "gameplay_renderer_modified": false,
+  "preview_left_playing": true,
+  "limitations": [
+    "Verification is an isolated client ViewportFrame, not live combat lighting or projectile integration",
+    "PreloadAsync reports Failure although all 24 ImageLabels load and sampled materials visibly render",
+    "Blank background 3D captures resolved after the user brought Studio to the foreground; not evidence of a mesh or surface-swap bug",
+    "Full GPU/CPU performance, texture memory, published-place permissions and multiple simultaneous effects remain unverified",
+    "Transparent rear has visible stippling/overlap at close range; user acceptance of Studio result pending"
+  ]
+}

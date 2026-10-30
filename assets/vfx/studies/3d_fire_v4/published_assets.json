@@ -1,5 +1,5 @@
 {
-  "status": "24 uploaded IDs recorded; first image fetch failed; availability unverified",
+  "status": "All 24 images load; sampled surface frames visibly verified in isolated client preview",
   "authorization": "User explicitly approved upload of all 24 v4 surface frames in this chat",
   "assets": [
     {
@@ -146,5 +146,7 @@
       "id": "rbxassetid://88447397847891",
       "sha256": "ee6f76e33807d4e614666ed0735954e2ebefd1ea9739947992c4ed5252c480ee"
     }
-  ]
+  ],
+  "verification_scope": "ImageLabel load for all frames; controlled 3D surface samples and front/rear review; no gameplay integration",
+  "preload_status": "Failure (retained as conflicting diagnostic evidence)"
 }

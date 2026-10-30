@@ -1,0 +1,9 @@
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "sabuiltin_Assistant.rbxm.Assistant.Packages._Index.AssistantUI.AssistantUI.Tools.ExecuteLuauTool:116: sabuiltin_Assistant.rbxm.Assistant.Packages._Index.AssistantUI.AssistantUI.Util.CommandExecution:54: AssistantCommand:105: Players.enfleshedgame.PlayerGui.ConnectedFireCheckHarness.ConnectedFireClientCheck:27: Beam still launches individual sprites: Fire\nPlayers.enfleshedgame.PlayerGui.ConnectedFireCheckHarness.ConnectedFireClientCheck:27\nPlayers.enfleshedgame.PlayerGui.ConnectedFireCheckHarness.ConnectedFireClientCheck:2\n"
+    }
+  ],
+  "isError": true
+}

@@ -1,0 +1,9 @@
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "{\"http://127.0.0.1:52870/Wind__dust_burst.png\":\"rbxassetid://132749842756385\",\"http://127.0.0.1:52870/Water__droplet.png\":\"rbxassetid://101079682820214\",\"http://127.0.0.1:52870/Poison__drip_trail.png\":\"rbxassetid://134803203972505\",\"http://127.0.0.1:52870/Earth__dust_burst.png\":\"rbxassetid://75832761229780\",\"http://127.0.0.1:52870/Fire__core_plasma.png\":\"rbxassetid://121698259454537\",\"http://127.0.0.1:52870/Body__debris_chip.png\":\"rbxassetid://118647022389860\",\"http://127.0.0.1:52870/Time__clock_dial.png\":\"rbxassetid://108150545404005\",\"http://127.0.0.1:52870/Earth__debris_chip.png\":\"rbxassetid://125209640362965\"}"
+    }
+  ],
+  "isError": false
+}

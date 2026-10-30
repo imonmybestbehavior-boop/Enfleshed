@@ -1,0 +1,235 @@
+{
+  "acid_splat": {
+    "Poison": "baked/textures/Poison/Poison__acid_splat.png"
+  },
+  "arc_flicker": {
+    "Lightning": "baked/textures/Lightning/Lightning__arc_flicker.png"
+  },
+  "arcane_burst": {
+    "Arcane": "baked/textures/Arcane/Arcane__arcane_burst.png"
+  },
+  "arcane_glyphs": {
+    "Arcane": "baked/textures/Arcane/Arcane__arcane_glyphs.png"
+  },
+  "arcane_orb": {
+    "Arcane": "baked/textures/Arcane/Arcane__arcane_orb.png"
+  },
+  "beam_energy": {
+    "Force": "baked/textures/Force/Force__beam_energy.png"
+  },
+  "bolt_strip": {
+    "Lightning": "baked/textures/Lightning/Lightning__bolt_strip.png"
+  },
+  "caustics": {
+    "Water": "baked/textures/Water/Water__caustics.png"
+  },
+  "clock_dial": {
+    "Time": "baked/textures/Time/Time__clock_dial.png"
+  },
+  "core_plasma": {
+    "Fire": "baked/textures/Fire/Fire__core_plasma.png"
+  },
+  "debris_chip": {
+    "Earth": "baked/textures/Earth/Earth__debris_chip.png",
+    "Body": "baked/textures/Body/Body__debris_chip.png"
+  },
+  "drip_trail": {
+    "Poison": "baked/textures/Poison/Poison__drip_trail.png"
+  },
+  "droplet": {
+    "Water": "baked/textures/Water/Water__droplet.png"
+  },
+  "dust_burst": {
+    "Earth": "baked/textures/Earth/Earth__dust_burst.png",
+    "Wind": "baked/textures/Wind/Wind__dust_burst.png",
+    "Force": "baked/textures/Force/Force__dust_burst.png",
+    "Body": "baked/textures/Body/Body__dust_burst.png",
+    "Time": "baked/textures/Time/Time__dust_burst.png"
+  },
+  "dust_plume": {
+    "Earth": "baked/textures/Earth/Earth__dust_plume.png"
+  },
+  "earth_fissure": {
+    "Earth": "baked/textures/Earth/Earth__earth_fissure.png",
+    "Body": "baked/textures/Body/Body__earth_fissure.png"
+  },
+  "ember_streak": {
+    "Fire": "baked/textures/Fire/Fire__ember_streak.png",
+    "Force": "baked/textures/Force/Force__ember_streak.png"
+  },
+  "explosion_fire": {
+    "Fire": "baked/textures/Fire/Fire__explosion_fire.png"
+  },
+  "flame_tongue": {
+    "Fire": "baked/textures/Fire/Fire__flame_tongue.png"
+  },
+  "flame_wisp": {
+    "Force": "baked/textures/Force/Force__flame_wisp.png"
+  },
+  "force_streak": {
+    "Force": "baked/textures/Force/Force__force_streak.png"
+  },
+  "frost_crack": {
+    "Ice": "baked/textures/Ice/Ice__frost_crack.png"
+  },
+  "frost_mist": {
+    "Ice": "baked/textures/Ice/Ice__frost_mist.png"
+  },
+  "gear_mote": {
+    "Time": "baked/textures/Time/Time__gear_mote.png"
+  },
+  "ghost_trail": {
+    "Spirit": "baked/textures/Spirit/Spirit__ghost_trail.png"
+  },
+  "glow_soft": {
+    "Body": "baked/textures/Body/Body__glow_soft.png"
+  },
+  "glyph_chain": {
+    "Arcane": "baked/textures/Arcane/Arcane__glyph_chain.png"
+  },
+  "gust_strokes": {
+    "Wind": "baked/textures/Wind/Wind__gust_strokes.png"
+  },
+  "heat_haze": {
+    "Force": "baked/textures/Force/Force__heat_haze.png"
+  },
+  "hex_seal": {
+    "Ice": "baked/textures/Ice/Ice__hex_seal.png",
+    "Arcane": "baked/textures/Arcane/Arcane__hex_seal.png",
+    "Force": "baked/textures/Force/Force__hex_seal.png"
+  },
+  "hourglass_mote": {
+    "Force": "baked/textures/Force/Force__hourglass_mote.png"
+  },
+  "ice_glint": {
+    "Ice": "baked/textures/Ice/Ice__ice_glint.png"
+  },
+  "ice_shatter": {
+    "Ice": "baked/textures/Ice/Ice__ice_shatter.png"
+  },
+  "ice_trail": {
+    "Ice": "baked/textures/Ice/Ice__ice_trail.png"
+  },
+  "impact_frame": {
+    "Force": "baked/textures/Force/Force__impact_frame.png"
+  },
+  "impact_star": {
+    "Force": "baked/textures/Force/Force__impact_star.png"
+  },
+  "kinetic_burst": {
+    "Force": "baked/textures/Force/Force__kinetic_burst.png",
+    "Body": "baked/textures/Body/Body__kinetic_burst.png"
+  },
+  "leaf_scrap": {
+    "Wind": "baked/textures/Wind/Wind__leaf_scrap.png"
+  },
+  "miasma": {
+    "Poison": "baked/textures/Poison/Poison__miasma.png"
+  },
+  "plasma_orb": {
+    "Lightning": "baked/textures/Lightning/Lightning__plasma_orb.png"
+  },
+  "portal_rings": {
+    "Space": "baked/textures/Space/Space__portal_rings.png"
+  },
+  "pressure_wave": {
+    "Wind": "baked/textures/Wind/Wind__pressure_wave.png",
+    "Force": "baked/textures/Force/Force__pressure_wave.png",
+    "Body": "baked/textures/Body/Body__pressure_wave.png"
+  },
+  "rift_tear": {
+    "Space": "baked/textures/Space/Space__rift_tear.png"
+  },
+  "ripple_ring": {
+    "Water": "baked/textures/Water/Water__ripple_ring.png"
+  },
+  "rock_burst": {
+    "Earth": "baked/textures/Earth/Earth__rock_burst.png"
+  },
+  "rubble_trail": {
+    "Earth": "baked/textures/Earth/Earth__rubble_trail.png"
+  },
+  "rune_circle": {
+    "Fire": "baked/textures/Fire/Fire__rune_circle.png",
+    "Lightning": "baked/textures/Lightning/Lightning__rune_circle.png",
+    "Wind": "baked/textures/Wind/Wind__rune_circle.png",
+    "Arcane": "baked/textures/Arcane/Arcane__rune_circle.png"
+  },
+  "sand_trail": {
+    "Time": "baked/textures/Time/Time__sand_trail.png"
+  },
+  "scorch_lichtenberg": {
+    "Fire": "baked/textures/Fire/Fire__scorch_lichtenberg.png",
+    "Lightning": "baked/textures/Lightning/Lightning__scorch_lichtenberg.png"
+  },
+  "shard_trail": {
+    "Space": "baked/textures/Space/Space__shard_trail.png"
+  },
+  "shockwave_ring": {
+    "Force": "baked/textures/Force/Force__shockwave_ring.png"
+  },
+  "sinew_trail": {
+    "Body": "baked/textures/Body/Body__sinew_trail.png"
+  },
+  "skull_mote": {
+    "Spirit": "baked/textures/Spirit/Spirit__skull_mote.png"
+  },
+  "slash_arc": {
+    "Force": "baked/textures/Force/Force__slash_arc.png"
+  },
+  "smoke_billow": {
+    "Fire": "baked/textures/Fire/Fire__smoke_billow.png",
+    "Lightning": "baked/textures/Lightning/Lightning__smoke_billow.png",
+    "Arcane": "baked/textures/Arcane/Arcane__smoke_billow.png",
+    "Spirit": "baked/textures/Spirit/Spirit__smoke_billow.png",
+    "Space": "baked/textures/Space/Space__smoke_billow.png"
+  },
+  "soul_burst": {
+    "Spirit": "baked/textures/Spirit/Spirit__soul_burst.png"
+  },
+  "soul_sigil": {
+    "Spirit": "baked/textures/Spirit/Spirit__soul_sigil.png"
+  },
+  "soul_wisp": {
+    "Spirit": "baked/textures/Spirit/Spirit__soul_wisp.png"
+  },
+  "spark_burst": {
+    "Lightning": "baked/textures/Lightning/Lightning__spark_burst.png"
+  },
+  "star_mote": {
+    "Space": "baked/textures/Space/Space__star_mote.png"
+  },
+  "time_ripple": {
+    "Time": "baked/textures/Time/Time__time_ripple.png"
+  },
+  "toxic_bubble": {
+    "Poison": "baked/textures/Poison/Poison__toxic_bubble.png"
+  },
+  "toxic_pool": {
+    "Poison": "baked/textures/Poison/Poison__toxic_pool.png"
+  },
+  "trail_flame": {
+    "Fire": "baked/textures/Fire/Fire__trail_flame.png"
+  },
+  "void_orb": {
+    "Space": "baked/textures/Space/Space__void_orb.png"
+  },
+  "ward_hex": {
+    "Force": "baked/textures/Force/Force__ward_hex.png"
+  },
+  "warp_implode": {
+    "Space": "baked/textures/Space/Space__warp_implode.png"
+  },
+  "water_orb": {
+    "Water": "baked/textures/Water/Water__water_orb.png"
+  },
+  "water_splash": {
+    "Water": "baked/textures/Water/Water__water_splash.png"
+  },
+  "water_trail": {
+    "Water": "baked/textures/Water/Water__water_trail.png"
+  },
+  "wind_swirl": {
+    "Wind": "baked/textures/Wind/Wind__wind_swirl.png"
+  }
+}

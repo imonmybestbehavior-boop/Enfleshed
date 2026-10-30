@@ -1,0 +1,9 @@
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "{\"http://127.0.0.1:54691/Force__beam_energy.png\":\"rbxassetid://118275808545444\",\"http://127.0.0.1:54691/Lightning__arc_flicker.png\":\"rbxassetid://121624768911073\",\"http://127.0.0.1:54691/Arcane__arcane_glyphs.png\":\"rbxassetid://80730671442882\",\"http://127.0.0.1:54691/Water__caustics.png\":\"rbxassetid://89757555114856\",\"http://127.0.0.1:54691/Lightning__bolt_strip.png\":\"rbxassetid://122013323424858\",\"http://127.0.0.1:54691/Arcane__arcane_orb.png\":\"rbxassetid://107036675262794\",\"http://127.0.0.1:54691/Poison__acid_splat.png\":\"rbxassetid://128085292036485\",\"http://127.0.0.1:54691/Arcane__arcane_burst.png\":\"rbxassetid://111076833376628\"}"
+    }
+  ],
+  "isError": false
+}

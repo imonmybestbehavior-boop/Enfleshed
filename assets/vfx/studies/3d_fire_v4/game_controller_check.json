@@ -1,0 +1,9 @@
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "{\"ComposerUsesRenderer\":true,\"Renderer\":{\"Lights\":0,\"Meshes\":0,\"Trails\":0,\"Sessions\":0,\"Emitters\":0,\"Rate\":0},\"Scope\":\"Normal LocalScript VM\",\"AssetReady\":true,\"ConnectedEnabled\":true}"
+    }
+  ],
+  "isError": false
+}

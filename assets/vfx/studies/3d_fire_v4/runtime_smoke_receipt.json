@@ -1,0 +1,9 @@
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "{\"Scope\":\"Production renderer on cosmetic moving anchor, existing scene lighting; not an actual cast\",\"Renderer\":{\"Lights\":1,\"Meshes\":1,\"Trails\":0,\"Sessions\":1,\"Emitters\":0,\"Rate\":0},\"Fire\":{\"Created\":8,\"Updates\":120,\"Active\":1,\"Pooled\":7,\"MaxUpdateMS\":0.6685999978799373,\"MeanUpdateMS\":0.04500833432151315},\"BodySize\":[5.195633411407471,2.200000047683716,2.1842470169067385],\"RootPosition\":[1.6113865375518799,10.096319198608399,1352.0989990234376]}"
+    }
+  ],
+  "isError": false
+}

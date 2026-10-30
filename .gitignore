@@ -21,3 +21,4 @@ __pycache__/
 # Generated VFX review pages (large, rebuildable)
 /assets/vfx/studies/*/review.html
 /assets/vfx/previews/*.html
+/tools/.validation-tools/

@@ -1,0 +1,9 @@
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "{\"CreationMS\":8.89270001789555,\"HeartbeatSamples\":180,\"FrameP95MS\":18.067175522446634,\"Renderer\":{\"Lights\":1,\"Meshes\":1,\"Trails\":0,\"Sessions\":1,\"Emitters\":0,\"Rate\":0},\"FrameP50MS\":16.92960225045681,\"ScriptMSPerHeartbeat\":0.07253944285265687,\"Quality\":\"High\",\"RenderedFrames\":0,\"FrameMaxMS\":19.10516433417797,\"WindowSeconds\":3,\"CameraDistance\":28.089143753051759,\"Memory\":{\"TextureMB\":64.71170043945313},\"Count\":1,\"Scope\":\"Local Studio Heartbeat cadence and body CPU wall time; RenderedFrames reports whether render callbacks ran. Not GPU timing, mobile or published-server benchmark\",\"AfterCleanup\":{\"Created\":4,\"Updates\":203,\"Active\":0,\"Pooled\":4,\"MaxUpdateMS\":4.929200018523261,\"MeanUpdateMS\":0.09144285608890462},\"Fire\":{\"Created\":4,\"Updates\":180,\"Active\":1,\"Pooled\":3,\"MaxUpdateMS\":3.3229000109713526,\"MeanUpdateMS\":0.07253944285265687},\"MicroProfiler\":{\"Scope\":\"RenderStepped intervals and per-body wall time only; MicroProfiler capture was unavailable in this session\",\"Ready\":false},\"FrameMeanMS\":16.66645952500403}"
+    }
+  ],
+  "isError": false
+}

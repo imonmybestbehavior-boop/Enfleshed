@@ -1,0 +1,9 @@
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "{\"MaxUpdateMS\":9.951499989256263,\"FrameUpdates\":813,\"SurfaceSwitches\":408,\"ReviewFrame\":13,\"ReviewAngle\":1.57079632679,\"Orbit\":false,\"Paused\":true,\"TextureFrame\":7,\"Frame\":13,\"MeanUpdateMS\":0.1473047968594708}"
+    }
+  ],
+  "isError": false
+}

@@ -1,0 +1,9 @@
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "{\"CreationMS\":14.275199995609,\"HeartbeatSamples\":180,\"FrameP95MS\":18.05131882429123,\"Renderer\":{\"Lights\":8,\"Meshes\":8,\"Trails\":0,\"Sessions\":8,\"Emitters\":0,\"Rate\":0},\"FrameP50MS\":16.943270340561868,\"ScriptMSPerHeartbeat\":0.21860277661795003,\"Quality\":\"High\",\"RenderedFrames\":0,\"FrameMaxMS\":18.77875253558159,\"WindowSeconds\":3,\"CameraDistance\":28.089143753051759,\"Memory\":{\"TextureMB\":64.71145629882813},\"Count\":8,\"Scope\":\"Local Studio Heartbeat cadence and body CPU wall time; RenderedFrames reports whether render callbacks ran. Not GPU timing, mobile or published-server benchmark\",\"AfterCleanup\":{\"Created\":8,\"Updates\":1632,\"Active\":0,\"Pooled\":8,\"MaxUpdateMS\":0.17899999511428178,\"MeanUpdateMS\":0.027416114914790254},\"Fire\":{\"Created\":8,\"Updates\":1440,\"Active\":8,\"Pooled\":0,\"MaxUpdateMS\":0.17899999511428178,\"MeanUpdateMS\":0.027325347077243754},\"MicroProfiler\":{\"Scope\":\"RenderStepped intervals and per-body wall time only; MicroProfiler capture was unavailable in this session\",\"Ready\":false},\"FrameMeanMS\":16.67634697837962}"
+    }
+  ],
+  "isError": false
+}

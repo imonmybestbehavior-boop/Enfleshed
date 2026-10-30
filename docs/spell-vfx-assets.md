@@ -1,6 +1,10 @@
 # Spell VFX asset library and signature layers
 
+Reuse update (2026-10-18): the [family plan](spell-vfx-family-plan.md) maps all eight forms into five construction families. Existing custom assets are the default starting point: palette/material pass first, targeted design adjustment second, replacement only after a specific failed requirement. `assets/vfx/studies/effect_families_v1/asset_reuse_inventory.json` preserves 60 mesh and 71 texture candidates. The isolated gallery adds a Soul field study beside the approved Fire reference; production recipes remain unchanged.
+
 Original, generated VFX assets (textures, flipbooks, meshes) and a modular signature system that plays them on top of the existing [spell VFX composer](spell-vfx-system.md). Cosmetic only. It never changes damage, hitboxes, timing or network authority.
+
+The approved connected fire projectile now uses `Signature/ConnectedFire.luau` through the existing signature renderer. Its imported 73-bone skin and 24 prepared surface frames ship in `Assets/ConnectedFireRig.rbxmx`, with measured animation data in `ConnectedFirePoses.luau`. This complete model stays separate from generic MeshPart-ID lookup so the bone hierarchy is preserved. Real-cast, lifecycle, source and build checks pass; see `assets/vfx/studies/3d_fire_v4/RUNTIME_INTEGRATION.md` for CPU measurements and the still-pending graphics acceptance.
 
 **Current status (2026-10-17):** See the [overhaul audit and Milestone 1](spell-vfx-overhaul-milestone-1.md) for current inventory, artwork, checks and Studio evidence. The library contains 71 textures and 60 meshes with recorded IDs. A connected Studio preflight found failures for all seven sampled Fire texture IDs and successful creation of three sampled meshes. Finished-effect visual review is pending. The older inventory tables below describe an earlier subset and should not be read as current coverage or publication evidence.
 
@@ -176,3 +180,8 @@ Live budget usage is shown in the panel. The showcase stamps local anchors exact
   * fallback primitives, which are dimmed to 35 % because open shapes read as solid blobs (the sigil, fire core and flame-shell meshes are skipped entirely without the real mesh).
 * Real Fireball impact anchors carry no direction, so impact embers burst radially and the ground ring needs a floor within 9 studs.
 * Distortion is only approximated; Roblox has no refraction (`heat_haze` is provided but unused).
+
+
+## Approved existing-art restyle integration (2026-10-18)
+
+91 identity-specific baked atlases and 60 existing meshes are installed in the local Enfleshed place. The resolver uses `StyledVFXManifest` and the durable `CelMeshLibrary` prefab; legacy IDs remain available. Colored art uses neutral multiplication and restrained emission. The approved connected fireball remains unchanged. Lightning beams now form a flickering connected path rather than emit travelling arc glyphs. See [the integration record](../assets/vfx/studies/style_unification_v1/STUDIO_INTEGRATION.md) for exact receipts, verification, rollback, and published-session limits.

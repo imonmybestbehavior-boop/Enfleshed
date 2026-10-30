@@ -1,0 +1,11 @@
+{
+  "instruction": "User requested full-size emergence from the ground after approving the fade",
+  "date": "2026-10-18",
+  "scope": "Requested ground-emergence revision; original approval snapshot is retained",
+  "sha256": {
+    "assets/vfx/studies/effect_families_v1/soul.positions.bin": "b4cf5feb1e752009f5a3226b4d5a6db635223f3fe721a970dfb0e251b1263888",
+    "assets/vfx/studies/effect_families_v1/soul.colors.bin": "6b6bf271bc51e9dedd1f987f4bd9490ec26b7db582a8dcaa41e06fe6d4ef10af",
+    "assets/vfx/studies/effect_families_v1/soul.visibility.bin": "9f53f603e0edda15801d902e0e5a964e08d6f69641baafd919f6137ece9fe54c",
+    "assets/vfx/textures/soul_sigil.png": "beed28e8aa0fe53ae3d210689c086d27ef0fbb552b293b733536ddd37d58570d"
+  }
+}

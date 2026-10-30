@@ -1,0 +1,21 @@
+{
+  "date": "2026-10-18",
+  "source_designs": 71,
+  "unique_baked_atlases": 91,
+  "mesh_material_variants": 60,
+  "checks": [
+    "Four existing-asset/geometry preservation checks pass",
+    "Four baked texture coverage/alpha/palette/soft-falloff checks pass",
+    "Review JavaScript syntax passes",
+    "ZIP CRC/integrity passes"
+  ],
+  "browser_review": [
+    "Soul wisp frame 8 displays actual baked PNG",
+    "Fire flame frame 8 displays actual baked PNG",
+    "Identity-specific download paths verified",
+    "No browser error/warning logs"
+  ],
+  "archive_sha256": "b25a9998a50a36c87128634201cb6222f6980d5558c702493667824b3c0581da",
+  "uploaded": false,
+  "production_activated": false
+}

@@ -2,6 +2,7 @@
 -- Gameplay numbers only reach this module as the analyzer's normalized features, so visual scale
 -- never feeds back into hit size. No instances, no services, no randomness.
 local Library = require(script.Parent.SignatureLibrary)
+local Styled = require(script.Parent.Parent.Assets.StyledVFXManifest)
 local Planner = {}
 
 local function clamp01(x)
@@ -105,9 +106,16 @@ Planner.boost = boost
 
 local function tint(signature, plan)
 	local colors = {}
+	local bands = Styled.Enabled and Styled.Palettes[signature.Name]
+	local bandTokens = { Hi=3, Mid=2, Lo=1, Smoke=1, Ink=5, WhiteHot=4, Hot=3,
+		Body=2, Deep=1, Ember=3, Soot=5, Ash=1, Bone=3, Sinew=2, Bruise=1, Grit=1, Air=4 }
 	local custom = plan.Color
 	local style = Library.Style or {}
 	for token, color in pairs(signature.Palette) do
+		if bands and bandTokens[token] then
+			colors[token] = bands[bandTokens[token]]
+			continue
+		end
 		local amount = signature.Tintable[token]
 		local c = if custom and amount then color:Lerp(custom, amount) else color
 		-- Cel look: punchier, brighter colours; ink stays ink.
@@ -156,10 +164,18 @@ function Planner.plan(plan, phase, options)
 			for _, spec in ipairs(sourceLayers) do
 				local formOk = (spec.Forms == nil or spec.Forms[plan.Form or ""] == true)
 					and (spec.Roles == nil or spec.Roles[role] == true)
-				local kindOk = (spec.Kind ~= "Light" or quality.Lights)
+				local kindOk = (spec.Kind ~= "Light" or quality.Lights or spec.Priority==1)
 					and ((spec.Kind ~= "Mesh" and spec.Kind ~= "Debris") or quality.Meshes or spec.Priority == 1)
+				-- Release cues acknowledge the cast; impact artwork belongs at the destination.
+				if role=="Cast" and phase=="Release" and spec.Kind~="Light" then kindOk=false end
+				-- Ending/culling a visual is not a hit. New clouds and debris bursts
+				-- belong to the explicit Impact anchor, which already owns this slot.
+				if spec.Slot=="Dissipate" and spec.Kind=="Burst" and role~="Impact" then kindOk=false end
 				if spec.Slot == slot and formOk and kindOk and spec.Priority <= quality.MaxPriority then
 					local params = resolveParams(spec, scalars)
+					if Styled.Enabled and (spec.Kind == "Mesh" or spec.Kind == "Debris") then
+						params.Material = "SmoothPlastic"
+					end
 					if params.Rate then
 						params.Rate *= quality.Rate
 					end
@@ -177,6 +193,7 @@ function Planner.plan(plan, phase, options)
 						Kind = spec.Kind,
 						Priority = spec.Priority,
 						Texture = spec.Texture,
+						FrameTexture = spec.FrameTexture,
 						DirectionalAsset = spec.DirectionalAsset,
 						Mesh = spec.Mesh,
 						Meshes = spec.Meshes,

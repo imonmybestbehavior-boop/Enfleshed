@@ -1,0 +1,11 @@
+{
+  "approval": "User: Yes that looks great. Continue",
+  "date": "2026-10-18",
+  "scope": "Rising ghost motion, faces and whole-wisp fade at height; phase envelope is a new review",
+  "sha256": {
+    "assets/vfx/studies/effect_families_v1/soul.positions.bin": "7c4469ccbe94cf6dfd6bd73088dbf79c1a30ae61cc5e4f2d4f559a40e8d81df4",
+    "assets/vfx/studies/effect_families_v1/soul.colors.bin": "6b6bf271bc51e9dedd1f987f4bd9490ec26b7db582a8dcaa41e06fe6d4ef10af",
+    "assets/vfx/studies/effect_families_v1/soul.visibility.bin": "bc5184c13dcf11d801731b05fdde1e834066189ec504c9e9b1335cc4d84f3c5c",
+    "assets/vfx/textures/soul_sigil.png": "beed28e8aa0fe53ae3d210689c086d27ef0fbb552b293b733536ddd37d58570d"
+  }
+}

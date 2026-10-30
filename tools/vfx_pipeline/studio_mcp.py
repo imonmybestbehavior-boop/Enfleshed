@@ -22,6 +22,7 @@ def main():
     parser.add_argument("--timeout",type=int,default=45)
     parser.add_argument("--filter",help="Comma-separated tool names to show during discovery")
     parser.add_argument("--studio-id")
+    parser.add_argument("--connect-wait",type=float,default=12,help="Keep the bridge alive before discovery so Studio can reconnect")
     parser.add_argument("--code-file",type=Path)
     parser.add_argument("--datamodel-type",choices=["Edit","Client","Server"],default="Edit")
     parser.add_argument("--output",type=Path)
@@ -64,6 +65,8 @@ def main():
         initialized = request(1,"initialize",{"protocolVersion":"2024-11-05","capabilities":{},
                               "clientInfo":{"name":"enfleshed-local-vfx-pipeline","version":"1"}})
         send({"jsonrpc":"2.0","method":"notifications/initialized"})
+        if args.connect_wait:
+            time.sleep(min(30, max(0, args.connect_wait)))
         if args.tool:
             parameters = json.loads(args.args_file.read_text(encoding="utf-8-sig")) if args.args_file else {}
             if args.studio_id:
