@@ -479,6 +479,42 @@ class MagicRegistryParity(unittest.TestCase):
 		policy = (ROOT / "src/shared/Modules/CombatPolicy.luau").read_text(encoding="utf-8")
 		self.assertIn('return payload.Mode == "Polymorph"', policy)
 
+	def test_companion_command_cast_slot_uses_the_cast_definition(self):
+		service = (ROOT / "src/server/Services/MagicService.luau").read_text(encoding="utf-8")
+		start = service.index("local function execute(")
+		end = service.index("\nend\n", start)
+		self.assertIn("CompanionSpellPolicy.requiresCommandSlot(definition)", service[start:end])
+		self.assertNotIn("requiresCommandSlot(d)", service[start:end], "`d` is not defined in execute")
+
+	def test_blood_magic_is_paid_as_health_not_damage(self):
+		service = (ROOT / "src/server/Services/MagicService.luau").read_text(encoding="utf-8")
+		blood = (ROOT / "src/server/Services/MagicBloodMagic.luau").read_text(encoding="utf-8")
+		self.assertNotIn("Damage", blood.split("local Blood = {}")[1].replace("damage", ""), "paying health never deals damage")
+		self.assertIn("humanoid.Health = value", service, "health is set directly")
+		self.assertIn("return \"IMPOSSIBLE\", BloodMagic.FloorReason", service, "the cast check refuses at the floor")
+		self.assertIn("BloodMagic.pay(state.Humanoid, healthDue, setCasterHealth)", service)
+		pay = service.index("BloodMagic.pay(state.Humanoid, healthDue, setCasterHealth)")
+		self.assertLess(service.index("paidSpecialResources = true"), pay, "paid after every other cost")
+		self.assertLess(pay, service.index("feedback(remote, player, result, definition, {"), "and before any effect runs")
+		self.assertIn("BloodMagic.PlayersOnlyReason", service, "companion and command casts are refused")
+		self.assertIn("definition._HealthPaid = healthDue", service)
+		self.assertIn('elseif source == "HealthPaid" then', service)
+		self.assertEqual(service.count("BloodMagic.upkeep("), 2, "health upkeep in both upkeep loops")
+		executors = (ROOT / "src/server/Services/MagicPayloadExecutors.luau").read_text(encoding="utf-8")
+		self.assertIn("profile.MaxHealthPaidBonus", executors, "PvP cap on the HealthPaid bonus")
+		for path in ("src/shared/Modules/MagicLabCost.luau", "src/shared/Modules/SpellProgressionRules.luau"):
+			reprice = (ROOT / path).read_text(encoding="utf-8")
+			self.assertIn("HealthForMana = previous.HealthForMana", reprice, f"{path} keeps blood costs")
+		forge = (ROOT / "src/client/UI/GuidedSpellForge.luau").read_text(encoding="utf-8")
+		lab = (ROOT / "src/client/Controllers/MagicLabController.luau").read_text(encoding="utf-8")
+		for path, editor in (("Forge", forge), ("Lab", lab)):
+			self.assertIn('"PAY WITH HEALTH"', editor, path)
+			self.assertIn("BloodCostSpec.costLabel(", editor, f"{path} shows mana + HP")
+			self.assertIn("BloodCostSpec.paidScalePreset(", editor, f"{path} offers HealthPaid scaling")
+		self.assertIn("ActionFlow.casterHealthBelow(50)", lab, "stronger-when-hurt branch")
+		hud = (ROOT / "src/client/UI/HUD/SpellBar.luau").read_text(encoding="utf-8")
+		self.assertIn("slot.HealthCost.Text = info.HealthCost", hud, "the spell slot shows the health cost")
+
 	def test_spells_as_targets_dispel_force_and_lenses_are_wired(self):
 		service = (ROOT / "src/server/Services/MagicService.luau").read_text(encoding="utf-8")
 		dispel = block(service, "spellRuntime.dispel = function(", "\nend\n")

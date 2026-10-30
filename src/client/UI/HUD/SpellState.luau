@@ -17,6 +17,7 @@ export type SlotInfo = {
 	Element: string?,
 	Color: Color3?,
 	ManaCost: number,
+	HealthCost: string?, -- blood magic, e.g. "30 HP" or "15% HP + 40 HP"
 	Cooldown: number,
 	SpellId: string?,
 }
@@ -28,19 +29,26 @@ State.CooldownEnds = {} :: { [number]: number }
 State.CooldownDurations = {} :: { [number]: number }
 State.Drag = nil :: { Id: string, Name: string, Color: Color3?, Start: Vector2, Active: boolean }?
 
-local costCache: { [any]: number } = setmetatable({}, { __mode = "k" }) :: any
-local function manaCost(definition: any): number
+local costCache: { [any]: { Mana: number, Health: string? } } = setmetatable({}, { __mode = "k" }) :: any
+-- Mana actually paid (health may pay part of it) and the blood-magic part of the cost line.
+local function castCost(definition: any): (number, string?)
 	local cached = costCache[definition]
 	if cached then
-		return cached
+		return cached.Mana, cached.Health
 	end
-	local ok, cost = pcall(function()
+	local ok, mana, health = pcall(function()
 		local Spec = require(Shared.Modules.SpellSpec)
-		return Spec.estimate(definition).ManaDemand
+		local BloodCostSpec = require(Shared.Modules.MagicBloodCostSpec)
+		local estimate = Spec.estimate(definition)
+		return estimate.ManaPaid or estimate.ManaDemand,
+			string.match(BloodCostSpec.costLabel(estimate), "^.- mana %+ (.+)$")
 	end)
-	local value = if ok and type(cost) == "number" then cost else 0
+	local value = {
+		Mana = if ok and type(mana) == "number" then mana else 0,
+		Health = if ok and type(health) == "string" then health else nil,
+	}
 	costCache[definition] = value
-	return value
+	return value.Mana, value.Health
 end
 
 local function describe(definition: any): SlotInfo?
@@ -48,11 +56,13 @@ local function describe(definition: any): SlotInfo?
 		return nil
 	end
 	local visual = definition.Visual
+	local mana, health = castCost(definition)
 	return {
 		Name = tostring(definition.Name or "Spell"),
 		Element = definition.Element,
 		Color = if visual and typeof(visual.Color) == "Color3" then visual.Color else nil,
-		ManaCost = manaCost(definition),
+		ManaCost = mana,
+		HealthCost = health,
 		-- Same base the server uses: the longer of Cooldown and RecoveryTime.
 		Cooldown = math.max(
 			if definition.Casting and type(definition.Casting.Cooldown) == "number"

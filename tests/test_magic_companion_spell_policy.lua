@@ -18,6 +18,14 @@ end
 
 local attack = policy.classify(spell({ { Kind = "Damage", Amount = 12 }, { Kind = "Force", Magnitude = 6 } }))
 assert(attack and attack.Mode == "Hostile" and attack.CanDamage and not attack.CanHeal and not attack.CanControl)
+local bloodAttack = spell({ { Kind = "Damage", Amount = 12 } })
+bloodAttack.Cost = { ManaDemand = 10, HealthForMana = 50 }
+local refused, bloodReason = policy.classify(bloodAttack)
+assert(refused == nil and string.find(bloodReason, "players only"), "companions cannot pay with health")
+bloodAttack.Cost = { ManaDemand = 10, Health = { Mode = "Flat", Amount = 10 } }
+assert(policy.classify(bloodAttack) == nil, "nor sacrifice health")
+bloodAttack.Cost = { ManaDemand = 10, HealthForMana = 0 }
+assert(policy.classify(bloodAttack), "a zero health share is no blood magic")
 local markedAttack = policy.classify(spell({
 	{ Kind = "ElementalMark", Stacks = 1, Duration = 5 },
 	{ Kind = "Damage", Amount = 12 },

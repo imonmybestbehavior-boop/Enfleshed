@@ -259,6 +259,7 @@ env.script = {
 		MagicVisualSpec = "visualSpec",
 		MagicAttributeSpec = "attributeSpec",
 		MagicScaleSpec = "scaleSpec",
+		MagicBloodCostSpec = "bloodCostSpec",
 		MagicInterceptionSpec = "interceptionSpec",
 		Parent = {
 			Configuration = {
@@ -276,6 +277,8 @@ env.require = function(v)
 		return limits
 	elseif v == "interceptionSpec" then
 		return interceptionSpec
+	elseif v == "bloodCostSpec" then
+		return load("src/shared/Modules/MagicBloodCostSpec.luau")
 	elseif v == "schema" then
 		return schema
 	elseif v == "projectileBehaviorSpec" then
@@ -1578,6 +1581,52 @@ do
 					and payload.BreakOnDamage == true
 					and payload.Duration == limits.MaxPolymorphDuration
 			)
+		end)();
+		(function()
+			-- Blood magic: health costs, health for mana, upkeep, reprice.
+			local bolt = spec.createDraft("Projectile", "Energy")
+			bolt.Triggers.OnImpact = { { Payloads = { { Kind = "Damage", Amount = 40 } } } }
+			local full = spec.estimate(bolt)
+			bolt.Cost.Health = { Mode = "Flat", Amount = 30 }
+			bolt.Cost.HealthForMana = 100
+			local ok, reason = spec.validate(bolt)
+			assert(ok, "blood bolt was rejected: " .. tostring(reason))
+			local blood = spec.estimate(bolt)
+			assert(blood.ManaDemand == full.ManaDemand, "ManaDemand stays the full price (rank limits)")
+			assert(blood.ManaPaid == 0 and blood.HealthFromMana == 2 * full.ManaDemand, "fully blood-powered")
+			assert(blood.Strain == full.Strain and blood.Complexity == full.Complexity)
+			assert(blood.HealthCost.Amount == 30)
+			local function variant(mutate)
+				local copy = spec.copy(bolt)
+				mutate(copy)
+				return spec.validate(copy)
+			end
+			assert(not variant(function(d)
+				d.Cost.Health = { Mode = "PercentMax", Amount = 41 }
+			end), "at most 40% of max health")
+			assert(not variant(function(d)
+				d.Cost.HealthForMana = 120
+			end), "at most 100% of the mana")
+			assert(not variant(function(d)
+				d.Cost.HealthPerSecond = 2
+			end), "health upkeep only on held or toggled spells")
+			assert(not variant(function(d)
+				d.Cost.Blood = 1
+			end), "unknown cost keys are still refused")
+			local channel = spec.createDraft("Beam", "Energy")
+			channel.Casting.Mode = "Channeled"
+			channel.Casting.ManaUpkeepPerSecond = 2
+			channel.Lifetime = { Mode = "FixedDuration", Duration = 4 }
+			channel.Triggers.OnTick = { { Payloads = { { Kind = "Damage", Amount = 2 } } } }
+			channel.Cost.HealthPerSecond = 4
+			ok, reason = spec.validate(channel)
+			assert(ok, "a health-upkeep channel was rejected: " .. tostring(reason))
+			-- Repricing keeps the authored blood costs (Studio and live paths).
+			local LabCost = load("src/shared/Modules/MagicLabCost.luau")
+			LabCost.refresh(bolt, spec.estimate, spec.copy)
+			assert(bolt.Cost.Health.Amount == 30 and bolt.Cost.HealthForMana == 100, "Lab reprice keeps health")
+			assert(bolt.Cost.ManaDemand == full.ManaDemand)
+			assert(spec.validate(bolt), "a repriced blood spell still validates")
 		end)();
 		(function()
 			-- Spell vs Spell: Dispel and Force on spells, OnDispelled, Field lenses.

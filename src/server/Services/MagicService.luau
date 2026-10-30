@@ -81,6 +81,8 @@ local TetherRuntime = require(script.Parent.MagicTether)
 local Transform = require(script.Parent.MagicTransformService)
 local SpellTargets = require(script.Parent.MagicSpellTargets)
 local SpellTargetSpec = require(Shared.Modules.MagicSpellTargetSpec)
+local BloodMagic = require(script.Parent.MagicBloodMagic)
+local BloodCostSpec = require(Shared.Modules.MagicBloodCostSpec)
 local Schema = require(Shared.Configuration.MagicSchema)
 -- Spell vs Spell runtime (assigned before Magic.start; see spellRuntime below).
 local spellRuntime: any = {}
@@ -279,7 +281,32 @@ local function getDefinition(id: any): any?
 end
 
 local function costs(definition: any, charge: number, resources: any): (number, number, number)
-	return LocusModel.cost(definition.Cost, charge, Sandbox.Magic.ChargeCostScale, resources)
+	local cost = definition.Cost
+	-- Blood magic: Cost.ManaDemand is the full price; health pays its share.
+	if (cost.HealthForMana or 0) > 0 then
+		cost = table.clone(cost)
+		cost.ManaDemand = (BloodCostSpec.split(cost.ManaDemand, cost.HealthForMana, Limits.HealthPerMana))
+	end
+	return LocusModel.cost(cost, charge, Sandbox.Magic.ChargeCostScale, resources)
+end
+
+-- Blood magic: HP this cast costs, scaled by charge like mana, with the
+-- caster's PvP MaxHealthCostPercent on the PercentMax sacrifice.
+local function healthCost(state: any, definition: any, charge: number): number
+	if not BloodCostSpec.uses(definition.Cost) then
+		return 0
+	end
+	local profile = CapProfiles[StatCaps.selfProfileName(CombatPolicy.owner(state.Character, Players))]
+	return BloodMagic.quote(
+		definition.Cost,
+		state.Humanoid.MaxHealth,
+		1 + charge * Sandbox.Magic.ChargeCostScale,
+		profile and profile.MaxHealthCostPercent
+	)
+end
+
+local function setCasterHealth(humanoid: Humanoid, value: number)
+	humanoid.Health = value
 end
 
 local function setCastingMovement(player: Player, state: State?, definition: any?, direction: Vector3?)
@@ -767,6 +794,9 @@ local function validate(
 		local label = SpecialResourceDefinitions[missingSpecial] and SpecialResourceDefinitions[missingSpecial].Label
 		return "IMPOSSIBLE", "Insufficient " .. tostring(label or "special resource")
 	end
+	if not BloodMagic.canPay(state.Humanoid, healthCost(state, definition, charge)) then
+		return "IMPOSSIBLE", BloodMagic.FloorReason
+	end
 	if definition.Development then
 		return "VALID", nil, material, direction, selectedTarget, objectPosition
 	end
@@ -899,6 +929,7 @@ local function context(definition, caster, position, targets, direction, remote,
 		SpellTags = definition.Tags,
 		HealthThreshold = runtimeState and runtimeState.HealthThreshold or nil,
 		ChargeFraction = definition._ChargeFraction or 0,
+		HealthPaid = definition._HealthPaid or 0,
 		-- OnBeforeDamageTaken: the incoming hit and MagicInterception's hooks.
 		IncomingHit = runtimeState and runtimeState.IncomingHit or nil,
 		-- Tether steps with Anchor = "A" / "B" act on one end.
@@ -1028,6 +1059,8 @@ local function context(definition, caster, position, targets, direction, remote,
 			return if humanoid then StatusEffects.elementalMarkStacks(humanoid, element) else 0
 		elseif source == "ChargePercent" then
 			return ctx.ChargeFraction
+		elseif source == "HealthPaid" then
+			return ctx.HealthPaid
 		end
 		local model = humanoid and humanoid.Parent
 		return Conditions.scaleValue(source, {
@@ -3099,6 +3132,17 @@ local function execute(
 		definition._ChargePotency =
 			ScaleSpec.chargePotency(casting.ChargeScaling, charge, casting.MinimumCharge, casting.MaximumCharge)
 	end
+	-- Blood magic: players only; the HP this cast costs is fixed now and
+	-- carried on this cast's copy for HealthPaid scaling.
+	local healthDue = healthCost(state, definition, charge)
+	if healthDue > 0 or BloodCostSpec.uses(definition.Cost) then
+		if castContext then
+			feedback(remote, player, "IMPOSSIBLE", definition, { Reason = BloodMagic.PlayersOnlyReason })
+			return
+		end
+		definition = table.clone(definition)
+		definition._HealthPaid = healthDue
+	end
 	local channelProjectile = definition.Form == "Projectile" and definition.Casting.Mode == "Channeled"
 	local persistentConstruct = definition.Form == "Construct" and definition.Lifetime.Mode == "Persistent"
 	if not stats or (not persistentConstruct and not hasCapacity(player, if channelProjectile then 2 else 1)) then
@@ -3161,6 +3205,11 @@ local function execute(
 	local mana, strain, complexity = costs(definition, charge, stats)
 	if CastingSpec.isHeldMode(definition.Casting.Mode) and stats.Mana < mana then
 		feedback(remote, player, "IMPOSSIBLE", definition, { Reason = "Not enough mana to begin the held spell" })
+		return
+	end
+	-- Checked here (nothing paid yet); paid below once every other cost is paid.
+	if not BloodMagic.canPay(state.Humanoid, healthDue) then
+		feedback(remote, player, "IMPOSSIBLE", definition, { Reason = BloodMagic.FloorReason })
 		return
 	end
 	local specialCosts = definition.Cost.SpecialResources or {}
@@ -3248,6 +3297,11 @@ local function execute(
 		paidSpecialResources = true
 		syncSpecialResourceAttributes(player)
 	end
+	-- Blood magic: health is set directly, never dealt as damage, before any
+	-- effect runs. Lab drafts skip it like mana unless held.
+	if healthDue > 0 and (not definition.Development or CastingSpec.isHeldMode(definition.Casting.Mode)) then
+		BloodMagic.pay(state.Humanoid, healthDue, setCasterHealth)
+	end
 	Summons.clearDismissal(player, definition.SpellId)
 	-- CooldownRate +50 recovers 1.5x faster; -50 takes twice as long.
 	local cooldownRate = math.max(0.01, AttributeSpec.multiplier(state.Humanoid, "CooldownRate"))
@@ -3274,7 +3328,7 @@ local function execute(
 	local origin = castContext and castContext.Origin or state.Root.Position + Vector3.new(0, 1.5, 0)
 	local commandCastId = if castContext
 			and castContext.CommandCast == true
-			and CompanionSpellPolicy.requiresCommandSlot(d)
+			and CompanionSpellPolicy.requiresCommandSlot(definition)
 		then castContext.CommandId
 		else nil
 	local function registerActiveEffect(effect)
@@ -5281,6 +5335,17 @@ RunService.Heartbeat:Connect(function(delta)
 		if manaRate > 0 or strainRate > 0 then
 			paid = stats ~= nil and LocusModel.upkeep(stats, manaRate, strainRate, step)
 		end
+		-- Blood upkeep ends the spell before a tick that would cross the floor.
+		local bloodRate = d.Cost.HealthPerSecond or 0
+		local bloodHumanoid = bloodRate > 0
+			and not spell.ResourceEnded
+			and spell.Caster
+			and spell.Caster:FindFirstChildOfClass("Humanoid")
+		if bloodHumanoid and paid and not BloodMagic.upkeep(bloodHumanoid, bloodRate, step, setCasterHealth) then
+			spell.ResourceEnded = true
+			spell.RemainingLifetime = 0
+			feedback(spell.Remote, spell.Player, "EXPIRED", d, { Reason = BloodMagic.UpkeepReason })
+		end
 		-- Exact depletion is also exhaustion even when the final payment was fully covered.
 		if not paid or (stats and manaRate > 0 and stats.Mana <= 0) then
 			spell.ResourceEnded = true
@@ -6129,6 +6194,21 @@ RunService.Heartbeat:Connect(function(delta)
 						StrainTolerance = stats and stats.StrainTolerance,
 					})
 				end
+			end
+			-- Blood upkeep on a toggled enchantment, paid by its owner.
+			local bloodRate = effect.Definition.Cost.HealthPerSecond or 0
+			local bloodPayer = effect.OwnerState or effect.State
+			if
+				bloodRate > 0
+				and not effect.IsChannel
+				and not effect.ResourceEnded
+				and now < effect.ExpiresAt
+				and bloodPayer.Humanoid
+				and not BloodMagic.upkeep(bloodPayer.Humanoid, bloodRate, delta, setCasterHealth)
+			then
+				effect.ResourceEnded = true
+				effect.ExpiresAt = now
+				feedback(effect.Remote, player, "EXPIRED", effect.Definition, { Reason = BloodMagic.UpkeepReason })
 			end
 			if not effect.EndConditionEnded and Conditions.endWhen(effect.Definition, effect, playerData[player]) then
 				effect.EndConditionEnded = true

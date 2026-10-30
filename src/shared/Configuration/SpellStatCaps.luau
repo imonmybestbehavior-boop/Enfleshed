@@ -49,6 +49,9 @@ return {
 		MinLensPotencyVsPlayers = 0.7,
 		MinLensSlowVsPlayers = 0.6,
 		MaxSpellForceDistance = 10,
+		-- Blood magic: PercentMax health cost per cast, and the HealthPaid scaling bonus.
+		MaxHealthCostPercent = 40,
+		MaxHealthPaidBonus = 0.5,
 	},
 	PvPRanked = {
 		DamageMultiplier = 0.5,
@@ -85,5 +88,7 @@ return {
 		MinLensPotencyVsPlayers = 0.8,
 		MinLensSlowVsPlayers = 0.7,
 		MaxSpellForceDistance = 6,
+		MaxHealthCostPercent = 30,
+		MaxHealthPaidBonus = 0.35,
 	},
 }

@@ -142,6 +142,14 @@ function SpellBar.new(gui: ScreenGui, openSpellbook: () -> ())
 			TextXAlignment = Enum.TextXAlignment.Right,
 			ZIndex = 5,
 		})
+		-- Blood magic: the slot's health cost, bottom left.
+		local healthCost = C.text(button, "", Theme.TextSize.Tiny, Color3.fromRGB(220, 72, 84), Theme.Font.Number, {
+			AnchorPoint = Vector2.new(0, 1),
+			Position = UDim2.new(0, 3, 1, -1),
+			Size = UDim2.fromOffset(40, 13),
+			TextXAlignment = Enum.TextXAlignment.Left,
+			ZIndex = 5,
+		})
 		button.Activated:Connect(function()
 			if not SpellState.Slots[index] and index <= SpellState.SlotLimit then
 				openSpellbook()
@@ -152,6 +160,7 @@ function SpellBar.new(gui: ScreenGui, openSpellbook: () -> ())
 			Glyph = glyphLabel,
 			Key = key,
 			Cost = cost,
+			HealthCost = healthCost,
 			Sweep = sweep,
 			Seconds = seconds,
 			Stroke = stroke,
@@ -247,10 +256,12 @@ function SpellBar.new(gui: ScreenGui, openSpellbook: () -> ())
 				slot.Glyph.Text = glyph(info.Name)
 				slot.Glyph.TextColor3 = info.Color or Color.Gold
 				slot.Cost.Text = if info.ManaCost > 0 then tostring(math.floor(info.ManaCost)) else ""
+				slot.HealthCost.Text = info.HealthCost or ""
 			else
 				slot.Glyph.Text = if locked then "✕" else "+"
 				slot.Glyph.TextColor3 = Color.Faint
 				slot.Cost.Text = ""
+				slot.HealthCost.Text = ""
 			end
 			slot.Button.BackgroundTransparency = if locked then 0.6 else Theme.Transparency.Panel
 			slot.Stroke.Color = if selected then Color.Gold else Color.Brass

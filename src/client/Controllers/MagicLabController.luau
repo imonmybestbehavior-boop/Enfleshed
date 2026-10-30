@@ -25,6 +25,7 @@ local SpecialResourceDefinitions = require(Shared.Configuration.MagicLocus).Spec
 local EnvironmentRequirementSpec = require(Shared.Modules.MagicEnvironmentRequirementSpec)
 local SpellIdentitySpec = require(Shared.Modules.MagicSpellIdentitySpec)
 local SpellTargetSpec = require(Shared.Modules.MagicSpellTargetSpec)
+local BloodCostSpec = require(Shared.Modules.MagicBloodCostSpec)
 local GamepadNav = require(script.Parent.Parent.UI.Kit.GamepadNav)
 local InputMode = require(script.Parent.Parent.UI.Kit.InputMode)
 local Responsive = require(script.Parent.Parent.UI.Kit.Responsive)
@@ -429,13 +430,14 @@ function Lab.start(send, aim, launcher)
 		local specialCostText = if #specialCostLabels > 0 then " · " .. table.concat(specialCostLabels, ", ") else ""
 		message(
 			string.format(
-				"ESTIMATE · mana %d · strain %d · complexity %d · cooldown %.2fs · while active: %g mana/s, %g strain/s%s\nServer checks unlocks and spell rank before equipping.",
-				cost.ManaDemand,
+				"ESTIMATE · %s · strain %d · complexity %d · cooldown %.2fs · while active: %g mana/s, %g strain/s%s%s\nServer checks unlocks and spell rank before equipping.",
+				BloodCostSpec.costLabel(cost),
 				cost.Strain,
 				cost.Complexity,
 				priced.Casting.Cooldown,
 				cost.ManaUpkeepPerSecond,
 				cost.StrainPerSecond,
+				if (cost.HealthPerSecond or 0) > 0 then ", " .. cost.HealthPerSecond .. " HP/s" else "",
 				specialCostText
 			),
 			true
@@ -3633,6 +3635,21 @@ function Lab.start(send, aim, launcher)
 					rebuildPreservingScroll()
 				end)
 				addBranch.Size = UDim2.fromOffset(110, 32)
+				-- "Stronger when you're hurt": the same step, only while the caster is below 50%.
+				local hurtRow = row("Add a branch that runs while you're hurt (caster health below 50%)")
+				local addHurt = button(hurtRow, if canAdd then "+ IF HURT" else "STEP LIMIT", function()
+					if not canAdd then
+						message(addReason or "No more actions can be added here.", false)
+						return
+					end
+					local added = if branchSource then Spec.copy(branchSource) else { Payloads = {} }
+					added.Condition = ActionFlow.casterHealthBelow(50)
+					table.insert(steps, added)
+					selectedStepByEvent[event] = #steps
+					estimate()
+					rebuildPreservingScroll()
+				end)
+				addHurt.Size = UDim2.fromOffset(110, 32)
 				if branchSource and branchSource.Condition then
 					local otherwiseCondition, otherwiseReason =
 						ActionFlow.otherwise(branchSource.Condition, ConditionSpec.MaxDepth)
@@ -4040,6 +4057,14 @@ function Lab.start(send, aim, launcher)
 												function(choice)
 													if choice == "None" then
 														value.ScaleBy = nil
+														return
+													end
+													if choice == "HealthPaid" then
+														-- Preset: x (1 + HP paid / 100), edited below.
+														value.ScaleBy = BloodCostSpec.paidScalePreset(
+															value.Amount or 0,
+															Config.MaxScaleBonus
+														)
 														return
 													end
 													local updated = value.ScaleBy or { PerUnit = 1, Max = 20 }
@@ -4559,12 +4584,71 @@ function Lab.start(send, aim, launcher)
 					"Ongoing Locus strain accumulated during the active lifetime."
 				)
 			end
+			heading("PAY WITH HEALTH")
+			info(
+				"Blood magic (players only). Paying health is not damage, and a cast is refused if it would leave you below "
+					.. math.floor(Config.BloodHealthFloor * 100 + 0.5)
+					.. "% health. Health scales with charge like mana.",
+				48
+			)
+			local sacrifice = draft.Cost.Health
+			select("Health sacrifice", if sacrifice then sacrifice.Mode else "None", {
+				"None",
+				"Flat",
+				"PercentMax",
+			}, function(value)
+				if value == "None" then
+					draft.Cost.Health = nil
+				elseif sacrifice then
+					sacrifice.Mode = value
+					sacrifice.Amount = math.min(
+						sacrifice.Amount,
+						if value == "Flat" then Config.MaxFlatHealthCost else Config.MaxPercentHealthCost
+					)
+				else
+					draft.Cost.Health = { Mode = value, Amount = if value == "Flat" then 20 else 10 }
+				end
+			end, function(value)
+				return if value == "PercentMax" then "% of max health" elseif value == "Flat" then "Flat HP" else "None"
+			end, "Health paid on top of the mana cost each cast; HealthPaid scaling grows with it.")
+			if draft.Cost.Health then
+				numeric(
+					if draft.Cost.Health.Mode == "Flat" then "Health cost (HP)" else "Health cost (% of max)",
+					draft.Cost.Health,
+					"Amount",
+					if draft.Cost.Health.Mode == "Flat"
+						then "Allowed: 1 to " .. Config.MaxFlatHealthCost
+						else "Allowed: 1 to "
+							.. Config.MaxPercentHealthCost
+							.. ". Against players: at most 40% (30% ranked)."
+				)
+			end
+			numeric(
+				"Mana paid with health (%)",
+				draft.Cost,
+				"HealthForMana",
+				"0 to 100. Each mana replaced costs "
+					.. Config.HealthPerMana
+					.. " HP, so health is always the worse rate."
+			)
+			if draft.Lifetime.Mode ~= "Instantaneous" then
+				numeric(
+					"Health per second",
+					draft.Cost,
+					"HealthPerSecond",
+					"Channelled, sustained or toggled spells only. Allowed: "
+						.. Config.MinHealthPerSecond
+						.. " to "
+						.. Config.MaxHealthPerSecond
+						.. "; the spell ends itself before a tick would cross the health floor. Clear for none."
+				)
+			end
 			local cost = Spec.estimate(draft)
 			heading("SERVER-ESTIMATED CAST DEMAND")
 			info(
 				string.format(
-					"Estimated per cast: %d mana · %d strain · complexity %d\nWhile active: %g mana/s · %g strain/s\nThese are authored spell estimates; caster state and target defenses still affect actual results.",
-					cost.ManaDemand,
+					"Estimated per cast: %s · %d strain · complexity %d\nWhile active: %g mana/s · %g strain/s\nThese are authored spell estimates; caster state and target defenses still affect actual results.",
+					BloodCostSpec.costLabel(cost),
 					cost.Strain,
 					cost.Complexity,
 					cost.ManaUpkeepPerSecond or 0,

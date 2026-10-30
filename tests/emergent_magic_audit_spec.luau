@@ -307,6 +307,7 @@ local sharedModules = {
 	MagicSpellTargetSpec = load("src/shared/Modules/MagicSpellTargetSpec.luau"),
 	MagicDispelSpec = load("src/shared/Modules/MagicDispelSpec.luau"),
 	MagicSpellLensSpec = load("src/shared/Modules/MagicSpellLensSpec.luau"),
+	MagicBloodCostSpec = load("src/shared/Modules/MagicBloodCostSpec.luau"),
 }
 sharedModules.SpellStatCaps = assert(loadfile(
 	"src/shared/Modules/SpellStatCaps.luau",
@@ -393,6 +394,7 @@ local serverEnv = setmetatable({
 						MagicSpellTargetSpec = "MagicSpellTargetSpec",
 						MagicDispelSpec = "MagicDispelSpec",
 						MagicSpellLensSpec = "MagicSpellLensSpec",
+						MagicBloodCostSpec = "MagicBloodCostSpec",
 					},
 					Configuration = {
 						MagicLab = "MagicLab",
@@ -433,6 +435,7 @@ local BehaviorExec = loadServer("MagicBehaviorExecutors")
 TransformService = loadServer("MagicTransformService")
 local PayloadExec = loadServer("MagicPayloadExecutors")
 local SpellTargetsRuntime = loadServer("MagicSpellTargets")
+local BloodRuntime = loadServer("MagicBloodMagic")
 -- Spell vs Spell world for the harness: live spell entries and how ending one
 -- behaves (MagicService: OnDispelled once, or a Tether snap, then removal).
 local spellWorld = { Entries = {}, Complexity = 0, CasterUserId = 1 }
@@ -548,6 +551,8 @@ local function makeContext(definition, caster, position, targets, depth, budget)
 			return humanoid.Health / humanoid.MaxHealth
 		elseif source == "TriggerCount" then
 			return ctx.SpellState and ctx.SpellState.TriggerCount
+		elseif source == "HealthPaid" then
+			return definition._HealthPaid or 0 -- set on the cast's copy when health is paid
 		end
 		return nil
 	end
@@ -2635,6 +2640,103 @@ do
 		"the older parry intercepts; the absorb is untouched"
 	)
 	casterHumanoid.Health = casterHumanoid.MaxHealth
+
+	-- Blood magic: health as a cost (MagicBloodMagic, as MagicService pays it).
+	local function setHealth(humanoid, value)
+		humanoid.Health = value
+	end
+	local sacrifice = { ManaDemand = 10, Health = { Mode = "Flat", Amount = 30 } }
+	casterHumanoid.Health = casterHumanoid.MaxHealth
+	local due = BloodRuntime.quote(sacrifice, casterHumanoid.MaxHealth, 1)
+	local paid = BloodRuntime.pay(casterHumanoid, due, setHealth)
+	check(
+		"BLOOD",
+		"CAPABILITY",
+		due == 30 and paid == 30 and casterHumanoid.Health == casterHumanoid.MaxHealth - 30,
+		"a flat 30 HP spell takes exactly 30 HP and casts"
+	)
+	casterHumanoid.Health = casterHumanoid.MaxHealth * 0.1 + 20 -- 30 HP would cross the floor
+	local before = casterHumanoid.Health
+	check(
+		"BLOOD",
+		"CAPABILITY",
+		BloodRuntime.pay(casterHumanoid, due, setHealth) == nil and casterHumanoid.Health == before,
+		"a cast that would leave the caster below 10% is refused and nothing is paid"
+	)
+	-- Paying is not damage: a held parry and a 50% redirect link never fire.
+	resetWorld({ vec(4, 0, 0) }, 100)
+	table.clear(deals)
+	casterHumanoid.Health, allyHumanoid.Health = casterHumanoid.MaxHealth, allyHumanoid.MaxHealth
+	held = {
+		{ Definition = parry, Holder = casterHumanoid, Owner = casterHumanoid, At = 1 },
+		{ Definition = mirror, Holder = casterHumanoid, Owner = allyHumanoid, At = 2 },
+	}
+	local opsBefore = damageOps
+	BloodRuntime.pay(casterHumanoid, 30, setHealth)
+	check(
+		"BLOOD",
+		"CAPABILITY",
+		damageOps == opsBefore
+			and #deals == 0
+			and held[1].InterceptionState == nil
+			and held[1].Ended == nil
+			and held[2].InterceptionState == nil
+			and allyHumanoid.Health == allyHumanoid.MaxHealth
+			and totalDamageTo("Caster") == 0,
+		"paying health is not damage: no Interception parry, no 50% link share, no damage events"
+	)
+	casterHumanoid.Health = casterHumanoid.MaxHealth
+	-- HealthPaid scaling: 40 HP paid -> x1.4 damage.
+	local sacrificeBolt = draft("Projectile", "Energy", function(d)
+		d.Cost.Health = { Mode = "Flat", Amount = 40 }
+		d.Triggers = {
+			OnImpact = {
+				{
+					Payloads = {
+						payload(
+							"Damage",
+							{ Amount = 50, ScaleBy = { Source = "HealthPaid", PerUnit = 0.5, Max = 50 } }
+						),
+					},
+				},
+			},
+		}
+	end)
+	local boltOk, boltReason = validates(sacrificeBolt)
+	check("BLOOD", "CAPABILITY", boltOk, "a sacrifice bolt validates: " .. tostring(boltReason))
+	local cast = table.clone(sacrificeBolt)
+	cast._HealthPaid = BloodRuntime.quote(cast.Cost, casterHumanoid.MaxHealth, 1)
+	local bloodFoes = resetWorld({ vec(4, 0, 0) }, 200)
+	emit(cast, "OnImpact", caster, vec(4, 0, 0), { bloodFoes[1] }, 0)
+	check("BLOOD", "CAPABILITY", totalDamageTo("Enemy1") == 70, "paying 40 HP gives x1.4 damage (50 -> 70)")
+	-- Health upkeep: a channel ends by itself at the floor.
+	casterHumanoid.Health = casterHumanoid.MaxHealth * 0.1 + 50
+	local ticks = 0
+	while BloodRuntime.upkeep(casterHumanoid, 10, 1, setHealth) and ticks < 100 do
+		ticks += 1
+	end
+	check(
+		"BLOOD",
+		"CAPABILITY",
+		ticks == 5 and math.abs(casterHumanoid.Health - casterHumanoid.MaxHealth * 0.1) < 1e-6,
+		"a health-per-second channel ends by itself at the 10% floor"
+	)
+	casterHumanoid.Health = casterHumanoid.MaxHealth
+	-- Fully blood-powered: 0 mana and twice its mana value in HP.
+	local bloodOnly = draft("Projectile", "Energy", function(d)
+		d.Cost.HealthForMana = 100
+		d.Triggers = { OnImpact = { { Payloads = { payload("Damage", { Amount = 20 }) } } } }
+	end)
+	local priced = spec.estimate(bloodOnly)
+	bloodOnly.Cost.ManaDemand = priced.ManaDemand
+	check(
+		"BLOOD",
+		"CAPABILITY",
+		priced.ManaPaid == 0
+			and priced.HealthFromMana == 2 * priced.ManaDemand
+			and BloodRuntime.quote(bloodOnly.Cost, casterHumanoid.MaxHealth, 1) == 2 * priced.ManaDemand,
+		"a fully blood-powered spell costs 0 mana and twice its mana value in HP"
+	)
 
 	-- Construct pulse: a turret Construct spawns a Projectile on each pulse.
 	local bolt = spec.defaultSpawnEffect("Projectile")

@@ -59,6 +59,12 @@ Spec.Sources = {
 			return math.clamp(raw * 100, 0, 100) -- raw: charge fraction (0..1)
 		end,
 	},
+	HealthPaid = {
+		Label = "Health paid (HP)",
+		Units = function(raw: number): number
+			return math.max(0, raw) -- raw: HP paid at cast (blood magic)
+		end,
+	},
 }
 Spec.SourceOrder = {
 	"TargetMissingHealthPercent",
@@ -67,6 +73,7 @@ Spec.SourceOrder = {
 	"AreaOccupants",
 	"TriggerCount",
 	"ChargePercent",
+	"HealthPaid",
 }
 
 local function finite(value: any): boolean

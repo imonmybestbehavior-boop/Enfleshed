@@ -169,4 +169,18 @@ do
 	assert(Profiles.PvE.MinLensPotencyVsPlayers == nil and Profiles.PvE.MaxSpellForceDistance == nil)
 end
 
+-- Blood magic: PercentMax health cost per cast and the HealthPaid bonus.
+do
+	local Blood = assert(loadfile("src/shared/Modules/MagicBloodCostSpec.luau"))()
+	assert(open.MaxHealthCostPercent == 40 and ranked.MaxHealthCostPercent == 30)
+	assert(open.MaxHealthPaidBonus == 0.5 and ranked.MaxHealthPaidBonus == 0.35)
+	for _, profile in { open, ranked } do
+		local sacrifice = Blood.sacrifice({ Mode = "PercentMax", Amount = 40 }, 100, profile.MaxHealthCostPercent)
+		assert(sacrifice == profile.MaxHealthCostPercent, "PercentMax health cost capped per cast")
+		-- 50 damage, 100 HP paid at +1%/HP would be 100: the PvP bonus cap holds it back.
+		assert(Blood.capPaidBonus(50, 100, profile.MaxHealthPaidBonus) == 50 * (1 + profile.MaxHealthPaidBonus))
+	end
+	assert(Profiles.PvE.MaxHealthCostPercent == nil and Profiles.PvE.MaxHealthPaidBonus == nil)
+end
+
 print("Spell stat caps: profile selection, PvE identity, potency-aware payload caps and damage caps passed")

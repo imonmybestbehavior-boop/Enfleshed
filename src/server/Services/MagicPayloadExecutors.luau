@@ -18,6 +18,7 @@ local StatCaps = require(game:GetService("ReplicatedStorage").Shared.Modules.Spe
 local CapProfiles = require(game:GetService("ReplicatedStorage").Shared.Configuration.SpellStatCaps)
 local Schema = require(game:GetService("ReplicatedStorage").Shared.Configuration.MagicSchema)
 local ScaleSpec = require(game:GetService("ReplicatedStorage").Shared.Modules.MagicScaleSpec)
+local BloodCostSpec = require(game:GetService("ReplicatedStorage").Shared.Modules.MagicBloodCostSpec)
 local CrowdControl = require(game:GetService("ReplicatedStorage").Shared.Modules.MagicCrowdControlSpec)
 local OperationBudget = require(game:GetService("ReplicatedStorage").Shared.Modules.MagicOperationBudget)
 local HealSpec = require(game:GetService("ReplicatedStorage").Shared.Modules.MagicHealSpec)
@@ -191,6 +192,11 @@ local function scaledAmount(payload, context, humanoid): number
 			return context.ScaleRead(source, humanoid, element)
 		end)
 		amount = ScaleSpec.amount(amount, payload.ScaleBy, units)
+		-- PvP: the HealthPaid bonus is at most MaxHealthPaidBonus of the authored amount.
+		local profile = context.CapProfile
+		if payload.ScaleBy.Source == "HealthPaid" and profile and profile.MaxHealthPaidBonus then
+			amount = BloodCostSpec.capPaidBonus(payload.Amount, amount, profile.MaxHealthPaidBonus)
+		end
 	end
 	-- Ratio modes on Heal and Shield (MagicHealSpec): Amount becomes a percent.
 	if (payload.Kind == "Heal" or payload.Kind == "Shield") and payload.Mode and payload.Mode ~= "Flat" then

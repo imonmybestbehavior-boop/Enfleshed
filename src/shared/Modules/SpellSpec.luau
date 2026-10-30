@@ -24,6 +24,7 @@ local SpellIdentitySpec = require(script.Parent.MagicSpellIdentitySpec)
 local TriggerSpec = require(script.Parent.MagicTriggerSpec)
 local AttributeSpec = require(script.Parent.MagicAttributeSpec)
 local ScaleSpec = require(script.Parent.MagicScaleSpec)
+local BloodCostSpec = require(script.Parent.MagicBloodCostSpec)
 local Spec = {}
 Spec.Principles = Schema.Principles
 Spec.PresentationProfiles = Schema.PresentationProfiles
@@ -1322,11 +1323,34 @@ function Spec.validate(d, spawnNesting: number?)
 			return false, "Invalid presentation color"
 		end
 	end
-	if not keys(d.Cost, { ManaDemand = true, Strain = true, Complexity = true, SpecialResources = true }) then
+	if
+		not keys(d.Cost, {
+			ManaDemand = true,
+			Strain = true,
+			Complexity = true,
+			SpecialResources = true,
+			Health = true,
+			HealthForMana = true,
+			HealthPerSecond = true,
+		})
+	then
 		return false, "Invalid cost data"
 	end
+	-- Blood magic: health as a cost (MagicBloodCostSpec). Upkeep in health only
+	-- for spells that stay active while held or toggled.
+	local bloodValid, bloodReason = BloodCostSpec.validate(d.Cost, Limits)
+	if not bloodValid then
+		return false, bloodReason
+	end
+	if
+		d.Cost.HealthPerSecond ~= nil
+		and not CastingSpec.isHeldMode(c.Mode)
+		and not (d.Lifetime and d.Lifetime.Mode == "UntilToggledOff")
+	then
+		return false, "Health per second needs a channelled, sustained or toggled spell"
+	end
 	for key, v in pairs(d.Cost) do
-		if key == "SpecialResources" then
+		if key == "SpecialResources" or key == "Health" or key == "HealthForMana" or key == "HealthPerSecond" then
 			continue
 		end
 		if not bounded(v, 0, 100000) then
@@ -1932,8 +1956,15 @@ function Spec.estimate(d)
 		end
 	end
 	cost += spawnedMana
+	-- Blood magic: ManaDemand stays the full price (rank limits, Locus safety);
+	-- ManaPaid is what is spent in mana once health replaces its share.
+	local manaPaid, healthFromMana = BloodCostSpec.split(cost, d.Cost and d.Cost.HealthForMana, Limits.HealthPerMana)
 	return {
 		ManaDemand = cost,
+		ManaPaid = manaPaid,
+		HealthFromMana = healthFromMana,
+		HealthCost = d.Cost and d.Cost.Health,
+		HealthPerSecond = d.Cost and d.Cost.HealthPerSecond or 0,
 		Strain = math.ceil(cost * 0.28 + burstStrength * math.sqrt(fanout) * 0.12 + controlWeight * 0.6),
 		Complexity = spawnedComplexity + math.ceil(
 			1

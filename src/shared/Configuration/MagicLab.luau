@@ -55,6 +55,13 @@ return {
 	MaxDispelSeconds = 30,
 	MaxSpellForceDistance = 10,
 	TetherDispelWidth = 2,
+	-- Blood magic (health as a spell cost), provisional. MagicBloodCostSpec.
+	BloodHealthFloor = 0.1, -- a cast or upkeep tick never leaves the caster below this fraction of max health
+	HealthPerMana = 2, -- HP paid per mana replaced (health is always the worse rate)
+	MaxFlatHealthCost = 100,
+	MaxPercentHealthCost = 40,
+	MinHealthPerSecond = 0.5,
+	MaxHealthPerSecond = 10,
 	-- Tether Form, provisional.
 	MinTetherLength = 10,
 	MaxTetherLength = 60,

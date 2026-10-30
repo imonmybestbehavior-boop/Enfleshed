@@ -21,6 +21,8 @@ local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
 local ProjectileBehaviorSpec = require(Shared.Modules.ProjectileBehaviorSpec)
 local SpellIdentitySpec = require(Shared.Modules.MagicSpellIdentitySpec)
 local SpellTargetSpec = require(Shared.Modules.MagicSpellTargetSpec)
+local BloodCostSpec = require(Shared.Modules.MagicBloodCostSpec)
+local Limits = require(Shared.Configuration.MagicLab)
 local SpellVisual = require(script.Parent.GrimoireSpellVisual)
 local PreviewPanel = require(script.Parent.ForgePreviewPanel)
 
@@ -485,6 +487,7 @@ function Forge.mount(parent, draft, schema, spec, callbacks)
 	local strainValue = stat("STRAIN", C.Ember)
 	local complexityValue = stat("COMPLEXITY", C.Arcane)
 	local upkeepValue, upkeepHolder = stat("UPKEEP / S", C.Warn)
+	local healthValue, healthHolder = stat("HEALTH", Color3.fromRGB(220, 72, 84))
 
 	------------------------------------------------------------------ layout
 	local function layout()
@@ -2238,6 +2241,77 @@ function Forge.mount(parent, draft, schema, spec, callbacks)
 					Help = "How long it remains before it ends.",
 				})
 			end
+			if isRoot then
+				section("PAY WITH HEALTH")
+				local bloodCost = draft.Cost
+				local sacrifice = bloodCost.Health
+				choiceField(
+					"Health sacrifice",
+					"Blood magic, players only. Paying health is not damage, and a cast is refused if it would leave you below "
+						.. math.floor(Limits.BloodHealthFloor * 100 + 0.5)
+						.. "% health.",
+					{ "None", "Flat", "PercentMax" },
+					if sacrifice then sacrifice.Mode else "None",
+					function(choice)
+						if choice == "None" then
+							bloodCost.Health = nil
+						elseif sacrifice then
+							sacrifice.Mode = choice
+							sacrifice.Amount = math.min(
+								sacrifice.Amount,
+								if choice == "Flat" then Limits.MaxFlatHealthCost else Limits.MaxPercentHealthCost
+							)
+						else
+							bloodCost.Health = { Mode = choice, Amount = if choice == "Flat" then 20 else 10 }
+						end
+					end,
+					function(choice)
+						return if choice == "PercentMax"
+							then "% OF MAX"
+							elseif choice == "Flat" then "FLAT HP"
+							else "NONE"
+					end
+				)
+				if sacrifice then
+					numberField(sacrifice, {
+						Key = "Amount",
+						Label = if sacrifice.Mode == "Flat" then "Health cost (HP)" else "Health cost (% of max)",
+						Min = 1,
+						Max = if sacrifice.Mode == "Flat"
+							then Limits.MaxFlatHealthCost
+							else Limits.MaxPercentHealthCost,
+						Integer = true,
+						Help = "Scales with charge like mana. Against players: at most 40% of max (30% ranked).",
+					})
+				end
+				numberField(bloodCost, {
+					Key = "HealthForMana",
+					Label = "Mana paid with health (%)",
+					Min = 0,
+					Max = 100,
+					Integer = true,
+					Help = "Each mana replaced costs "
+						.. Limits.HealthPerMana
+						.. " HP, so health is always the worse rate.",
+				})
+				local casting = draft.Casting
+				if
+					casting.Mode == "Channeled"
+					or casting.Mode == "Sustained"
+					or (draft.Lifetime and draft.Lifetime.Mode == "UntilToggledOff")
+				then
+					numberField(bloodCost, {
+						Key = "HealthPerSecond",
+						Label = "Health per second",
+						Min = Limits.MinHealthPerSecond,
+						Max = Limits.MaxHealthPerSecond,
+						Help = "Paid while it stays active; it ends itself before a tick would cross the health floor.",
+					})
+				end
+				if BloodCostSpec.uses(bloodCost) then
+					note("COSTS · " .. BloodCostSpec.costLabel(spec.estimate(draft)) .. " per cast.", C.Muted)
+				end
+			end
 			if scope.Form == "Projectile" and scope.Projectile then
 				section("MOVEMENT BEHAVIOR")
 				if #(scope.Projectile.Behaviors or {}) == 0 then
@@ -2465,6 +2539,30 @@ function Forge.mount(parent, draft, schema, spec, callbacks)
 			end
 			section("PROPERTIES")
 			fieldGroup(payload, definition.Fields, "payload:" .. payload.Kind)
+			local scalable = payload.Kind == "Damage"
+				or payload.Kind == "DamageOverTime"
+				or payload.Kind == "Heal"
+				or payload.Kind == "Shield"
+			if
+				scalable
+				and BloodCostSpec.uses(draft.Cost)
+				and (payload.ScaleBy == nil or payload.ScaleBy.Source == "HealthPaid")
+			then
+				choiceField(
+					"Grows with health paid",
+					"x (1 + HP paid / 100), up to double. Against players the bonus is at most +50% (+35% ranked).",
+					{ false, true },
+					payload.ScaleBy ~= nil,
+					function(choice)
+						payload.ScaleBy = if choice
+							then BloodCostSpec.paidScalePreset(payload.Amount or 0, Limits.MaxScaleBonus)
+							else nil
+					end,
+					function(choice)
+						return if choice then "ON" else "OFF"
+					end
+				)
+			end
 			section("")
 			removeButton("Remove this effect", function()
 				local index = table.find(s.Step.Payloads, payload)
@@ -2577,7 +2675,11 @@ function Forge.mount(parent, draft, schema, spec, callbacks)
 			then "Ready to test. Every action here is supported by the spell engine."
 			else "Needs attention: " .. tostring(reason)
 		statusText.TextColor3 = if ok then C.Ok else C.Warn
-		manaValue.Text = fmt(cost.ManaDemand or 0)
+		manaValue.Text = fmt(cost.ManaPaid or cost.ManaDemand or 0)
+		-- Blood magic: the health part of the cost line ("20 mana + 30 HP").
+		local healthPart = string.match(BloodCostSpec.costLabel(cost), "^.- mana %+ (.+)$")
+		healthValue.Text = healthPart or ""
+		healthHolder.Visible = healthPart ~= nil
 		strainValue.Text = fmt(cost.Strain or 0)
 		complexityValue.Text = fmt(cost.Complexity or 0)
 		upkeepValue.Text = fmt(cost.ManaUpkeepPerSecond or 0)

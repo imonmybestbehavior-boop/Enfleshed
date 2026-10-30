@@ -147,6 +147,14 @@ function Policy.classify(definition)
 	then
 		return nil, "Companions support Instant, charged, bounded Channeled, or CommandCast spells"
 	end
+	-- Blood magic (MagicBloodCostSpec.uses) is for players only.
+	local cost = definition.Cost
+	if
+		type(cost) == "table"
+		and (cost.Health ~= nil or (cost.HealthForMana or 0) > 0 or (cost.HealthPerSecond or 0) > 0)
+	then
+		return nil, "Companions cannot pay with health; blood magic is for players only"
+	end
 	if definition.Form == "SelfEnhancement" then
 		return classifyEnchantment(definition)
 	end

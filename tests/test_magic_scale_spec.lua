@@ -38,6 +38,7 @@ local raw = {
 	AreaOccupants = 4,
 	TriggerCount = 6,
 	ChargePercent = 0.6, -- charge fraction -> 60 units
+	HealthPaid = 40, -- HP paid at cast
 }
 local expected = {
 	TargetMissingHealthPercent = 75,
@@ -46,6 +47,7 @@ local expected = {
 	AreaOccupants = 4,
 	TriggerCount = 6,
 	ChargePercent = 60,
+	HealthPaid = 40,
 }
 for _, source in ipairs(Spec.SourceOrder) do
 	local seenElement
@@ -129,4 +131,17 @@ assert(
 assert(
 	not Spec.validateChargeScaling({ MinPotency = 1, MaxPotency = 1, MaxExtraProjectiles = -1 }, true, "Projectile", 3)
 )
+-- HealthPaid (blood magic): units are the HP paid at cast.
+assert(Spec.Sources.HealthPaid and table.find(Spec.SourceOrder, "HealthPaid"))
+local paidScale = { Source = "HealthPaid", PerUnit = 0.5, Max = 50 }
+assert(Spec.amount(
+	50,
+	paidScale,
+	Spec.units(paidScale, function()
+		return 40
+	end)
+) == 70, "50 damage, 40 HP paid -> x1.4")
+assert(Spec.validateScaleBy(paidScale, "Damage", 100, function()
+	return false
+end))
 print("Magic scale spec: charge potency mapping, ScaleBy sources, amounts and validation passed")
